@@ -22,6 +22,22 @@ class EventOrderCounter(Base):
     next_number = Column(Integer, nullable=False, default=1)
 
 
+class EventPickupCounter(Base):
+    """Per-event monotonic pickup code number sequence for cash-register orders."""
+
+    __tablename__ = "event_pickup_counters"
+    event_id = Column(Integer, primary_key=True)
+    next_number = Column(Integer, nullable=False, default=1)
+
+
+class RegisterDisplayState(Base):
+    __tablename__ = "register_display_states"
+    cash_register_uuid = Column(String(36), primary_key=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    payload_json = Column(Text, nullable=False, default="{}")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class CollectiveBill(Base):
     __tablename__ = "collective_bills"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -39,6 +55,12 @@ class LocalOrder(Base):
     table_number = Column(Integer, nullable=True, index=True)
     collective_bill_id = Column(Integer, nullable=True, index=True)
     waiter_uuid = Column(String(36), nullable=True)
+    order_source = Column(String(32), nullable=False, default="waiter")
+    cash_register_uuid = Column(String(36), nullable=True, index=True)
+    pickup_code = Column(String(16), nullable=True, index=True)
+    pickup_status = Column(String(16), nullable=True, index=True)  # pending | ready | picked_up
+    ready_at = Column(DateTime(timezone=True), nullable=True)
+    picked_up_at = Column(DateTime(timezone=True), nullable=True)
     payment_status = Column(String(16), nullable=False, default="open")  # open | paid
     payload_json = Column(Text, nullable=False)
     print_status = Column(String(32), nullable=False, default="pending")  # pending | done | error

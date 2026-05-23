@@ -16,6 +16,7 @@ from ..models import (
     Event,
     EventAppLayout,
     EventAppLayoutCell,
+    EventCashRegister,
     EventArticleStock,
     EventStation,
     Organisation,
@@ -146,6 +147,7 @@ class LayoutCellRead(BaseModel):
 
 class AppLayoutRead(BaseModel):
     id: int
+    uuid: str
     name: str | None
     is_default: bool
     grid_width: int
@@ -153,10 +155,20 @@ class AppLayoutRead(BaseModel):
     cells: List[LayoutCellRead]
 
 
+class CashRegisterRead(BaseModel):
+    uuid: str
+    name: str
+    sort_order: int
+    pickup_code_prefix: str
+    layout_uuid: str
+    receipt_printer_appliance_id: int | None
+
+
 class EventConfigurationRead(BaseModel):
     stations: List[StationConfigRead]
     event_waiters: List[EventWaiterConfigRead]
     app_layouts: List[AppLayoutRead]
+    cash_registers: List[CashRegisterRead]
     printer_options: List[PrinterOptionRead]
 
 
@@ -184,6 +196,7 @@ class LayoutCellIn(BaseModel):
 
 
 class AppLayoutIn(BaseModel):
+    uuid: str | None = None
     name: str | None = None
     is_default: bool = False
     grid_width: int = Field(..., ge=1, le=64)
@@ -191,10 +204,19 @@ class AppLayoutIn(BaseModel):
     cells: List[LayoutCellIn] = Field(default_factory=list)
 
 
+class CashRegisterIn(BaseModel):
+    uuid: str | None = None
+    name: str = Field(..., min_length=1)
+    pickup_code_prefix: str = Field(..., min_length=1, max_length=3)
+    layout_uuid: str = Field(..., min_length=1)
+    receipt_printer_appliance_id: int | None = None
+
+
 class EventConfigurationIn(BaseModel):
     stations: List[StationConfigIn] = Field(default_factory=list)
     event_waiters: List[EventWaiterConfigIn] = Field(default_factory=list)
     app_layouts: List[AppLayoutIn] = Field(default_factory=list)
+    cash_registers: List[CashRegisterIn] = Field(default_factory=list)
 
 
 def event_response(event: Event) -> dict:
@@ -266,6 +288,7 @@ def get_event_for_configuration(db: Session, current_user: User, event_id: int) 
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.cash_registers),
         )
         .filter(Event.id == event_id)
         .first()
@@ -317,6 +340,7 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
         app_layouts.append(
             AppLayoutRead(
                 id=lo.id,
+                uuid=lo.uuid,
                 name=lo.name,
                 is_default=bool(lo.is_default),
                 grid_width=lo.grid_width,
@@ -324,10 +348,22 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
                 cells=cells,
             )
         )
+    cash_registers = [
+        CashRegisterRead(
+            uuid=reg.uuid,
+            name=reg.name,
+            sort_order=reg.sort_order,
+            pickup_code_prefix=reg.pickup_code_prefix,
+            layout_uuid=reg.layout_uuid,
+            receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
+        )
+        for reg in sorted(event.cash_registers, key=lambda r: (r.sort_order, r.id))
+    ]
     return EventConfigurationRead(
         stations=stations,
         event_waiters=event_waiters,
         app_layouts=app_layouts,
+        cash_registers=cash_registers,
         printer_options=printer_options,
     )
 
@@ -665,6 +701,7 @@ def put_event_configuration(
             stations_in=body.stations,
             event_waiters_in=body.event_waiters,
             app_layouts_in=body.app_layouts,
+            cash_registers_in=body.cash_registers,
         )
         db.commit()
     except HTTPException:

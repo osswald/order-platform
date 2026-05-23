@@ -57,7 +57,8 @@
                 Bestellung #{{ ticket.order_number || ticket.id }}
               </div>
               <div class="muted">
-                Tisch {{ ticket.table_number || '—' }}
+                <template v-if="ticket.pickup_code">Pickup {{ ticket.pickup_code }}</template>
+                <template v-else>Tisch {{ ticket.table_number || '—' }}</template>
                 <span v-if="ticket.waiter_name"> · {{ ticket.waiter_name }}</span>
               </div>
             </div>

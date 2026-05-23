@@ -99,6 +99,12 @@ class Event(Base):
     )
     event_waiters = relationship("EventWaiter", back_populates="event", cascade="all, delete-orphan")
     app_layouts = relationship("EventAppLayout", back_populates="event", cascade="all, delete-orphan")
+    cash_registers = relationship(
+        "EventCashRegister",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventCashRegister.sort_order",
+    )
 
 
 class Waiter(Base):
@@ -208,6 +214,13 @@ class EventWaiter(Base):
 class EventAppLayout(Base):
     __tablename__ = "event_app_layouts"
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid_lib.uuid4()),
+    )
     event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=True)
     is_default = Column(Boolean, nullable=False, default=False)
@@ -219,6 +232,26 @@ class EventAppLayout(Base):
         back_populates="layout",
         cascade="all, delete-orphan",
     )
+
+
+class EventCashRegister(Base):
+    __tablename__ = "event_cash_registers"
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid_lib.uuid4()),
+    )
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    pickup_code_prefix = Column(String(3), nullable=False)
+    layout_uuid = Column(String(36), nullable=False)
+    receipt_printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
+    event = relationship("Event", back_populates="cash_registers")
+    receipt_printer_appliance = relationship("Appliance", foreign_keys=[receipt_printer_appliance_id])
 
 
 class EventCollectiveBill(Base):

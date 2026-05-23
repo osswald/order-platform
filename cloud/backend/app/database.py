@@ -109,10 +109,24 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_stations ADD COLUMN kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE event_stations ADD COLUMN IF NOT EXISTS kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _ensure_event_cash_registers_table()
     _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")
+    _patch_entity_uuids("event_app_layouts")
     _relax_appliances_organisation_id()
+
+
+def _ensure_event_cash_registers_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_cash_registers" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventCashRegister
+
+    EventCashRegister.__table__.create(bind=engine, checkfirst=True)
 
 
 def _backfill_baseline_in_stock() -> None:

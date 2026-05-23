@@ -168,6 +168,57 @@
             </div>
           </div>
         </TabPanel>
+
+        <TabPanel header="Kassen">
+          <div class="section-toolbar">
+            <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
+          </div>
+          <div v-for="(reg, ri) in cashRegistersLocal" :key="'reg-' + ri" class="config-card">
+            <div class="config-card-header">
+              <span>{{ reg.name || 'Unbenannte Kasse' }}</span>
+              <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeCashRegister(ri)" />
+            </div>
+            <div class="field-row">
+              <div class="form-field">
+                <label>Name</label>
+                <InputText v-model="reg.name" placeholder="z. B. Hauptkasse" />
+              </div>
+              <div class="form-field">
+                <label>Pickup-Code Buchstaben</label>
+                <InputText
+                  :modelValue="reg.pickup_code_prefix"
+                  maxlength="3"
+                  placeholder="A"
+                  @update:modelValue="(v) => { reg.pickup_code_prefix = normalizePickupPrefix(v) }"
+                />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="form-field">
+                <label>Layout</label>
+                <Select
+                  v-model="reg.layout_uuid"
+                  :options="layoutOptions"
+                  optionLabel="name"
+                  optionValue="value"
+                  placeholder="Layout wählen"
+                />
+              </div>
+              <div class="form-field">
+                <label>Kundendrucker</label>
+                <Select
+                  v-model="reg.receipt_printer_appliance_id"
+                  :options="printerOptions"
+                  optionLabel="name"
+                  optionValue="id"
+                  placeholder="Kein Drucker"
+                  showClear
+                />
+              </div>
+            </div>
+          </div>
+          <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
+        </TabPanel>
       </TabView>
 
       <div class="config-save">
@@ -272,6 +323,7 @@ const printerOptions = ref([])
 const stationsLocal = ref([])
 const waitersLocal = ref([])
 const layoutsLocal = ref([])
+const cashRegistersLocal = ref([])
 const articlesRaw = ref([])
 const waitersOrg = ref([])
 
@@ -302,6 +354,22 @@ const articleOptions = computed(() => {
 const waiterOptions = computed(() =>
   waitersOrg.value.map((w) => ({ label: w.name, value: w.id })),
 )
+
+const layoutOptions = computed(() =>
+  layoutsLocal.value.map((lo, idx) => ({
+    name: lo.name?.trim() || `Layout ${idx + 1}`,
+    value: lo.uuid,
+  })),
+)
+
+function newUuid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function normalizePickupPrefix(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
+}
 
 function gridPositions(lo) {
   const out = []
@@ -369,6 +437,7 @@ function treeSelectionToArticleIds(sel) {
 function ensureDefaultLayout() {
   if (!layoutsLocal.value.length) {
     layoutsLocal.value.push({
+      uuid: newUuid(),
       name: 'Standard',
       is_default: true,
       grid_width: 4,
@@ -422,6 +491,7 @@ function removeWaiter(row) {
 
 function addLayout() {
   layoutsLocal.value.push({
+    uuid: newUuid(),
     name: `Layout ${layoutsLocal.value.length + 1}`,
     is_default: false,
     grid_width: 4,
@@ -431,10 +501,30 @@ function addLayout() {
 }
 
 function removeLayout(idx) {
+  const removed = layoutsLocal.value[idx]
   layoutsLocal.value.splice(idx, 1)
   if (!layoutsLocal.value.some((l) => l.is_default) && layoutsLocal.value.length) {
     layoutsLocal.value[0].is_default = true
   }
+  if (removed) {
+    const fallback = layoutsLocal.value[0]?.uuid || ''
+    cashRegistersLocal.value.forEach((reg) => {
+      if (reg.layout_uuid === removed.uuid) reg.layout_uuid = fallback
+    })
+  }
+}
+
+function addCashRegister() {
+  cashRegistersLocal.value.push({
+    name: `Kasse ${cashRegistersLocal.value.length + 1}`,
+    pickup_code_prefix: String.fromCharCode(65 + (cashRegistersLocal.value.length % 26)),
+    layout_uuid: layoutsLocal.value[0]?.uuid || '',
+    receipt_printer_appliance_id: null,
+  })
+}
+
+function removeCashRegister(idx) {
+  cashRegistersLocal.value.splice(idx, 1)
 }
 
 async function loadConfiguration() {
@@ -476,6 +566,7 @@ async function loadConfiguration() {
       }
     })
     layoutsLocal.value = (cfg.app_layouts || []).map((lo) => ({
+      uuid: lo.uuid || newUuid(),
       name: lo.name || '',
       is_default: !!lo.is_default,
       grid_width: lo.grid_width,
@@ -489,6 +580,13 @@ async function loadConfiguration() {
       })),
     }))
     ensureDefaultLayout()
+    cashRegistersLocal.value = (cfg.cash_registers || []).map((reg) => ({
+      uuid: reg.uuid ?? null,
+      name: reg.name || '',
+      pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
+      layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
+      receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+    }))
   } catch (e) {
     loadError.value = 'Konfiguration konnte nicht geladen werden.'
   } finally {
@@ -582,6 +680,7 @@ function buildPutPayload() {
       return row
     }),
     app_layouts: layoutsLocal.value.map((lo) => ({
+      uuid: lo.uuid,
       name: lo.name?.trim() || null,
       is_default: !!lo.is_default,
       grid_width: lo.grid_width,
@@ -594,6 +693,16 @@ function buildPutPayload() {
         article_ids: Array.isArray(c.article_ids) ? c.article_ids : [],
       })),
     })),
+    cash_registers: cashRegistersLocal.value.map((reg) => {
+      const row = {
+        name: reg.name,
+        pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
+        layout_uuid: reg.layout_uuid,
+        receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+      }
+      if (reg.uuid != null) row.uuid = reg.uuid
+      return row
+    }),
   }
 }
 

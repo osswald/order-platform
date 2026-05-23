@@ -14,6 +14,7 @@ from ..models import (
     Event,
     EventAppLayout,
     EventAppLayoutCell,
+    EventCashRegister,
     EventStation,
     User,
     organisation_users,
@@ -82,6 +83,7 @@ def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Eve
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.cash_registers),
         )
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
@@ -97,6 +99,7 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.cash_registers),
         )
         .filter(
             Event.organisation_id == organisation_id,
@@ -114,7 +117,7 @@ def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
 
 
 def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, str]:
-    """Map station uuid -> host:port for ESC/POS (network printers, port 9100)."""
+    """Map station/register uuid -> host:port for ESC/POS (network printers, port 9100)."""
     out: dict[str, str] = {}
     for st in event.stations or []:
         if not st.printer_appliance_id:
@@ -122,6 +125,12 @@ def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, str]:
         ap = db.query(Appliance).filter(Appliance.id == st.printer_appliance_id).first()
         if ap and ap.ip_address:
             out[str(st.uuid)] = f"{ap.ip_address}:9100"
+    for reg in event.cash_registers or []:
+        if not reg.receipt_printer_appliance_id:
+            continue
+        ap = db.query(Appliance).filter(Appliance.id == reg.receipt_printer_appliance_id).first()
+        if ap and ap.ip_address:
+            out[str(reg.uuid)] = f"{ap.ip_address}:9100"
     return out
 
 

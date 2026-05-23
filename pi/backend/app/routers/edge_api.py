@@ -30,15 +30,18 @@ from ..order_fiscal import (
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
 from ..models import (
     CollectiveBill,
+    EventPickupCounter,
     KitchenTicket,
     KitchenTicketLine,
     LocalOrder,
     OutboxEntry,
     PrintJob,
+    RegisterDisplayState,
     SyncedBundle,
 )
 from ..security import verify_password
 from ..print_worker import (
+    build_customer_pickup_text,
     build_escpos_receipt_text,
     group_lines_by_station,
     resolve_station_uuid_for_line,
@@ -258,6 +261,55 @@ def _resolve_printer(ev: dict, station_uuid: str | None) -> tuple[str, int]:
     return h, int(os.getenv("DEFAULT_PRINTER_PORT", "9100"))
 
 
+def _cash_register_from_event(ev: dict, cash_register_uuid: str | None) -> dict | None:
+    if not cash_register_uuid:
+        return None
+    for reg in (ev.get("configuration") or {}).get("cash_registers") or []:
+        if str(reg.get("uuid")) == str(cash_register_uuid):
+            return reg
+    return None
+
+
+def _allocate_pickup_number(db: Session, event_id: int) -> int:
+    counter = db.query(EventPickupCounter).filter(EventPickupCounter.event_id == event_id).first()
+    if not counter:
+        counter = EventPickupCounter(event_id=event_id, next_number=1)
+        db.add(counter)
+        db.flush()
+    number = int(counter.next_number or 1)
+    counter.next_number = number + 1
+    db.flush()
+    return number
+
+
+def _payments_total_cents(payments: list[dict]) -> int:
+    total = 0
+    for payment in payments or []:
+        if not isinstance(payment, dict):
+            continue
+        total += int(payment.get("amount_cents") or 0)
+    return total
+
+
+def _set_pickup_ready_if_complete(db: Session, order: LocalOrder) -> None:
+    if order.order_source != "cash_register" or order.pickup_status in {"ready", "picked_up"}:
+        return
+    pending = (
+        db.query(KitchenTicket)
+        .filter(KitchenTicket.local_order_id == order.id, KitchenTicket.status != "done")
+        .first()
+    )
+    if pending:
+        return
+    order.pickup_status = "ready"
+    order.ready_at = datetime.now(timezone.utc)
+    payload = json.loads(order.payload_json)
+    payload["pickup_status"] = "ready"
+    payload["ready_at"] = order.ready_at.isoformat()
+    order.payload_json = json.dumps(payload)
+    _sync_outbox_payload(db, order, payload)
+
+
 def _station_config_for_uuid(ev: dict, station_uuid: str | None) -> dict | None:
     if station_uuid is None:
         return None
@@ -286,6 +338,39 @@ def _create_print_job_for_lines(
     station_label = station_name_from_event(ev, station_uuid)
     host, port = _resolve_printer(ev, station_uuid)
     esc = build_escpos_receipt_text(
+        station_payload,
+        ev.get("name", "Event"),
+        station_name=station_label,
+        articles=articles,
+    )
+    pj = PrintJob(
+        local_order_id=order_id,
+        station_uuid=station_uuid,
+        printer_host=host,
+        printer_port=port,
+        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        status="queued",
+    )
+    db.add(pj)
+    db.flush()
+    return pj.id
+
+
+def _create_customer_pickup_print_job_for_lines(
+    db: Session,
+    *,
+    order_id: int,
+    cash_register_uuid: str,
+    station_uuid: str | None,
+    payload: dict,
+    station_lines: list[dict],
+    ev: dict,
+    articles: dict,
+) -> int:
+    station_payload = {**payload, "lines": station_lines}
+    station_label = station_name_from_event(ev, station_uuid)
+    host, port = _resolve_printer(ev, cash_register_uuid)
+    esc = build_customer_pickup_text(
         station_payload,
         ev.get("name", "Event"),
         station_name=station_label,
@@ -399,10 +484,17 @@ async def sync_push(db: Session = Depends(get_db)):
 class LocalOrderCreate(BaseModel):
     client_order_id: str = Field(..., min_length=8, max_length=64)
     event_id: int
-    table_number: int = Field(..., ge=1, le=99999)
+    table_number: int | None = Field(None, ge=1, le=99999)
     waiter_uuid: str | None = None
+    order_source: str = "waiter"
+    cash_register_uuid: str | None = None
     lines: list[dict] = Field(default_factory=list)
     payments: list[dict] = Field(default_factory=list)
+
+
+class RegisterDisplayBody(BaseModel):
+    event_id: int
+    payload: dict = Field(default_factory=dict)
 
 
 class OrderPayBody(BaseModel):
@@ -521,27 +613,66 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
     ]
     validate_stock(ev, line_dicts)
 
+    order_source = (body.order_source or "waiter").strip().lower()
+    if order_source not in {"waiter", "cash_register"}:
+        raise HTTPException(status_code=400, detail="Unsupported order_source")
+    if body.cash_register_uuid:
+        order_source = "cash_register"
+
+    reg = _cash_register_from_event(ev, body.cash_register_uuid)
+    if order_source == "cash_register" and not reg:
+        raise HTTPException(status_code=400, detail="Unknown cash register for this event")
+    if order_source != "cash_register" and body.table_number is None:
+        raise HTTPException(status_code=400, detail="table_number is required for waiter orders")
+
     pm = (ev.get("payment_mode") or "pay_later").lower()
     arts = _article_map(ev)
     payments = list(body.payments or [])
-    if pm == "instant":
-        line_cents, _ = _line_totals(body.lines, arts)
+    line_cents, _ = _line_totals(body.lines, arts)
+    if order_source == "cash_register":
+        if not payments:
+            raise HTTPException(status_code=400, detail="payments required for cash-register orders")
+        if _payments_total_cents(payments) != line_cents:
+            raise HTTPException(status_code=400, detail="payment amount must match order total")
+    elif pm == "instant":
         payments = [{"type": "instant", "amount_cents": line_cents}]
 
     if payments:
         _validate_payment_types(ev, payments)
 
-    payment_status = _payment_status_for_create(ev, payments)
+    payment_status = "paid" if order_source == "cash_register" else _payment_status_for_create(ev, payments)
     order_lines = _lines_with_station_uuid(ev, body.lines)
+    table_number_payload = None if order_source == "cash_register" else body.table_number
+    table_number_db = 0 if order_source == "cash_register" else body.table_number
+    pickup_number: int | None = None
+    pickup_code: str | None = None
+    pickup_status: str | None = None
+    if order_source == "cash_register":
+        pickup_number = _allocate_pickup_number(db, body.event_id)
+        prefix = str(reg.get("pickup_code_prefix") or "").strip().upper()
+        pickup_code = f"{prefix}{pickup_number}"
+        pickup_status = "pending"
     payload: dict = {
         "client_order_id": body.client_order_id,
         "event_id": body.event_id,
-        "table_number": body.table_number,
+        "table_number": table_number_payload,
         "waiter_uuid": body.waiter_uuid,
         "lines": order_lines,
         "payments": payments,
         "payment_status": payment_status,
+        "order_source": order_source,
     }
+    if order_source == "cash_register":
+        payload.update(
+            {
+                "cash_register_uuid": body.cash_register_uuid,
+                "cash_register_name": reg.get("name"),
+                "pickup_prefix": reg.get("pickup_code_prefix"),
+                "pickup_number": pickup_number,
+                "pickup_code": pickup_code,
+                "pickup_status": pickup_status,
+            }
+        )
     order_number: int | None = None
     if is_ferdig_client_order_id(body.client_order_id):
         order_number = allocate_order_number(db, body.event_id)
@@ -556,8 +687,12 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
     order = LocalOrder(
         client_order_id=body.client_order_id,
         event_id=body.event_id,
-        table_number=body.table_number,
+        table_number=table_number_db,
         waiter_uuid=body.waiter_uuid,
+        order_source=order_source,
+        cash_register_uuid=body.cash_register_uuid if order_source == "cash_register" else None,
+        pickup_code=pickup_code,
+        pickup_status=pickup_status,
         payment_status=payment_status,
         payload_json=json.dumps(payload),
         print_status="pending",
@@ -567,6 +702,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
 
     groups = group_lines_by_station(ev, order_lines)
     print_job_ids: list[int] = []
+    customer_print_job_ids: list[int] = []
     kitchen_ticket_ids: list[int] = []
 
     for station_uuid, station_lines in groups.items():
@@ -580,18 +716,35 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
                     station_lines=station_lines,
                 )
             )
-            continue
-        print_job_ids.append(
-            _create_print_job_for_lines(
-                db,
-                order_id=order.id,
-                station_uuid=station_uuid,
-                payload=payload,
-                station_lines=station_lines,
-                ev=ev,
-                articles=arts,
+        else:
+            print_job_ids.append(
+                _create_print_job_for_lines(
+                    db,
+                    order_id=order.id,
+                    station_uuid=station_uuid,
+                    payload=payload,
+                    station_lines=station_lines,
+                    ev=ev,
+                    articles=arts,
+                )
             )
-        )
+        if order_source == "cash_register":
+            customer_print_job_ids.append(
+                _create_customer_pickup_print_job_for_lines(
+                    db,
+                    order_id=order.id,
+                    cash_register_uuid=str(body.cash_register_uuid),
+                    station_uuid=station_uuid,
+                    payload=payload,
+                    station_lines=station_lines,
+                    ev=ev,
+                    articles=arts,
+                )
+            )
+
+    if order_source == "cash_register" and not kitchen_ticket_ids:
+        _set_pickup_ready_if_complete(db, order)
+        payload = json.loads(order.payload_json)
 
     out = OutboxEntry(
         client_order_id=body.client_order_id,
@@ -610,8 +763,11 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
         "order_number": order_number,
         "print_job_id": print_job_ids[0] if print_job_ids else None,
         "print_job_ids": print_job_ids,
+        "customer_print_job_ids": customer_print_job_ids,
         "kitchen_ticket_ids": kitchen_ticket_ids,
         "payment_status": payment_status,
+        "pickup_code": pickup_code,
+        "pickup_status": payload.get("pickup_status") if order_source == "cash_register" else None,
         "payment_mode": (ev.get("payment_mode") or "pay_later").lower(),
         "articles": articles_patch,
     }
@@ -1583,6 +1739,8 @@ def _serialize_kitchen_ticket(
         "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
         "client_order_id": order.client_order_id,
         "table_number": payload.get("table_number"),
+        "pickup_code": payload.get("pickup_code"),
+        "order_source": payload.get("order_source") or "waiter",
         "waiter_uuid": payload.get("waiter_uuid"),
         "waiter_name": payload.get("waiter_name"),
         "order_number": payload.get("order_number"),
@@ -1645,6 +1803,8 @@ def _enqueue_kitchen_ticket_print(
     for line_row, qty in selected_lines:
         line_row.qty_printed = int(line_row.qty_printed or 0) + int(qty)
     _update_kitchen_ticket_status(db, ticket)
+    db.flush()
+    _set_pickup_ready_if_complete(db, order)
     db.commit()
     return job_id
 
@@ -1726,6 +1886,84 @@ def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = D
         raise HTTPException(status_code=404, detail="Kitchen ticket line not found")
     job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=[(line, 1)])
     return {"print_job_id": job_id, "ticket_status": ticket.status}
+
+
+def _pickup_order_response(order: LocalOrder) -> dict:
+    payload = json.loads(order.payload_json)
+    return {
+        "local_order_id": order.id,
+        "client_order_id": order.client_order_id,
+        "pickup_code": order.pickup_code or payload.get("pickup_code"),
+        "pickup_status": order.pickup_status or payload.get("pickup_status") or "pending",
+        "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
+        "cash_register_name": payload.get("cash_register_name"),
+        "order_number": payload.get("order_number"),
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "ready_at": order.ready_at.isoformat() if order.ready_at else payload.get("ready_at"),
+        "item_count": sum(max(1, int(line.get("qty") or 1)) for line in payload.get("lines") or [] if isinstance(line, dict)),
+    }
+
+
+@router.get("/v1/pickup/orders")
+def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)):
+    rows = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.event_id == event_id,
+            LocalOrder.order_source == "cash_register",
+            LocalOrder.pickup_status.in_(["pending", "ready"]),
+        )
+        .order_by(LocalOrder.id.asc())
+        .all()
+    )
+    return {"orders": [_pickup_order_response(row) for row in rows]}
+
+
+@router.post("/v1/pickup/orders/{order_id}/picked-up")
+def mark_pickup_order_picked_up(order_id: int, db: Session = Depends(get_db)):
+    order = db.query(LocalOrder).filter(LocalOrder.id == order_id).first()
+    if not order or order.order_source != "cash_register":
+        raise HTTPException(status_code=404, detail="Pickup order not found")
+    order.pickup_status = "picked_up"
+    order.picked_up_at = datetime.now(timezone.utc)
+    payload = json.loads(order.payload_json)
+    payload["pickup_status"] = "picked_up"
+    payload["picked_up_at"] = order.picked_up_at.isoformat()
+    order.payload_json = json.dumps(payload)
+    _sync_outbox_payload(db, order, payload)
+    db.commit()
+    return {"local_order_id": order.id, "pickup_status": "picked_up"}
+
+
+@router.get("/v1/registers/{cash_register_uuid}/display")
+def get_register_display(cash_register_uuid: str, event_id: int = Query(...), db: Session = Depends(get_db)):
+    row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
+    if not row or int(row.event_id) != int(event_id):
+        return {"cash_register_uuid": cash_register_uuid, "event_id": event_id, "payload": {}, "updated_at": None}
+    return {
+        "cash_register_uuid": cash_register_uuid,
+        "event_id": row.event_id,
+        "payload": json.loads(row.payload_json or "{}"),
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+@router.put("/v1/registers/{cash_register_uuid}/display")
+def put_register_display(cash_register_uuid: str, body: RegisterDisplayBody, db: Session = Depends(get_db)):
+    row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
+    if not row:
+        row = RegisterDisplayState(cash_register_uuid=cash_register_uuid, event_id=body.event_id)
+        db.add(row)
+    row.event_id = body.event_id
+    row.payload_json = json.dumps(body.payload or {})
+    db.commit()
+    db.refresh(row)
+    return {
+        "cash_register_uuid": cash_register_uuid,
+        "event_id": row.event_id,
+        "payload": json.loads(row.payload_json or "{}"),
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
 
 
 @router.get("/v1/print-jobs")

@@ -81,7 +81,10 @@ def build_escpos_receipt_text(
     if station_name:
         lines_out.append(f"Station: {station_name}\n".encode("utf-8", errors="replace"))
     table = payload.get("table_number")
-    if table is not None:
+    pickup_code = payload.get("pickup_code")
+    if pickup_code:
+        lines_out.append(f"Pickup: {pickup_code}\n".encode("utf-8", errors="replace"))
+    elif table is not None and int(table or 0) > 0:
         lines_out.append(f"Tisch: {table}\n".encode("utf-8", errors="replace"))
     wn = payload.get("waiter_name")
     if wn:
@@ -115,6 +118,53 @@ def build_escpos_receipt_text(
         if note:
             lines_out.append(f"  {note}\n".encode("utf-8", errors="replace"))
     lines_out.append(b"\n\n\n\x1dV\x00")
+    return b"".join(lines_out)
+
+
+def build_customer_pickup_text(
+    payload: dict,
+    event_name: str,
+    *,
+    station_name: str | None = None,
+    articles: dict | None = None,
+) -> bytes:
+    from .pricing import line_total_cents
+
+    arts = articles or {}
+    lines_out: list[bytes] = []
+    lines_out.append(b"\x1b\x40")
+    lines_out.append(b"\x1b!\x20")
+    lines_out.append(f"Pickup {payload.get('pickup_code') or '?'}\n".encode("utf-8", errors="replace"))
+    lines_out.append(b"\x1b!\x00")
+    lines_out.append(f"{event_name}\n".encode("utf-8", errors="replace"))
+    if station_name:
+        lines_out.append(f"Station: {station_name}\n".encode("utf-8", errors="replace"))
+    ordered_at = payload.get("ordered_at")
+    if ordered_at:
+        lines_out.append(f"Zeit: {ordered_at}\n".encode("utf-8", errors="replace"))
+    lines_out.append(b"Bezahlt\n---\n")
+    for line in payload.get("lines") or []:
+        if not isinstance(line, dict):
+            continue
+        aid = line.get("article_id")
+        if aid is None:
+            continue
+        qty = max(1, int(line.get("qty") or 1))
+        art = arts.get(str(aid)) or arts.get(int(aid)) or {}
+        name = line.get("article_name") or art.get("name") or f"#{aid}"
+        cents = line_total_cents(line, arts)
+        lines_out.append(f"{qty}x {name}{_price_hint_eur(cents)}\n".encode("utf-8", errors="replace"))
+        for add in line.get("additions") or []:
+            if not isinstance(add, dict):
+                continue
+            add_qty = max(1, int(add.get("qty") or 1))
+            add_name = add.get("name") or f"Zusatz #{add.get('article_id')}"
+            add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
+            lines_out.append(f"  + {add_qty}x {add_name}{_price_hint_eur(add_cents)}\n".encode("utf-8", errors="replace"))
+        note = (line.get("note") or "").strip()
+        if note:
+            lines_out.append(f"  {note}\n".encode("utf-8", errors="replace"))
+    lines_out.append(b"\nBitte an der Ausgabe abholen.\n\n\n\x1dV\x00")
     return b"".join(lines_out)
 
 
