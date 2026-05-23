@@ -43,6 +43,22 @@
         >
           Kitchen Monitor
         </button>
+        <button
+          v-if="hasCashRegisters(e)"
+          type="button"
+          class="btn kitchen-btn"
+          @click="openRegisters(e)"
+        >
+          Kassen
+        </button>
+        <button
+          v-if="hasCashRegisters(e)"
+          type="button"
+          class="btn kitchen-btn"
+          @click="openPickup(e)"
+        >
+          Pickup Screen
+        </button>
       </li>
     </ul>
   </div>
@@ -93,10 +109,26 @@ function hasKitchenMonitor(e) {
   return (e?.configuration?.stations || []).some((st) => st.kitchen_monitor_enabled)
 }
 
+function hasCashRegisters(e) {
+  return (e?.configuration?.cash_registers || []).length > 0
+}
+
 function openKitchen(e) {
   store.selectedEventId.value = e.id
   store.setWaiter(null)
   router.push({ name: 'kitchen' })
+}
+
+function openRegisters(e) {
+  store.selectedEventId.value = e.id
+  store.setWaiter(null)
+  router.push({ name: 'registers' })
+}
+
+function openPickup(e) {
+  store.selectedEventId.value = e.id
+  store.setWaiter(null)
+  router.push({ name: 'pickup' })
 }
 
 function goAdmin() {

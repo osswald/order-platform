@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import uuid
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -12,6 +13,7 @@ from .models import (
     EventAppLayout,
     EventAppLayoutCell,
     EventArticleStock,
+    EventCashRegister,
     EventStation,
     EventWaiter,
 )
@@ -27,6 +29,7 @@ def _load_event_for_copy(db: Session, event_id: int) -> Event | None:
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.cash_registers),
         )
         .filter(Event.id == event_id)
         .first()
@@ -60,9 +63,12 @@ def _waiters_payload(event: Event) -> list:
     ]
 
 
-def _layouts_payload(event: Event) -> list:
+def _layouts_payload(event: Event) -> tuple[list, dict[str, str]]:
     out = []
+    uuid_map: dict[str, str] = {}
     for lo in sorted(event.app_layouts, key=lambda x: x.id):
+        new_uuid = str(uuid.uuid4())
+        uuid_map[str(lo.uuid)] = new_uuid
         cells = []
         for cell in sorted(lo.cells, key=lambda c: (c.row, c.col)):
             cells.append(
@@ -76,11 +82,30 @@ def _layouts_payload(event: Event) -> list:
             )
         out.append(
             SimpleNamespace(
+                uuid=new_uuid,
                 name=lo.name,
                 is_default=bool(lo.is_default),
                 grid_width=lo.grid_width,
                 grid_height=lo.grid_height,
                 cells=cells,
+            )
+        )
+    return out, uuid_map
+
+
+def _cash_registers_payload(event: Event, layout_uuid_map: dict[str, str]) -> list:
+    out = []
+    for reg in sorted(event.cash_registers, key=lambda r: (r.sort_order, r.id)):
+        new_layout_uuid = layout_uuid_map.get(str(reg.layout_uuid))
+        if not new_layout_uuid:
+            continue
+        out.append(
+            SimpleNamespace(
+                uuid=None,
+                name=reg.name,
+                pickup_code_prefix=reg.pickup_code_prefix,
+                layout_uuid=new_layout_uuid,
+                receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
             )
         )
     return out
@@ -122,12 +147,15 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
     )
     stock_by_article = {r.article_id: r for r in source_stock}
 
+    layouts_payload, layout_uuid_map = _layouts_payload(source)
+
     replace_event_configuration(
         db,
         new_event,
         stations_in=_stations_payload(source),
         event_waiters_in=_waiters_payload(source),
-        app_layouts_in=_layouts_payload(source),
+        app_layouts_in=layouts_payload,
+        cash_registers_in=_cash_registers_payload(source, layout_uuid_map),
     )
 
     from .additions import event_stock_article_ids

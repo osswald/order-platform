@@ -1728,6 +1728,84 @@ def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = D
     return {"print_job_id": job_id, "ticket_status": ticket.status}
 
 
+def _pickup_order_response(order: LocalOrder) -> dict:
+    payload = json.loads(order.payload_json)
+    return {
+        "local_order_id": order.id,
+        "client_order_id": order.client_order_id,
+        "pickup_code": order.pickup_code or payload.get("pickup_code"),
+        "pickup_status": order.pickup_status or payload.get("pickup_status") or "pending",
+        "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
+        "cash_register_name": payload.get("cash_register_name"),
+        "order_number": payload.get("order_number"),
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "ready_at": order.ready_at.isoformat() if order.ready_at else payload.get("ready_at"),
+        "item_count": sum(max(1, int(line.get("qty") or 1)) for line in payload.get("lines") or [] if isinstance(line, dict)),
+    }
+
+
+@router.get("/v1/pickup/orders")
+def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)):
+    rows = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.event_id == event_id,
+            LocalOrder.order_source == "cash_register",
+            LocalOrder.pickup_status.in_(["pending", "ready"]),
+        )
+        .order_by(LocalOrder.id.asc())
+        .all()
+    )
+    return {"orders": [_pickup_order_response(row) for row in rows]}
+
+
+@router.post("/v1/pickup/orders/{order_id}/picked-up")
+def mark_pickup_order_picked_up(order_id: int, db: Session = Depends(get_db)):
+    order = db.query(LocalOrder).filter(LocalOrder.id == order_id).first()
+    if not order or order.order_source != "cash_register":
+        raise HTTPException(status_code=404, detail="Pickup order not found")
+    order.pickup_status = "picked_up"
+    order.picked_up_at = datetime.now(timezone.utc)
+    payload = json.loads(order.payload_json)
+    payload["pickup_status"] = "picked_up"
+    payload["picked_up_at"] = order.picked_up_at.isoformat()
+    order.payload_json = json.dumps(payload)
+    _sync_outbox_payload(db, order, payload)
+    db.commit()
+    return {"local_order_id": order.id, "pickup_status": "picked_up"}
+
+
+@router.get("/v1/registers/{cash_register_uuid}/display")
+def get_register_display(cash_register_uuid: str, event_id: int = Query(...), db: Session = Depends(get_db)):
+    row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
+    if not row or int(row.event_id) != int(event_id):
+        return {"cash_register_uuid": cash_register_uuid, "event_id": event_id, "payload": {}, "updated_at": None}
+    return {
+        "cash_register_uuid": cash_register_uuid,
+        "event_id": row.event_id,
+        "payload": json.loads(row.payload_json or "{}"),
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+@router.put("/v1/registers/{cash_register_uuid}/display")
+def put_register_display(cash_register_uuid: str, body: RegisterDisplayBody, db: Session = Depends(get_db)):
+    row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
+    if not row:
+        row = RegisterDisplayState(cash_register_uuid=cash_register_uuid, event_id=body.event_id)
+        db.add(row)
+    row.event_id = body.event_id
+    row.payload_json = json.dumps(body.payload or {})
+    db.commit()
+    db.refresh(row)
+    return {
+        "cash_register_uuid": cash_register_uuid,
+        "event_id": row.event_id,
+        "payload": json.loads(row.payload_json or "{}"),
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
 @router.get("/v1/print-jobs")
 def list_print_jobs(db: Session = Depends(get_db)):
     rows = db.query(PrintJob).order_by(PrintJob.id.desc()).limit(50).all()

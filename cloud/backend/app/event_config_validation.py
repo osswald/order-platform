@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+import re
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -16,10 +17,14 @@ from .models import (
     Event,
     EventAppLayout,
     EventAppLayoutCell,
+    EventCashRegister,
     EventStation,
     EventWaiter,
     Waiter,
 )
+
+
+PICKUP_PREFIX_RE = re.compile(r"^[A-Z]{1,3}$")
 
 
 def event_printer_candidates(db: Session, event: Event) -> list[Appliance]:
@@ -132,6 +137,28 @@ def assert_exactly_one_default_layout(layouts_payload: list) -> None:
         )
 
 
+def assert_cash_registers_valid(db: Session, event: Event, registers_payload: list, layouts_payload: list) -> None:
+    layout_uuids = {
+        str(getattr(lo, "uuid", "") or "").strip()
+        for lo in layouts_payload
+        if str(getattr(lo, "uuid", "") or "").strip()
+    }
+    for reg in registers_payload:
+        prefix = str(getattr(reg, "pickup_code_prefix", "") or "").strip().upper()
+        if not PICKUP_PREFIX_RE.match(prefix):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Cash-register pickup prefix must contain 1-3 letters A-Z",
+            )
+        layout_uuid = str(getattr(reg, "layout_uuid", "") or "").strip()
+        if layout_uuid not in layout_uuids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Cash register must reference an app layout from this event",
+            )
+        assert_printer_eligible(db, event, getattr(reg, "receipt_printer_appliance_id", None))
+
+
 def assert_layout_cells_within_grid(layouts_payload: list) -> None:
     for layout in layouts_payload:
         w, h = layout.grid_width, layout.grid_height
@@ -158,8 +185,10 @@ def replace_event_configuration(
     stations_in: list,
     event_waiters_in: list,
     app_layouts_in: list,
+    cash_registers_in: list | None = None,
 ) -> None:
     """Replace all configuration children. Caller must commit. Validates before mutating."""
+    cash_registers_in = cash_registers_in or []
     for st in stations_in:
         assert_station_articles_in_org(db, event, list(st.article_ids))
         assert_printer_eligible(db, event, st.printer_appliance_id)
@@ -169,6 +198,7 @@ def replace_event_configuration(
     assert_exactly_one_default_layout(app_layouts_in)
     assert_layout_cells_within_grid(app_layouts_in)
     assert_cell_articles_subset_of_stations(stations_in, app_layouts_in)
+    assert_cash_registers_valid(db, event, cash_registers_in, app_layouts_in)
 
     # Delete existing (FK-safe order)
     layouts = db.query(EventAppLayout).filter(EventAppLayout.event_id == event.id).all()
@@ -247,6 +277,7 @@ def replace_event_configuration(
     for lo_in in app_layouts_in:
         lo = EventAppLayout(
             event_id=event.id,
+            uuid=(getattr(lo_in, "uuid", None) or str(uuid.uuid4())),
             name=(lo_in.name or "").strip() or None,
             is_default=bool(lo_in.is_default),
             grid_width=lo_in.grid_width,
@@ -267,6 +298,28 @@ def replace_event_configuration(
             if c.article_ids:
                 arts = db.query(Article).filter(Article.id.in_(list(set(c.article_ids)))).all()
                 cell.articles = arts
+
+    existing_registers = {
+        reg.uuid: reg
+        for reg in db.query(EventCashRegister).filter(EventCashRegister.event_id == event.id).all()
+    }
+    kept_register_uuids: set[str] = set()
+    for idx, reg_in in enumerate(cash_registers_in):
+        reg_uuid = (getattr(reg_in, "uuid", None) or "").strip() or None
+        reg = existing_registers.get(reg_uuid) if reg_uuid else None
+        if reg is None:
+            reg = EventCashRegister(event_id=event.id, uuid=reg_uuid or str(uuid.uuid4()))
+            db.add(reg)
+        reg.name = str(reg_in.name or "").strip()
+        reg.sort_order = idx
+        reg.pickup_code_prefix = str(reg_in.pickup_code_prefix or "").strip().upper()
+        reg.layout_uuid = str(reg_in.layout_uuid or "").strip()
+        reg.receipt_printer_appliance_id = getattr(reg_in, "receipt_printer_appliance_id", None)
+        kept_register_uuids.add(reg.uuid)
+
+    for reg_uuid, reg in list(existing_registers.items()):
+        if reg_uuid not in kept_register_uuids:
+            db.delete(reg)
 
 
 def build_station_article_tree(db: Session, event: Event) -> list[dict]:

@@ -38,6 +38,30 @@ def _ensure_event_order_counters_table() -> None:
     EventOrderCounter.__table__.create(bind=engine, checkfirst=True)
 
 
+def _ensure_event_pickup_counters_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_pickup_counters" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventPickupCounter
+
+    EventPickupCounter.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_register_display_states_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "register_display_states" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import RegisterDisplayState
+
+    RegisterDisplayState.__table__.create(bind=engine, checkfirst=True)
+
+
 def _ensure_collective_bills_table() -> None:
     """create_all() does not add new tables to existing databases."""
     try:
@@ -68,6 +92,8 @@ def _ensure_kitchen_tables() -> None:
 def apply_schema_patches() -> None:
     """create_all() does not add columns or tables to existing databases."""
     _ensure_event_order_counters_table()
+    _ensure_event_pickup_counters_table()
+    _ensure_register_display_states_table()
     _ensure_collective_bills_table()
     _ensure_kitchen_tables()
     _add_column_if_missing(
@@ -99,4 +125,40 @@ def apply_schema_patches() -> None:
         "collective_bill_id",
         "ALTER TABLE local_orders ADD COLUMN collective_bill_id INTEGER",
         "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS collective_bill_id INTEGER",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "order_source",
+        "ALTER TABLE local_orders ADD COLUMN order_source VARCHAR(32) NOT NULL DEFAULT 'waiter'",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS order_source VARCHAR(32) NOT NULL DEFAULT 'waiter'",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "cash_register_uuid",
+        "ALTER TABLE local_orders ADD COLUMN cash_register_uuid VARCHAR(36)",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS cash_register_uuid VARCHAR(36)",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "pickup_code",
+        "ALTER TABLE local_orders ADD COLUMN pickup_code VARCHAR(16)",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS pickup_code VARCHAR(16)",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "pickup_status",
+        "ALTER TABLE local_orders ADD COLUMN pickup_status VARCHAR(16)",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS pickup_status VARCHAR(16)",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "ready_at",
+        "ALTER TABLE local_orders ADD COLUMN ready_at DATETIME",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS ready_at TIMESTAMP WITH TIME ZONE",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "picked_up_at",
+        "ALTER TABLE local_orders ADD COLUMN picked_up_at DATETIME",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS picked_up_at TIMESTAMP WITH TIME ZONE",
     )

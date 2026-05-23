@@ -62,6 +62,30 @@ const routes = [
     meta: { title: 'Küche', requiresBundle: true, requiresEvent: true, fullscreen: true },
   },
   {
+    path: '/registers',
+    name: 'registers',
+    component: () => import('../views/RegisterSelectView.vue'),
+    meta: { title: 'Kassen', requiresBundle: true, requiresEvent: true },
+  },
+  {
+    path: '/register/:registerUuid',
+    name: 'register-order',
+    component: () => import('../views/RegisterOrderView.vue'),
+    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, fullscreen: true },
+  },
+  {
+    path: '/register/:registerUuid/display',
+    name: 'register-display',
+    component: () => import('../views/RegisterDisplayView.vue'),
+    meta: { title: 'Kundendisplay', requiresBundle: true, requiresEvent: true, fullscreen: true },
+  },
+  {
+    path: '/pickup',
+    name: 'pickup',
+    component: () => import('../views/PickupScreenView.vue'),
+    meta: { title: 'Pickup', requiresBundle: true, requiresEvent: true, fullscreen: true },
+  },
+  {
     path: '/table/new',
     name: 'table-new',
     component: () => import('../views/TableNewView.vue'),
