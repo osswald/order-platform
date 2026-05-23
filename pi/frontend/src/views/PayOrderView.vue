@@ -4,6 +4,16 @@
     <p class="muted">Tisch {{ table }} · Bestellung #{{ orderId }}</p>
 
     <div v-if="loading" class="muted">Laden…</div>
+    <div v-else-if="paidPaymentId" class="card">
+      <p><strong>Bezahlt.</strong></p>
+      <p class="muted">Der Beleg kann jetzt gedruckt werden.</p>
+      <button type="button" class="btn primary" style="width: 100%" :disabled="printing" @click="printReceipt">
+        Beleg drucken
+      </button>
+      <button type="button" class="btn" style="width: 100%; margin-top: 0.5rem" @click="finish">
+        Fertig
+      </button>
+    </div>
     <template v-else>
       <ul v-if="orderLines.length" class="pay-lines">
         <li v-for="(line, idx) in orderLines" :key="idx" class="pay-line">
@@ -49,6 +59,7 @@ import { formatAmount, lineTotalCents } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
 import { pickPaymentType } from '../utils/pickPaymentType'
+import { isAndroidPrinterAvailable, printPaymentReceipt } from '../utils/androidPrinter'
 import MoneyKeypad from '../components/MoneyKeypad.vue'
 
 const route = useRoute()
@@ -59,6 +70,8 @@ const totalCents = ref(0)
 const cashCents = ref(0)
 const loading = ref(true)
 const paying = ref(false)
+const printing = ref(false)
+const paidPaymentId = ref(null)
 const orderLines = ref([])
 
 const event = computed(() => store.selectedEvent.value)
@@ -110,7 +123,7 @@ async function pay() {
   }
   paying.value = true
   try {
-    await api(`/v1/orders/${orderId.value}/pay`, {
+    const res = await api(`/v1/orders/${orderId.value}/pay`, {
       method: 'POST',
       body: JSON.stringify({
         payments: buildPayment(cashCents.value, payType),
@@ -118,12 +131,34 @@ async function pay() {
     })
     store.activeTableNumber.value = null
     store.showToast('Bezahlt.', 'ok')
-    router.replace({ name: 'hub' })
+    if (isAndroidPrinterAvailable() && res.payment_id) {
+      paidPaymentId.value = res.payment_id
+    } else {
+      router.replace({ name: 'hub' })
+    }
   } catch (e) {
     store.showToast(e.message || 'Zahlung fehlgeschlagen', 'err')
   } finally {
     paying.value = false
   }
+}
+
+async function printReceipt() {
+  if (!paidPaymentId.value) return
+  printing.value = true
+  try {
+    await printPaymentReceipt(paidPaymentId.value)
+    store.showToast('Beleg gedruckt.', 'ok')
+  } catch (e) {
+    store.showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
+  } finally {
+    printing.value = false
+  }
+}
+
+function finish() {
+  paidPaymentId.value = null
+  router.replace({ name: 'hub' })
 }
 
 function goBack() {

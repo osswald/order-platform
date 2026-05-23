@@ -31,7 +31,9 @@ def allocate_order_number(db: Session, event_id: int) -> int:
 def waiter_name_from_event(ev: dict, waiter_uuid: str | None) -> str | None:
     if not waiter_uuid:
         return None
-    for w in (ev.get("configuration") or {}).get("waiters") or []:
+    cfg = ev.get("configuration") or {}
+    waiters = list(cfg.get("event_waiters") or []) + list(cfg.get("waiters") or [])
+    for w in waiters:
         if str(w.get("uuid")) == str(waiter_uuid):
             name = str(w.get("name") or "").strip()
             return name or None

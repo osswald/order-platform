@@ -128,7 +128,7 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
   async function onGreenCheck(onFullySettled) {
     if (!basketCents.value) return
     const payments = await paymentsForAmount(basketCents.value)
-    await settlePartial(payments, onFullySettled)
+    return settlePartial(payments, onFullySettled)
   }
 
   return {

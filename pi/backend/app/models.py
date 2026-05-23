@@ -93,6 +93,17 @@ class PrintJob(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class PaymentReceipt(Base):
+    __tablename__ = "payment_receipts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    waiter_uuid = Column(String(36), nullable=True, index=True)
+    source_type = Column(String(32), nullable=False)
+    source_id = Column(String(64), nullable=True)
+    payload_json = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class KitchenTicket(Base):
     __tablename__ = "kitchen_tickets"
     id = Column(Integer, primary_key=True, autoincrement=True)

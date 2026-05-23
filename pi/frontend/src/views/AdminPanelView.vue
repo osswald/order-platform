@@ -32,6 +32,11 @@
       <button type="button" class="btn" @click="goEvents">Zu Events</button>
     </div>
 
+    <div v-if="androidApp" class="card" style="margin-top: 1rem">
+      <p>Android-App: Bluetooth-Drucker für Kellner-Belege konfigurieren.</p>
+      <button type="button" class="btn" @click="router.push({ name: 'android-printer' })">Bluetooth Drucker</button>
+    </div>
+
     <div class="card" style="margin-top: 1rem">
       <button type="button" class="btn" :disabled="pushing" @click="doPush">Ausstehende an Cloud senden</button>
       <p v-if="pushMsg" :class="pushOk ? 'ok' : 'err'" style="margin-top: 0.5rem">{{ pushMsg }}</p>
@@ -45,7 +50,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import * as store from '../store'
-import { api, getApiBase, setApiBase } from '../api'
+import { api, getApiBase, isAndroidApp, setApiBase } from '../api'
 
 const router = useRouter()
 const baseInput = ref('')
@@ -58,6 +63,7 @@ const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
 const syncStatus = ref(null)
+const androidApp = computed(() => isAndroidApp())
 
 function formatCycle(iso) {
   if (!iso) return '—'

@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === 'android' ? './' : '/',
+  define: mode === 'android'
+    ? { 'import.meta.env.VITE_ANDROID_APP': JSON.stringify('true') }
+    : {},
   plugins: [vue()],
   server: {
     host: '0.0.0.0',
@@ -9,4 +13,4 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
   },
-})
+}))

@@ -8,6 +8,9 @@ Monorepo mit zwei Umgebungen:
 - `pi`:
 - `pi/backend`: FastAPI + PostgreSQL + ESC/POS Druckerunterstützung
   - `frontend`: Vue.js / Vite
+- `android`:
+  - Native Android WebView-App für `pi/frontend`
+  - Bluetooth-ESC/POS-Belegdruck für Kellnergeräte
 
 ## Start
 
@@ -30,6 +33,7 @@ Für eine lokale Kombination beibehalten Sie `docker-compose.yml` im Projektstam
 - Cloud-Frontend: `http://localhost:5173`
 - Pi-Backend: `http://localhost:8001`
 - Pi-Frontend: `http://localhost:5174`
+- Android-App: lädt das gebündelte `pi/frontend`; Standard-Pi-API `http://192.168.192.10:8001`
 
 ## Struktur
 
@@ -37,6 +41,7 @@ Für eine lokale Kombination beibehalten Sie `docker-compose.yml` im Projektstam
 - `cloud/frontend`
 - `pi/backend`
 - `pi/frontend`
+- `android`
 
 ## Notes
 

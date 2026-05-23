@@ -1,11 +1,23 @@
 const STORAGE_KEY = 'pi_api_base'
+const DEFAULT_API_BASE = 'http://127.0.0.1:8001'
+const ANDROID_API_BASE = 'http://192.168.192.10:8001'
+
+export function isAndroidApp() {
+  if (import.meta.env.VITE_ANDROID_APP === 'true') return true
+  if (typeof window === 'undefined') return false
+  return Boolean(window.AndroidPrinter) || /PiFrontendAndroid/i.test(window.navigator?.userAgent || '')
+}
+
+function defaultApiBase() {
+  return (import.meta.env.VITE_API_BASE || (isAndroidApp() ? ANDROID_API_BASE : DEFAULT_API_BASE)).replace(/\/$/, '')
+}
 
 export function getApiBase() {
   if (typeof localStorage === 'undefined') {
-    return (import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8001').replace(/\/$/, '')
+    return defaultApiBase()
   }
   const stored = localStorage.getItem(STORAGE_KEY)
-  const base = (stored || import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8001').replace(/\/$/, '')
+  const base = (stored || defaultApiBase()).replace(/\/$/, '')
   return base
 }
 

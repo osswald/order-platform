@@ -6,6 +6,13 @@
       </template>
     </SplitPayHeader>
 
+    <div v-if="pendingReceiptPaymentId" class="card receipt-card">
+      <p><strong>Teilzahlung bezahlt.</strong></p>
+      <p class="muted">Der Beleg kann jetzt gedruckt werden.</p>
+      <button type="button" class="btn primary" :disabled="printingReceipt" @click="printReceipt">Beleg drucken</button>
+      <button type="button" class="btn" @click="finishReceipt">Weiter</button>
+    </div>
+
     <p v-if="loading" class="muted state-msg">Laden…</p>
     <template v-else-if="!groups.length">
       <div class="state-msg">
@@ -122,10 +129,14 @@ import SplitPayHeader from '../components/SplitPayHeader.vue'
 import SplitPayLineRow from '../components/SplitPayLineRow.vue'
 import QtyInputModal from '../components/QtyInputModal.vue'
 import PayTableActionsSheet from '../components/PayTableActionsSheet.vue'
+import { isAndroidPrinterAvailable, printPaymentReceipt } from '../utils/androidPrinter'
 
 const route = useRoute()
 const router = useRouter()
 const actionsOpen = ref(false)
+const pendingReceiptPaymentId = ref(null)
+const receiptFullySettled = ref(false)
+const printingReceipt = ref(false)
 
 const table = computed(() => parseInt(String(route.query.table), 10))
 const event = computed(() => store.selectedEvent.value)
@@ -177,12 +188,40 @@ async function onActionsDone() {
 
 async function onPay() {
   try {
-    await onGreenCheck(() => {
+    const res = await onGreenCheck()
+    if (!res) return
+    const fullySettled = Number(res.remaining_cents || 0) <= 0
+    if (isAndroidPrinterAvailable() && res.payment_id) {
+      pendingReceiptPaymentId.value = res.payment_id
+      receiptFullySettled.value = fullySettled
+      return
+    }
+    if (fullySettled) {
       store.showToast('Tisch vollständig abgerechnet.', 'ok')
       router.replace({ name: 'hub' })
-    })
+    }
   } catch (e) {
     if (e?.message) store.showToast(e.message, 'err')
+  }
+}
+
+async function printReceipt() {
+  if (!pendingReceiptPaymentId.value) return
+  printingReceipt.value = true
+  try {
+    await printPaymentReceipt(pendingReceiptPaymentId.value)
+    store.showToast('Beleg gedruckt.', 'ok')
+  } catch (e) {
+    store.showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
+  } finally {
+    printingReceipt.value = false
+  }
+}
+
+function finishReceipt() {
+  pendingReceiptPaymentId.value = null
+  if (receiptFullySettled.value) {
+    router.replace({ name: 'hub' })
   }
 }
 
@@ -198,3 +237,12 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.receipt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+</style>
