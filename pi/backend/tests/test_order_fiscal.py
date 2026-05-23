@@ -134,3 +134,55 @@ def test_non_ferdig_submission_has_no_order_number(client):
     )
     assert r.status_code == 200
     assert r.json().get("order_number") is None
+
+
+def test_settle_partial_uses_line_snapshot_prices(client):
+    """Payment amount must match line_groups unit_cents, not current bundle article price."""
+    c, Session = client
+    db = Session()
+    db.add(
+        LocalOrder(
+            client_order_id="snap-order-1",
+            event_id=1,
+            table_number=9,
+            payment_status="open",
+            payload_json=json.dumps(
+                {
+                    "event_id": 1,
+                    "table_number": 9,
+                    "payment_status": "open",
+                    "lines": [
+                        {
+                            "article_id": 10,
+                            "qty": 1,
+                            "note": "",
+                            "additions": [],
+                            "unit_cents": 3950,
+                            "article_name": "Bier",
+                        }
+                    ],
+                }
+            ),
+        )
+    )
+    db.commit()
+    db.close()
+
+    summary = c.get("/v1/tables/9", params={"event_id": 1})
+    assert summary.status_code == 200
+    group = summary.json()["line_groups"][0]
+    assert group["unit_cents"] == 3950
+
+    r = c.post(
+        "/v1/tables/9/settle-partial",
+        json={
+            "event_id": 1,
+            "payments": [{"type": "cash", "amount_cents": 3950}],
+            "selections": [
+                {"article_id": 10, "qty": 1, "note": "", "additions": []},
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["paid_cents"] == 3950
+

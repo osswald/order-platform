@@ -187,6 +187,25 @@ def _selections_total_cents(selections: list, articles: dict) -> int:
     return total
 
 
+def _selections_total_cents_from_groups(selections: list, line_groups: list[dict]) -> int:
+    """Sum selection qty using unit_cents from open order line groups (price snapshots)."""
+    unit_by_key: dict[tuple[int, str, str], int] = {}
+    for g in line_groups:
+        key = _line_key(g["article_id"], g.get("note", ""), g.get("additions"))
+        unit_by_key[key] = int(g["unit_cents"])
+    total = 0
+    for s in selections:
+        if not isinstance(s, dict):
+            continue
+        qty = max(1, int(s.get("qty") or 1))
+        key = _line_key(s.get("article_id"), s.get("note", ""), s.get("additions"))
+        unit = unit_by_key.get(key)
+        if unit is None:
+            raise HTTPException(status_code=400, detail="Selection not found on open orders")
+        total += unit * qty
+    return total
+
+
 def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
     merged: dict[tuple[int, str, str], dict] = {}
     for o in orders:
@@ -656,13 +675,6 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
 
     arts = _article_map(ev)
     selections = [s.model_dump() for s in body.selections]
-    expected_cents = _selections_total_cents(selections, arts)
-    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
-    if paid_total != expected_cents:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Payment total {paid_total} does not match selection total {expected_cents}",
-        )
 
     orders = (
         db.query(LocalOrder)
@@ -677,6 +689,15 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
     )
     if not orders:
         raise HTTPException(status_code=404, detail="No open orders for this table")
+
+    line_groups = _build_line_groups_from_orders(orders, arts)
+    expected_cents = _selections_total_cents_from_groups(selections, line_groups)
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    if paid_total != expected_cents:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment total {paid_total} does not match selection total {expected_cents}",
+        )
 
     need: dict[tuple[int, str, str], int] = {}
     for s in selections:
@@ -1117,16 +1138,18 @@ def _settle_orders_partial(
 
     arts = _article_map(ev)
     selections = [s.model_dump() for s in body.selections]
-    expected_cents = _selections_total_cents(selections, arts)
+
+    if not orders:
+        raise HTTPException(status_code=404, detail="No open orders")
+
+    line_groups = _build_line_groups_from_orders(orders, arts)
+    expected_cents = _selections_total_cents_from_groups(selections, line_groups)
     paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
     if paid_total != expected_cents:
         raise HTTPException(
             status_code=400,
             detail=f"Payment total {paid_total} does not match selection total {expected_cents}",
         )
-
-    if not orders:
-        raise HTTPException(status_code=404, detail="No open orders")
 
     need: dict[tuple[int, str, str], int] = {}
     for s in selections:
