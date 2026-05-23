@@ -113,6 +113,7 @@ def test_copy_event_clones_config_not_sales(db):
 
     assert new_event.id != source.id
     assert new_event.name == "Source Fest (Kopie)"
+    assert new_event.status == "config"
     assert new_event.twint_qr_mime == "image/png"
     assert new_event.twint_qr_data == "abc123"
 

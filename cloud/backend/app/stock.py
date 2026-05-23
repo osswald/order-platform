@@ -201,6 +201,7 @@ def ensure_stock_rows_for_event_articles(
             article_id=aid,
             monitor_stock=monitor,
             in_stock=in_stock,
+            baseline_in_stock=in_stock,
         )
         db.add(row)
         created.append(row)
@@ -269,14 +270,29 @@ def upsert_stock_rows(
         if row:
             row.monitor_stock = monitor
             row.in_stock = in_stock
+            row.baseline_in_stock = in_stock
         else:
             row = EventArticleStock(
                 event_id=event.id,
                 article_id=aid,
                 monitor_stock=monitor,
                 in_stock=in_stock,
+                baseline_in_stock=in_stock,
             )
             db.add(row)
         out.append(row)
     db.flush()
     return sorted(out, key=lambda r: r.article_id)
+
+
+def reset_event_stock_to_baseline(db: Session, event: Event) -> None:
+    """Reset monitored stock to admin-configured baseline (test → prod)."""
+    rows = (
+        db.query(EventArticleStock)
+        .filter(EventArticleStock.event_id == event.id, EventArticleStock.monitor_stock.is_(True))
+        .all()
+    )
+    for row in rows:
+        if row.baseline_in_stock is not None:
+            row.in_stock = row.baseline_in_stock
+    db.flush()

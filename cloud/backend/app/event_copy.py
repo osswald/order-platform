@@ -101,7 +101,7 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
 
     new_event = Event(
         name=name,
-        status=source.status,
+        status="config",
         start=source.start,
         end=source.end,
         currency=source.currency,

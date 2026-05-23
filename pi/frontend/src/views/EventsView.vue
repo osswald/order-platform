@@ -23,8 +23,8 @@
         Synchronisation war erfolgreich, aber die Cloud liefert <strong>0 aktive Events</strong> für dieses Gerät.
       </p>
       <p class="muted small">
-        Prüfen Sie in der Cloud: Event-Status (nicht Archiv), Start/Ende umfasst <strong>heute (UTC)</strong>,
-        Server-Gerät mit Ausleihe für heute, Organisation passend.
+        Prüfen Sie in der Cloud: Status <strong>Testbetrieb</strong> oder <strong>Produktivbetrieb</strong>,
+        Start/Ende umfasst <strong>heute (UTC)</strong>, Server-Gerät mit Ausleihe für heute, Organisation passend.
       </p>
       <button type="button" class="btn" :disabled="loading" @click="reload">Erneut laden</button>
     </div>
@@ -33,7 +33,7 @@
       <li v-for="e in events" :key="e.id">
         <button type="button" class="event-btn" @click="pick(e)">
           <span class="event-name">{{ e.name }}</span>
-          <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }}</span>
+          <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }} · {{ eventStatusLabel(e.status) }}</span>
         </button>
       </li>
     </ul>
@@ -44,6 +44,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import * as store from '../store'
+import { eventStatusLabel } from '../utils/eventStatus'
 
 const router = useRouter()
 const loading = ref(false)

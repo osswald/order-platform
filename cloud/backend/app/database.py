@@ -97,9 +97,35 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN is_addition BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS is_addition BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _add_column_if_missing(
+        "event_article_stock",
+        "baseline_in_stock",
+        "ALTER TABLE event_article_stock ADD COLUMN baseline_in_stock INTEGER",
+        "ALTER TABLE event_article_stock ADD COLUMN IF NOT EXISTS baseline_in_stock INTEGER",
+    )
+    _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")
     _relax_appliances_organisation_id()
+
+
+def _backfill_baseline_in_stock() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_article_stock" not in inspector.get_table_names():
+            return
+        col_names = {c["name"] for c in inspector.get_columns("event_article_stock")}
+    except Exception:
+        return
+    if "baseline_in_stock" not in col_names:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE event_article_stock SET baseline_in_stock = in_stock "
+                "WHERE baseline_in_stock IS NULL"
+            )
+        )
 
 
 def _patch_entity_uuids(table: str) -> None:

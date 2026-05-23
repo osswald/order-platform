@@ -272,5 +272,6 @@ class EventArticleStock(Base):
     article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
     monitor_stock = Column(Boolean, nullable=False, default=False)
     in_stock = Column(Integer, nullable=True)
+    baseline_in_stock = Column(Integer, nullable=True)
     event = relationship("Event", backref="article_stock")
     article = relationship("Article")

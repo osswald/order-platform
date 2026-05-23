@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, submit_order
+from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .stock import apply_stock_to_bundle, save_bundle
 
@@ -73,6 +74,7 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
 
 async def pull_bundle(db: Session) -> dict[str, Any]:
     """Download bundle from cloud into SyncedBundle."""
+    old_bundle = _get_bundle_dict_raw(db)
     data = await fetch_bundle()
     body = json.dumps(data)
     now = datetime.now(timezone.utc)
@@ -83,8 +85,9 @@ async def pull_bundle(db: Session) -> dict[str, Any]:
         row.json_body = body
         row.updated_at = now
     db.commit()
+    purged = reconcile_bundle_lifecycle(db, old_bundle, data)
     event_count = len(data.get("events", []))
-    return {"ok": True, "event_count": event_count, "bundle": data}
+    return {"ok": True, "event_count": event_count, "bundle": data, "purged_event_ids": purged}
 
 
 def _get_bundle_dict_raw(db: Session) -> dict | None:
@@ -120,7 +123,7 @@ def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
 
 
 async def run_sync_cycle(db: Session) -> dict[str, Any]:
-    """Push outbox, pull bundle, reapply local stock for unsent orders."""
+    """Pull bundle, reconcile lifecycle, push outbox, reapply local stock."""
     now = datetime.now(timezone.utc).isoformat()
     sync_status["configured"] = is_cloud_configured()
     sync_status["pending_outbox_count"] = pending_outbox_count(db)
@@ -134,8 +137,27 @@ async def run_sync_cycle(db: Session) -> dict[str, Any]:
         "push_errors": [],
         "pull_ok": False,
         "event_count": 0,
+        "purged_event_ids": [],
     }
     last_error: str | None = None
+
+    try:
+        pull_result = await pull_bundle(db)
+        summary["pull_ok"] = True
+        summary["event_count"] = pull_result["event_count"]
+        summary["purged_event_ids"] = pull_result.get("purged_event_ids") or []
+        sync_status["last_pull_at"] = now
+        sync_status["last_event_count"] = pull_result["event_count"]
+        reapply_pending_stock(db, pull_result.get("bundle"))
+    except CloudConfigError as e:
+        last_error = str(e)
+        sync_status["last_error"] = last_error
+        sync_status["last_cycle_at"] = now
+        return {**summary, "error": last_error}
+    except Exception as e:
+        last_error = str(e)
+        log.warning("sync pull failed: %s", e)
+        summary["pull_failed"] = True
 
     try:
         push_result = await push_outbox(db, retry_errors=True)
@@ -146,27 +168,10 @@ async def run_sync_cycle(db: Session) -> dict[str, Any]:
             last_error = push_result["errors"][0].get("error")
     except CloudConfigError as e:
         last_error = str(e)
-        sync_status["last_error"] = last_error
-        sync_status["last_cycle_at"] = now
-        return {**summary, "error": last_error}
     except Exception as e:
         last_error = str(e)
         log.warning("sync push failed: %s", e)
         summary["push_failed"] = True
-
-    try:
-        pull_result = await pull_bundle(db)
-        summary["pull_ok"] = True
-        summary["event_count"] = pull_result["event_count"]
-        sync_status["last_pull_at"] = now
-        sync_status["last_event_count"] = pull_result["event_count"]
-        reapply_pending_stock(db, pull_result.get("bundle"))
-    except CloudConfigError as e:
-        last_error = str(e)
-    except Exception as e:
-        last_error = str(e)
-        log.warning("sync pull failed: %s", e)
-        summary["pull_failed"] = True
 
     sync_status["last_cycle_at"] = now
     sync_status["pending_outbox_count"] = pending_outbox_count(db)

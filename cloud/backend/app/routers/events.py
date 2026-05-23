@@ -31,13 +31,15 @@ from ..twint_qr import (
     store_twint_qr,
     twint_qr_bytes,
 )
+from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_operational_data, validate_status_transition
 from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
 from .auth import get_current_superuser, get_current_user, get_db
 
 router = APIRouter()
 
-ALLOWED_STATUSES = {"config", "test", "prod", "archive"}
 PAYMENT_MODES = {"instant", "pay_now", "pay_later"}
+
+
 class EventBase(BaseModel):
     name: str = Field(..., min_length=1)
     status: str
@@ -691,9 +693,10 @@ def create_event(
     current_user: User = Depends(get_current_user),
 ):
     organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id)
+    create_status = assert_create_status(event_in.status)
     event = Event(
         name=event_in.name,
-        status=event_in.status,
+        status=create_status,
         start=event_in.start,
         end=event_in.end,
         currency=event_in.currency,
@@ -755,6 +758,10 @@ def update_event(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}",
             )
+        old_status = event.status
+        validate_status_transition(old_status, status_value)
+        if old_status == "test" and status_value == "prod":
+            purge_event_operational_data(db, event)
         event.status = status_value
     if event_in.start is not None:
         event.start = event_in.start

@@ -20,6 +20,7 @@ from ..models import (
 )
 from ..payment_types_config import payment_types_from_event
 from ..twint_qr import twint_qr_data_url_for_event
+from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import verify_password
 from .auth import get_db
@@ -99,7 +100,7 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
         )
         .filter(
             Event.organisation_id == organisation_id,
-            Event.status != "archive",
+            Event.status.in_(tuple(PI_VISIBLE_STATUSES)),
             Event.start <= now,
             Event.end >= now,
         )
@@ -127,6 +128,7 @@ def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, str]:
 class EdgeEventBundle(BaseModel):
     id: int
     name: str
+    status: str
     currency: str
     payment_mode: str
     payment_types: list[str] = Field(default_factory=lambda: ["cash"])
@@ -177,6 +179,7 @@ def read_edge_bundle(
             EdgeEventBundle(
                 id=ev.id,
                 name=ev.name,
+                status=(ev.status or "config").lower(),
                 currency=ev.currency,
                 payment_mode=getattr(ev, "payment_mode", None) or "pay_later",
                 payment_types=payment_types_from_event(ev),
@@ -222,6 +225,13 @@ def submit_edge_order(
     event = _load_event_for_org(db, body.event_id, ctx.organisation_id)
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
+
+    ev_status = (event.status or "config").lower()
+    if ev_status not in ORDER_ACCEPT_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Event status {ev_status} does not accept orders",
+        )
 
     lines = (body.payload or {}).get("lines") or []
     if lines:

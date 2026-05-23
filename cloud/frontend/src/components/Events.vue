@@ -25,7 +25,7 @@
             <div class="field-row">
               <div class="form-field">
                 <label>Status</label>
-                <Select v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="Status wählen" />
+                <Select v-model="form.status" :options="selectableStatusOptions" optionLabel="label" optionValue="value" placeholder="Status wählen" />
               </div>
               <div class="form-field">
                 <label>Währung</label>
@@ -125,7 +125,7 @@
         <div class="field-row">
           <div class="form-field">
             <label>Status</label>
-            <Select v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="Status wählen" />
+            <Select v-model="form.status" :options="selectableStatusOptions" optionLabel="label" optionValue="value" placeholder="Status wählen" />
           </div>
           <div class="form-field">
             <label>Währung</label>
@@ -313,10 +313,10 @@ const currentPage = ref(1)
 const pageSize = 20
 
 const statusOptions = [
-  { value: 'config', label: 'Config' },
-  { value: 'test', label: 'Test' },
-  { value: 'prod', label: 'Prod' },
-  { value: 'archive', label: 'Archive' },
+  { value: 'config', label: 'Konfiguration' },
+  { value: 'test', label: 'Testbetrieb' },
+  { value: 'prod', label: 'Produktivbetrieb' },
+  { value: 'archive', label: 'Archiviert' },
 ]
 const statusFilterOptions = [{ value: '', label: 'Alle Status' }, ...statusOptions]
 const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
@@ -343,6 +343,7 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
+const originalStatus = ref('config')
 const hasTwintQr = ref(false)
 const twintQrPreviewUrl = ref('')
 const twintQrBusy = ref(false)
@@ -369,6 +370,17 @@ const canSave = computed(() => {
     Array.isArray(form.value.paymentTypes) &&
     form.value.paymentTypes.length > 0
   )
+})
+
+const selectableStatusOptions = computed(() => {
+  if (!editMode.value) {
+    return statusOptions.filter((o) => o.value === 'config')
+  }
+  const cur = originalStatus.value || form.value.status || 'config'
+  const allowed = new Set([cur])
+  const next = { config: ['test'], test: ['prod'], prod: ['archive'], archive: [] }[cur] || []
+  for (const s of next) allowed.add(s)
+  return statusOptions.filter((o) => allowed.has(o.value))
 })
 
 function statusLabel(status) {
@@ -550,6 +562,7 @@ function resetForm() {
   hasTwintQr.value = false
   revokeTwintQrPreview()
   form.value = emptyForm()
+  originalStatus.value = 'config'
   if (props.activeOrganisationId) {
     form.value.organisationId = props.activeOrganisationId
   } else if (organisationOptions.value.length === 1) {
@@ -581,6 +594,7 @@ async function editEvent(event) {
       : ['cash'],
     organisationId: event.organisation_id || null,
   }
+  originalStatus.value = event.status || 'config'
   message.value = ''
   if (hasTwintQr.value) await loadTwintQrPreview()
 }
@@ -624,6 +638,17 @@ async function copyEvent() {
 }
 
 async function saveEvent() {
+  if (
+    editMode.value &&
+    originalStatus.value === 'test' &&
+    form.value.status === 'prod' &&
+    !confirm(
+      'Wechsel zu Produktivbetrieb: Alle Testbestellungen auf dem Pi, Statistiken in der Cloud und Bestandsänderungen aus dem Testbetrieb werden gelöscht bzw. zurückgesetzt. Fortfahren?'
+    )
+  ) {
+    return
+  }
+
   const payload = {
     name: form.value.name,
     status: form.value.status,
