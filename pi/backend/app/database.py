@@ -89,6 +89,18 @@ def _ensure_kitchen_tables() -> None:
     KitchenTicketLine.__table__.create(bind=engine, checkfirst=True)
 
 
+def _ensure_payment_receipts_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "payment_receipts" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import PaymentReceipt
+
+    PaymentReceipt.__table__.create(bind=engine, checkfirst=True)
+
+
 def apply_schema_patches() -> None:
     """create_all() does not add columns or tables to existing databases."""
     _ensure_event_order_counters_table()
@@ -96,6 +108,7 @@ def apply_schema_patches() -> None:
     _ensure_register_display_states_table()
     _ensure_collective_bills_table()
     _ensure_kitchen_tables()
+    _ensure_payment_receipts_table()
     _add_column_if_missing(
         "local_orders",
         "table_number",

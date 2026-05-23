@@ -20,6 +20,22 @@
         Lagerbestand
       </button>
       <button
+        v-if="androidApp"
+        type="button"
+        class="btn hub-btn"
+        @click="router.push({ name: 'receipts' })"
+      >
+        Belege / Nachdruck
+      </button>
+      <button
+        v-if="androidApp"
+        type="button"
+        class="btn hub-btn"
+        @click="router.push({ name: 'android-printer' })"
+      >
+        Bluetooth Drucker
+      </button>
+      <button
         v-if="kitchenStations.length"
         type="button"
         class="btn hub-btn"
@@ -41,10 +57,12 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import * as store from '../store'
+import { isAndroidApp } from '../api'
 
 const router = useRouter()
 const event = computed(() => store.selectedEvent.value)
 const waiter = computed(() => store.waiter.value)
+const androidApp = computed(() => isAndroidApp())
 const kitchenStations = computed(() =>
   (event.value?.configuration?.stations || []).filter((st) => st.kitchen_monitor_enabled),
 )

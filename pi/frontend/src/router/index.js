@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import * as store from '../store'
 
 const routes = [
@@ -18,6 +18,18 @@ const routes = [
     name: 'admin',
     component: () => import('../views/AdminPanelView.vue'),
     meta: { title: 'Sync', requiresAdmin: true, nav: true, navLabel: 'Sync' },
+  },
+  {
+    path: '/android/printer',
+    name: 'android-printer',
+    component: () => import('../views/AndroidPrinterSetupView.vue'),
+    meta: { title: 'Bluetooth Drucker', nav: true },
+  },
+  {
+    path: '/receipts',
+    name: 'receipts',
+    component: () => import('../views/ReceiptHistoryView.vue'),
+    meta: { title: 'Belege', requiresBundle: true, requiresEvent: true, requiresWaiter: true, nav: true },
   },
   {
     path: '/events',
@@ -124,7 +136,9 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: import.meta.env.VITE_ANDROID_APP === 'true'
+    ? createWebHashHistory(import.meta.env.BASE_URL)
+    : createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 

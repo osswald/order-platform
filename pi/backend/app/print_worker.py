@@ -65,6 +65,106 @@ def _price_hint_eur(cents: int) -> str:
     return f" ({cents / 100:.2f})"
 
 
+def _money(cents: int, currency: str) -> str:
+    return f"{cents / 100:.2f} {currency}"
+
+
+def _payment_type_label(payment_type: str) -> str:
+    labels = {
+        "cash": "Bar",
+        "twint": "TWINT",
+        "sumup": "SumUp",
+        "instant": "Sofort",
+    }
+    key = str(payment_type or "").lower()
+    return labels.get(key, key or "Zahlung")
+
+
+def build_payment_receipt_text(
+    payload: dict,
+    event_name: str,
+    *,
+    payment_id: int | None = None,
+    articles: dict | None = None,
+    currency: str = "EUR",
+    reprint: bool = False,
+    generated_at: str | None = None,
+) -> bytes:
+    """Build a basic ESC/POS receipt for Android Bluetooth transport."""
+    from .pricing import line_total_cents
+
+    arts = articles or {}
+    lines = payload.get("lines") or []
+    payments = payload.get("payments") or []
+    item_total = sum(line_total_cents(line, arts) for line in lines if isinstance(line, dict))
+    payment_total = sum(int(p.get("amount_cents") or 0) for p in payments if isinstance(p, dict))
+    total = payment_total or item_total
+
+    out: list[bytes] = []
+    out.append(b"\x1b\x40")
+    out.append(b"\x1b!\x20")
+    out.append(b"Beleg\n")
+    out.append(b"\x1b!\x00")
+    if reprint:
+        out.append(b"Kopie / Nachdruck\n")
+    out.append(f"{event_name}\n".encode("utf-8", errors="replace"))
+    if payment_id is not None:
+        out.append(f"Beleg-ID: {payment_id}\n".encode("utf-8", errors="replace"))
+    table = payload.get("table_number") or payload.get("settlement_table")
+    if table:
+        out.append(f"Tisch: {table}\n".encode("utf-8", errors="replace"))
+    coll_name = payload.get("collective_bill_name")
+    if coll_name:
+        out.append(f"Sammelrechnung: {coll_name}\n".encode("utf-8", errors="replace"))
+    pickup_code = payload.get("pickup_code")
+    if pickup_code:
+        out.append(f"Pickup: {pickup_code}\n".encode("utf-8", errors="replace"))
+    waiter_name = payload.get("waiter_name")
+    if waiter_name:
+        out.append(f"Kellner: {waiter_name}\n".encode("utf-8", errors="replace"))
+    order_no = payload.get("order_number")
+    if order_no is not None:
+        out.append(f"Bestellung #{order_no}\n".encode("utf-8", errors="replace"))
+    paid_at = payload.get("paid_at") or payload.get("settled_at") or payload.get("ordered_at") or generated_at
+    if paid_at:
+        out.append(f"Zeit: {paid_at}\n".encode("utf-8", errors="replace"))
+    out.append(b"---\n")
+
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        aid = line.get("article_id")
+        if aid is None:
+            continue
+        qty = max(1, int(line.get("qty") or 1))
+        art = arts.get(str(aid)) or arts.get(int(aid)) or {}
+        name = line.get("article_name") or art.get("name") or f"#{aid}"
+        cents = line_total_cents(line, arts)
+        out.append(f"{qty}x {name} {_money(cents, currency)}\n".encode("utf-8", errors="replace"))
+        for add in line.get("additions") or []:
+            if not isinstance(add, dict):
+                continue
+            add_qty = max(1, int(add.get("qty") or 1))
+            add_name = add.get("name") or f"Zusatz #{add.get('article_id')}"
+            add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
+            hint = f" {_money(add_cents, currency)}" if add_cents else ""
+            out.append(f"  + {add_qty}x {add_name}{hint}\n".encode("utf-8", errors="replace"))
+        note = (line.get("note") or "").strip()
+        if note:
+            out.append(f"  {note}\n".encode("utf-8", errors="replace"))
+
+    out.append(b"---\n")
+    out.append(f"Total: {_money(total, currency)}\n".encode("utf-8", errors="replace"))
+    for payment in payments:
+        if not isinstance(payment, dict):
+            continue
+        label = _payment_type_label(str(payment.get("type") or ""))
+        amount = int(payment.get("amount_cents") or 0)
+        out.append(f"{label}: {_money(amount, currency)}\n".encode("utf-8", errors="replace"))
+    out.append(b"\nDanke!\n\n\n\x1dV\x00")
+    return b"".join(out)
+
+
 def build_escpos_receipt_text(
     payload: dict,
     event_name: str,

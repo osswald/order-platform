@@ -35,6 +35,7 @@ from ..models import (
     KitchenTicketLine,
     LocalOrder,
     OutboxEntry,
+    PaymentReceipt,
     PrintJob,
     RegisterDisplayState,
     SyncedBundle,
@@ -43,6 +44,7 @@ from ..security import verify_password
 from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
+    build_payment_receipt_text,
     group_lines_by_station,
     resolve_station_uuid_for_line,
     station_name_from_event,
@@ -537,6 +539,100 @@ class CollectiveBillCreateBody(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
 
 
+class PaymentReceiptBody(BaseModel):
+    reprint: bool = False
+
+
+class PrinterTestReceiptBody(BaseModel):
+    event_id: int | None = None
+
+
+def _add_waiter_name(ev: dict, payload: dict) -> None:
+    if payload.get("waiter_name"):
+        return
+    waiter_uuid = payload.get("waiter_uuid")
+    if waiter_uuid:
+        name = waiter_name_from_event(ev, waiter_uuid)
+        if name:
+            payload["waiter_name"] = name
+
+
+def _create_payment_receipt(
+    db: Session,
+    ev: dict,
+    payload: dict,
+    *,
+    source_type: str,
+    source_id: str | int | None = None,
+) -> PaymentReceipt:
+    receipt_payload = dict(payload)
+    receipt_payload.setdefault("payment_status", "paid")
+    receipt_payload.setdefault("paid_at", datetime.now(timezone.utc).isoformat())
+    _add_waiter_name(ev, receipt_payload)
+    receipt = PaymentReceipt(
+        event_id=int(receipt_payload.get("event_id") or ev.get("id")),
+        waiter_uuid=receipt_payload.get("waiter_uuid"),
+        source_type=source_type,
+        source_id=str(source_id) if source_id is not None else None,
+        payload_json=json.dumps(receipt_payload),
+    )
+    db.add(receipt)
+    db.flush()
+    return receipt
+
+
+def _receipt_payload_from_orders(
+    ev: dict,
+    orders: list[LocalOrder],
+    payments: list[dict],
+    *,
+    table_number: int | None = None,
+    collective_bill: CollectiveBill | None = None,
+    paid_at: str | None = None,
+) -> dict:
+    lines: list[dict] = []
+    order_numbers: set[int] = set()
+    waiter_uuid = orders[0].waiter_uuid if orders else None
+    for order in orders:
+        payload = json.loads(order.payload_json)
+        for line in payload.get("lines") or []:
+            if not isinstance(line, dict):
+                continue
+            lines.append(dict(line))
+            if line.get("order_number") is not None:
+                order_numbers.add(int(line["order_number"]))
+        if payload.get("order_number") is not None:
+            order_numbers.add(int(payload["order_number"]))
+
+    out: dict = {
+        "event_id": int(ev.get("id")),
+        "table_number": table_number,
+        "waiter_uuid": waiter_uuid,
+        "lines": lines,
+        "payments": payments,
+        "payment_status": "paid",
+        "paid_at": paid_at or datetime.now(timezone.utc).isoformat(),
+    }
+    if table_number:
+        out["settlement_table"] = table_number
+    if collective_bill:
+        out.update(
+            {
+                "table_number": None,
+                "collective_bill_id": collective_bill.id,
+                "collective_bill_uuid": collective_bill.uuid,
+                "collective_bill_name": collective_bill.name,
+                "settlement_collective_bill_id": collective_bill.id,
+            }
+        )
+    if len(order_numbers) == 1:
+        out["order_number"] = next(iter(order_numbers))
+    elif order_numbers:
+        out["order_numbers"] = sorted(order_numbers)
+    _add_waiter_name(ev, out)
+    return out
+
+
 def _collective_bill_open(db: Session, bill_id: int, event_id: int) -> CollectiveBill:
     bill = (
         db.query(CollectiveBill)
@@ -757,9 +853,20 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
     articles_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts)
     save_bundle(db, bundle)
 
+    payment_receipt_id = None
+    if order_source != "cash_register" and payment_status == "paid" and payments:
+        payment_receipt_id = _create_payment_receipt(
+            db,
+            ev,
+            payload,
+            source_type="order",
+            source_id=order.id,
+        ).id
+
     db.commit()
     return {
         "local_order_id": order.id,
+        "payment_id": payment_receipt_id,
         "order_number": order_number,
         "print_job_id": print_job_ids[0] if print_job_ids else None,
         "print_job_ids": print_job_ids,
@@ -798,11 +905,13 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     payload = json.loads(order.payload_json)
     payload["payments"] = body.payments
     payload["payment_status"] = "paid"
+    payload["paid_at"] = datetime.now(timezone.utc).isoformat()
     order.payment_status = "paid"
     order.payload_json = json.dumps(payload)
     _sync_outbox_payload(db, order, payload)
+    receipt = _create_payment_receipt(db, ev, payload, source_type="order", source_id=order.id)
     db.commit()
-    return {"local_order_id": order.id, "payment_status": "paid"}
+    return {"local_order_id": order.id, "payment_id": receipt.id, "payment_status": "paid"}
 
 
 @router.get("/v1/tables/open")
@@ -1001,6 +1110,7 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
         raise HTTPException(status_code=400, detail="Selection exceeds open quantities on table")
 
     paid_order_ids: list[int] = []
+    payment_id = None
     if paid_lines:
         pay_cid = f"partial-{table_number}-{uuid.uuid4().hex[:12]}"
         paid_lines = _lines_with_station_uuid(ev, paid_lines)
@@ -1031,6 +1141,13 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
         db.add(paid_order)
         db.flush()
         paid_order_ids.append(paid_order.id)
+        payment_id = _create_payment_receipt(
+            db,
+            ev,
+            paid_payload,
+            source_type="table_partial",
+            source_id=paid_order.id,
+        ).id
         db.add(
             OutboxEntry(
                 client_order_id=pay_cid,
@@ -1062,6 +1179,7 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
         "paid_cents": expected_cents,
         "remaining_cents": remaining_cents,
         "paid_order_ids": paid_order_ids,
+        "payment_id": payment_id,
         "table_number": table_number,
     }
 
@@ -1122,8 +1240,27 @@ def settle_table(table_number: int, body: TableSettleBody, db: Session = Depends
         _sync_outbox_payload(db, o, payload)
         paid_ids.append(o.id)
 
+    receipt_payload = _receipt_payload_from_orders(
+        ev,
+        orders,
+        body.payments,
+        table_number=table_number,
+        paid_at=now,
+    )
+    receipt = _create_payment_receipt(
+        db,
+        ev,
+        receipt_payload,
+        source_type="table",
+        source_id=table_number,
+    )
     db.commit()
-    return {"paid_order_ids": paid_ids, "total_cents": total_cents, "table_number": table_number}
+    return {
+        "paid_order_ids": paid_ids,
+        "payment_id": receipt.id,
+        "total_cents": total_cents,
+        "table_number": table_number,
+    }
 
 
 def _selections_from_body(selections: list[LineSelection]) -> list[dict]:
@@ -1452,6 +1589,7 @@ def _settle_orders_partial(
         raise HTTPException(status_code=400, detail="Selection exceeds open quantities")
 
     paid_order_ids: list[int] = []
+    payment_id = None
     if paid_lines:
         pay_cid = f"{paid_order_prefix}-{uuid.uuid4().hex[:12]}"
         paid_lines = _lines_with_station_uuid(ev, paid_lines)
@@ -1483,6 +1621,13 @@ def _settle_orders_partial(
         db.add(paid_order)
         db.flush()
         paid_order_ids.append(paid_order.id)
+        payment_id = _create_payment_receipt(
+            db,
+            ev,
+            paid_payload,
+            source_type="collective_partial" if settlement_meta.get("collective_bill_id") else "table_partial",
+            source_id=paid_order.id,
+        ).id
         db.add(
             OutboxEntry(
                 client_order_id=pay_cid,
@@ -1495,6 +1640,7 @@ def _settle_orders_partial(
     return {
         "paid_cents": expected_cents,
         "paid_order_ids": paid_order_ids,
+        "payment_id": payment_id,
     }
 
 
@@ -1630,9 +1776,24 @@ def settle_collective(bill_id: int, body: TableSettleBody, db: Session = Depends
         _sync_outbox_payload(db, o, payload)
         paid_ids.append(o.id)
 
+    receipt_payload = _receipt_payload_from_orders(
+        ev,
+        orders,
+        body.payments,
+        collective_bill=bill,
+        paid_at=now,
+    )
+    receipt = _create_payment_receipt(
+        db,
+        ev,
+        receipt_payload,
+        source_type="collective",
+        source_id=bill.id,
+    )
     db.commit()
     return {
         "paid_order_ids": paid_ids,
+        "payment_id": receipt.id,
         "total_cents": total_cents,
         "collective_bill_id": bill.id,
     }
@@ -1964,6 +2125,110 @@ def put_register_display(cash_register_uuid: str, body: RegisterDisplayBody, db:
         "payload": json.loads(row.payload_json or "{}"),
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
+
+
+@router.get("/v1/payments")
+def list_payments(
+    event_id: int = Query(...),
+    waiter_uuid: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    arts = _article_map(ev)
+    q = db.query(PaymentReceipt).filter(PaymentReceipt.event_id == event_id)
+    if waiter_uuid:
+        q = q.filter(PaymentReceipt.waiter_uuid == waiter_uuid)
+    rows = q.order_by(PaymentReceipt.id.desc()).limit(limit).all()
+    payments = []
+    for row in rows:
+        payload = json.loads(row.payload_json or "{}")
+        line_total, item_count = _line_totals(payload.get("lines") or [], arts)
+        paid_total = _payments_total_cents(payload.get("payments") or []) or line_total
+        payments.append(
+            {
+                "payment_id": row.id,
+                "source_type": row.source_type,
+                "source_id": row.source_id,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "paid_at": payload.get("paid_at") or payload.get("settled_at"),
+                "table_number": payload.get("table_number") or payload.get("settlement_table"),
+                "collective_bill_name": payload.get("collective_bill_name"),
+                "order_number": payload.get("order_number"),
+                "order_numbers": payload.get("order_numbers") or [],
+                "waiter_name": payload.get("waiter_name"),
+                "payment_types": [
+                    str(p.get("type") or "")
+                    for p in payload.get("payments") or []
+                    if isinstance(p, dict) and p.get("type")
+                ],
+                "total_cents": paid_total,
+                "item_count": item_count,
+                "currency": ev.get("currency", "EUR"),
+            }
+        )
+    return {"payments": payments}
+
+
+@router.post("/v1/payments/{payment_id}/receipt")
+def payment_receipt(payment_id: int, body: PaymentReceiptBody | None = None, db: Session = Depends(get_db)):
+    row = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, row.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    payload = json.loads(row.payload_json or "{}")
+    esc = build_payment_receipt_text(
+        payload,
+        ev.get("name", "Event"),
+        payment_id=row.id,
+        articles=_article_map(ev),
+        currency=ev.get("currency", "EUR"),
+        reprint=bool(body and body.reprint),
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
+    return {
+        "payment_id": row.id,
+        "escpos_payload": base64.b64encode(esc).decode("ascii"),
+    }
+
+
+@router.post("/v1/printers/test-receipt")
+def printer_test_receipt(body: PrinterTestReceiptBody | None = None, db: Session = Depends(get_db)):
+    event_name = "Test"
+    currency = "EUR"
+    articles = {"1": {"id": 1, "name": "Testartikel", "price": 1.0, "additions": []}}
+    event_id = body.event_id if body else None
+    if event_id:
+        bundle = _get_bundle_dict(db)
+        ev = _event_from_bundle(bundle, event_id)
+        if not ev:
+            raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+        event_name = ev.get("name", "Event")
+        currency = ev.get("currency", "EUR")
+        articles = _article_map(ev) or articles
+    payload = {
+        "event_id": event_id,
+        "table_number": 1,
+        "waiter_name": "Test",
+        "lines": [{"article_id": 1, "qty": 1, "article_name": "Testartikel", "note": "Bluetooth Test", "additions": []}],
+        "payments": [{"type": "cash", "amount_cents": 100}],
+        "payment_status": "paid",
+        "paid_at": datetime.now(timezone.utc).isoformat(),
+    }
+    esc = build_payment_receipt_text(
+        payload,
+        event_name,
+        articles=articles,
+        currency=currency,
+        generated_at=payload["paid_at"],
+    )
+    return {"escpos_payload": base64.b64encode(esc).decode("ascii")}
 
 
 @router.get("/v1/print-jobs")
