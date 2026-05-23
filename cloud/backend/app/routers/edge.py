@@ -1,0 +1,254 @@
+"""Device-authenticated API for on-prem Raspberry Pi (server appliance)."""
+
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session, joinedload
+
+from ..models import (
+    Appliance,
+    ApplianceLending,
+    EdgeSubmittedOrder,
+    Event,
+    EventAppLayout,
+    EventAppLayoutCell,
+    EventStation,
+    User,
+    organisation_users,
+)
+from ..payment_types_config import payment_types_from_event
+from ..twint_qr import twint_qr_data_url_for_event
+from ..stock import apply_stock_deductions, article_snapshot_for_event
+from ..security import verify_password
+from .auth import get_db
+from .events import serialize_event_configuration
+
+router = APIRouter()
+
+
+def _utc_today():
+    return datetime.now(timezone.utc).date()
+
+
+class ApplianceEdgeContext:
+    def __init__(self, appliance: Appliance, organisation_id: int):
+        self.appliance = appliance
+        self.organisation_id = organisation_id
+
+
+def get_edge_server_appliance(
+    db: Session = Depends(get_db),
+    x_edge_client_id: str | None = Header(None, alias="X-Edge-Client-Id"),
+    x_edge_secret: str | None = Header(None, alias="X-Edge-Secret"),
+) -> ApplianceEdgeContext:
+    if not x_edge_client_id or not x_edge_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-Edge-Client-Id or X-Edge-Secret",
+        )
+    appliance = db.query(Appliance).filter(Appliance.edge_client_id == x_edge_client_id).first()
+    if not appliance or appliance.type != "server":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
+    if not appliance.edge_secret_hash or not verify_password(x_edge_secret, appliance.edge_secret_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
+
+    today = _utc_today()
+    lending = (
+        db.query(ApplianceLending)
+        .filter(
+            ApplianceLending.appliance_id == appliance.id,
+            ApplianceLending.returned_at.is_(None),
+            ApplianceLending.start_date <= today,
+            ApplianceLending.end_date >= today,
+        )
+        .first()
+    )
+    if not lending:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No active appliance lending for this device today",
+        )
+    return ApplianceEdgeContext(appliance, lending.organisation_id)
+
+
+def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Event | None:
+    return (
+        db.query(Event)
+        .options(
+            joinedload(Event.organisation),
+            joinedload(Event.stations).joinedload(EventStation.articles),
+            joinedload(Event.event_waiters),
+            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+        )
+        .filter(Event.id == event_id, Event.organisation_id == organisation_id)
+        .first()
+    )
+
+
+def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
+    now = datetime.now(timezone.utc)
+    return (
+        db.query(Event)
+        .options(
+            joinedload(Event.organisation),
+            joinedload(Event.stations).joinedload(EventStation.articles),
+            joinedload(Event.event_waiters),
+            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+        )
+        .filter(
+            Event.organisation_id == organisation_id,
+            Event.status != "archive",
+            Event.start <= now,
+            Event.end >= now,
+        )
+        .order_by(Event.start.asc())
+        .all()
+    )
+
+
+def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
+    return article_snapshot_for_event(db, event)
+
+
+def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, str]:
+    """Map station uuid -> host:port for ESC/POS (network printers, port 9100)."""
+    out: dict[str, str] = {}
+    for st in event.stations or []:
+        if not st.printer_appliance_id:
+            continue
+        ap = db.query(Appliance).filter(Appliance.id == st.printer_appliance_id).first()
+        if ap and ap.ip_address:
+            out[str(st.uuid)] = f"{ap.ip_address}:9100"
+    return out
+
+
+class EdgeEventBundle(BaseModel):
+    id: int
+    name: str
+    currency: str
+    payment_mode: str
+    payment_types: list[str] = Field(default_factory=lambda: ["cash"])
+    twint_qr_data_url: str | None = None
+    start: datetime
+    end: datetime
+    configuration: dict[str, Any]
+    articles: dict[str, Any]
+    printer_hosts: dict[str, str] = Field(default_factory=dict)
+
+
+class EdgeBundleRead(BaseModel):
+    organisation_id: int
+    appliance_id: int
+    server_time: datetime
+    events: list[EdgeEventBundle]
+    admin_pin_hashes: list[str] = Field(default_factory=list)
+
+
+def _admin_pin_hashes_for_org(db: Session, organisation_id: int) -> list[str]:
+    rows = (
+        db.query(User.event_admin_pin_hash)
+        .join(organisation_users, organisation_users.c.user_id == User.id)
+        .filter(
+            organisation_users.c.organisation_id == organisation_id,
+            User.is_active.is_(True),
+            User.event_admin_pin_hash.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    return [h for (h,) in rows if h]
+
+
+@router.get("/v1/bundle", response_model=EdgeBundleRead)
+def read_edge_bundle(
+    ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
+    db: Session = Depends(get_db),
+):
+    appliance = ctx.appliance
+    org_id = ctx.organisation_id
+    events = _active_events_for_org(db, org_id)
+    bundles: list[EdgeEventBundle] = []
+    for ev in events:
+        cfg = serialize_event_configuration(db, ev)
+        cfg_dict = cfg.model_dump() if hasattr(cfg, "model_dump") else cfg.dict()
+        bundles.append(
+            EdgeEventBundle(
+                id=ev.id,
+                name=ev.name,
+                currency=ev.currency,
+                payment_mode=getattr(ev, "payment_mode", None) or "pay_later",
+                payment_types=payment_types_from_event(ev),
+                twint_qr_data_url=twint_qr_data_url_for_event(ev),
+                start=ev.start,
+                end=ev.end,
+                configuration=cfg_dict,
+                articles=_article_snapshot(db, ev),
+                printer_hosts=_printer_hosts_by_station(db, ev),
+            )
+        )
+    db.commit()
+    return EdgeBundleRead(
+        organisation_id=org_id,
+        appliance_id=appliance.id,
+        server_time=datetime.now(timezone.utc),
+        events=bundles,
+        admin_pin_hashes=_admin_pin_hashes_for_org(db, org_id),
+    )
+
+
+class EdgeOrderCreate(BaseModel):
+    client_order_id: str = Field(..., min_length=8, max_length=64)
+    event_id: int
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class EdgeOrderAck(BaseModel):
+    server_order_id: int
+    duplicate: bool = False
+
+
+@router.post("/v1/orders", response_model=EdgeOrderAck)
+def submit_edge_order(
+    body: EdgeOrderCreate,
+    ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
+    db: Session = Depends(get_db),
+):
+    existing = db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.client_order_id == body.client_order_id).first()
+    if existing:
+        return EdgeOrderAck(server_order_id=existing.id, duplicate=True)
+
+    event = _load_event_for_org(db, body.event_id, ctx.organisation_id)
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
+
+    lines = (body.payload or {}).get("lines") or []
+    if lines:
+        from ..models import Article
+
+        names: dict[int, str] = {}
+        for st in event.stations or []:
+            for a in st.articles or []:
+                names[a.id] = a.name
+        extra_ids: set[int] = set()
+        for line in lines:
+            for add in line.get("additions") or []:
+                if isinstance(add, dict) and add.get("article_id") is not None:
+                    extra_ids.add(int(add["article_id"]))
+        if extra_ids:
+            for a in db.query(Article).filter(Article.id.in_(list(extra_ids))).all():
+                names[a.id] = a.name
+        apply_stock_deductions(db, event.id, lines, article_names=names)
+
+    row = EdgeSubmittedOrder(
+        client_order_id=body.client_order_id,
+        appliance_id=ctx.appliance.id,
+        organisation_id=ctx.organisation_id,
+        event_id=body.event_id,
+        payload=body.payload or {},
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return EdgeOrderAck(server_order_id=row.id, duplicate=False)

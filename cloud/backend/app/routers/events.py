@@ -1,0 +1,729 @@
+from datetime import datetime
+from typing import Any, List
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
+from pydantic import BaseModel, Field, model_validator
+from sqlalchemy.orm import Session, joinedload
+
+from ..event_config_validation import (
+    build_station_article_tree,
+    event_printer_candidates,
+    replace_event_configuration,
+)
+from ..models import (
+    Article,
+    Event,
+    EventAppLayout,
+    EventAppLayoutCell,
+    EventArticleStock,
+    EventStation,
+    Organisation,
+    User,
+)
+from ..event_sales import build_event_sales_report
+from ..payment_types_config import normalize_payment_types, payment_types_from_event
+from ..twint_qr import (
+    clear_twint_qr,
+    has_twint_qr,
+    store_twint_qr,
+    twint_qr_bytes,
+)
+from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
+from .auth import get_current_superuser, get_current_user, get_db
+
+router = APIRouter()
+
+ALLOWED_STATUSES = {"config", "test", "prod", "archive"}
+PAYMENT_MODES = {"instant", "pay_now", "pay_later"}
+class EventBase(BaseModel):
+    name: str = Field(..., min_length=1)
+    status: str
+    start: datetime
+    end: datetime
+    currency: str = Field(..., min_length=3, max_length=3)
+    organisation_id: int
+    payment_mode: str = "pay_later"
+    payment_types: List[str] = Field(default_factory=lambda: ["cash"])
+
+    @model_validator(mode="after")
+    def validate_event(self):
+        self.status = self.status.lower()
+        if self.status not in ALLOWED_STATUSES:
+            raise ValueError(f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}")
+        self.currency = self.currency.upper()
+        pm = (self.payment_mode or "pay_later").lower()
+        if pm not in PAYMENT_MODES:
+            raise ValueError(f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}")
+        self.payment_mode = pm
+        self.payment_types = normalize_payment_types(self.payment_types)
+        if self.end < self.start:
+            raise ValueError("End must be after start")
+        return self
+
+
+class EventCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    status: str
+    start: datetime
+    end: datetime
+    currency: str = Field(..., min_length=3, max_length=3)
+    organisation_id: int | None = None
+    payment_mode: str = "pay_later"
+    payment_types: List[str] = Field(default_factory=lambda: ["cash"])
+
+    @model_validator(mode="after")
+    def validate_event(self):
+        self.status = self.status.lower()
+        if self.status not in ALLOWED_STATUSES:
+            raise ValueError(f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}")
+        self.currency = self.currency.upper()
+        pm = (self.payment_mode or "pay_later").lower()
+        if pm not in PAYMENT_MODES:
+            raise ValueError(f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}")
+        self.payment_mode = pm
+        self.payment_types = normalize_payment_types(self.payment_types)
+        if self.end < self.start:
+            raise ValueError("End must be after start")
+        return self
+
+
+class EventUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1)
+    status: str | None = None
+    start: datetime | None = None
+    end: datetime | None = None
+    currency: str | None = Field(None, min_length=3, max_length=3)
+    organisation_id: int | None = None
+    payment_mode: str | None = None
+    payment_types: List[str] | None = None
+
+
+class EventRead(EventBase):
+    id: int
+    organisation_name: str
+
+    class Config:
+        from_attributes = True
+
+
+class PrinterOptionRead(BaseModel):
+    id: int
+    name: str
+
+
+class StationConfigRead(BaseModel):
+    uuid: str
+    name: str
+    sort_order: int
+    printer_appliance_id: int | None
+    article_ids: List[int]
+
+
+class EventWaiterConfigRead(BaseModel):
+    uuid: str
+    name: str
+    pin: str
+    source_waiter_id: int | None
+
+
+class LayoutCellRead(BaseModel):
+    row: int
+    col: int
+    label: str
+    color: str
+    article_ids: List[int]
+
+
+class AppLayoutRead(BaseModel):
+    id: int
+    name: str | None
+    is_default: bool
+    grid_width: int
+    grid_height: int
+    cells: List[LayoutCellRead]
+
+
+class EventConfigurationRead(BaseModel):
+    stations: List[StationConfigRead]
+    event_waiters: List[EventWaiterConfigRead]
+    app_layouts: List[AppLayoutRead]
+    printer_options: List[PrinterOptionRead]
+
+
+class StationConfigIn(BaseModel):
+    uuid: str | None = None
+    name: str = Field(..., min_length=1)
+    printer_appliance_id: int | None = None
+    article_ids: List[int] = Field(default_factory=list)
+
+
+class EventWaiterConfigIn(BaseModel):
+    uuid: str | None = None
+    name: str = Field(..., min_length=1)
+    pin: str = Field(..., min_length=1)
+    source_waiter_id: int | None = None
+
+
+class LayoutCellIn(BaseModel):
+    row: int = Field(..., ge=0)
+    col: int = Field(..., ge=0)
+    label: str = ""
+    color: str = "#eeeeee"
+    article_ids: List[int] = Field(default_factory=list)
+
+
+class AppLayoutIn(BaseModel):
+    name: str | None = None
+    is_default: bool = False
+    grid_width: int = Field(..., ge=1, le=64)
+    grid_height: int = Field(..., ge=1, le=64)
+    cells: List[LayoutCellIn] = Field(default_factory=list)
+
+
+class EventConfigurationIn(BaseModel):
+    stations: List[StationConfigIn] = Field(default_factory=list)
+    event_waiters: List[EventWaiterConfigIn] = Field(default_factory=list)
+    app_layouts: List[AppLayoutIn] = Field(default_factory=list)
+
+
+def event_response(event: Event) -> dict:
+    return {
+        "id": event.id,
+        "name": event.name,
+        "status": event.status,
+        "start": event.start,
+        "end": event.end,
+        "currency": event.currency,
+        "organisation_id": event.organisation_id,
+        "organisation_name": event.organisation.name if event.organisation else "",
+        "payment_mode": getattr(event, "payment_mode", None) or "pay_later",
+        "payment_types": payment_types_from_event(event),
+        "has_twint_qr": has_twint_qr(event),
+    }
+
+
+def readable_events_query(db: Session, current_user: User):
+    query = db.query(Event).options(joinedload(Event.organisation))
+    if current_user.is_superuser:
+        return query
+    return (
+        query.join(Event.organisation)
+        .join(Organisation.users)
+        .filter(User.id == current_user.id)
+    )
+
+
+def ensure_organisation_exists(db: Session, organisation_id: int) -> Organisation:
+    organisation = db.query(Organisation).filter(Organisation.id == organisation_id).first()
+    if not organisation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
+    return organisation
+
+
+def readable_organisations(db: Session, current_user: User) -> list[Organisation]:
+    if current_user.is_superuser:
+        return db.query(Organisation).order_by(Organisation.name).all()
+    return sorted(current_user.organisations or [], key=lambda org: org.name.lower())
+
+
+def ensure_user_can_use_organisation(
+    db: Session,
+    current_user: User,
+    organisation_id: int | None,
+) -> Organisation:
+    organisations = readable_organisations(db, current_user)
+    if organisation_id is None:
+        if len(organisations) == 1:
+            return organisations[0]
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Organisation is required when the user is linked to multiple organisations",
+        )
+    organisation = ensure_organisation_exists(db, organisation_id)
+    if current_user.is_superuser:
+        return organisation
+    if not any(org.id == organisation.id for org in organisations):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this organisation")
+    return organisation
+
+
+def get_event_for_configuration(db: Session, current_user: User, event_id: int) -> Event:
+    event = (
+        readable_events_query(db, current_user)
+        .options(
+            joinedload(Event.organisation),
+            joinedload(Event.stations).joinedload(EventStation.articles),
+            joinedload(Event.event_waiters),
+            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+        )
+        .filter(Event.id == event_id)
+        .first()
+    )
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return event
+
+
+def serialize_event_configuration(db: Session, event: Event) -> EventConfigurationRead:
+    printers = event_printer_candidates(db, event)
+    printer_options = [
+        PrinterOptionRead(id=a.id, name=(a.name or f"Drucker #{a.id}")) for a in printers
+    ]
+    stations = []
+    for st in sorted(event.stations, key=lambda s: (s.sort_order, s.id)):
+        stations.append(
+            StationConfigRead(
+                uuid=st.uuid,
+                name=st.name,
+                sort_order=st.sort_order,
+                printer_appliance_id=st.printer_appliance_id,
+                article_ids=[a.id for a in st.articles],
+            )
+        )
+    event_waiters = [
+        EventWaiterConfigRead(
+            uuid=ew.uuid,
+            name=ew.name,
+            pin=ew.pin,
+            source_waiter_id=ew.source_waiter_id,
+        )
+        for ew in sorted(event.event_waiters, key=lambda w: w.id)
+    ]
+    app_layouts = []
+    for lo in sorted(event.app_layouts, key=lambda x: x.id):
+        cells = []
+        for cell in sorted(lo.cells, key=lambda c: (c.row, c.col)):
+            cells.append(
+                LayoutCellRead(
+                    row=cell.row,
+                    col=cell.col,
+                    label=cell.label or "",
+                    color=cell.color or "#eeeeee",
+                    article_ids=[a.id for a in cell.articles],
+                )
+            )
+        app_layouts.append(
+            AppLayoutRead(
+                id=lo.id,
+                name=lo.name,
+                is_default=bool(lo.is_default),
+                grid_width=lo.grid_width,
+                grid_height=lo.grid_height,
+                cells=cells,
+            )
+        )
+    return EventConfigurationRead(
+        stations=stations,
+        event_waiters=event_waiters,
+        app_layouts=app_layouts,
+        printer_options=printer_options,
+    )
+
+
+@router.get("/", response_model=List[EventRead])
+def read_events(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    events = readable_events_query(db, current_user).order_by(Event.start.desc()).all()
+    return [event_response(event) for event in events]
+
+
+@router.get("/organisations")
+def read_event_organisations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return [{"id": org.id, "name": org.name} for org in readable_organisations(db, current_user)]
+
+
+@router.get("/{event_id}/configuration", response_model=EventConfigurationRead)
+def read_event_configuration(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    return serialize_event_configuration(db, event)
+
+
+@router.get("/{event_id}/station-article-tree")
+def read_event_station_article_tree(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    return {"nodes": build_station_article_tree(db, event)}
+
+
+class EventStockItemRead(BaseModel):
+    id: int
+    name: str
+    label: str
+    monitor_stock: bool
+    in_stock: int | None = None
+
+
+class EventStockListRead(BaseModel):
+    items: List[EventStockItemRead]
+
+
+class EventStockItemIn(BaseModel):
+    article_id: int
+    monitor_stock: bool = False
+    in_stock: int | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def normalize(self):
+        monitor, qty = normalize_stock_fields(self.monitor_stock, self.in_stock)
+        self.monitor_stock = monitor
+        self.in_stock = qty
+        return self
+
+
+class EventStockUpdateIn(BaseModel):
+    items: List[EventStockItemIn] = Field(default_factory=list)
+
+
+class SalesAdditionLineRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+    line_cents: int
+
+
+class SalesOrderLineRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+    station_uuid: str | None = None
+    station_name: str
+    line_cents: int
+    additions: List[SalesAdditionLineRead] = Field(default_factory=list)
+
+
+class SalesPaymentRead(BaseModel):
+    type: str
+    type_label: str
+    amount_cents: int
+
+
+class SalesOrderRead(BaseModel):
+    id: int
+    client_order_id: str
+    created_at: str | None = None
+    table_number: Any = None
+    waiter_uuid: str | None = None
+    waiter_name: str
+    payment_status: str
+    line_cents: int
+    paid_cents: int
+    lines: List[SalesOrderLineRead] = Field(default_factory=list)
+    payments: List[SalesPaymentRead] = Field(default_factory=list)
+
+
+class SalesTotalsRead(BaseModel):
+    orders_count: int
+    line_cents: int
+    paid_cents: int
+    open_cents: int
+
+
+class SalesByWaiterRead(BaseModel):
+    waiter_uuid: str | None = None
+    name: str
+    line_cents: int
+    paid_cents: int
+    order_count: int
+
+
+class SalesByStationRead(BaseModel):
+    station_uuid: str | None = None
+    name: str
+    line_cents: int
+    qty: int
+
+
+class SalesByArticleRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+    line_cents: int
+
+
+class SalesByPaymentTypeRead(BaseModel):
+    type: str
+    label: str
+    amount_cents: int
+
+
+class EventSalesReportRead(BaseModel):
+    currency: str
+    totals: SalesTotalsRead
+    orders: List[SalesOrderRead]
+    by_waiter: List[SalesByWaiterRead]
+    by_station: List[SalesByStationRead]
+    by_article: List[SalesByArticleRead]
+    by_payment_type: List[SalesByPaymentTypeRead]
+
+
+@router.get("/{event_id}/sales-report", response_model=EventSalesReportRead)
+def read_event_sales_report(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    return build_event_sales_report(db, event)
+
+
+@router.get("/{event_id}/twint-qr")
+def get_event_twint_qr(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    payload = twint_qr_bytes(event)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No TWINT QR code for this event")
+    mime, raw = payload
+    return Response(content=raw, media_type=mime)
+
+
+@router.put("/{event_id}/twint-qr")
+async def put_event_twint_qr(
+    event_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    if "twint" not in payment_types_from_event(event):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Enable TWINT in payment types before uploading a QR code",
+        )
+    mime = (file.content_type or "").split(";")[0].strip().lower()
+    raw = await file.read()
+    try:
+        store_twint_qr(event, mime, raw)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    db.commit()
+    db.refresh(event)
+    return {"ok": True, "has_twint_qr": True}
+
+
+@router.delete("/{event_id}/twint-qr", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event_twint_qr(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    clear_twint_qr(event)
+    db.commit()
+
+
+@router.get("/{event_id}/event-stock", response_model=EventStockListRead)
+def read_event_stock(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    rows = ensure_stock_rows_for_event_articles(db, event, commit=True)
+    art_by_id = {a.id: a for a in db.query(Article).filter(Article.id.in_([r.article_id for r in rows])).all()}
+    items = []
+    for row in rows:
+        art = art_by_id.get(row.article_id)
+        if not art:
+            continue
+        items.append(
+            EventStockItemRead(
+                id=art.id,
+                name=art.name,
+                label=art.label,
+                monitor_stock=row.monitor_stock,
+                in_stock=row.in_stock,
+            )
+        )
+    items.sort(key=lambda x: x.name.lower())
+    return EventStockListRead(items=items)
+
+
+@router.put("/{event_id}/event-stock", response_model=EventStockListRead)
+def put_event_stock(
+    event_id: int,
+    body: EventStockUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    try:
+        upsert_stock_rows(
+            db,
+            event,
+            [{"article_id": i.article_id, "monitor_stock": i.monitor_stock, "in_stock": i.in_stock} for i in body.items],
+        )
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    rows = (
+        db.query(EventArticleStock)
+        .filter(EventArticleStock.event_id == event.id)
+        .all()
+    )
+    art_by_id = {a.id: a for a in db.query(Article).filter(Article.id.in_([r.article_id for r in rows])).all()}
+    items = []
+    for row in rows:
+        art = art_by_id.get(row.article_id)
+        if not art:
+            continue
+        items.append(
+            EventStockItemRead(
+                id=art.id,
+                name=art.name,
+                label=art.label,
+                monitor_stock=row.monitor_stock,
+                in_stock=row.in_stock,
+            )
+        )
+    items.sort(key=lambda x: x.name.lower())
+    return EventStockListRead(items=items)
+
+
+@router.put("/{event_id}/configuration", response_model=EventConfigurationRead)
+def put_event_configuration(
+    event_id: int,
+    body: EventConfigurationIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    try:
+        replace_event_configuration(
+            db,
+            event,
+            stations_in=body.stations,
+            event_waiters_in=body.event_waiters,
+            app_layouts_in=body.app_layouts,
+        )
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    event = get_event_for_configuration(db, current_user, event_id)
+    return serialize_event_configuration(db, event)
+
+
+@router.get("/{event_id}", response_model=EventRead)
+def read_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = readable_events_query(db, current_user).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return event_response(event)
+
+
+@router.post("/", response_model=EventRead)
+def create_event(
+    event_in: EventCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id)
+    event = Event(
+        name=event_in.name,
+        status=event_in.status,
+        start=event_in.start,
+        end=event_in.end,
+        currency=event_in.currency,
+        organisation_id=organisation.id,
+        payment_mode=event_in.payment_mode,
+        payment_types=event_in.payment_types,
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event_response(event)
+
+
+@router.put("/{event_id}", response_model=EventRead)
+def update_event(
+    event_id: int,
+    event_in: EventUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = readable_events_query(db, current_user).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    if event_in.organisation_id is not None:
+        organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id)
+        event.organisation_id = organisation.id
+    if event_in.name is not None:
+        event.name = event_in.name
+    if event_in.status is not None:
+        status_value = event_in.status.lower()
+        if status_value not in ALLOWED_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}",
+            )
+        event.status = status_value
+    if event_in.start is not None:
+        event.start = event_in.start
+    if event_in.end is not None:
+        event.end = event_in.end
+    if event_in.currency is not None:
+        event.currency = event_in.currency.upper()
+    if event_in.payment_mode is not None:
+        pm = event_in.payment_mode.lower()
+        if pm not in PAYMENT_MODES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}",
+            )
+        event.payment_mode = pm
+    if event_in.payment_types is not None:
+        try:
+            new_types = normalize_payment_types(event_in.payment_types)
+            event.payment_types = new_types
+            if "twint" not in new_types:
+                clear_twint_qr(event)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
+            ) from e
+    if event.end < event.start:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="End must be after start")
+
+    db.commit()
+    db.refresh(event)
+    return event_response(event)
+
+
+@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_superuser)])
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    db.delete(event)
+    db.commit()
+    return None

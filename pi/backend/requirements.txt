@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+httpx
+python-multipart
+passlib[bcrypt]

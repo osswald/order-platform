@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  pi-backend:
+    build: ./backend
+    image: ${PI_BACKEND_IMAGE:-order-platform-pi-backend:local}
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/pi.db}
+      # From inside the container, "localhost" is this container — use the host to reach cloud on :8000.
+      # Override in .env for production (https://your-api…).
+      CLOUD_BASE_URL: ${CLOUD_BASE_URL:-http://host.docker.internal:8000}
+      EDGE_CLIENT_ID: ${EDGE_CLIENT_ID:-}
+      EDGE_SECRET: ${EDGE_SECRET:-}
+      APP_NAME: pi-backend
+      PRINT_TO_FILE: ${PRINT_TO_FILE:-}
+      PRINT_OUTPUT_DIR: ${PRINT_OUTPUT_DIR:-/data/print-vouchers}
+      SYNC_ENABLED: ${SYNC_ENABLED:-1}
+      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-60}
+    extra_hosts:
+      # Linux: resolves host.docker.internal to the host gateway. Docker Desktop already provides the name.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - pi-data:/data
+    ports:
+      - "8001:8000"
+    networks:
+      - app-net
+
+  pi-frontend:
+    build: ./frontend
+    depends_on:
+      - pi-backend
+    environment:
+      # Browser on your machine calls the Pi API via the published host port (not a Docker service name).
+      VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8001}
+    ports:
+      # Must match Vite dev port inside the image (see pi/frontend/vite.config.js).
+      - "5174:5174"
+    networks:
+      - app-net
+
+volumes:
+  pi-data: {}
+
+networks:
+  app-net:
+    driver: bridge
