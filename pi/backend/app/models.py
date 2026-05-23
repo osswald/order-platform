@@ -69,3 +69,25 @@ class PrintJob(Base):
     status = Column(String(32), nullable=False, default="queued")  # queued | sent | error
     last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class KitchenTicket(Base):
+    __tablename__ = "kitchen_tickets"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    local_order_id = Column(Integer, nullable=False, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    station_uuid = Column(String(36), nullable=False, index=True)
+    status = Column(String(16), nullable=False, default="open")  # open | partial | done
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class KitchenTicketLine(Base):
+    __tablename__ = "kitchen_ticket_lines"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticket_id = Column(Integer, nullable=False, index=True)
+    line_index = Column(Integer, nullable=False, default=0)
+    line_payload_json = Column(Text, nullable=False)
+    qty_total = Column(Integer, nullable=False)
+    qty_printed = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

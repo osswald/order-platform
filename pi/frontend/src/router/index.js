@@ -56,6 +56,12 @@ const routes = [
     meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true },
   },
   {
+    path: '/kitchen',
+    name: 'kitchen',
+    component: () => import('../views/KitchenMonitorView.vue'),
+    meta: { title: 'Küche', requiresBundle: true, requiresEvent: true, fullscreen: true },
+  },
+  {
     path: '/table/new',
     name: 'table-new',
     component: () => import('../views/TableNewView.vue'),

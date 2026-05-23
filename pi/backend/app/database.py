@@ -51,10 +51,25 @@ def _ensure_collective_bills_table() -> None:
     CollectiveBill.__table__.create(bind=engine, checkfirst=True)
 
 
+def _ensure_kitchen_tables() -> None:
+    try:
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        if {"kitchen_tickets", "kitchen_ticket_lines"}.issubset(tables):
+            return
+    except Exception:
+        return
+    from .models import KitchenTicket, KitchenTicketLine
+
+    KitchenTicket.__table__.create(bind=engine, checkfirst=True)
+    KitchenTicketLine.__table__.create(bind=engine, checkfirst=True)
+
+
 def apply_schema_patches() -> None:
     """create_all() does not add columns or tables to existing databases."""
     _ensure_event_order_counters_table()
     _ensure_collective_bills_table()
+    _ensure_kitchen_tables()
     _add_column_if_missing(
         "local_orders",
         "table_number",

@@ -41,6 +41,7 @@ def _stations_payload(event: Event) -> list:
                 uuid=None,
                 name=st.name,
                 printer_appliance_id=st.printer_appliance_id,
+                kitchen_monitor_enabled=bool(getattr(st, "kitchen_monitor_enabled", False)),
                 article_ids=[a.id for a in st.articles],
             )
         )

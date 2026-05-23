@@ -125,6 +125,7 @@ class StationConfigRead(BaseModel):
     name: str
     sort_order: int
     printer_appliance_id: int | None
+    kitchen_monitor_enabled: bool = False
     article_ids: List[int]
 
 
@@ -163,6 +164,7 @@ class StationConfigIn(BaseModel):
     uuid: str | None = None
     name: str = Field(..., min_length=1)
     printer_appliance_id: int | None = None
+    kitchen_monitor_enabled: bool = False
     article_ids: List[int] = Field(default_factory=list)
 
 
@@ -286,6 +288,7 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
                 name=st.name,
                 sort_order=st.sort_order,
                 printer_appliance_id=st.printer_appliance_id,
+                kitchen_monitor_enabled=bool(getattr(st, "kitchen_monitor_enabled", False)),
                 article_ids=[a.id for a in st.articles],
             )
         )
