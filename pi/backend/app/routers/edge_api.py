@@ -28,7 +28,15 @@ from ..order_fiscal import (
     waiter_name_from_event,
 )
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
-from ..models import CollectiveBill, LocalOrder, OutboxEntry, PrintJob, SyncedBundle
+from ..models import (
+    CollectiveBill,
+    KitchenTicket,
+    KitchenTicketLine,
+    LocalOrder,
+    OutboxEntry,
+    PrintJob,
+    SyncedBundle,
+)
 from ..security import verify_password
 from ..print_worker import (
     build_escpos_receipt_text,
@@ -248,6 +256,85 @@ def _resolve_printer(ev: dict, station_uuid: str | None) -> tuple[str, int]:
         return h, int(p or 9100)
     h = os.getenv("DEFAULT_PRINTER_HOST", "192.168.192.11")
     return h, int(os.getenv("DEFAULT_PRINTER_PORT", "9100"))
+
+
+def _station_config_for_uuid(ev: dict, station_uuid: str | None) -> dict | None:
+    if station_uuid is None:
+        return None
+    for st in (ev.get("configuration") or {}).get("stations") or []:
+        if str(st.get("uuid")) == str(station_uuid):
+            return st
+    return None
+
+
+def _station_has_kitchen_monitor(ev: dict, station_uuid: str | None) -> bool:
+    st = _station_config_for_uuid(ev, station_uuid)
+    return bool(st and st.get("kitchen_monitor_enabled"))
+
+
+def _create_print_job_for_lines(
+    db: Session,
+    *,
+    order_id: int,
+    station_uuid: str | None,
+    payload: dict,
+    station_lines: list[dict],
+    ev: dict,
+    articles: dict,
+) -> int:
+    station_payload = {**payload, "lines": station_lines}
+    station_label = station_name_from_event(ev, station_uuid)
+    host, port = _resolve_printer(ev, station_uuid)
+    esc = build_escpos_receipt_text(
+        station_payload,
+        ev.get("name", "Event"),
+        station_name=station_label,
+        articles=articles,
+    )
+    pj = PrintJob(
+        local_order_id=order_id,
+        station_uuid=station_uuid,
+        printer_host=host,
+        printer_port=port,
+        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        status="queued",
+    )
+    db.add(pj)
+    db.flush()
+    return pj.id
+
+
+def _create_kitchen_ticket(
+    db: Session,
+    *,
+    order_id: int,
+    event_id: int,
+    station_uuid: str,
+    station_lines: list[dict],
+) -> int:
+    ticket = KitchenTicket(
+        local_order_id=order_id,
+        event_id=event_id,
+        station_uuid=station_uuid,
+        status="open",
+    )
+    db.add(ticket)
+    db.flush()
+    for idx, line in enumerate(station_lines):
+        if not isinstance(line, dict):
+            continue
+        qty = max(1, int(line.get("qty") or 1))
+        db.add(
+            KitchenTicketLine(
+                ticket_id=ticket.id,
+                line_index=idx,
+                line_payload_json=json.dumps(dict(line)),
+                qty_total=qty,
+                qty_printed=0,
+            )
+        )
+    db.flush()
+    return ticket.id
 
 
 def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
@@ -478,31 +565,33 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
     db.add(order)
     db.flush()
 
-    ev_name = ev.get("name", "Event")
     groups = group_lines_by_station(ev, order_lines)
     print_job_ids: list[int] = []
+    kitchen_ticket_ids: list[int] = []
 
     for station_uuid, station_lines in groups.items():
-        station_payload = {**payload, "lines": station_lines}
-        station_label = station_name_from_event(ev, station_uuid)
-        host, port = _resolve_printer(ev, station_uuid)
-        esc = build_escpos_receipt_text(
-            station_payload,
-            ev_name,
-            station_name=station_label,
-            articles=arts,
+        if _station_has_kitchen_monitor(ev, station_uuid) and station_uuid is not None:
+            kitchen_ticket_ids.append(
+                _create_kitchen_ticket(
+                    db,
+                    order_id=order.id,
+                    event_id=body.event_id,
+                    station_uuid=str(station_uuid),
+                    station_lines=station_lines,
+                )
+            )
+            continue
+        print_job_ids.append(
+            _create_print_job_for_lines(
+                db,
+                order_id=order.id,
+                station_uuid=station_uuid,
+                payload=payload,
+                station_lines=station_lines,
+                ev=ev,
+                articles=arts,
+            )
         )
-        pj = PrintJob(
-            local_order_id=order.id,
-            station_uuid=station_uuid,
-            printer_host=host,
-            printer_port=port,
-            escpos_payload=base64.b64encode(esc).decode("ascii"),
-            status="queued",
-        )
-        db.add(pj)
-        db.flush()
-        print_job_ids.append(pj.id)
 
     out = OutboxEntry(
         client_order_id=body.client_order_id,
@@ -521,6 +610,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
         "order_number": order_number,
         "print_job_id": print_job_ids[0] if print_job_ids else None,
         "print_job_ids": print_job_ids,
+        "kitchen_ticket_ids": kitchen_ticket_ids,
         "payment_status": payment_status,
         "payment_mode": (ev.get("payment_mode") or "pay_later").lower(),
         "articles": articles_patch,
@@ -1436,6 +1526,206 @@ def verify_admin_pin(body: AdminVerifyBody, db: Session = Depends(get_db)):
         except Exception:
             continue
     raise HTTPException(status_code=401, detail="Invalid admin code")
+
+
+def _kitchen_stations_for_event(ev: dict) -> list[dict]:
+    stations = []
+    for st in (ev.get("configuration") or {}).get("stations") or []:
+        if not st.get("kitchen_monitor_enabled"):
+            continue
+        if not st.get("uuid"):
+            continue
+        stations.append(
+            {
+                "uuid": str(st["uuid"]),
+                "name": st.get("name") or f"Station {str(st['uuid'])[:8]}",
+                "sort_order": int(st.get("sort_order") or 0),
+            }
+        )
+    return sorted(stations, key=lambda s: (s["sort_order"], s["name"]))
+
+
+def _kitchen_line_response(row: KitchenTicketLine, articles: dict) -> dict:
+    line = json.loads(row.line_payload_json)
+    aid = line.get("article_id")
+    art = articles.get(str(aid)) or articles.get(aid) or {}
+    if aid is not None and not line.get("article_name"):
+        line["article_name"] = art.get("name") or f"#{aid}"
+    remaining = max(0, int(row.qty_total or 0) - int(row.qty_printed or 0))
+    return {
+        "id": row.id,
+        "line_index": row.line_index,
+        "line": line,
+        "qty_total": int(row.qty_total or 0),
+        "qty_printed": int(row.qty_printed or 0),
+        "qty_remaining": remaining,
+    }
+
+
+def _serialize_kitchen_ticket(
+    ticket: KitchenTicket,
+    order: LocalOrder,
+    lines: list[KitchenTicketLine],
+    ev: dict,
+) -> dict:
+    payload = json.loads(order.payload_json)
+    arts = _article_map(ev)
+    line_rows = [_kitchen_line_response(row, arts) for row in sorted(lines, key=lambda r: (r.line_index, r.id))]
+    line_rows = [row for row in line_rows if row["qty_remaining"] > 0]
+    return {
+        "id": ticket.id,
+        "local_order_id": ticket.local_order_id,
+        "event_id": ticket.event_id,
+        "station_uuid": ticket.station_uuid,
+        "station_name": station_name_from_event(ev, ticket.station_uuid),
+        "status": ticket.status,
+        "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+        "client_order_id": order.client_order_id,
+        "table_number": payload.get("table_number"),
+        "waiter_uuid": payload.get("waiter_uuid"),
+        "waiter_name": payload.get("waiter_name"),
+        "order_number": payload.get("order_number"),
+        "ordered_at": payload.get("ordered_at"),
+        "lines": line_rows,
+    }
+
+
+def _update_kitchen_ticket_status(db: Session, ticket: KitchenTicket) -> None:
+    lines = db.query(KitchenTicketLine).filter(KitchenTicketLine.ticket_id == ticket.id).all()
+    remaining = sum(max(0, int(ln.qty_total or 0) - int(ln.qty_printed or 0)) for ln in lines)
+    printed = sum(int(ln.qty_printed or 0) for ln in lines)
+    if remaining <= 0:
+        ticket.status = "done"
+    elif printed > 0:
+        ticket.status = "partial"
+    else:
+        ticket.status = "open"
+
+
+def _enqueue_kitchen_ticket_print(
+    db: Session,
+    *,
+    ticket: KitchenTicket,
+    selected_lines: list[tuple[KitchenTicketLine, int]],
+) -> int:
+    order = db.query(LocalOrder).filter(LocalOrder.id == ticket.local_order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, ticket.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    if not _station_has_kitchen_monitor(ev, ticket.station_uuid):
+        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this station")
+
+    payload = json.loads(order.payload_json)
+    printable_lines: list[dict] = []
+    for line_row, qty in selected_lines:
+        remaining = max(0, int(line_row.qty_total or 0) - int(line_row.qty_printed or 0))
+        qty = int(qty)
+        if qty < 1 or qty > remaining:
+            raise HTTPException(status_code=400, detail="Requested quantity exceeds remaining quantity")
+        line = json.loads(line_row.line_payload_json)
+        line["qty"] = qty
+        printable_lines.append(line)
+
+    if not printable_lines:
+        raise HTTPException(status_code=400, detail="Nothing left to print")
+
+    job_id = _create_print_job_for_lines(
+        db,
+        order_id=order.id,
+        station_uuid=ticket.station_uuid,
+        payload=payload,
+        station_lines=printable_lines,
+        ev=ev,
+        articles=_article_map(ev),
+    )
+    for line_row, qty in selected_lines:
+        line_row.qty_printed = int(line_row.qty_printed or 0) + int(qty)
+    _update_kitchen_ticket_status(db, ticket)
+    db.commit()
+    return job_id
+
+
+@router.get("/v1/kitchen/stations")
+def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_db)):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    return {"stations": _kitchen_stations_for_event(ev)}
+
+
+@router.get("/v1/kitchen/orders")
+def list_kitchen_orders(
+    event_id: int = Query(...),
+    station_uuid: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    if not _station_has_kitchen_monitor(ev, station_uuid):
+        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this station")
+
+    tickets = (
+        db.query(KitchenTicket)
+        .filter(
+            KitchenTicket.event_id == event_id,
+            KitchenTicket.station_uuid == station_uuid,
+            KitchenTicket.status != "done",
+        )
+        .order_by(KitchenTicket.id.asc())
+        .all()
+    )
+    out = []
+    for ticket in tickets:
+        order = db.query(LocalOrder).filter(LocalOrder.id == ticket.local_order_id).first()
+        if not order:
+            continue
+        lines = db.query(KitchenTicketLine).filter(KitchenTicketLine.ticket_id == ticket.id).all()
+        serialized = _serialize_kitchen_ticket(ticket, order, lines, ev)
+        if serialized["lines"]:
+            out.append(serialized)
+    return {"orders": out}
+
+
+@router.post("/v1/kitchen/tickets/{ticket_id}/print")
+def print_kitchen_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    ticket = db.query(KitchenTicket).filter(KitchenTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Kitchen ticket not found")
+    if ticket.status == "done":
+        raise HTTPException(status_code=400, detail="Kitchen ticket is already done")
+    lines = db.query(KitchenTicketLine).filter(KitchenTicketLine.ticket_id == ticket.id).all()
+    selected = [
+        (ln, max(0, int(ln.qty_total or 0) - int(ln.qty_printed or 0)))
+        for ln in lines
+        if max(0, int(ln.qty_total or 0) - int(ln.qty_printed or 0)) > 0
+    ]
+    job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=selected)
+    return {"print_job_id": job_id, "ticket_status": ticket.status}
+
+
+@router.post("/v1/kitchen/tickets/{ticket_id}/lines/{line_id}/print-one")
+def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = Depends(get_db)):
+    ticket = db.query(KitchenTicket).filter(KitchenTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Kitchen ticket not found")
+    if ticket.status == "done":
+        raise HTTPException(status_code=400, detail="Kitchen ticket is already done")
+    line = (
+        db.query(KitchenTicketLine)
+        .filter(KitchenTicketLine.id == line_id, KitchenTicketLine.ticket_id == ticket.id)
+        .first()
+    )
+    if not line:
+        raise HTTPException(status_code=404, detail="Kitchen ticket line not found")
+    job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=[(line, 1)])
+    return {"print_job_id": job_id, "ticket_status": ticket.status}
 
 
 @router.get("/v1/print-jobs")

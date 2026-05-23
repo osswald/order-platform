@@ -41,6 +41,14 @@
                 showClear
               />
             </div>
+            <div class="check-row">
+              <Checkbox
+                :inputId="'kitchen-monitor-' + idx"
+                v-model="st.kitchen_monitor_enabled"
+                :binary="true"
+              />
+              <label :for="'kitchen-monitor-' + idx">Kitchen Monitor aktiv</label>
+            </div>
             <div class="form-field">
               <label>Artikel</label>
               <MultiSelect
@@ -393,6 +401,7 @@ function addStation() {
   stationsLocal.value.push({
     name: `Station ${stationsLocal.value.length + 1}`,
     printer_appliance_id: null,
+    kitchen_monitor_enabled: false,
     article_ids: [],
   })
 }
@@ -452,6 +461,7 @@ async function loadConfiguration() {
       uuid: s.uuid ?? null,
       name: s.name,
       printer_appliance_id: s.printer_appliance_id,
+      kitchen_monitor_enabled: !!s.kitchen_monitor_enabled,
       article_ids: [...(s.article_ids || [])],
     }))
     waiterKey = 0
@@ -556,6 +566,7 @@ function buildPutPayload() {
       const row = {
         name: s.name,
         printer_appliance_id: s.printer_appliance_id ?? null,
+        kitchen_monitor_enabled: !!s.kitchen_monitor_enabled,
         article_ids: Array.isArray(s.article_ids) ? s.article_ids : [],
       }
       if (s.uuid != null) row.uuid = s.uuid
@@ -695,6 +706,13 @@ watch(
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.75rem;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.9rem;
 }
 
 label {

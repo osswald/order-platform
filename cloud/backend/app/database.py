@@ -103,6 +103,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_article_stock ADD COLUMN baseline_in_stock INTEGER",
         "ALTER TABLE event_article_stock ADD COLUMN IF NOT EXISTS baseline_in_stock INTEGER",
     )
+    _add_column_if_missing(
+        "event_stations",
+        "kitchen_monitor_enabled",
+        "ALTER TABLE event_stations ADD COLUMN kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE event_stations ADD COLUMN IF NOT EXISTS kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
     _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")

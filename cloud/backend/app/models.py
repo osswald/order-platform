@@ -177,6 +177,7 @@ class EventStation(Base):
     name = Column(String, nullable=False)
     sort_order = Column(Integer, nullable=False, default=0)
     printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
+    kitchen_monitor_enabled = Column(Boolean, nullable=False, default=False)
     event = relationship("Event", back_populates="stations")
     printer_appliance = relationship("Appliance", foreign_keys=[printer_appliance_id])
     articles = relationship(

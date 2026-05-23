@@ -19,6 +19,14 @@
       <button type="button" class="btn hub-btn" @click="router.push({ name: 'stock' })">
         Lagerbestand
       </button>
+      <button
+        v-if="kitchenStations.length"
+        type="button"
+        class="btn hub-btn"
+        @click="router.push({ name: 'kitchen' })"
+      >
+        Kitchen Monitor
+      </button>
     </div>
 
     <p class="muted footer-links">
@@ -37,6 +45,9 @@ import * as store from '../store'
 const router = useRouter()
 const event = computed(() => store.selectedEvent.value)
 const waiter = computed(() => store.waiter.value)
+const kitchenStations = computed(() =>
+  (event.value?.configuration?.stations || []).filter((st) => st.kitchen_monitor_enabled),
+)
 
 function switchWaiter() {
   store.setWaiter(null)

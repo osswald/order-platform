@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from .models import CollectiveBill, EventOrderCounter, LocalOrder, OutboxEntry, PrintJob
+from .models import (
+    CollectiveBill,
+    EventOrderCounter,
+    KitchenTicket,
+    KitchenTicketLine,
+    LocalOrder,
+    OutboxEntry,
+    PrintJob,
+)
 
 
 def _event_map(bundle: dict | None) -> dict[int, dict]:
@@ -26,6 +34,17 @@ def purge_event_local_data(db: Session, event_id: int) -> None:
         db.query(PrintJob).filter(PrintJob.local_order_id.in_(order_ids)).delete(
             synchronize_session=False
         )
+        ticket_ids = [
+            row[0]
+            for row in db.query(KitchenTicket.id).filter(KitchenTicket.local_order_id.in_(order_ids)).all()
+        ]
+        if ticket_ids:
+            db.query(KitchenTicketLine).filter(KitchenTicketLine.ticket_id.in_(ticket_ids)).delete(
+                synchronize_session=False
+            )
+            db.query(KitchenTicket).filter(KitchenTicket.id.in_(ticket_ids)).delete(
+                synchronize_session=False
+            )
     db.query(LocalOrder).filter(LocalOrder.event_id == event_id).delete(synchronize_session=False)
     db.query(OutboxEntry).filter(OutboxEntry.event_id == event_id).delete(synchronize_session=False)
     db.query(CollectiveBill).filter(CollectiveBill.event_id == event_id).delete(synchronize_session=False)

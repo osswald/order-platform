@@ -35,6 +35,14 @@
           <span class="event-name">{{ e.name }}</span>
           <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }} · {{ eventStatusLabel(e.status) }}</span>
         </button>
+        <button
+          v-if="hasKitchenMonitor(e)"
+          type="button"
+          class="btn kitchen-btn"
+          @click="openKitchen(e)"
+        >
+          Kitchen Monitor
+        </button>
       </li>
     </ul>
   </div>
@@ -81,6 +89,16 @@ function pick(e) {
   router.push({ name: 'login' })
 }
 
+function hasKitchenMonitor(e) {
+  return (e?.configuration?.stations || []).some((st) => st.kitchen_monitor_enabled)
+}
+
+function openKitchen(e) {
+  store.selectedEventId.value = e.id
+  store.setWaiter(null)
+  router.push({ name: 'kitchen' })
+}
+
 function goAdmin() {
   if (!store.adminRequiresPin() || store.adminUnlocked.value) {
     if (!store.adminRequiresPin()) store.setAdminUnlocked(true)
@@ -116,6 +134,9 @@ onMounted(() => {
 .event-list li {
   margin-bottom: 0.5rem;
 }
+.event-list li + li {
+  margin-top: 0.75rem;
+}
 .event-btn {
   width: 100%;
   text-align: left;
@@ -132,5 +153,9 @@ onMounted(() => {
 }
 .event-name {
   font-weight: 600;
+}
+.kitchen-btn {
+  width: 100%;
+  margin-top: 0.4rem;
 }
 </style>

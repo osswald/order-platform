@@ -194,6 +194,7 @@ def replace_event_configuration(
                 name=st_in.name.strip(),
                 sort_order=idx,
                 printer_appliance_id=st_in.printer_appliance_id,
+                kitchen_monitor_enabled=bool(getattr(st_in, "kitchen_monitor_enabled", False)),
             )
             db.add(st)
             db.flush()
@@ -201,6 +202,7 @@ def replace_event_configuration(
             st.name = st_in.name.strip()
             st.sort_order = idx
             st.printer_appliance_id = st_in.printer_appliance_id
+            st.kitchen_monitor_enabled = bool(getattr(st_in, "kitchen_monitor_enabled", False))
         kept_station_uuids.add(st.uuid)
         if st_in.article_ids:
             arts = db.query(Article).filter(Article.id.in_(list(set(st_in.article_ids)))).all()
