@@ -220,6 +220,20 @@ class EventAppLayout(Base):
     )
 
 
+class EventCollectiveBill(Base):
+    """Sammelrechnung header synced from Pi edge payloads."""
+
+    __tablename__ = "event_collective_bills"
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), nullable=False, unique=True, index=True)
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    event = relationship("Event", backref="collective_bills")
+
+
 class EdgeSubmittedOrder(Base):
     """Orders submitted from on-prem Pi (idempotent by client_order_id)."""
 

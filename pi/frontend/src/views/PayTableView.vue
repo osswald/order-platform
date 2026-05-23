@@ -1,6 +1,10 @@
 <template>
   <div class="split-pay-screen">
-    <SplitPayHeader :table="table" @back="router.push({ name: 'hub' })" />
+    <SplitPayHeader :table="table" @back="router.push({ name: 'hub' })" @menu="onMenu">
+      <template #actions>
+        <button type="button" class="header-btn menu" aria-label="Menü" @click="onMenu">☰</button>
+      </template>
+    </SplitPayHeader>
 
     <p v-if="loading" class="muted state-msg">Laden…</p>
     <template v-else-if="!groups.length">
@@ -46,7 +50,7 @@
             type="button"
             class="bar-main"
             :disabled="!basketCents || paying"
-            @click="onGreenCheck"
+            @click="onPay"
           >
             Teilbetrag {{ formatAmount(basketCents) }}
             <span class="check" aria-hidden="true">✓</span>
@@ -95,6 +99,15 @@
       @close="qtyModalOpen = false"
       @confirm="onQtyConfirm"
     />
+
+    <PayTableActionsSheet
+      :open="actionsOpen"
+      :event-id="event?.id"
+      :from-table="table"
+      :selections="selectionsPayload()"
+      @close="actionsOpen = false"
+      @done="onActionsDone"
+    />
   </div>
 </template>
 
@@ -104,113 +117,73 @@ import { useRoute, useRouter } from 'vue-router'
 import * as store from '../store'
 import { api } from '../api'
 import { formatAmount } from '../utils/money'
-import { lineAdditionLabels } from '../utils/bundleHelpers'
-import { buildPayment } from '../utils/paymentTypes'
-import { pickPaymentType } from '../utils/pickPaymentType'
+import { useSplitPay } from '../composables/useSplitPay'
 import SplitPayHeader from '../components/SplitPayHeader.vue'
 import SplitPayLineRow from '../components/SplitPayLineRow.vue'
 import QtyInputModal from '../components/QtyInputModal.vue'
+import PayTableActionsSheet from '../components/PayTableActionsSheet.vue'
 
 const route = useRoute()
 const router = useRouter()
-const summary = ref(null)
-const groups = ref([])
-const loading = ref(true)
-const paying = ref(false)
-const qtyModalOpen = ref(false)
-const qtyModalGroup = ref(null)
+const actionsOpen = ref(false)
 
 const table = computed(() => parseInt(String(route.query.table), 10))
 const event = computed(() => store.selectedEvent.value)
 const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').toLowerCase())
 
-const totalCents = computed(() => summary.value?.total_cents || 0)
-const basketCents = computed(() =>
-  groups.value.reduce((s, g) => s + g.unitCents * g.basketQty, 0),
-)
-const restCents = computed(() => Math.max(0, totalCents.value - basketCents.value))
-const basketItemCount = computed(() => groups.value.reduce((s, g) => s + g.basketQty, 0))
-const remainingItemCount = computed(() =>
-  groups.value.reduce((s, g) => s + (g.totalQty - g.basketQty), 0),
-)
+const {
+  groups,
+  loading,
+  paying,
+  qtyModalOpen,
+  qtyModalGroup,
+  totalCents,
+  basketCents,
+  restCents,
+  basketItemCount,
+  remainingItemCount,
+  topGroups,
+  bottomGroups,
+  moveAllToBottom,
+  moveAllToTop,
+  bumpBasket,
+  openQtyModal,
+  onQtyConfirm,
+  selectionsPayload,
+  reload,
+  onGreenCheck,
+} = useSplitPay({
+  event,
+  paymentMode,
+  loadSummary: async () => {
+    const ev = event.value
+    if (!ev || !table.value) return { line_groups: [] }
+    return api(`/v1/tables/${table.value}?event_id=${ev.id}`)
+  },
+  settlePartialPath: () => `/v1/tables/${table.value}/settle-partial`,
+})
 
-const topGroups = computed(() => groups.value.filter((g) => g.basketQty > 0))
-const bottomGroups = computed(() => groups.value.filter((g) => g.basketQty < g.totalQty))
-
-function lineKey(articleId, note, additions) {
-  return `${articleId}:${note || ''}:${store.additionsSignature(additions || [])}`
-}
-
-function initGroups(data) {
-  const arts = event.value?.articles || {}
-  const lg = data?.line_groups || []
-  groups.value = lg.map((g) => {
-    const additions = g.additions || []
-    const line = { article_id: g.article_id, additions }
-    return {
-      key: lineKey(g.article_id, g.note, additions),
-      article_id: g.article_id,
-      note: g.note || '',
-      additions,
-      totalQty: g.total_qty,
-      unitCents: g.unit_cents,
-      basketQty: g.total_qty,
-      name: store.articleName(g.article_id),
-      additionLabels: lineAdditionLabels(line, arts),
-    }
-  })
-}
-
-function moveAllToBottom() {
-  for (const g of groups.value) g.basketQty = 0
-}
-
-function moveAllToTop() {
-  for (const g of groups.value) g.basketQty = g.totalQty
-}
-
-function bumpBasket(g, delta) {
-  g.basketQty = Math.min(g.totalQty, Math.max(0, g.basketQty + delta))
-}
-
-function openQtyModal(g) {
-  qtyModalGroup.value = g
-  qtyModalOpen.value = true
-}
-
-function onQtyConfirm(n) {
-  if (qtyModalGroup.value) {
-    const g = qtyModalGroup.value
-    g.basketQty = Math.min(g.totalQty, Math.max(0, Number(n) || 0))
+function onMenu() {
+  if (!selectionsPayload().length) {
+    store.showToast('Keine Positionen oben ausgewählt', 'err')
+    return
   }
-  qtyModalOpen.value = false
+  actionsOpen.value = true
 }
 
-function selectionsPayload() {
-  return topGroups.value.map((g) => ({
-    article_id: g.article_id,
-    note: g.note,
-    qty: g.basketQty,
-    additions: (g.additions || []).map((a) => ({
-      article_id: a.article_id,
-      qty: a.qty ?? 1,
-    })),
-  }))
+async function onActionsDone() {
+  await reload()
 }
 
-async function paymentsForAmount(cents) {
-  if (paymentMode.value === 'instant') {
-    return buildPayment(cents, 'instant')
+async function onPay() {
+  try {
+    await onGreenCheck(() => {
+      store.showToast('Tisch vollständig abgerechnet.', 'ok')
+      router.replace({ name: 'hub' })
+    })
+  } catch (e) {
+    if (e?.message) store.showToast(e.message, 'err')
   }
-  const payType = await pickPaymentType(event.value, cents)
-  return buildPayment(cents, payType)
-}
-
-async function reload() {
-  const ev = event.value
-  if (!ev || !table.value) return
-  summary.value = await api(`/v1/tables/${table.value}?event_id=${ev.id}`)
-  initGroups(summary.value)
 }
 
 onMounted(async () => {
@@ -224,39 +197,4 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-async function settlePartial(payments) {
-  paying.value = true
-  try {
-    const res = await api(`/v1/tables/${table.value}/settle-partial`, {
-      method: 'POST',
-      body: JSON.stringify({
-        event_id: event.value.id,
-        payments,
-        selections: selectionsPayload(),
-      }),
-    })
-    if (res.remaining_cents <= 0) {
-      store.showToast('Tisch vollständig abgerechnet.', 'ok')
-      router.replace({ name: 'hub' })
-      return
-    }
-    store.showToast(`Teilbetrag bezahlt. Rest: ${formatAmount(res.remaining_cents)}`, 'ok')
-    await reload()
-  } catch (e) {
-    store.showToast(e.message || 'Abrechnung fehlgeschlagen', 'err')
-  } finally {
-    paying.value = false
-  }
-}
-
-async function onGreenCheck() {
-  if (!basketCents.value) return
-  try {
-    const payments = await paymentsForAmount(basketCents.value)
-    await settlePartial(payments)
-  } catch {
-    /* picker cancelled */
-  }
-}
 </script>

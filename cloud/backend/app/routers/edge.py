@@ -241,12 +241,22 @@ def submit_edge_order(
                 names[a.id] = a.name
         apply_stock_deductions(db, event.id, lines, article_names=names)
 
+    from ..event_collective_bills import upsert_collective_bill_from_payload
+
+    payload = body.payload or {}
+    upsert_collective_bill_from_payload(
+        db,
+        event_id=body.event_id,
+        appliance_id=ctx.appliance.id,
+        payload=payload,
+    )
+
     row = EdgeSubmittedOrder(
         client_order_id=body.client_order_id,
         appliance_id=ctx.appliance.id,
         organisation_id=ctx.organisation_id,
         event_id=body.event_id,
-        payload=body.payload or {},
+        payload=payload,
     )
     db.add(row)
     db.commit()

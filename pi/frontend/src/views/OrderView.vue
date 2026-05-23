@@ -225,7 +225,6 @@ async function submitOrder() {
         qty: a.qty ?? 1,
       })),
     }))
-    const totalCents = store.cartTotalCents.value
     const res = await api('/v1/orders', {
       method: 'POST',
       body: JSON.stringify({
@@ -244,9 +243,8 @@ async function submitOrder() {
     if (pm === 'pay_now') {
       store.clearCart()
       router.push({
-        name: 'pay-order',
-        params: { id: String(res.local_order_id) },
-        query: { table: String(tableNumber.value), total_cents: String(totalCents) },
+        name: 'pay-table',
+        query: { table: String(tableNumber.value) },
       })
       return
     }

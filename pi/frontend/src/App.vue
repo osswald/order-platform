@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBundleRefresh } from './composables/useBundleRefresh'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
@@ -44,6 +44,12 @@ import {
 import * as store from './store'
 
 useBundleRefresh()
+
+onMounted(() => {
+  if (!store.bundleReady()) {
+    store.refreshBundle().catch(() => {})
+  }
+})
 
 function onPaymentTypeSelect(type) {
   confirmPaymentType(type)

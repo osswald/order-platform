@@ -21,6 +21,8 @@ from ..models import (
     Organisation,
     User,
 )
+from ..event_collective_bills import build_event_collective_bills_list
+from ..event_copy import copy_event, default_copy_name
 from ..event_sales import build_event_sales_report
 from ..payment_types_config import normalize_payment_types, payment_types_from_event
 from ..twint_qr import (
@@ -86,6 +88,10 @@ class EventCreate(BaseModel):
         if self.end < self.start:
             raise ValueError("End must be after start")
         return self
+
+
+class EventCopyIn(BaseModel):
+    name: str | None = Field(None, min_length=1)
 
 
 class EventUpdate(BaseModel):
@@ -479,6 +485,45 @@ def read_event_sales_report(
     return build_event_sales_report(db, event)
 
 
+class CollectiveBillOrderRead(BaseModel):
+    id: int
+    client_order_id: str
+    created_at: str | None = None
+    payment_status: str
+    line_cents: int
+    paid_cents: int
+    lines: List[dict] = []
+    payments: List[dict] = []
+
+
+class CollectiveBillRead(BaseModel):
+    uuid: str
+    name: str
+    status: str
+    created_at: str | None = None
+    closed_at: str | None = None
+    order_count: int
+    line_cents: int
+    open_cents: int
+    paid_cents: int
+    orders: List[CollectiveBillOrderRead] = []
+
+
+class EventCollectiveBillsListRead(BaseModel):
+    currency: str
+    collective_bills: List[CollectiveBillRead]
+
+
+@router.get("/{event_id}/collective-bills", response_model=EventCollectiveBillsListRead)
+def read_event_collective_bills(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    event = get_event_for_configuration(db, current_user, event_id)
+    return build_event_collective_bills_list(db, event)
+
+
 @router.get("/{event_id}/twint-qr")
 def get_event_twint_qr(
     event_id: int,
@@ -660,6 +705,31 @@ def create_event(
     db.commit()
     db.refresh(event)
     return event_response(event)
+
+
+@router.post("/{event_id}/copy", response_model=EventRead)
+def copy_event_endpoint(
+    event_id: int,
+    body: EventCopyIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    source = get_event_for_configuration(db, current_user, event_id)
+    copy_name = (body.name or "").strip() or default_copy_name(source.name)
+    try:
+        new_event = copy_event(db, source, name=copy_name)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+    except Exception:
+        db.rollback()
+        raise
+    new_event = get_event_for_configuration(db, current_user, new_event.id)
+    return event_response(new_event)
 
 
 @router.put("/{event_id}", response_model=EventRead)

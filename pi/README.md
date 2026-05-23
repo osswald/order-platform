@@ -32,7 +32,7 @@ On-prem stack: **FastAPI** + **SQLite** + **PWA** for waiters. Pulls event bundl
 - `GET /v1/bundle` — cached bundle JSON  
 - `GET /v1/meta` — last bundle pull time  
 - `POST /v1/orders` — create local order (`table_number` required) + outbox + **one print job per station** (only that station’s lines)  
-- `POST /v1/orders/{id}/pay` — pay one order (`pay_now` / `instant`)  
+- `POST /v1/orders/{id}/pay` — pay one order (legacy API; frontend uses split pay via `settle-partial`)  
 - `GET /v1/tables/{table_number}?event_id=` — open orders + `line_groups` (merged qty per article) for split pay  
 - `GET /v1/tables/open?event_id=` — list all tables with unpaid orders (summary per table)  
 - `POST /v1/tables/{table_number}/settle-partial` — pay selected line qty (split pay)  
@@ -122,8 +122,8 @@ Zusätze erscheinen nicht im Layout-Grid (nur über den Zusatz-Dialog am Basisar
 
 | Modus (Cloud) | Verhalten |
 |---------------|-----------|
-| `pay_later` | Bestellung **offen**; Abrechnung am Tisch (Split pay + Bar) |
-| `pay_now` | Nach FERTIG **Zahlungsbildschirm** für diese Bestellung |
+| `pay_later` | Bestellung **offen**; Abrechnung am Tisch (Split pay) |
+| `pay_now` | Bestellung **offen**; nach FERTIG direkt **Split-Pay-Bildschirm** am Tisch |
 | `instant` (**Sofort bezahlt**) | Nach FERTIG sofort **bezahlt**, kein Zahlungsbildschirm (Rechnung später / gratis Events) |
 
 ### Payload `POST /v1/orders`
@@ -131,8 +131,8 @@ Zusätze erscheinen nicht im Layout-Grid (nur über den Zusatz-Dialog am Basisar
 - `client_order_id`, `event_id`, **`table_number`** (1–99999), `waiter_id?`, `lines[]`, `payments[]`
 - `lines`: `{ article_id, qty, station_id?, note?, additions?: [{ article_id, qty }] }`
 - `payments`:
-  - **`pay_later`:** `[]` bei Bestellung; Zahlung später via `POST /v1/tables/{n}/settle`
-  - **`pay_now` / `instant`:** `[{ "type": "cash", "amount_cents": N }]` bei Zahlung (Summe = Zeilensumme in Cent)
+  - **`pay_later` / `pay_now`:** `[]` bei Bestellung; Zahlung via `POST /v1/tables/{n}/settle-partial` (Split pay) oder `settle`
+  - **`instant`:** automatisch `[{ "type": "instant", "amount_cents": N }]` beim Anlegen (Summe = Zeilensumme in Cent)
 
 PWA in Docker: compose maps host **5174** → container **5174** (same Vite port as local `npm run dev`). Cloud frontend can stay on **5173** when you run both on one machine.
 

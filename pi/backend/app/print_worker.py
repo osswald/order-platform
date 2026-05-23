@@ -86,6 +86,12 @@ def build_escpos_receipt_text(
     wn = payload.get("waiter_name")
     if wn:
         lines_out.append(f"Kellner: {wn}\n".encode("utf-8", errors="replace"))
+    order_no = payload.get("order_number")
+    if order_no is not None:
+        lines_out.append(f"Bestellung #{order_no}\n".encode("utf-8", errors="replace"))
+    ordered_at = payload.get("ordered_at")
+    if ordered_at:
+        lines_out.append(f"Zeit: {ordered_at}\n".encode("utf-8", errors="replace"))
     lines_out.append(b"---\n")
     for line in payload.get("lines") or []:
         if not isinstance(line, dict):
@@ -95,9 +101,16 @@ def build_escpos_receipt_text(
             continue
         qty = max(1, int(line.get("qty") or 1))
         art = arts.get(str(aid)) or arts.get(int(aid)) or {}
-        name = art.get("name") or f"#{aid}"
+        name = line.get("article_name") or art.get("name") or f"#{aid}"
         cents = line_total_cents(line, arts)
         lines_out.append(f"{qty}x {name}{_price_hint_eur(cents)}\n".encode("utf-8", errors="replace"))
+        for add in line.get("additions") or []:
+            if not isinstance(add, dict):
+                continue
+            add_qty = max(1, int(add.get("qty") or 1))
+            add_name = add.get("name") or f"Zusatz #{add.get('article_id')}"
+            add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
+            lines_out.append(f"  + {add_qty}x {add_name}{_price_hint_eur(add_cents)}\n".encode("utf-8", errors="replace"))
         note = (line.get("note") or "").strip()
         if note:
             lines_out.append(f"  {note}\n".encode("utf-8", errors="replace"))

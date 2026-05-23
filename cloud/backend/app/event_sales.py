@@ -49,10 +49,15 @@ def _addition_price_cents(articles: dict, base_article: dict | None, addition_id
 
 
 def line_unit_cents(line: dict, articles: dict) -> int:
+    if line.get("unit_cents") is not None:
+        unit = int(line["unit_cents"])
+    else:
+        aid = line.get("article_id")
+        base = _article_entry(articles, aid)
+        price = float(base["price"]) if base and base.get("price") is not None else 0.0
+        unit = int(round(price * 100))
     aid = line.get("article_id")
     base = _article_entry(articles, aid)
-    price = float(base["price"]) if base and base.get("price") is not None else 0.0
-    unit = int(round(price * 100))
     for add in line.get("additions") or []:
         if not isinstance(add, dict):
             continue
@@ -60,8 +65,68 @@ def line_unit_cents(line: dict, articles: dict) -> int:
         if add_id is None:
             continue
         add_qty = max(1, int(add.get("qty") or 1))
-        unit += _addition_price_cents(articles, base, int(add_id)) * add_qty
+        if add.get("unit_cents") is not None:
+            unit += int(add["unit_cents"]) * add_qty
+        else:
+            unit += _addition_price_cents(articles, base, int(add_id)) * add_qty
     return max(0, unit)
+
+
+def distinct_order_numbers_from_payload(payload: dict, *, legacy_key: str) -> set:
+    keys: set = set()
+    doc = payload.get("order_number")
+    lines = payload.get("lines") or []
+    found = False
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        qty = max(1, int(line.get("qty") or 1))
+        if qty < 1:
+            continue
+        n = line.get("order_number")
+        if n is not None:
+            keys.add(int(n))
+            found = True
+        elif doc is not None:
+            keys.add(int(doc))
+            found = True
+    if not found:
+        keys.add(legacy_key)
+    return keys
+
+
+def distinct_order_numbers_for_rows(rows: list[EdgeSubmittedOrder]) -> int:
+    keys: set = set()
+    for row in rows:
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        keys |= distinct_order_numbers_from_payload(payload, legacy_key=f"row:{row.id}")
+    return len(keys)
+
+
+def _line_for_pricing(line: dict) -> dict:
+    additions = []
+    for add in line.get("additions") or []:
+        if not isinstance(add, dict):
+            continue
+        aid = add.get("article_id")
+        if aid is None:
+            continue
+        entry: dict[str, Any] = {
+            "article_id": int(aid),
+            "qty": max(1, int(add.get("qty") or 1)),
+        }
+        if add.get("unit_cents") is not None:
+            entry["unit_cents"] = int(add["unit_cents"])
+        additions.append(entry)
+    out: dict[str, Any] = {
+        "article_id": int(line["article_id"]),
+        "qty": max(1, int(line.get("qty") or 1)),
+        "note": str(line.get("note") or ""),
+        "additions": additions,
+    }
+    if line.get("unit_cents") is not None:
+        out["unit_cents"] = int(line["unit_cents"])
+    return out
 
 
 def line_total_cents(line: dict, articles: dict) -> int:
@@ -78,6 +143,66 @@ def _normalize_additions(additions: list | None) -> list[dict]:
         if aid is None:
             continue
         out.append({"article_id": int(aid), "qty": max(1, int(add.get("qty") or 1))})
+    return out
+
+
+def format_payload_lines(lines: list | None, articles: dict) -> list[dict]:
+    """Format raw payload lines with names and amounts for API display."""
+    out: list[dict] = []
+    for line in lines or []:
+        if not isinstance(line, dict):
+            continue
+        aid = line.get("article_id")
+        if aid is None:
+            continue
+        aid_int = int(aid)
+        qty = max(1, int(line.get("qty") or 1))
+        additions = _normalize_additions(line.get("additions"))
+        line_dict = _line_for_pricing(line)
+        line_cents = line_total_cents(line_dict, articles)
+        line_name = (
+            line.get("article_name")
+            or (articles.get(aid_int) or {}).get("name")
+            or f"Artikel #{aid_int}"
+        )
+        art = articles.get(aid_int) or {}
+        raw_adds = [a for a in (line.get("additions") or []) if isinstance(a, dict)]
+        addition_lines = []
+        for add in additions:
+            add_id = add["article_id"]
+            add_qty = add["qty"]
+            add_art = articles.get(add_id) or {}
+            raw_add = next((a for a in raw_adds if int(a.get("article_id") or 0) == add_id), None)
+            if raw_add and raw_add.get("unit_cents") is not None:
+                add_unit = int(raw_add["unit_cents"])
+            else:
+                add_unit = _addition_price_cents(articles, art, add_id)
+            add_display_name = (
+                (raw_add.get("name") if raw_add else None)
+                or add_art.get("name")
+                or f"Artikel #{add_id}"
+            )
+            addition_lines.append(
+                {
+                    "article_id": add_id,
+                    "name": add_display_name,
+                    "qty": add_qty,
+                    "line_cents": add_unit * qty * add_qty,
+                }
+            )
+        note = str(line.get("note") or "").strip()
+        entry: dict[str, Any] = {
+            "article_id": aid_int,
+            "name": line_name,
+            "qty": qty,
+            "line_cents": line_cents,
+            "additions": addition_lines,
+        }
+        if note:
+            entry["note"] = note
+        if line.get("order_number") is not None:
+            entry["order_number"] = int(line["order_number"])
+        out.append(entry)
     return out
 
 
@@ -249,8 +374,19 @@ def _build_articles_pricing_map(db: Session, article_ids: set[int]) -> dict[int,
     }
     base_ids = {aid for aid, a in arts.items() if not a.is_addition}
     links_by_base = load_links_for_bases(db, base_ids)
+    missing_add_ids: set[int] = set()
+    for links in links_by_base.values():
+        for link in links:
+            if link.addition_article_id not in arts:
+                missing_add_ids.add(int(link.addition_article_id))
+    if missing_add_ids:
+        for add_row in db.query(Article).filter(Article.id.in_(list(missing_add_ids))).all():
+            arts[add_row.id] = add_row
     out: dict[int, dict] = {}
-    for aid, art in arts.items():
+    for aid in article_ids:
+        art = arts.get(aid)
+        if not art:
+            continue
         entry: dict[str, Any] = {
             "article_id": art.id,
             "name": art.name,
@@ -260,11 +396,6 @@ def _build_articles_pricing_map(db: Session, article_ids: set[int]) -> dict[int,
         if not art.is_addition and aid in links_by_base:
             for link in links_by_base[aid]:
                 add_art = arts.get(link.addition_article_id)
-                if not add_art:
-                    add_art_row = db.query(Article).filter(Article.id == link.addition_article_id).first()
-                    if add_art_row:
-                        arts[add_art_row.id] = add_art_row
-                        add_art = add_art_row
                 if add_art:
                     entry["additions"].append(
                         {
@@ -318,10 +449,12 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
     total_line_cents = 0
     total_paid_cents = 0
     total_open_cents = 0
+    distinct_order_keys: set = set()
 
     for row in orders_rows:
         payload = row.payload if isinstance(row.payload, dict) else {}
         payment_status = str(payload.get("payment_status") or "open").lower()
+        distinct_order_keys |= distinct_order_numbers_from_payload(payload, legacy_key=f"row:{row.id}")
         waiter_uuid = _payload_waiter_uuid(payload)
         waiter_id_int = _payload_waiter_id_legacy(payload)
         table_number = payload.get("table_number")
@@ -342,13 +475,9 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
             aid_int = int(aid)
             qty = max(1, int(line.get("qty") or 1))
             additions = _normalize_additions(line.get("additions"))
-            line_dict = {
-                "article_id": aid_int,
-                "qty": qty,
-                "note": str(line.get("note") or ""),
-                "additions": additions,
-            }
+            line_dict = _line_for_pricing(line)
             line_cents = line_total_cents(line_dict, articles)
+            line_name = line.get("article_name") or (articles.get(aid_int) or {}).get("name") or f"Artikel #{aid_int}"
             order_line_cents += line_cents
 
             station_uuid = _line_station_uuid(line)
@@ -359,16 +488,26 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
 
             art = articles.get(aid_int) or {}
             addition_lines = []
+            raw_adds = [a for a in (line.get("additions") or []) if isinstance(a, dict)]
             for add in additions:
                 add_id = add["article_id"]
                 add_qty = add["qty"]
                 add_art = articles.get(add_id) or {}
-                add_unit = _addition_price_cents(articles, art, add_id)
+                raw_add = next((a for a in raw_adds if int(a.get("article_id") or 0) == add_id), None)
+                if raw_add and raw_add.get("unit_cents") is not None:
+                    add_unit = int(raw_add["unit_cents"])
+                else:
+                    add_unit = _addition_price_cents(articles, art, add_id)
                 add_line_cents = add_unit * qty * add_qty
+                add_display_name = (
+                    (raw_add.get("name") if raw_add else None)
+                    or add_art.get("name")
+                    or f"Artikel #{add_id}"
+                )
                 addition_lines.append(
                     {
                         "article_id": add_id,
-                        "name": add_art.get("name") or f"Artikel #{add_id}",
+                        "name": add_display_name,
                         "qty": add_qty,
                         "line_cents": add_line_cents,
                     }
@@ -387,7 +526,7 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
             lines_out.append(
                 {
                     "article_id": aid_int,
-                    "name": art.get("name") or f"Artikel #{aid_int}",
+                    "name": line_name,
                     "qty": qty,
                     "station_uuid": station_uuid,
                     "station_name": station_label,
@@ -396,12 +535,12 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
                 }
             )
 
-            base_unit = int(round(float(art.get("price") or 0) * 100))
+            base_unit = int(line["unit_cents"]) if line.get("unit_cents") is not None else int(round(float(art.get("price") or 0) * 100))
             base_line_cents = base_unit * qty
             if aid_int not in by_article:
                 by_article[aid_int] = {
                     "article_id": aid_int,
-                    "name": art.get("name") or f"Artikel #{aid_int}",
+                    "name": line_name,
                     "qty": 0,
                     "line_cents": 0,
                 }
@@ -466,6 +605,8 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
             {
                 "id": row.id,
                 "client_order_id": row.client_order_id,
+                "order_number": payload.get("order_number"),
+                "ordered_at": payload.get("ordered_at"),
                 "created_at": row.created_at.isoformat() if row.created_at else None,
                 "table_number": table_number,
                 "waiter_uuid": waiter_uuid,
@@ -501,6 +642,7 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
         "currency": currency,
         "totals": {
             "orders_count": len(orders_out),
+            "distinct_orders_count": len(distinct_order_keys),
             "line_cents": total_line_cents,
             "paid_cents": total_paid_cents,
             "open_cents": total_open_cents,

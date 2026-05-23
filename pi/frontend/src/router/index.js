@@ -44,6 +44,12 @@ const routes = [
     meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true },
   },
   {
+    path: '/collective/open',
+    name: 'collective-open',
+    component: () => import('../views/OpenCollectiveBillsView.vue'),
+    meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true },
+  },
+  {
     path: '/stock',
     name: 'stock',
     component: () => import('../views/StockView.vue'),
@@ -79,6 +85,12 @@ const routes = [
     component: () => import('../views/PayTableView.vue'),
     meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true, fullscreen: true },
   },
+  {
+    path: '/pay/collective',
+    name: 'pay-collective',
+    component: () => import('../views/PayCollectiveView.vue'),
+    meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true, fullscreen: true },
+  },
 ]
 
 const router = createRouter({
@@ -86,15 +98,26 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+const ROUTES_WITHOUT_BUNDLE = new Set(['events', 'admin-unlock', 'admin'])
+
+router.beforeEach(async (to) => {
   if (to.meta.requiresAdmin && store.adminRequiresPin() && !store.adminUnlocked.value) {
     return { name: 'admin-unlock', query: { redirect: to.fullPath } }
   }
   if (to.meta.requiresBundle && !store.bundleReady()) {
-    if (to.name === 'events' || to.name === 'admin-unlock' || to.name === 'admin') {
-      return true
+    if (!ROUTES_WITHOUT_BUNDLE.has(to.name)) {
+      try {
+        await store.refreshBundle()
+      } catch {
+        /* bundle unavailable */
+      }
     }
-    return { name: 'events' }
+    if (!store.bundleReady()) {
+      if (ROUTES_WITHOUT_BUNDLE.has(to.name)) {
+        return true
+      }
+      return { name: 'events' }
+    }
   }
   if (to.meta.requiresEvent && store.selectedEventId.value == null) {
     return { name: 'events' }

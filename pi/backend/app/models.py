@@ -14,12 +14,30 @@ class SyncedBundle(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class EventOrderCounter(Base):
+    """Per-event monotonic order number sequence (FERTIG submissions only)."""
+
+    __tablename__ = "event_order_counters"
+    event_id = Column(Integer, primary_key=True)
+    next_number = Column(Integer, nullable=False, default=1)
+
+
+class CollectiveBill(Base):
+    __tablename__ = "collective_bills"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    uuid = Column(String(36), nullable=False, unique=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class LocalOrder(Base):
     __tablename__ = "local_orders"
     id = Column(Integer, primary_key=True, autoincrement=True)
     client_order_id = Column(String(64), nullable=False, unique=True, index=True)
     event_id = Column(Integer, nullable=False, index=True)
-    table_number = Column(Integer, nullable=False, index=True)
+    table_number = Column(Integer, nullable=True, index=True)
+    collective_bill_id = Column(Integer, nullable=True, index=True)
     waiter_uuid = Column(String(36), nullable=True)
     payment_status = Column(String(16), nullable=False, default="open")  # open | paid
     payload_json = Column(Text, nullable=False)

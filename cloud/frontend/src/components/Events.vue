@@ -98,6 +98,13 @@
             <div class="actions">
               <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
               <Button
+                label="Event kopieren"
+                class="secondary-button"
+                type="button"
+                :disabled="copyBusy"
+                @click="copyEvent"
+              />
+              <Button
                 label="Speichern"
                 class="primary-button"
                 :disabled="!canSave"
@@ -339,6 +346,7 @@ const form = ref(emptyForm())
 const hasTwintQr = ref(false)
 const twintQrPreviewUrl = ref('')
 const twintQrBusy = ref(false)
+const copyBusy = ref(false)
 
 const showTwintQrSection = computed(() =>
   Array.isArray(form.value.paymentTypes) && form.value.paymentTypes.includes('twint')
@@ -575,6 +583,44 @@ async function editEvent(event) {
   }
   message.value = ''
   if (hasTwintQr.value) await loadTwintQrPreview()
+}
+
+function defaultCopyName(name) {
+  const base = (name || '').trim() || 'Event'
+  const suffix = ' (Kopie)'
+  return base.endsWith(suffix) ? base : `${base}${suffix}`
+}
+
+async function copyEvent() {
+  if (!activeId.value) return
+  const suggested = defaultCopyName(form.value.name)
+  const entered = window.prompt('Name der kopierten Veranstaltung', suggested)
+  if (entered === null) return
+  const name = entered.trim()
+  if (!name) {
+    message.value = 'Name ist erforderlich.'
+    messageType.value = 'error'
+    return
+  }
+  copyBusy.value = true
+  try {
+    const response = await apiFetch(`/events/${activeId.value}/copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!response.ok) throw new Error(await response.text())
+    const created = await response.json()
+    await fetchEvents()
+    await editEvent(created)
+    message.value = `Veranstaltung «${created.name}» erstellt.`
+    messageType.value = 'success'
+  } catch {
+    message.value = 'Event konnte nicht kopiert werden.'
+    messageType.value = 'error'
+  } finally {
+    copyBusy.value = false
+  }
 }
 
 async function saveEvent() {

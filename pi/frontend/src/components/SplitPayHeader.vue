@@ -1,19 +1,20 @@
 <template>
   <header class="split-header">
     <button type="button" class="header-btn" aria-label="Zurück" @click="$emit('back')">←</button>
-    <h1 class="split-title">Offene Posten Tisch: {{ table }}</h1>
+    <h1 class="split-title">{{ title || `Offene Posten Tisch: ${table}` }}</h1>
     <slot name="actions">
-      <button type="button" class="header-btn menu" aria-label="Menü" disabled>☰</button>
+      <button type="button" class="header-btn menu" aria-label="Menü" @click="$emit('menu')">☰</button>
     </slot>
   </header>
 </template>
 
 <script setup>
 defineProps({
-  table: { type: [Number, String], required: true },
+  table: { type: [Number, String], default: '' },
+  title: { type: String, default: '' },
 })
 
-defineEmits(['back'])
+defineEmits(['back', 'menu'])
 </script>
 
 <style scoped>

@@ -26,8 +26,35 @@ def _add_column_if_missing(table: str, column: str, ddl_sqlite: str, ddl_other: 
         conn.execute(text(stmt))
 
 
+def _ensure_event_order_counters_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_order_counters" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventOrderCounter
+
+    EventOrderCounter.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_collective_bills_table() -> None:
+    """create_all() does not add new tables to existing databases."""
+    try:
+        inspector = inspect(engine)
+        if "collective_bills" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import CollectiveBill
+
+    CollectiveBill.__table__.create(bind=engine, checkfirst=True)
+
+
 def apply_schema_patches() -> None:
-    """create_all() does not add columns to existing tables."""
+    """create_all() does not add columns or tables to existing databases."""
+    _ensure_event_order_counters_table()
+    _ensure_collective_bills_table()
     _add_column_if_missing(
         "local_orders",
         "table_number",
@@ -51,4 +78,10 @@ def apply_schema_patches() -> None:
         "payment_status",
         "ALTER TABLE local_orders ADD COLUMN payment_status VARCHAR(16) NOT NULL DEFAULT 'open'",
         "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(16) NOT NULL DEFAULT 'open'",
+    )
+    _add_column_if_missing(
+        "local_orders",
+        "collective_bill_id",
+        "ALTER TABLE local_orders ADD COLUMN collective_bill_id INTEGER",
+        "ALTER TABLE local_orders ADD COLUMN IF NOT EXISTS collective_bill_id INTEGER",
     )

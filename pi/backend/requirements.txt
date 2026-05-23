@@ -4,3 +4,4 @@ sqlalchemy
 httpx
 python-multipart
 passlib[bcrypt]
+bcrypt<5

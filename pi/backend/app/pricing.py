@@ -19,10 +19,15 @@ def _addition_price_cents(articles: dict, base_article: dict | None, addition_id
 
 
 def line_unit_cents(line: dict, articles: dict) -> int:
+    if line.get("unit_cents") is not None:
+        unit = int(line["unit_cents"])
+    else:
+        aid = line.get("article_id")
+        base = _article_entry(articles, aid)
+        price = float(base["price"]) if base and base.get("price") is not None else 0.0
+        unit = int(round(price * 100))
     aid = line.get("article_id")
     base = _article_entry(articles, aid)
-    price = float(base["price"]) if base and base.get("price") is not None else 0.0
-    unit = int(round(price * 100))
     for add in line.get("additions") or []:
         if not isinstance(add, dict):
             continue
@@ -30,7 +35,10 @@ def line_unit_cents(line: dict, articles: dict) -> int:
         if add_id is None:
             continue
         add_qty = max(1, int(add.get("qty") or 1))
-        unit += _addition_price_cents(articles, base, int(add_id)) * add_qty
+        if add.get("unit_cents") is not None:
+            unit += int(add["unit_cents"]) * add_qty
+        else:
+            unit += _addition_price_cents(articles, base, int(add_id)) * add_qty
     return max(0, unit)
 
 

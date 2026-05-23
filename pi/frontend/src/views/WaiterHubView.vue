@@ -13,13 +13,16 @@
       <button type="button" class="btn hub-btn" @click="router.push({ name: 'tables-open' })">
         Offene Tische
       </button>
+      <button type="button" class="btn hub-btn" @click="router.push({ name: 'collective-open' })">
+        Sammelrechnungen
+      </button>
       <button type="button" class="btn hub-btn" @click="router.push({ name: 'stock' })">
         Lagerbestand
       </button>
     </div>
 
     <p class="muted footer-links">
-      <RouterLink :to="{ name: 'login' }">Kellner wechseln</RouterLink>
+      <button type="button" class="link-btn" @click="switchWaiter">Kellner wechseln</button>
       ·
       <RouterLink :to="{ name: 'events' }">Event wechseln</RouterLink>
     </p>
@@ -34,6 +37,11 @@ import * as store from '../store'
 const router = useRouter()
 const event = computed(() => store.selectedEvent.value)
 const waiter = computed(() => store.waiter.value)
+
+function switchWaiter() {
+  store.setWaiter(null)
+  router.push({ name: 'login' })
+}
 </script>
 
 <style scoped>
@@ -50,5 +58,14 @@ const waiter = computed(() => store.waiter.value)
 }
 .footer-links {
   margin-top: 1.5rem;
+}
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
 }
 </style>

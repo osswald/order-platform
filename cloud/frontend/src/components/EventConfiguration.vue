@@ -15,7 +15,7 @@
           </div>
           <div v-for="(st, idx) in stationsLocal" :key="'st-' + idx" class="config-card">
             <div class="config-card-header">
-              <span>Station {{ idx + 1 }}</span>
+              <span>{{ st.name || 'Unbenannte Station' }}</span>
               <Button
                 icon="pi pi-trash"
                 severity="danger"
@@ -95,6 +95,10 @@
 
         <TabPanel header="Umsatz">
           <EventSalesTab :event-id="eventId" />
+        </TabPanel>
+
+        <TabPanel header="Sammelrechnungen">
+          <EventCollectiveBillsTab :event-id="eventId" />
         </TabPanel>
 
         <TabPanel header="App-Layouts">
@@ -237,6 +241,7 @@ import TreeSelect from 'primevue/treeselect'
 import { apiFetch } from '../api'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
+import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
 
 const props = defineProps({
   eventId: {

@@ -14,14 +14,14 @@
     <p v-else-if="loading" class="muted">Laden…</p>
     <template v-else-if="report">
       <p class="muted small footnote">
-        Positionswerte aus aktuellen Artikelpreisen; Zahlungsarten aus erfassten Zahlungen.
-        Offen = unbezahlte Bestellungen (z. B. Später bezahlen).
+        Bestellungen = eindeutige Bestellnummern (FERTIG am Pi). Sync-Zeilen können mehrfach vorkommen.
+        Preise aus Bestell-Snapshot, sonst aktuelle Artikelpreise.
       </p>
 
       <div class="summary-grid">
         <div class="summary-card">
           <span class="summary-label">Bestellungen</span>
-          <span class="summary-value">{{ report.totals.orders_count }}</span>
+          <span class="summary-value">{{ report.totals.distinct_orders_count ?? report.totals.orders_count }}</span>
         </div>
         <div class="summary-card">
           <span class="summary-label">Positionswert</span>
@@ -48,8 +48,11 @@
         responsiveLayout="scroll"
       >
         <Column expander style="width: 3rem" />
+        <Column header="Bestell-Nr.">
+          <template #body="{ data }">{{ data.order_number != null ? `#${data.order_number}` : '—' }}</template>
+        </Column>
         <Column header="Zeit">
-          <template #body="{ data }">{{ formatTime(data.created_at) }}</template>
+          <template #body="{ data }">{{ formatTime(data.ordered_at || data.created_at) }}</template>
         </Column>
         <Column field="table_number" header="Tisch" />
         <Column field="waiter_name" header="Kellner" />

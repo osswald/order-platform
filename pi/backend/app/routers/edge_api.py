@@ -18,7 +18,17 @@ from ..sync_service import (
     sync_status,
 )
 from ..database import SessionLocal
-from ..models import LocalOrder, OutboxEntry, PrintJob, SyncedBundle
+from ..order_line_utils import copy_line_fiscal_fields
+from ..order_fiscal import (
+    allocate_order_number,
+    distinct_order_numbers_from_payload,
+    distinct_order_numbers_for_local_orders,
+    is_ferdig_client_order_id,
+    snapshot_lines,
+    waiter_name_from_event,
+)
+from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
+from ..models import CollectiveBill, LocalOrder, OutboxEntry, PrintJob, SyncedBundle
 from ..security import verify_password
 from ..print_worker import (
     build_escpos_receipt_text,
@@ -311,6 +321,79 @@ class TableSettlePartialBody(BaseModel):
     selections: list[LineSelection] = Field(default_factory=list)
 
 
+class TransferLinesBody(BaseModel):
+    event_id: int
+    target_table_number: int = Field(..., ge=1, le=99999)
+    selections: list[LineSelection] = Field(default_factory=list)
+
+
+class AssignCollectiveBody(BaseModel):
+    event_id: int
+    selections: list[LineSelection] = Field(default_factory=list)
+    collective_bill_id: int | None = None
+    new_name: str | None = Field(None, min_length=1, max_length=128)
+
+
+class CollectiveBillCreateBody(BaseModel):
+    event_id: int
+    name: str = Field(..., min_length=1, max_length=128)
+
+
+def _collective_bill_open(db: Session, bill_id: int, event_id: int) -> CollectiveBill:
+    bill = (
+        db.query(CollectiveBill)
+        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == event_id)
+        .first()
+    )
+    if not bill:
+        raise HTTPException(status_code=404, detail="Sammelrechnung not found")
+    has_open = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.collective_bill_id == bill.id,
+            LocalOrder.payment_status == "open",
+        )
+        .first()
+    )
+    if not has_open:
+        any_order = (
+            db.query(LocalOrder).filter(LocalOrder.collective_bill_id == bill.id).first()
+        )
+        if any_order:
+            raise HTTPException(status_code=400, detail="Sammelrechnung ist bereits abgeschlossen")
+    return bill
+
+
+def _summary_from_orders(orders: list, ev: dict, arts: dict, extra: dict) -> dict:
+    open_orders = []
+    total_cents = 0
+    item_count = 0
+    for o in orders:
+        payload = json.loads(o.payload_json)
+        lines = payload.get("lines") or []
+        line_cents, line_qty = _line_totals(lines, arts)
+        total_cents += line_cents
+        item_count += line_qty
+        open_orders.append(
+            {
+                "local_order_id": o.id,
+                "client_order_id": o.client_order_id,
+                "created_at": o.created_at.isoformat() if o.created_at else None,
+                "lines": lines,
+                "line_total_cents": line_cents,
+            }
+        )
+    line_groups = _build_line_groups_from_orders(orders, arts)
+    return {
+        **extra,
+        "currency": ev.get("currency", "EUR"),
+        "open_orders": open_orders,
+        "line_groups": line_groups,
+        "total_cents": total_cents,
+        "item_count": item_count,
+    }
+
+
 @router.post("/v1/orders")
 def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
     bundle = _get_bundle_dict(db)
@@ -344,7 +427,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
 
     payment_status = _payment_status_for_create(ev, payments)
     order_lines = _lines_with_station_uuid(ev, body.lines)
-    payload = {
+    payload: dict = {
         "client_order_id": body.client_order_id,
         "event_id": body.event_id,
         "table_number": body.table_number,
@@ -353,6 +436,17 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
         "payments": payments,
         "payment_status": payment_status,
     }
+    order_number: int | None = None
+    if is_ferdig_client_order_id(body.client_order_id):
+        order_number = allocate_order_number(db, body.event_id)
+        ordered_at = datetime.now(timezone.utc).isoformat()
+        waiter_name = waiter_name_from_event(ev, body.waiter_uuid)
+        order_lines = snapshot_lines(order_lines, arts, order_number=order_number)
+        payload["order_number"] = order_number
+        payload["ordered_at"] = ordered_at
+        payload["lines"] = order_lines
+        if waiter_name:
+            payload["waiter_name"] = waiter_name
     order = LocalOrder(
         client_order_id=body.client_order_id,
         event_id=body.event_id,
@@ -405,6 +499,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
     db.commit()
     return {
         "local_order_id": order.id,
+        "order_number": order_number,
         "print_job_id": print_job_ids[0] if print_job_ids else None,
         "print_job_ids": print_job_ids,
         "payment_status": payment_status,
@@ -459,23 +554,29 @@ def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)):
         .filter(
             LocalOrder.event_id == event_id,
             LocalOrder.payment_status == "open",
-            LocalOrder.table_number.isnot(None),
+            LocalOrder.collective_bill_id.is_(None),
+            LocalOrder.table_number > 0,
         )
         .order_by(LocalOrder.table_number.asc(), LocalOrder.id.asc())
         .all()
     )
 
     by_table: dict[int, dict] = {}
+    table_order_sets: dict[int, set] = {}
     for o in orders:
         tn = int(o.table_number)
         if tn not in by_table:
             by_table[tn] = {"table_number": tn, "order_count": 0, "total_cents": 0, "item_count": 0}
+            table_order_sets[tn] = set()
         payload = json.loads(o.payload_json)
         lines = payload.get("lines") or []
         line_cents, line_qty = _line_totals(lines, arts)
-        by_table[tn]["order_count"] += 1
+        table_order_sets[tn] |= distinct_order_numbers_from_payload(payload, legacy_key=f"legacy:{o.id}")
         by_table[tn]["total_cents"] += line_cents
         by_table[tn]["item_count"] += line_qty
+
+    for tn, row in by_table.items():
+        row["order_count"] = len(table_order_sets.get(tn, set()))
 
     tables = [
         {**row, "currency": currency}
@@ -504,33 +605,23 @@ def get_table_summary(
         .filter(
             LocalOrder.event_id == event_id,
             LocalOrder.table_number == table_number,
+            LocalOrder.collective_bill_id.is_(None),
             LocalOrder.payment_status == "open",
         )
         .order_by(LocalOrder.id.asc())
         .all()
     )
 
-    open_orders = []
+    summary = _summary_from_orders(
+        orders,
+        ev,
+        arts,
+        {"table_number": table_number, "event_id": event_id},
+    )
     aggregated_lines = []
-    total_cents = 0
-    item_count = 0
-
     for o in orders:
         payload = json.loads(o.payload_json)
-        lines = payload.get("lines") or []
-        line_cents, line_qty = _line_totals(lines, arts)
-        total_cents += line_cents
-        item_count += line_qty
-        open_orders.append(
-            {
-                "local_order_id": o.id,
-                "client_order_id": o.client_order_id,
-                "created_at": o.created_at.isoformat() if o.created_at else None,
-                "lines": lines,
-                "line_total_cents": line_cents,
-            }
-        )
-        for line in lines:
+        for line in payload.get("lines") or []:
             if not isinstance(line, dict):
                 continue
             aggregated_lines.append(
@@ -542,19 +633,8 @@ def get_table_summary(
                     "additions": _normalize_additions(line.get("additions")),
                 }
             )
-
-    line_groups = _build_line_groups_from_orders(orders, arts)
-
-    return {
-        "table_number": table_number,
-        "event_id": event_id,
-        "currency": ev.get("currency", "EUR"),
-        "open_orders": open_orders,
-        "aggregated_lines": aggregated_lines,
-        "line_groups": line_groups,
-        "total_cents": total_cents,
-        "item_count": item_count,
-    }
+    summary["aggregated_lines"] = aggregated_lines
+    return summary
 
 
 @router.post("/v1/tables/{table_number}/settle-partial")
@@ -589,6 +669,7 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
         .filter(
             LocalOrder.event_id == body.event_id,
             LocalOrder.table_number == table_number,
+            LocalOrder.collective_bill_id.is_(None),
             LocalOrder.payment_status == "open",
         )
         .order_by(LocalOrder.id.asc())
@@ -629,6 +710,7 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
                 su = line.get("station_uuid")
                 if su:
                     pl["station_uuid"] = su
+                copy_line_fiscal_fields(line, pl)
                 paid_lines.append(pl)
                 need[key] = need.get(key, 0) - take
                 qty -= take
@@ -667,6 +749,9 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
             "settlement_table": table_number,
             "partial_settlement": True,
         }
+        order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
+        if len(order_nums) == 1:
+            paid_payload["order_number"] = order_nums.pop()
         paid_order = LocalOrder(
             client_order_id=pay_cid,
             event_id=body.event_id,
@@ -695,6 +780,7 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
         .filter(
             LocalOrder.event_id == body.event_id,
             LocalOrder.table_number == table_number,
+            LocalOrder.collective_bill_id.is_(None),
             LocalOrder.payment_status == "open",
         )
         .all()
@@ -728,6 +814,7 @@ def settle_table(table_number: int, body: TableSettleBody, db: Session = Depends
         .filter(
             LocalOrder.event_id == body.event_id,
             LocalOrder.table_number == table_number,
+            LocalOrder.collective_bill_id.is_(None),
             LocalOrder.payment_status == "open",
         )
         .all()
@@ -772,6 +859,516 @@ def settle_table(table_number: int, body: TableSettleBody, db: Session = Depends
     return {"paid_order_ids": paid_ids, "total_cents": total_cents, "table_number": table_number}
 
 
+def _selections_from_body(selections: list[LineSelection]) -> list[dict]:
+    return [s.model_dump() for s in selections]
+
+
+@router.post("/v1/tables/{from_table}/transfer-lines")
+def transfer_table_lines(from_table: int, body: TransferLinesBody, db: Session = Depends(get_db)):
+    if from_table < 1 or from_table > 99999:
+        raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
+    if body.target_table_number == from_table:
+        raise HTTPException(status_code=400, detail="Ziel-Tisch muss ein anderer Tisch sein")
+    if not body.selections:
+        raise HTTPException(status_code=400, detail="selections required")
+
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.event_id == body.event_id,
+            LocalOrder.table_number == from_table,
+            LocalOrder.collective_bill_id.is_(None),
+            LocalOrder.payment_status == "open",
+        )
+        .order_by(LocalOrder.id.asc())
+        .all()
+    )
+    if not orders:
+        raise HTTPException(status_code=404, detail="No open orders for this table")
+
+    selections = _selections_from_body(body.selections)
+    try:
+        moved = take_from_orders(db, orders, selections, _sync_outbox_payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    waiter_uuid = orders[0].waiter_uuid if orders else None
+    append_lines_to_table(
+        db,
+        ev=ev,
+        event_id=body.event_id,
+        target_table=body.target_table_number,
+        waiter_uuid=waiter_uuid,
+        lines=moved,
+        lines_with_station=_lines_with_station_uuid,
+        sync_outbox=_sync_outbox_payload,
+    )
+    db.commit()
+    return {
+        "from_table": from_table,
+        "target_table_number": body.target_table_number,
+        "moved_line_count": len(moved),
+    }
+
+
+@router.post("/v1/tables/{from_table}/assign-collective")
+def assign_table_to_collective(from_table: int, body: AssignCollectiveBody, db: Session = Depends(get_db)):
+    if from_table < 1 or from_table > 99999:
+        raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
+    if not body.selections:
+        raise HTTPException(status_code=400, detail="selections required")
+    if body.collective_bill_id is None and not body.new_name:
+        raise HTTPException(status_code=400, detail="collective_bill_id or new_name required")
+
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    if body.new_name:
+        bill = CollectiveBill(
+            uuid=str(uuid.uuid4()),
+            event_id=body.event_id,
+            name=body.new_name.strip(),
+        )
+        db.add(bill)
+        db.flush()
+    else:
+        bill = _collective_bill_open(db, body.collective_bill_id, body.event_id)
+
+    orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.event_id == body.event_id,
+            LocalOrder.table_number == from_table,
+            LocalOrder.collective_bill_id.is_(None),
+            LocalOrder.payment_status == "open",
+        )
+        .order_by(LocalOrder.id.asc())
+        .all()
+    )
+    if not orders:
+        raise HTTPException(status_code=404, detail="No open orders for this table")
+
+    selections = _selections_from_body(body.selections)
+    try:
+        moved = take_from_orders(db, orders, selections, _sync_outbox_payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    waiter_uuid = orders[0].waiter_uuid if orders else None
+    append_lines_to_collective(
+        db,
+        ev=ev,
+        bill=bill,
+        event_id=body.event_id,
+        waiter_uuid=waiter_uuid,
+        lines=moved,
+        lines_with_station=_lines_with_station_uuid,
+        sync_outbox=_sync_outbox_payload,
+    )
+    db.commit()
+    return {
+        "collective_bill_id": bill.id,
+        "collective_bill_uuid": bill.uuid,
+        "name": bill.name,
+        "from_table": from_table,
+    }
+
+
+@router.post("/v1/collective-bills")
+def create_collective_bill(body: CollectiveBillCreateBody, db: Session = Depends(get_db)):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    bill = CollectiveBill(
+        uuid=str(uuid.uuid4()),
+        event_id=body.event_id,
+        name=body.name.strip(),
+    )
+    db.add(bill)
+    db.commit()
+    db.refresh(bill)
+    return {
+        "id": bill.id,
+        "uuid": bill.uuid,
+        "name": bill.name,
+        "event_id": bill.event_id,
+        "total_cents": 0,
+        "order_count": 0,
+    }
+
+
+@router.get("/v1/collective-bills/open")
+def list_open_collective_bills(event_id: int = Query(...), db: Session = Depends(get_db)):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    arts = _article_map(ev)
+    currency = ev.get("currency", "EUR")
+    bills = db.query(CollectiveBill).filter(CollectiveBill.event_id == event_id).order_by(CollectiveBill.id.asc()).all()
+    result = []
+    for bill in bills:
+        open_orders = (
+            db.query(LocalOrder)
+            .filter(
+                LocalOrder.collective_bill_id == bill.id,
+                LocalOrder.payment_status == "open",
+            )
+            .all()
+        )
+        has_any_order = (
+            db.query(LocalOrder.id)
+            .filter(LocalOrder.collective_bill_id == bill.id)
+            .first()
+            is not None
+        )
+        if has_any_order and not open_orders:
+            continue
+        total_cents = 0
+        order_count = distinct_order_numbers_for_local_orders(open_orders)
+        item_count = 0
+        for o in open_orders:
+            payload = json.loads(o.payload_json)
+            cents, qty = _line_totals(payload.get("lines") or [], arts)
+            total_cents += cents
+            item_count += qty
+        result.append(
+            {
+                "id": bill.id,
+                "uuid": bill.uuid,
+                "name": bill.name,
+                "order_count": order_count,
+                "total_cents": total_cents,
+                "item_count": item_count,
+                "currency": currency,
+            }
+        )
+    return {"event_id": event_id, "currency": currency, "collective_bills": result}
+
+
+@router.get("/v1/collective-bills/{bill_id}")
+def get_collective_bill_summary(
+    bill_id: int,
+    event_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    bill = (
+        db.query(CollectiveBill)
+        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == event_id)
+        .first()
+    )
+    if not bill:
+        raise HTTPException(status_code=404, detail="Sammelrechnung not found")
+
+    arts = _article_map(ev)
+    orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.collective_bill_id == bill.id,
+            LocalOrder.payment_status == "open",
+        )
+        .order_by(LocalOrder.id.asc())
+        .all()
+    )
+    summary = _summary_from_orders(
+        orders,
+        ev,
+        arts,
+        {
+            "collective_bill_id": bill.id,
+            "collective_bill_uuid": bill.uuid,
+            "name": bill.name,
+            "event_id": event_id,
+        },
+    )
+    return summary
+
+
+def _settle_orders_partial(
+    db: Session,
+    ev: dict,
+    body: TableSettlePartialBody,
+    orders: list,
+    *,
+    settlement_meta: dict,
+    paid_order_prefix: str,
+) -> dict:
+    if not body.payments:
+        raise HTTPException(status_code=400, detail="payments required")
+    if not body.selections:
+        raise HTTPException(status_code=400, detail="selections required")
+
+    _validate_payment_types(ev, body.payments)
+
+    arts = _article_map(ev)
+    selections = [s.model_dump() for s in body.selections]
+    expected_cents = _selections_total_cents(selections, arts)
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    if paid_total != expected_cents:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment total {paid_total} does not match selection total {expected_cents}",
+        )
+
+    if not orders:
+        raise HTTPException(status_code=404, detail="No open orders")
+
+    need: dict[tuple[int, str, str], int] = {}
+    for s in selections:
+        key = _line_key(s["article_id"], s.get("note", ""), s.get("additions"))
+        need[key] = need.get(key, 0) + int(s["qty"])
+
+    paid_lines: list[dict] = []
+    now = datetime.now(timezone.utc).isoformat()
+
+    for order in orders:
+        payload = json.loads(order.payload_json)
+        open_lines: list[dict] = []
+        for line in payload.get("lines") or []:
+            if not isinstance(line, dict):
+                continue
+            aid = line.get("article_id")
+            if aid is None:
+                continue
+            note = str(line.get("note") or "")
+            adds = _normalize_additions(line.get("additions"))
+            key = _line_key(aid, note, adds)
+            qty = max(1, int(line.get("qty") or 1))
+            take = min(qty, need.get(key, 0))
+            if take > 0:
+                pl = {
+                    "article_id": int(aid),
+                    "qty": take,
+                    "note": note,
+                    "additions": adds,
+                }
+                su = line.get("station_uuid")
+                if su:
+                    pl["station_uuid"] = su
+                copy_line_fiscal_fields(line, pl)
+                paid_lines.append(pl)
+                need[key] = need.get(key, 0) - take
+                qty -= take
+            if qty > 0:
+                open_lines.append({**line, "qty": qty, "additions": adds})
+        payload["lines"] = open_lines
+        if open_lines:
+            order.payload_json = json.dumps(payload)
+            _sync_outbox_payload(db, order, payload)
+        else:
+            order.payment_status = "paid"
+            payload["payment_status"] = "paid"
+            payload["settled_at"] = now
+            payload.update(settlement_meta)
+            order.payload_json = json.dumps(payload)
+            _sync_outbox_payload(db, order, payload)
+
+    leftover = sum(v for v in need.values() if v > 0)
+    if leftover > 0:
+        raise HTTPException(status_code=400, detail="Selection exceeds open quantities")
+
+    paid_order_ids: list[int] = []
+    if paid_lines:
+        pay_cid = f"{paid_order_prefix}-{uuid.uuid4().hex[:12]}"
+        paid_lines = _lines_with_station_uuid(ev, paid_lines)
+        paid_payload = {
+            "client_order_id": pay_cid,
+            "event_id": body.event_id,
+            "waiter_uuid": orders[0].waiter_uuid if orders else None,
+            "lines": paid_lines,
+            "payments": body.payments,
+            "payment_status": "paid",
+            "settled_at": now,
+            "partial_settlement": True,
+            **settlement_meta,
+        }
+        order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
+        if len(order_nums) == 1:
+            paid_payload["order_number"] = order_nums.pop()
+        coll_id = settlement_meta.get("collective_bill_id")
+        paid_order = LocalOrder(
+            client_order_id=pay_cid,
+            event_id=body.event_id,
+            table_number=0 if coll_id else settlement_meta.get("table_number"),
+            collective_bill_id=coll_id,
+            waiter_uuid=orders[0].waiter_uuid if orders else None,
+            payment_status="paid",
+            payload_json=json.dumps(paid_payload),
+            print_status="done",
+        )
+        db.add(paid_order)
+        db.flush()
+        paid_order_ids.append(paid_order.id)
+        db.add(
+            OutboxEntry(
+                client_order_id=pay_cid,
+                event_id=body.event_id,
+                payload_json=json.dumps(paid_payload),
+                status="pending",
+            )
+        )
+
+    return {
+        "paid_cents": expected_cents,
+        "paid_order_ids": paid_order_ids,
+    }
+
+
+@router.post("/v1/collective-bills/{bill_id}/settle-partial")
+def settle_collective_partial(
+    bill_id: int,
+    body: TableSettlePartialBody,
+    db: Session = Depends(get_db),
+):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    bill = (
+        db.query(CollectiveBill)
+        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == body.event_id)
+        .first()
+    )
+    if not bill:
+        raise HTTPException(status_code=404, detail="Sammelrechnung not found")
+
+    orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.collective_bill_id == bill.id,
+            LocalOrder.payment_status == "open",
+        )
+        .order_by(LocalOrder.id.asc())
+        .all()
+    )
+
+    meta = {
+        "table_number": None,
+        "collective_bill_id": bill.id,
+        "collective_bill_uuid": bill.uuid,
+        "collective_bill_name": bill.name,
+        "settlement_collective_bill_id": bill.id,
+    }
+    result = _settle_orders_partial(
+        db,
+        ev,
+        body,
+        orders,
+        settlement_meta=meta,
+        paid_order_prefix=f"partial-coll-{bill.id}",
+    )
+    db.commit()
+
+    remaining_orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.collective_bill_id == bill.id,
+            LocalOrder.payment_status == "open",
+        )
+        .all()
+    )
+    arts = _article_map(ev)
+    remaining_cents = 0
+    for o in remaining_orders:
+        payload = json.loads(o.payload_json)
+        cents, _ = _line_totals(payload.get("lines") or [], arts)
+        remaining_cents += cents
+
+    return {
+        **result,
+        "remaining_cents": remaining_cents,
+        "collective_bill_id": bill.id,
+    }
+
+
+@router.post("/v1/collective-bills/{bill_id}/settle")
+def settle_collective(bill_id: int, body: TableSettleBody, db: Session = Depends(get_db)):
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+
+    bill = (
+        db.query(CollectiveBill)
+        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == body.event_id)
+        .first()
+    )
+    if not bill:
+        raise HTTPException(status_code=404, detail="Sammelrechnung not found")
+
+    orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.collective_bill_id == bill.id,
+            LocalOrder.payment_status == "open",
+        )
+        .all()
+    )
+    if not orders:
+        raise HTTPException(status_code=404, detail="No open orders for this Sammelrechnung")
+
+    if not body.payments:
+        raise HTTPException(status_code=400, detail="payments required")
+
+    _validate_payment_types(ev, body.payments)
+
+    now = datetime.now(timezone.utc).isoformat()
+    arts = _article_map(ev)
+    total_cents = 0
+    for o in orders:
+        payload = json.loads(o.payload_json)
+        cents, _ = _line_totals(payload.get("lines") or [], arts)
+        total_cents += cents
+
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    if paid_total != total_cents:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment total {paid_total} does not match open balance {total_cents}",
+        )
+
+    meta = {
+        "table_number": None,
+        "collective_bill_uuid": bill.uuid,
+        "collective_bill_name": bill.name,
+        "settlement_collective_bill_id": bill.id,
+    }
+    paid_ids = []
+    for o in orders:
+        payload = json.loads(o.payload_json)
+        payload["payments"] = body.payments
+        payload["payment_status"] = "paid"
+        payload["settled_at"] = now
+        payload.update(meta)
+        o.payment_status = "paid"
+        o.payload_json = json.dumps(payload)
+        _sync_outbox_payload(db, o, payload)
+        paid_ids.append(o.id)
+
+    db.commit()
+    return {
+        "paid_order_ids": paid_ids,
+        "total_cents": total_cents,
+        "collective_bill_id": bill.id,
+    }
+
+
 def _bundle_dict_optional(db: Session) -> dict | None:
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     if not row or not row.json_body:
@@ -808,8 +1405,13 @@ def verify_admin_pin(body: AdminVerifyBody, db: Session = Depends(get_db)):
     if not hashes:
         raise HTTPException(status_code=401, detail="no_admin_pins_configured")
     for h in hashes:
-        if h and verify_password(body.pin, h):
-            return {"ok": True}
+        if not h or not isinstance(h, str):
+            continue
+        try:
+            if verify_password(body.pin, h):
+                return {"ok": True}
+        except Exception:
+            continue
     raise HTTPException(status_code=401, detail="Invalid admin code")
 
 

@@ -40,10 +40,74 @@ export function clearCart() {
   cartLines.value = []
 }
 
+const WAITER_SESSION_KEY = 'pi_waiter_session'
+
+function persistWaiterSession(session) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(WAITER_SESSION_KEY, JSON.stringify(session))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function restoreWaiterSession() {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const raw = localStorage.getItem(WAITER_SESSION_KEY)
+    if (!raw) return
+    const data = JSON.parse(raw)
+    if (!data?.uuid || data.eventId == null) return
+    selectedEventId.value = Number(data.eventId)
+    waiter.value = { uuid: String(data.uuid), name: String(data.name || '') }
+  } catch {
+    localStorage.removeItem(WAITER_SESSION_KEY)
+  }
+}
+
+restoreWaiterSession()
+
+export function validateWaiterSession() {
+  if (!waiter.value) return
+  const b = bundle.value
+  if (!b?.events) return
+  const eventId = selectedEventId.value
+  if (eventId == null) {
+    setWaiter(null)
+    return
+  }
+  const ev = b.events.find((e) => Number(e.id) === Number(eventId))
+  if (!ev) {
+    setWaiter(null)
+    selectedEventId.value = null
+    return
+  }
+  const configured = (ev.configuration?.event_waiters || []).find(
+    (x) => String(x.uuid) === String(waiter.value.uuid),
+  )
+  if (!configured) {
+    setWaiter(null)
+    selectedEventId.value = null
+    return
+  }
+  waiter.value = { uuid: configured.uuid, name: configured.name }
+  persistWaiterSession({ eventId: Number(eventId), uuid: configured.uuid, name: configured.name })
+}
+
 export function setWaiter(w) {
   waiter.value = w
   clearCart()
   activeTableNumber.value = null
+  if (typeof localStorage === 'undefined') return
+  if (w == null) {
+    localStorage.removeItem(WAITER_SESSION_KEY)
+  } else {
+    persistWaiterSession({
+      eventId: selectedEventId.value,
+      uuid: w.uuid,
+      name: w.name,
+    })
+  }
 }
 
 export function getArticle(articleId) {
@@ -226,6 +290,7 @@ export async function refreshBundle() {
   try {
     const b = await api('/v1/bundle')
     bundle.value = b
+    validateWaiterSession()
     return (b.events || []).length
   } catch {
     bundle.value = null

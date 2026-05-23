@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import engine, Base, SessionLocal, apply_schema_patches
-from .models import SyncedBundle
+from .models import CollectiveBill, SyncedBundle  # noqa: F401 — register tables for create_all
 from .print_worker import print_worker_loop
 from .sync_worker import sync_worker_loop
 from .routers import health, edge_api
