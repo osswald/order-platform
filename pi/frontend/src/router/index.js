@@ -81,6 +81,12 @@ const routes = [
   },
   {
     path: '/register/:registerUuid',
+    name: 'register-hub',
+    component: () => import('../views/RegisterHubView.vue'),
+    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true },
+  },
+  {
+    path: '/register/:registerUuid/order',
     name: 'register-order',
     component: () => import('../views/RegisterOrderView.vue'),
     meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, fullscreen: true },

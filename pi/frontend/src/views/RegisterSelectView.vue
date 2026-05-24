@@ -46,7 +46,7 @@ const registers = computed(() =>
 
 function openRegister(reg) {
   store.clearCart()
-  router.push({ name: 'register-order', params: { registerUuid: reg.uuid } })
+  router.push({ name: 'register-hub', params: { registerUuid: reg.uuid }, query: { fresh: '1' } })
 }
 </script>
 

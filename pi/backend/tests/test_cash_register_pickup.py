@@ -203,3 +203,24 @@ def test_register_display_state_round_trip(client):
         assert db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == "reg-1").count() == 1
     finally:
         db.close()
+
+
+def test_register_display_twint_payload(client):
+    c, _ = client
+    twint_body = {
+        "event_id": 1,
+        "payload": {
+            "state": "twint",
+            "show_twint": True,
+            "twint_qr_data_url": "data:image/png;base64,abc",
+            "total_cents": 1250,
+            "lines": [{"article_id": 20, "qty": 1}],
+        },
+    }
+    put = c.put("/v1/registers/reg-1/display", json=twint_body)
+    assert put.status_code == 200, put.text
+    get = c.get("/v1/registers/reg-1/display", params={"event_id": 1})
+    payload = get.json()["payload"]
+    assert payload["state"] == "twint"
+    assert payload["twint_qr_data_url"].startswith("data:image/png")
+    assert payload["total_cents"] == 1250

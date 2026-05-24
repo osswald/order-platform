@@ -44,12 +44,17 @@ export function showTwintQr(dataUrl, amountLabel = '') {
   })
 }
 
-export async function pickPaymentType(event, amountCents = null) {
+export async function pickPaymentType(event, amountCents = null, hooks = {}) {
   const type = await pickTypeFromSheet(event, amountCents)
   const qrUrl = type === 'twint' ? eventTwintQrDataUrl(event) : null
   if (qrUrl) {
     const label = pickerAmountLabel.value || amountLabelFor(amountCents)
-    await showTwintQr(qrUrl, label)
+    hooks.onTwintShow?.({ dataUrl: qrUrl, amountLabel: label, amountCents })
+    try {
+      await showTwintQr(qrUrl, label)
+    } finally {
+      hooks.onTwintHide?.()
+    }
   }
   return type
 }

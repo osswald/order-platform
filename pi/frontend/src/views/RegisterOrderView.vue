@@ -62,13 +62,14 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import * as store from '../store'
 import { api } from '../api'
 import { formatMoney } from '../utils/money'
 import { articlesForIds, getDefaultLayout, hasAdditions, resolveStationUuidForArticle } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
 import { pickPaymentType } from '../utils/pickPaymentType'
+import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
 import CartPanel from '../components/CartPanel.vue'
 import EventLayoutGrid from '../components/EventLayoutGrid.vue'
@@ -77,7 +78,6 @@ import ArticlePickerSheet from '../components/ArticlePickerSheet.vue'
 import AdditionsPickerSheet from '../components/AdditionsPickerSheet.vue'
 import QtyInputModal from '../components/QtyInputModal.vue'
 
-const route = useRoute()
 const router = useRouter()
 const submitting = ref(false)
 const sheetOpen = ref(false)
@@ -88,15 +88,11 @@ const additionsPickerOpen = ref(false)
 const additionsPickerArticle = ref(null)
 const pendingAdd = ref(null)
 
-const event = computed(() => store.selectedEvent.value)
-const registerUuid = computed(() => String(route.params.registerUuid || ''))
-const register = computed(() =>
-  (event.value?.configuration?.cash_registers || []).find((reg) => String(reg.uuid) === registerUuid.value) || null,
-)
+const { register, event, currency, updateDisplay, hubRoute } = useRegisterDisplay()
+
 const lines = computed(() => store.cartLines.value)
 const cartCount = computed(() => store.cartCount.value)
 const articles = computed(() => event.value?.articles || {})
-const currency = computed(() => event.value?.currency || 'EUR')
 const layout = computed(() => {
   const layouts = event.value?.configuration?.app_layouts || []
   return layouts.find((lo) => String(lo.uuid) === String(register.value?.layout_uuid)) || getDefaultLayout(event.value)
@@ -112,24 +108,12 @@ const qtyModalMax = computed(() => {
   return line.qty + avail
 })
 
-async function updateDisplay(extra = {}) {
-  if (!event.value?.id || !register.value?.uuid) return
-  try {
-    await api(`/v1/registers/${encodeURIComponent(register.value.uuid)}/display`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        event_id: event.value.id,
-        payload: {
-          register_name: register.value.name,
-          lines: lines.value,
-          total_cents: store.cartTotalCents.value,
-          currency: currency.value,
-          ...extra,
-        },
-      }),
-    })
-  } catch {
-    /* second screen is best-effort */
+function orderingPayload(extra = {}) {
+  return {
+    state: 'ordering',
+    show_twint: false,
+    twint_qr_data_url: null,
+    ...extra,
   }
 }
 
@@ -218,15 +202,24 @@ function onTapPrice(lineId) {
 
 function goBack() {
   store.clearCart()
-  updateDisplay({ state: 'idle', lines: [], total_cents: 0 })
-  router.push({ name: 'registers' })
+  updateDisplay({ state: 'idle', lines: [], total_cents: 0, show_twint: false, twint_qr_data_url: null })
+  router.push(hubRoute())
 }
 
 async function submitOrder() {
   if (!cartCount.value || !event.value || !register.value) return
   let payType
   try {
-    payType = await pickPaymentType(event.value, store.cartTotalCents.value)
+    payType = await pickPaymentType(event.value, store.cartTotalCents.value, {
+      onTwintShow: ({ dataUrl, amountCents }) =>
+        updateDisplay({
+          state: 'twint',
+          show_twint: true,
+          twint_qr_data_url: dataUrl,
+          total_cents: amountCents,
+        }),
+      onTwintHide: () => updateDisplay(orderingPayload()),
+    })
   } catch {
     return
   }
@@ -262,7 +255,10 @@ async function submitOrder() {
       pickup_status: res.pickup_status,
       lines: [],
       total_cents: 0,
+      show_twint: false,
+      twint_qr_data_url: null,
     })
+    router.push(hubRoute())
   } catch (e) {
     store.showToast(e.message || 'Fehler', 'err')
   } finally {
@@ -270,11 +266,14 @@ async function submitOrder() {
   }
 }
 
-watch(lines, () => updateDisplay({ state: cartCount.value ? 'ordering' : 'idle' }), { deep: true })
-watch(register, () => updateDisplay({ state: 'idle' }), { immediate: true })
+watch(lines, () => updateDisplay(orderingPayload()), { deep: true })
 
 onMounted(() => {
-  if (!register.value) router.replace({ name: 'registers' })
+  if (!register.value) {
+    router.replace({ name: 'registers' })
+    return
+  }
+  updateDisplay(orderingPayload({ lines: [], total_cents: 0 }))
 })
 </script>
 
