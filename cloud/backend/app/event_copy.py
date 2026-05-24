@@ -104,6 +104,7 @@ def _cash_registers_payload(event: Event, layout_uuid_map: dict[str, str]) -> li
                 uuid=None,
                 name=reg.name,
                 pickup_code_prefix=reg.pickup_code_prefix,
+                pin=getattr(reg, "pin", None) or "0000",
                 layout_uuid=new_layout_uuid,
                 receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
             )

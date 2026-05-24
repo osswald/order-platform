@@ -43,11 +43,10 @@
         <p v-if="err" class="err-msg">{{ err }}</p>
       </div>
     </template>
-    <p class="muted footer-links">
-      <RouterLink :to="{ name: 'events' }">Anderes Event</RouterLink>
-      ·
-      <RouterLink :to="{ name: 'hub' }">Hub</RouterLink>
-    </p>
+    <footer class="screen-footer">
+      <button type="button" class="btn" @click="router.push({ name: 'events' })">Anderes Event</button>
+      <button type="button" class="btn" @click="router.push({ name: 'event-mode' })">Modus wechseln</button>
+    </footer>
   </div>
 </template>
 
@@ -55,6 +54,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useWaiterSession } from '../composables/useWaiterSession'
+import { setRegisterSession } from '../store'
 
 const router = useRouter()
 const route = useRoute()
@@ -96,6 +96,7 @@ function login() {
     err.value = 'PIN ungültig.'
     return
   }
+  setRegisterSession(null)
   setWaiter({ uuid: w.uuid, name: w.name })
   const redir = route.query.redirect
   if (typeof redir === 'string' && redir.startsWith('/')) {

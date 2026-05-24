@@ -3,19 +3,11 @@
     <h1>Events</h1>
     <p class="muted">Aktives Event wählen.</p>
 
-    <div class="admin-block card">
-      <button type="button" class="btn hub-btn" @click="goAdmin">Admin</button>
-      <p class="muted small">
-        Konfiguration laden und Sync. Beim ersten Start ohne Code; nach Pi Admin-Code in der Cloud ist der
-        6-stellige Code nötig.
-      </p>
-    </div>
-
     <p v-if="loading" class="muted">Bundle wird geladen…</p>
 
     <div v-else-if="!bundleReady" class="card">
       <p>Noch keine gültige Konfiguration auf diesem Gerät.</p>
-      <p class="muted small">Über <strong>Admin</strong> oben die Konfiguration von der Cloud laden.</p>
+      <p class="muted small">Über <strong>Admin</strong> unten die Konfiguration von der Cloud laden.</p>
     </div>
 
     <div v-else-if="!events.length" class="card">
@@ -35,32 +27,16 @@
           <span class="event-name">{{ e.name }}</span>
           <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }} · {{ eventStatusLabel(e.status) }}</span>
         </button>
-        <button
-          v-if="hasKitchenMonitor(e)"
-          type="button"
-          class="btn kitchen-btn"
-          @click="openKitchen(e)"
-        >
-          Kitchen Monitor
-        </button>
-        <button
-          v-if="hasCashRegisters(e)"
-          type="button"
-          class="btn kitchen-btn"
-          @click="openRegisters(e)"
-        >
-          Kassen
-        </button>
-        <button
-          v-if="hasCashRegisters(e)"
-          type="button"
-          class="btn kitchen-btn"
-          @click="openPickup(e)"
-        >
-          Pickup Screen
-        </button>
       </li>
     </ul>
+
+    <div class="admin-block card">
+      <button type="button" class="btn hub-btn" @click="goAdmin">Admin</button>
+      <p class="muted small">
+        Konfiguration laden und Sync. Beim ersten Start ohne Code; nach Pi Admin-Code in der Cloud ist der
+        6-stellige Code nötig.
+      </p>
+    </div>
   </div>
 </template>
 
@@ -70,6 +46,7 @@ import { useRouter } from 'vue-router'
 import { useAdminSession } from '../composables/useAdminSession'
 import { useBundle } from '../composables/useBundle'
 import { useWaiterSession } from '../composables/useWaiterSession'
+import { setRegisterSession } from '../store'
 import { eventStatusLabel } from '../utils/eventStatus'
 
 const router = useRouter()
@@ -107,33 +84,8 @@ async function reload() {
 function pick(e) {
   selectedEventId.value = e.id
   setWaiter(null)
-  router.push({ name: 'login' })
-}
-
-function hasKitchenMonitor(e) {
-  return (e?.configuration?.stations || []).some((st) => st.kitchen_monitor_enabled)
-}
-
-function hasCashRegisters(e) {
-  return (e?.configuration?.cash_registers || []).length > 0
-}
-
-function openKitchen(e) {
-  selectedEventId.value = e.id
-  setWaiter(null)
-  router.push({ name: 'kitchen' })
-}
-
-function openRegisters(e) {
-  selectedEventId.value = e.id
-  setWaiter(null)
-  router.push({ name: 'registers' })
-}
-
-function openPickup(e) {
-  selectedEventId.value = e.id
-  setWaiter(null)
-  router.push({ name: 'pickup' })
+  setRegisterSession(null)
+  router.push({ name: 'event-mode' })
 }
 
 function goAdmin() {
@@ -152,7 +104,7 @@ onMounted(() => {
 
 <style scoped>
 .admin-block {
-  margin-bottom: 1.25rem;
+  margin-top: 1.25rem;
 }
 .admin-block .hub-btn {
   width: 100%;
@@ -171,9 +123,6 @@ onMounted(() => {
 .event-list li {
   margin-bottom: 0.5rem;
 }
-.event-list li + li {
-  margin-top: 0.75rem;
-}
 .event-btn {
   width: 100%;
   text-align: left;
@@ -190,9 +139,5 @@ onMounted(() => {
 }
 .event-name {
   font-weight: 600;
-}
-.kitchen-btn {
-  width: 100%;
-  margin-top: 0.4rem;
 }
 </style>

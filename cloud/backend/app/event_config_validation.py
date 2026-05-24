@@ -313,6 +313,7 @@ def replace_event_configuration(
         reg.name = str(reg_in.name or "").strip()
         reg.sort_order = idx
         reg.pickup_code_prefix = str(reg_in.pickup_code_prefix or "").strip().upper()
+        reg.pin = str(getattr(reg_in, "pin", None) or "0000").strip() or "0000"
         reg.layout_uuid = str(reg_in.layout_uuid or "").strip()
         reg.receipt_printer_appliance_id = getattr(reg_in, "receipt_printer_appliance_id", None)
         kept_register_uuids.add(reg.uuid)

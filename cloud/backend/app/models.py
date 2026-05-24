@@ -248,6 +248,7 @@ class EventCashRegister(Base):
     name = Column(String, nullable=False)
     sort_order = Column(Integer, nullable=False, default=0)
     pickup_code_prefix = Column(String(3), nullable=False)
+    pin = Column(String, nullable=False, default="0000")
     layout_uuid = Column(String(36), nullable=False)
     receipt_printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
     event = relationship("Event", back_populates="cash_registers")

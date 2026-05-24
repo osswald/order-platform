@@ -38,6 +38,12 @@ const routes = [
     meta: { title: 'Events', nav: true },
   },
   {
+    path: '/event/mode',
+    name: 'event-mode',
+    component: () => import('../views/EventModeView.vue'),
+    meta: { title: 'Modus', requiresBundle: true, requiresEvent: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
@@ -83,13 +89,13 @@ const routes = [
     path: '/register/:registerUuid',
     name: 'register-hub',
     component: () => import('../views/RegisterHubView.vue'),
-    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true },
+    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, requiresRegister: true },
   },
   {
     path: '/register/:registerUuid/order',
     name: 'register-order',
     component: () => import('../views/RegisterOrderView.vue'),
-    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, fullscreen: true },
+    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, requiresRegister: true, fullscreen: true },
   },
   {
     path: '/register/:registerUuid/display',

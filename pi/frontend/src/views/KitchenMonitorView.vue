@@ -12,7 +12,7 @@
 
     <section v-if="!kitchenStations.length" class="card">
       <p>Für dieses Event ist kein Kitchen Monitor aktiv.</p>
-      <RouterLink :to="{ name: 'events' }">Event wechseln</RouterLink>
+      <button type="button" class="btn" @click="router.push({ name: 'events' })">Event wechseln</button>
     </section>
 
     <template v-else>
@@ -95,9 +95,11 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { api } from '../api'
 import { useEventContext } from '../composables/useEventContext'
 
+const router = useRouter()
 const { event, waiter } = useEventContext()
 const kitchenStations = computed(() =>
   (event.value?.configuration?.stations || [])

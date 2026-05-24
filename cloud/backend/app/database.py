@@ -109,6 +109,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_stations ADD COLUMN IF NOT EXISTS kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
     _ensure_event_cash_registers_table()
+    _add_column_if_missing(
+        "event_cash_registers",
+        "pin",
+        "ALTER TABLE event_cash_registers ADD COLUMN pin VARCHAR NOT NULL DEFAULT '0000'",
+        "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS pin VARCHAR NOT NULL DEFAULT '0000'",
+    )
     _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")

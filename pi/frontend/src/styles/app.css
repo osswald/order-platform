@@ -127,6 +127,17 @@ h2 {
   margin-bottom: 0.85rem;
 }
 
+.screen-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.screen-footer .btn {
+  width: 100%;
+}
+
 .field label {
   font-size: 0.8rem;
   font-weight: 600;

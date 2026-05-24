@@ -96,6 +96,7 @@ export function validateWaiterSession() {
 
 export function setWaiter(w) {
   waiter.value = w
+  if (w != null) setRegisterSession(null)
   clearCart()
   activeTableNumber.value = null
   if (typeof localStorage === 'undefined') return
@@ -106,6 +107,83 @@ export function setWaiter(w) {
       eventId: selectedEventId.value,
       uuid: w.uuid,
       name: w.name,
+    })
+  }
+}
+
+const REGISTER_SESSION_KEY = 'pi_register_session'
+
+/** @type {import('vue').Ref<{ uuid: string, name: string } | null>} */
+export const registerSession = ref(null)
+
+function persistRegisterSession(session) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(REGISTER_SESSION_KEY, JSON.stringify(session))
+  } catch {
+    /* ignore */
+  }
+}
+
+function restoreRegisterSession() {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const raw = localStorage.getItem(REGISTER_SESSION_KEY)
+    if (!raw) return
+    const data = JSON.parse(raw)
+    if (!data?.uuid || data.eventId == null) return
+    selectedEventId.value = Number(data.eventId)
+    registerSession.value = { uuid: String(data.uuid), name: String(data.name || '') }
+  } catch {
+    localStorage.removeItem(REGISTER_SESSION_KEY)
+  }
+}
+
+restoreRegisterSession()
+
+export function validateRegisterSession() {
+  if (!registerSession.value) return
+  const b = bundle.value
+  if (!b?.events) return
+  const eventId = selectedEventId.value
+  if (eventId == null) {
+    setRegisterSession(null)
+    return
+  }
+  const ev = b.events.find((e) => Number(e.id) === Number(eventId))
+  if (!ev) {
+    setRegisterSession(null)
+    selectedEventId.value = null
+    return
+  }
+  const configured = (ev.configuration?.cash_registers || []).find(
+    (x) => String(x.uuid) === String(registerSession.value.uuid),
+  )
+  if (!configured) {
+    setRegisterSession(null)
+    return
+  }
+  registerSession.value = { uuid: configured.uuid, name: configured.name }
+  persistRegisterSession({
+    eventId: Number(eventId),
+    uuid: configured.uuid,
+    name: configured.name,
+  })
+}
+
+export function setRegisterSession(r) {
+  registerSession.value = r
+  if (r != null) setWaiter(null)
+  clearCart()
+  activeTableNumber.value = null
+  if (typeof localStorage === 'undefined') return
+  if (r == null) {
+    localStorage.removeItem(REGISTER_SESSION_KEY)
+  } else {
+    persistRegisterSession({
+      eventId: selectedEventId.value,
+      uuid: r.uuid,
+      name: r.name,
     })
   }
 }
@@ -291,6 +369,7 @@ export async function refreshBundle() {
     const b = await api('/v1/bundle')
     bundle.value = b
     validateWaiterSession()
+    validateRegisterSession()
     return (b.events || []).length
   } catch {
     bundle.value = null

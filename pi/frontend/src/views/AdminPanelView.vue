@@ -27,6 +27,50 @@
       <p v-if="syncError" class="muted" style="color: var(--danger)">{{ syncError }}</p>
     </div>
 
+    <div v-if="bundle && events.length" class="card">
+      <h2>Betrieb</h2>
+      <div class="field">
+        <label for="ops-event">Event</label>
+        <select id="ops-event" v-model="opsEventId" class="select">
+          <option v-for="e in events" :key="e.id" :value="e.id">{{ e.name }}</option>
+        </select>
+      </div>
+
+      <div v-if="opsEvent" class="ops-actions">
+        <button
+          v-if="hasKitchenMonitor"
+          type="button"
+          class="btn hub-btn"
+          @click="openKitchen"
+        >
+          Küchenmonitor
+        </button>
+        <button
+          v-if="hasCashRegisters"
+          type="button"
+          class="btn hub-btn"
+          @click="openPickup"
+        >
+          Pickup Screen
+        </button>
+      </div>
+
+      <div v-if="hasCashRegisters" class="display-section">
+        <h3>Kundendisplay</h3>
+        <div class="field">
+          <label for="ops-register">Kasse</label>
+          <select id="ops-register" v-model="opsRegisterUuid" class="select">
+            <option v-for="reg in cashRegisters" :key="reg.uuid" :value="reg.uuid">{{ reg.name }}</option>
+          </select>
+        </div>
+        <code v-if="displayUrl" class="display-url">{{ displayUrl }}</code>
+        <div class="row">
+          <button type="button" class="btn" :disabled="!displayUrl" @click="copyDisplayUrl">URL kopieren</button>
+          <button type="button" class="btn" :disabled="!displayUrl" @click="openDisplay">Display öffnen</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="bundle && eventCount" class="card">
       <p>{{ eventCount }} Event(s) im Bundle.</p>
       <button type="button" class="btn" @click="goEvents">Zu Events</button>
@@ -47,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiBase, isAndroidApp } from '../api'
 import { useAdminSession } from '../composables/useAdminSession'
@@ -58,15 +102,65 @@ import { formatDateTime } from '../utils/dateFormat'
 const router = useRouter()
 const { clearAdminSession } = useAdminSession()
 const { syncStatus, loadSyncStatus, saveApiBase, pullConfiguration, pushOutbox } = useSyncOperations()
-const { bundle, busy, lastSyncAt, syncError, refreshBundle, showToast } = useBundle()
+const { bundle, busy, lastSyncAt, syncError, refreshBundle, showToast, selectedEventId } = useBundle()
 const baseInput = ref('')
+const opsEventId = ref(null)
+const opsRegisterUuid = ref(null)
 const eventCount = computed(() => bundle.value?.events?.length || 0)
+const events = computed(() => bundle.value?.events || [])
 const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
 const androidApp = computed(() => isAndroidApp())
 
 const formatCycle = formatDateTime
+
+const opsEvent = computed(() => events.value.find((e) => Number(e.id) === Number(opsEventId.value)) || null)
+
+const cashRegisters = computed(() => {
+  const regs = opsEvent.value?.configuration?.cash_registers || []
+  return regs.slice().sort((a, b) => {
+    const so = (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
+    return so || String(a.name || '').localeCompare(String(b.name || ''))
+  })
+})
+
+const hasKitchenMonitor = computed(() =>
+  (opsEvent.value?.configuration?.stations || []).some((st) => st.kitchen_monitor_enabled),
+)
+
+const hasCashRegisters = computed(() => cashRegisters.value.length > 0)
+
+const displayUrl = computed(() => {
+  if (!opsRegisterUuid.value) return ''
+  const path = router.resolve({
+    name: 'register-display',
+    params: { registerUuid: opsRegisterUuid.value },
+  }).href
+  if (typeof window === 'undefined') return path
+  return `${window.location.origin}${path}`
+})
+
+watch(events, (list) => {
+  if (!list.length) {
+    opsEventId.value = null
+    opsRegisterUuid.value = null
+    return
+  }
+  if (opsEventId.value == null || !list.some((e) => Number(e.id) === Number(opsEventId.value))) {
+    opsEventId.value = selectedEventId.value ?? list[0].id
+  }
+}, { immediate: true })
+
+watch(cashRegisters, (regs) => {
+  if (!regs.length) {
+    opsRegisterUuid.value = null
+    return
+  }
+  if (opsRegisterUuid.value == null || !regs.some((r) => r.uuid === opsRegisterUuid.value)) {
+    opsRegisterUuid.value = regs[0].uuid
+  }
+}, { immediate: true })
 
 onMounted(async () => {
   baseInput.value = getApiBase()
@@ -106,6 +200,34 @@ async function doPush() {
   }
 }
 
+function openKitchen() {
+  selectedEventId.value = opsEventId.value
+  router.push({ name: 'kitchen' })
+}
+
+function openPickup() {
+  selectedEventId.value = opsEventId.value
+  router.push({ name: 'pickup' })
+}
+
+async function copyDisplayUrl() {
+  const url = displayUrl.value
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    showToast('URL kopiert.', 'ok')
+  } catch {
+    showToast(url, 'ok')
+  }
+}
+
+function openDisplay() {
+  const url = displayUrl.value
+  if (!url) return
+  selectedEventId.value = opsEventId.value
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 function goEvents() {
   router.push({ name: 'events' })
 }
@@ -125,5 +247,24 @@ function endAdmin() {
 }
 .err {
   color: var(--danger);
+}
+.ops-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.hub-btn {
+  width: 100%;
+}
+.display-section h3 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+.display-url {
+  display: block;
+  word-break: break-all;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
 }
 </style>

@@ -160,6 +160,7 @@ class CashRegisterRead(BaseModel):
     name: str
     sort_order: int
     pickup_code_prefix: str
+    pin: str
     layout_uuid: str
     receipt_printer_appliance_id: int | None
 
@@ -208,6 +209,7 @@ class CashRegisterIn(BaseModel):
     uuid: str | None = None
     name: str = Field(..., min_length=1)
     pickup_code_prefix: str = Field(..., min_length=1, max_length=3)
+    pin: str = Field("0000", min_length=1, max_length=32)
     layout_uuid: str = Field(..., min_length=1)
     receipt_printer_appliance_id: int | None = None
 
@@ -354,6 +356,7 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
             name=reg.name,
             sort_order=reg.sort_order,
             pickup_code_prefix=reg.pickup_code_prefix,
+            pin=getattr(reg, "pin", None) or "0000",
             layout_uuid=reg.layout_uuid,
             receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
         )

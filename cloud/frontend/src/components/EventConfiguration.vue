@@ -195,6 +195,12 @@
             </div>
             <div class="field-row">
               <div class="form-field">
+                <label>PIN</label>
+                <InputText v-model="reg.pin" maxlength="4" placeholder="0000" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="form-field">
                 <label>Layout</label>
                 <Select
                   v-model="reg.layout_uuid"
@@ -518,6 +524,7 @@ function addCashRegister() {
   cashRegistersLocal.value.push({
     name: `Kasse ${cashRegistersLocal.value.length + 1}`,
     pickup_code_prefix: String.fromCharCode(65 + (cashRegistersLocal.value.length % 26)),
+    pin: '0000',
     layout_uuid: layoutsLocal.value[0]?.uuid || '',
     receipt_printer_appliance_id: null,
   })
@@ -584,6 +591,7 @@ async function loadConfiguration() {
       uuid: reg.uuid ?? null,
       name: reg.name || '',
       pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
+      pin: reg.pin || '0000',
       layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
       receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
     }))
@@ -697,6 +705,7 @@ function buildPutPayload() {
       const row = {
         name: reg.name,
         pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
+        pin: reg.pin || '0000',
         layout_uuid: reg.layout_uuid,
         receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
       }

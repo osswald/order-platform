@@ -28,6 +28,13 @@ export function setupRouterGuards(router) {
     if (to.meta.requiresWaiter && !store.waiter.value) {
       return { name: 'login', query: { redirect: to.fullPath } }
     }
+    if (to.meta.requiresRegister) {
+      const uuid = String(to.params.registerUuid || '')
+      const session = store.registerSession.value
+      if (!session || String(session.uuid) !== uuid) {
+        return { name: 'registers', query: { redirect: to.fullPath } }
+      }
+    }
     return true
   })
 }
