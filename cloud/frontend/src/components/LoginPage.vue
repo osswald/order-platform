@@ -4,7 +4,7 @@
       <div class="login-card">
         <div class="login-header">
           <div class="logo-large">
-            <span class="logo-icon">Ⓥ</span>
+            <img src="/apple-touch-icon.png" alt="" class="logo-icon" width="64" height="64" />
           </div>
           <h1>Vendiqo</h1>
           <p class="tagline">Enterprise Resource Planning</p>
@@ -180,16 +180,10 @@ async function submit() {
 }
 
 .logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 4rem;
   height: 4rem;
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
   border-radius: 12px;
-  font-size: 2rem;
-  font-weight: 700;
+  object-fit: cover;
 }
 
 .login-header h1 {
@@ -365,7 +359,6 @@ async function submit() {
   .logo-icon {
     width: 3rem;
     height: 3rem;
-    font-size: 1.5rem;
   }
 }
 </style>

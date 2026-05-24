@@ -98,7 +98,7 @@
         </TabPanel>
 
         <TabPanel header="Lagerartikel">
-          <EventStockTab :event-id="eventId" />
+          <EventStockTab :event-id="eventId" :stations="stationsLocal" />
         </TabPanel>
 
         <TabPanel header="Umsatz">

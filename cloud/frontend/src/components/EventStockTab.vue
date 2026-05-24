@@ -7,30 +7,34 @@
       <p v-if="!itemsLocal.length" class="muted">
         Keine Artikel an Stationen dieses Events verknüpft. Artikel zuerst unter „Stationen“ zuweisen.
       </p>
-      <DataTable
-        v-else
-        :value="itemsLocal"
-        dataKey="id"
-        class="list-table nested"
-        responsiveLayout="scroll"
-      >
-        <Column field="name" header="Artikel" />
-        <Column header="Bestand führen">
-          <template #body="{ data }">
-            <Checkbox v-model="data.monitor_stock" :binary="true" />
-          </template>
-        </Column>
-        <Column header="Bestand">
-          <template #body="{ data }">
-            <InputNumber
-              v-model="data.in_stock"
-              :min="0"
-              :disabled="!data.monitor_stock"
-              class="stock-qty-input"
-            />
-          </template>
-        </Column>
-      </DataTable>
+      <template v-else>
+        <section v-for="group in stockGroups" :key="group.key" class="stock-group">
+          <h3>{{ group.name }}</h3>
+          <DataTable
+            :value="group.items"
+            dataKey="id"
+            class="list-table nested"
+            responsiveLayout="scroll"
+          >
+            <Column field="name" header="Artikel" />
+            <Column header="Bestand führen">
+              <template #body="{ data }">
+                <Checkbox v-model="data.monitor_stock" :binary="true" />
+              </template>
+            </Column>
+            <Column header="Bestand">
+              <template #body="{ data }">
+                <InputNumber
+                  v-model="data.in_stock"
+                  :min="0"
+                  :disabled="!data.monitor_stock"
+                  class="stock-qty-input"
+                />
+              </template>
+            </Column>
+          </DataTable>
+        </section>
+      </template>
       <div class="section-toolbar" style="margin-top: 1rem">
         <Button
           label="Lager speichern"
@@ -45,18 +49,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputNumber from 'primevue/inputnumber'
 import { apiFetch } from '../api'
+import { stockGroupsForItems } from '../utils/stockByStation'
 
 const props = defineProps({
   eventId: {
     type: Number,
     required: true,
+  },
+  stations: {
+    type: Array,
+    default: () => [],
   },
 })
 
@@ -66,6 +75,8 @@ const saving = ref(false)
 const message = ref('')
 const messageType = ref('')
 const itemsLocal = ref([])
+
+const stockGroups = computed(() => stockGroupsForItems(itemsLocal.value, props.stations))
 
 async function loadStock() {
   if (!props.eventId) return
@@ -139,5 +150,13 @@ watch(
 <style scoped>
 .stock-qty-input {
   max-width: 8rem;
+}
+.stock-group {
+  margin-bottom: 1.5rem;
+}
+.stock-group h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 </style>

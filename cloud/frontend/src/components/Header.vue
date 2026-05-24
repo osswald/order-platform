@@ -2,7 +2,7 @@
   <header class="header">
     <div class="header-left">
       <div class="logo">
-        <span class="logo-icon">V</span>
+        <img src="/apple-touch-icon.png" alt="" class="logo-icon" width="36" height="36" />
         <span class="logo-text">Vendiqo</span>
       </div>
     </div>
@@ -62,15 +62,11 @@ function logout() {
 }
 
 .logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
   border-radius: 0.75rem;
-  font-size: 1.2rem;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .logo-text {
