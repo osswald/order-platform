@@ -5,11 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import ApplianceLending, Organisation, User
+from ..dashboard_summary import build_organisation_dashboard_summary
+from ..models import ApplianceLending, Event, Organisation, User
 from .auth import get_current_superuser, get_current_user
 from ..deps import get_db
 from .appliances import _assert_lending_is_planned, _utc_today
-from .events import ensure_user_can_use_organisation
+from .events import ensure_user_can_use_organisation, readable_events_query
 
 router = APIRouter()
 
@@ -124,6 +125,22 @@ def read_organisation_appliance_lendings(
             past.append(item)
 
     return OrganisationApplianceLendingsRead(current=current, planned=planned, past=past)
+
+
+@router.get("/{organisation_id}/dashboard-summary")
+def read_organisation_dashboard_summary(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    organisation = ensure_user_can_use_organisation(db, current_user, organisation_id)
+    events = (
+        readable_events_query(db, current_user)
+        .filter(Event.organisation_id == organisation_id)
+        .order_by(Event.start.desc())
+        .all()
+    )
+    return build_organisation_dashboard_summary(db, organisation.id, organisation.name, events)
 
 
 @router.delete(
