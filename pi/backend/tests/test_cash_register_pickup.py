@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -224,3 +225,60 @@ def test_register_display_twint_payload(client):
     assert payload["state"] == "twint"
     assert payload["twint_qr_data_url"].startswith("data:image/png")
     assert payload["total_cents"] == 1250
+
+
+def test_ready_pickup_orders_expire_after_five_minutes(client):
+    c, Session = client
+    r = _cash_register_order(c, article_id=10, amount_cents=1200)
+    assert r.status_code == 200, r.text
+
+    kitchen = c.get("/v1/kitchen/orders", params={"event_id": 1, "station_uuid": "st-kitchen"})
+    ticket = kitchen.json()["orders"][0]
+    done = c.post(f"/v1/kitchen/tickets/{ticket['id']}/print")
+    assert done.status_code == 200, done.text
+
+    pickup = c.get("/v1/pickup/orders", params={"event_id": 1})
+    assert pickup.status_code == 200
+    assert pickup.json()["orders"][0]["pickup_status"] == "ready"
+
+    db = Session()
+    try:
+        order = db.query(LocalOrder).filter(LocalOrder.pickup_code == "A1").one()
+        order.ready_at = datetime.now(timezone.utc) - timedelta(minutes=6)
+        db.commit()
+    finally:
+        db.close()
+
+    pickup = c.get("/v1/pickup/orders", params={"event_id": 1})
+    assert pickup.status_code == 200
+    assert pickup.json()["orders"] == []
+
+    db = Session()
+    try:
+        order = db.query(LocalOrder).filter(LocalOrder.pickup_code == "A1").one()
+        assert order.pickup_status == "picked_up"
+        assert order.picked_up_at is not None
+    finally:
+        db.close()
+
+
+def test_ready_pickup_orders_sorted_by_ready_at(client):
+    c, _ = client
+    kitchen_order = _cash_register_order(c, article_id=10, amount_cents=1200)
+    assert kitchen_order.status_code == 200, kitchen_order.text
+
+    instant_order = _cash_register_order(c, article_id=20, amount_cents=500)
+    assert instant_order.status_code == 200, instant_order.text
+    assert instant_order.json()["pickup_code"] == "A2"
+    assert instant_order.json()["pickup_status"] == "ready"
+
+    kitchen = c.get("/v1/kitchen/orders", params={"event_id": 1, "station_uuid": "st-kitchen"})
+    ticket = kitchen.json()["orders"][0]
+    done = c.post(f"/v1/kitchen/tickets/{ticket['id']}/print")
+    assert done.status_code == 200, done.text
+
+    pickup = c.get("/v1/pickup/orders", params={"event_id": 1})
+    assert pickup.status_code == 200
+    orders = pickup.json()["orders"]
+    ready_codes = [o["pickup_code"] for o in orders if o["pickup_status"] == "ready"]
+    assert ready_codes == ["A2", "A1"]

@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -2065,8 +2065,40 @@ def _pickup_order_response(order: LocalOrder) -> dict:
     }
 
 
+READY_PICKUP_TTL = timedelta(minutes=5)
+
+
+def _mark_pickup_order_picked_up(db: Session, order: LocalOrder) -> None:
+    order.pickup_status = "picked_up"
+    order.picked_up_at = datetime.now(timezone.utc)
+    payload = json.loads(order.payload_json)
+    payload["pickup_status"] = "picked_up"
+    payload["picked_up_at"] = order.picked_up_at.isoformat()
+    order.payload_json = json.dumps(payload)
+    _sync_outbox_payload(db, order, payload)
+
+
+def _expire_stale_ready_pickup_orders(db: Session, event_id: int) -> None:
+    cutoff = datetime.now(timezone.utc) - READY_PICKUP_TTL
+    stale = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.event_id == event_id,
+            LocalOrder.order_source == "cash_register",
+            LocalOrder.pickup_status == "ready",
+            LocalOrder.ready_at.isnot(None),
+            LocalOrder.ready_at < cutoff,
+        )
+        .all()
+    )
+    for order in stale:
+        _mark_pickup_order_picked_up(db, order)
+
+
 @router.get("/v1/pickup/orders")
 def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)):
+    _expire_stale_ready_pickup_orders(db, event_id)
+    db.commit()
     rows = (
         db.query(LocalOrder)
         .filter(
@@ -2077,7 +2109,12 @@ def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)
         .order_by(LocalOrder.id.asc())
         .all()
     )
-    return {"orders": [_pickup_order_response(row) for row in rows]}
+    pending = [row for row in rows if row.pickup_status != "ready"]
+    ready = sorted(
+        (row for row in rows if row.pickup_status == "ready"),
+        key=lambda row: row.ready_at or datetime.min.replace(tzinfo=timezone.utc),
+    )
+    return {"orders": [_pickup_order_response(row) for row in pending + ready]}
 
 
 @router.post("/v1/pickup/orders/{order_id}/picked-up")
@@ -2085,13 +2122,7 @@ def mark_pickup_order_picked_up(order_id: int, db: Session = Depends(get_db)):
     order = db.query(LocalOrder).filter(LocalOrder.id == order_id).first()
     if not order or order.order_source != "cash_register":
         raise HTTPException(status_code=404, detail="Pickup order not found")
-    order.pickup_status = "picked_up"
-    order.picked_up_at = datetime.now(timezone.utc)
-    payload = json.loads(order.payload_json)
-    payload["pickup_status"] = "picked_up"
-    payload["picked_up_at"] = order.picked_up_at.isoformat()
-    order.payload_json = json.dumps(payload)
-    _sync_outbox_payload(db, order, payload)
+    _mark_pickup_order_picked_up(db, order)
     db.commit()
     return {"local_order_id": order.id, "pickup_status": "picked_up"}
 

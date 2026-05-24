@@ -310,7 +310,8 @@ onUnmounted(() => {
 
 .ticket-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 280px));
+  justify-content: start;
   gap: 0.85rem;
 }
 

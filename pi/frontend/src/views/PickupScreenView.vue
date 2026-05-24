@@ -1,13 +1,5 @@
 <template>
   <div class="pickup-screen">
-    <header class="pickup-header">
-      <div>
-        <h1>Pickup</h1>
-        <p class="muted">{{ event?.name || 'Event' }}</p>
-      </div>
-      <RouterLink class="btn small-btn" :to="{ name: 'events' }">Zurück</RouterLink>
-    </header>
-
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="pickup-columns">
@@ -18,7 +10,6 @@
             {{ order.pickup_code }}
           </article>
         </div>
-        <p v-if="!pendingOrders.length" class="muted">Keine offenen Bestellungen.</p>
       </section>
 
       <section class="pickup-column ready">
@@ -34,7 +25,6 @@
             {{ order.pickup_code }}
           </button>
         </div>
-        <p v-if="!readyOrders.length" class="muted">Noch nichts bereit.</p>
       </section>
     </div>
   </div>
@@ -51,7 +41,11 @@ let pollTimer = null
 
 const event = computed(() => store.selectedEvent.value)
 const pendingOrders = computed(() => orders.value.filter((o) => o.pickup_status !== 'ready'))
-const readyOrders = computed(() => orders.value.filter((o) => o.pickup_status === 'ready'))
+const readyOrders = computed(() =>
+  orders.value
+    .filter((o) => o.pickup_status === 'ready')
+    .sort((a, b) => new Date(a.ready_at || 0) - new Date(b.ready_at || 0)),
+)
 
 async function loadOrders() {
   if (!event.value?.id) return
@@ -85,31 +79,27 @@ onUnmounted(() => {
 
 <style scoped>
 .pickup-screen {
-  min-height: 100vh;
+  box-sizing: border-box;
+  height: 100dvh;
   padding: 1rem;
   background: #0d1117;
   color: #fff;
-}
-.pickup-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.muted {
-  color: #9aa7b5;
+  flex-direction: column;
 }
 .pickup-columns {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
 .pickup-column {
-  min-height: 75vh;
+  min-height: 0;
   padding: 1rem;
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.06);
+  overflow-y: auto;
 }
 .pickup-column h2 {
   margin-top: 0;
@@ -139,6 +129,7 @@ onUnmounted(() => {
 }
 .error {
   color: #ff8a8a;
+  margin: 0 0 0.75rem;
 }
 @media (max-width: 800px) {
   .pickup-columns {
