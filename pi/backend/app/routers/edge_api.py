@@ -4,8 +4,9 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..cloud_client import CloudConfigError
@@ -18,6 +19,36 @@ from ..sync_service import (
     sync_status,
 )
 from ..deps import get_db
+from ..schemas.edge import (
+    AdminStatusResponse,
+    AdminVerifyBody,
+    AssignCollectiveBody,
+    CollectiveBillCreateBody,
+    EscposPayloadResponse,
+    KitchenStationsResponse,
+    KitchenTicketPrintResponse,
+    LineSelection,
+    LocalOrderCreate,
+    LocalOrderCreatedResponse,
+    OkResponse,
+    OrderPayBody,
+    OrderPayResponse,
+    PaymentReceiptBody,
+    PaymentReceiptEscposResponse,
+    PickupOrdersResponse,
+    PickupPickedUpResponse,
+    PrinterTestReceiptBody,
+    PrintJobSummary,
+    RegisterDisplayBody,
+    RegisterDisplayResponse,
+    SyncMetaResponse,
+    SyncPullResponse,
+    SyncPushResponse,
+    SyncStatusResponse,
+    TableSettleBody,
+    TableSettlePartialBody,
+    TransferLinesBody,
+)
 from ..order_line_utils import copy_line_fiscal_fields
 from ..order_fiscal import (
     allocate_order_number,
@@ -432,111 +463,48 @@ def _cloud_config_http_error(e: CloudConfigError) -> HTTPException:
     )
 
 
-@router.get("/v1/sync/status")
-def get_sync_status(db: Session = Depends(get_db)):
+@router.get("/v1/sync/status", response_model=SyncStatusResponse)
+def get_sync_status(db: Session = Depends(get_db)) -> SyncStatusResponse:
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     last_sync_at = row.updated_at.isoformat() if row and row.updated_at else None
-    return {
+    return SyncStatusResponse(
         **sync_status,
-        "configured": is_cloud_configured(),
-        "pending_outbox_count": pending_outbox_count(db),
-        "bundle_last_sync_at": last_sync_at,
-    }
+        configured=is_cloud_configured(),
+        pending_outbox_count=pending_outbox_count(db),
+        bundle_last_sync_at=last_sync_at,
+    )
 
 
-@router.post("/v1/sync/pull")
-async def sync_pull(db: Session = Depends(get_db)):
+@router.post("/v1/sync/pull", response_model=SyncPullResponse)
+async def sync_pull(db: Session = Depends(get_db)) -> SyncPullResponse:
     try:
         result = await pull_bundle(db)
         reapply_pending_stock(db, result.get("bundle"))
     except CloudConfigError as e:
         raise _cloud_config_http_error(e) from e
-    return {"ok": True, "event_count": result["event_count"]}
+    return SyncPullResponse(ok=True, event_count=result["event_count"])
 
 
 @router.get("/v1/bundle")
-def get_bundle(db: Session = Depends(get_db)):
+def get_bundle(db: Session = Depends(get_db)) -> dict[str, Any]:
     return _get_bundle_dict(db)
 
 
-@router.get("/v1/meta")
-def get_meta(db: Session = Depends(get_db)):
+@router.get("/v1/meta", response_model=SyncMetaResponse)
+def get_meta(db: Session = Depends(get_db)) -> SyncMetaResponse:
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     if not row:
-        return {"last_sync_at": None}
-    return {"last_sync_at": row.updated_at.isoformat() if row.updated_at else None}
+        return SyncMetaResponse(last_sync_at=None)
+    return SyncMetaResponse(last_sync_at=row.updated_at.isoformat() if row.updated_at else None)
 
 
-@router.post("/v1/sync/push")
-async def sync_push(db: Session = Depends(get_db)):
+@router.post("/v1/sync/push", response_model=SyncPushResponse)
+async def sync_push(db: Session = Depends(get_db)) -> SyncPushResponse:
     try:
-        return await push_outbox(db, retry_errors=False)
+        result = await push_outbox(db, retry_errors=False)
+        return SyncPushResponse.model_validate(result)
     except CloudConfigError as e:
         raise _cloud_config_http_error(e) from e
-
-
-class LocalOrderCreate(BaseModel):
-    client_order_id: str = Field(..., min_length=8, max_length=64)
-    event_id: int
-    table_number: int | None = Field(None, ge=1, le=99999)
-    waiter_uuid: str | None = None
-    order_source: str = "waiter"
-    cash_register_uuid: str | None = None
-    lines: list[dict] = Field(default_factory=list)
-    payments: list[dict] = Field(default_factory=list)
-
-
-class RegisterDisplayBody(BaseModel):
-    event_id: int
-    payload: dict = Field(default_factory=dict)
-
-
-class OrderPayBody(BaseModel):
-    payments: list[dict] = Field(default_factory=list)
-
-
-class TableSettleBody(BaseModel):
-    event_id: int
-    payments: list[dict] = Field(default_factory=list)
-
-
-class LineSelection(BaseModel):
-    article_id: int
-    note: str = ""
-    qty: int = Field(..., ge=1)
-    additions: list[dict] = Field(default_factory=list)
-
-
-class TableSettlePartialBody(BaseModel):
-    event_id: int
-    payments: list[dict] = Field(default_factory=list)
-    selections: list[LineSelection] = Field(default_factory=list)
-
-
-class TransferLinesBody(BaseModel):
-    event_id: int
-    target_table_number: int = Field(..., ge=1, le=99999)
-    selections: list[LineSelection] = Field(default_factory=list)
-
-
-class AssignCollectiveBody(BaseModel):
-    event_id: int
-    selections: list[LineSelection] = Field(default_factory=list)
-    collective_bill_id: int | None = None
-    new_name: str | None = Field(None, min_length=1, max_length=128)
-
-
-class CollectiveBillCreateBody(BaseModel):
-    event_id: int
-    name: str = Field(..., min_length=1, max_length=128)
-
-
-class PaymentReceiptBody(BaseModel):
-    reprint: bool = False
-
-
-class PrinterTestReceiptBody(BaseModel):
-    event_id: int | None = None
 
 
 def _add_waiter_name(ev: dict, payload: dict) -> None:
@@ -680,8 +648,8 @@ def _summary_from_orders(orders: list, ev: dict, arts: dict, extra: dict) -> dic
     }
 
 
-@router.post("/v1/orders")
-def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
+@router.post("/v1/orders", response_model=LocalOrderCreatedResponse)
+def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) -> LocalOrderCreatedResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, body.event_id)
     if not ev:
@@ -856,24 +824,24 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)):
         ).id
 
     db.commit()
-    return {
-        "local_order_id": order.id,
-        "payment_id": payment_receipt_id,
-        "order_number": order_number,
-        "print_job_id": print_job_ids[0] if print_job_ids else None,
-        "print_job_ids": print_job_ids,
-        "customer_print_job_ids": customer_print_job_ids,
-        "kitchen_ticket_ids": kitchen_ticket_ids,
-        "payment_status": payment_status,
-        "pickup_code": pickup_code,
-        "pickup_status": payload.get("pickup_status") if order_source == "cash_register" else None,
-        "payment_mode": (ev.get("payment_mode") or "pay_later").lower(),
-        "articles": articles_patch,
-    }
+    return LocalOrderCreatedResponse(
+        local_order_id=order.id,
+        payment_id=payment_receipt_id,
+        order_number=order_number,
+        print_job_id=print_job_ids[0] if print_job_ids else None,
+        print_job_ids=print_job_ids,
+        customer_print_job_ids=customer_print_job_ids,
+        kitchen_ticket_ids=kitchen_ticket_ids,
+        payment_status=payment_status,
+        pickup_code=pickup_code,
+        pickup_status=payload.get("pickup_status") if order_source == "cash_register" else None,
+        payment_mode=(ev.get("payment_mode") or "pay_later").lower(),
+        articles=articles_patch,
+    )
 
 
-@router.post("/v1/orders/{order_id}/pay")
-def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get_db)):
+@router.post("/v1/orders/{order_id}/pay", response_model=OrderPayResponse)
+def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get_db)) -> OrderPayResponse:
     order = db.query(LocalOrder).filter(LocalOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -903,11 +871,11 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     _sync_outbox_payload(db, order, payload)
     receipt = _create_payment_receipt(db, ev, payload, source_type="order", source_id=order.id)
     db.commit()
-    return {"local_order_id": order.id, "payment_id": receipt.id, "payment_status": "paid"}
+    return OrderPayResponse(local_order_id=order.id, payment_id=receipt.id, payment_status="paid")
 
 
 @router.get("/v1/tables/open")
-def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)):
+def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) -> dict[str, Any]:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -1801,23 +1769,19 @@ def _bundle_dict_optional(db: Session) -> dict | None:
     return data
 
 
-@router.get("/v1/admin/status")
-def admin_status(db: Session = Depends(get_db)):
+@router.get("/v1/admin/status", response_model=AdminStatusResponse)
+def admin_status(db: Session = Depends(get_db)) -> AdminStatusResponse:
     bundle = _bundle_dict_optional(db)
     bundle_ready = bundle is not None
     hashes = (bundle or {}).get("admin_pin_hashes") or []
-    return {
-        "bundle_ready": bundle_ready,
-        "requires_pin": bundle_ready and len(hashes) > 0,
-    }
+    return AdminStatusResponse(
+        bundle_ready=bundle_ready,
+        requires_pin=bundle_ready and len(hashes) > 0,
+    )
 
 
-class AdminVerifyBody(BaseModel):
-    pin: str = Field(..., min_length=6, max_length=6)
-
-
-@router.post("/v1/admin/verify")
-def verify_admin_pin(body: AdminVerifyBody, db: Session = Depends(get_db)):
+@router.post("/v1/admin/verify", response_model=OkResponse)
+def verify_admin_pin(body: AdminVerifyBody, db: Session = Depends(get_db)) -> OkResponse:
     if not body.pin.isdigit():
         raise HTTPException(status_code=401, detail="Invalid admin code")
     bundle = _bundle_dict_optional(db)
@@ -1831,7 +1795,7 @@ def verify_admin_pin(body: AdminVerifyBody, db: Session = Depends(get_db)):
             continue
         try:
             if verify_password(body.pin, h):
-                return {"ok": True}
+                return OkResponse()
         except Exception:
             continue
     raise HTTPException(status_code=401, detail="Invalid admin code")
@@ -1962,13 +1926,13 @@ def _enqueue_kitchen_ticket_print(
     return job_id
 
 
-@router.get("/v1/kitchen/stations")
-def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_db)):
+@router.get("/v1/kitchen/stations", response_model=KitchenStationsResponse)
+def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_db)) -> KitchenStationsResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
-    return {"stations": _kitchen_stations_for_event(ev)}
+    return KitchenStationsResponse(stations=_kitchen_stations_for_event(ev))
 
 
 @router.get("/v1/kitchen/orders")
@@ -1976,7 +1940,7 @@ def list_kitchen_orders(
     event_id: int = Query(...),
     station_uuid: str = Query(...),
     db: Session = Depends(get_db),
-):
+) -> dict[str, Any]:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -2006,8 +1970,8 @@ def list_kitchen_orders(
     return {"orders": out}
 
 
-@router.post("/v1/kitchen/tickets/{ticket_id}/print")
-def print_kitchen_ticket(ticket_id: int, db: Session = Depends(get_db)):
+@router.post("/v1/kitchen/tickets/{ticket_id}/print", response_model=KitchenTicketPrintResponse)
+def print_kitchen_ticket(ticket_id: int, db: Session = Depends(get_db)) -> KitchenTicketPrintResponse:
     ticket = db.query(KitchenTicket).filter(KitchenTicket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Kitchen ticket not found")
@@ -2020,11 +1984,11 @@ def print_kitchen_ticket(ticket_id: int, db: Session = Depends(get_db)):
         if max(0, int(ln.qty_total or 0) - int(ln.qty_printed or 0)) > 0
     ]
     job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=selected)
-    return {"print_job_id": job_id, "ticket_status": ticket.status}
+    return KitchenTicketPrintResponse(print_job_id=job_id, ticket_status=ticket.status)
 
 
-@router.post("/v1/kitchen/tickets/{ticket_id}/lines/{line_id}/print-one")
-def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = Depends(get_db)):
+@router.post("/v1/kitchen/tickets/{ticket_id}/lines/{line_id}/print-one", response_model=KitchenTicketPrintResponse)
+def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = Depends(get_db)) -> KitchenTicketPrintResponse:
     ticket = db.query(KitchenTicket).filter(KitchenTicket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Kitchen ticket not found")
@@ -2038,10 +2002,10 @@ def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = D
     if not line:
         raise HTTPException(status_code=404, detail="Kitchen ticket line not found")
     job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=[(line, 1)])
-    return {"print_job_id": job_id, "ticket_status": ticket.status}
+    return KitchenTicketPrintResponse(print_job_id=job_id, ticket_status=ticket.status)
 
 
-def _pickup_order_response(order: LocalOrder) -> dict:
+def _pickup_order_response(order: LocalOrder) -> dict[str, Any]:
     payload = json.loads(order.payload_json)
     return {
         "local_order_id": order.id,
@@ -2087,8 +2051,8 @@ def _expire_stale_ready_pickup_orders(db: Session, event_id: int) -> None:
         _mark_pickup_order_picked_up(db, order)
 
 
-@router.get("/v1/pickup/orders")
-def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)):
+@router.get("/v1/pickup/orders", response_model=PickupOrdersResponse)
+def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)) -> PickupOrdersResponse:
     _expire_stale_ready_pickup_orders(db, event_id)
     db.commit()
     rows = (
@@ -2106,34 +2070,43 @@ def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)
         (row for row in rows if row.pickup_status == "ready"),
         key=lambda row: row.ready_at or datetime.min.replace(tzinfo=timezone.utc),
     )
-    return {"orders": [_pickup_order_response(row) for row in pending + ready]}
+    return PickupOrdersResponse(orders=[_pickup_order_response(row) for row in pending + ready])
 
 
-@router.post("/v1/pickup/orders/{order_id}/picked-up")
-def mark_pickup_order_picked_up(order_id: int, db: Session = Depends(get_db)):
+@router.post("/v1/pickup/orders/{order_id}/picked-up", response_model=PickupPickedUpResponse)
+def mark_pickup_order_picked_up(order_id: int, db: Session = Depends(get_db)) -> PickupPickedUpResponse:
     order = db.query(LocalOrder).filter(LocalOrder.id == order_id).first()
     if not order or order.order_source != "cash_register":
         raise HTTPException(status_code=404, detail="Pickup order not found")
     _mark_pickup_order_picked_up(db, order)
     db.commit()
-    return {"local_order_id": order.id, "pickup_status": "picked_up"}
+    return PickupPickedUpResponse(local_order_id=order.id, pickup_status="picked_up")
 
 
-@router.get("/v1/registers/{cash_register_uuid}/display")
-def get_register_display(cash_register_uuid: str, event_id: int = Query(...), db: Session = Depends(get_db)):
+@router.get("/v1/registers/{cash_register_uuid}/display", response_model=RegisterDisplayResponse)
+def get_register_display(
+    cash_register_uuid: str, event_id: int = Query(...), db: Session = Depends(get_db)
+) -> RegisterDisplayResponse:
     row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
     if not row or int(row.event_id) != int(event_id):
-        return {"cash_register_uuid": cash_register_uuid, "event_id": event_id, "payload": {}, "updated_at": None}
-    return {
-        "cash_register_uuid": cash_register_uuid,
-        "event_id": row.event_id,
-        "payload": json.loads(row.payload_json or "{}"),
-        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-    }
+        return RegisterDisplayResponse(
+            cash_register_uuid=cash_register_uuid,
+            event_id=event_id,
+            payload={},
+            updated_at=None,
+        )
+    return RegisterDisplayResponse(
+        cash_register_uuid=cash_register_uuid,
+        event_id=row.event_id,
+        payload=json.loads(row.payload_json or "{}"),
+        updated_at=row.updated_at.isoformat() if row.updated_at else None,
+    )
 
 
-@router.put("/v1/registers/{cash_register_uuid}/display")
-def put_register_display(cash_register_uuid: str, body: RegisterDisplayBody, db: Session = Depends(get_db)):
+@router.put("/v1/registers/{cash_register_uuid}/display", response_model=RegisterDisplayResponse)
+def put_register_display(
+    cash_register_uuid: str, body: RegisterDisplayBody, db: Session = Depends(get_db)
+) -> RegisterDisplayResponse:
     row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
     if not row:
         row = RegisterDisplayState(cash_register_uuid=cash_register_uuid, event_id=body.event_id)
@@ -2142,12 +2115,12 @@ def put_register_display(cash_register_uuid: str, body: RegisterDisplayBody, db:
     row.payload_json = json.dumps(body.payload or {})
     db.commit()
     db.refresh(row)
-    return {
-        "cash_register_uuid": cash_register_uuid,
-        "event_id": row.event_id,
-        "payload": json.loads(row.payload_json or "{}"),
-        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-    }
+    return RegisterDisplayResponse(
+        cash_register_uuid=cash_register_uuid,
+        event_id=row.event_id,
+        payload=json.loads(row.payload_json or "{}"),
+        updated_at=row.updated_at.isoformat() if row.updated_at else None,
+    )
 
 
 @router.get("/v1/payments")
@@ -2156,7 +2129,7 @@ def list_payments(
     waiter_uuid: str | None = Query(None),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-):
+) -> dict[str, Any]:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -2196,8 +2169,10 @@ def list_payments(
     return {"payments": payments}
 
 
-@router.post("/v1/payments/{payment_id}/receipt")
-def payment_receipt(payment_id: int, body: PaymentReceiptBody | None = None, db: Session = Depends(get_db)):
+@router.post("/v1/payments/{payment_id}/receipt", response_model=PaymentReceiptEscposResponse)
+def payment_receipt(
+    payment_id: int, body: PaymentReceiptBody | None = None, db: Session = Depends(get_db)
+) -> PaymentReceiptEscposResponse:
     row = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Payment not found")
@@ -2215,14 +2190,16 @@ def payment_receipt(payment_id: int, body: PaymentReceiptBody | None = None, db:
         reprint=bool(body and body.reprint),
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
-    return {
-        "payment_id": row.id,
-        "escpos_payload": base64.b64encode(esc).decode("ascii"),
-    }
+    return PaymentReceiptEscposResponse(
+        payment_id=row.id,
+        escpos_payload=base64.b64encode(esc).decode("ascii"),
+    )
 
 
-@router.post("/v1/printers/test-receipt")
-def printer_test_receipt(body: PrinterTestReceiptBody | None = None, db: Session = Depends(get_db)):
+@router.post("/v1/printers/test-receipt", response_model=EscposPayloadResponse)
+def printer_test_receipt(
+    body: PrinterTestReceiptBody | None = None, db: Session = Depends(get_db)
+) -> EscposPayloadResponse:
     event_name = "Test"
     currency = "EUR"
     articles = {"1": {"id": 1, "name": "Testartikel", "price": 1.0, "additions": []}}
@@ -2251,19 +2228,19 @@ def printer_test_receipt(body: PrinterTestReceiptBody | None = None, db: Session
         currency=currency,
         generated_at=payload["paid_at"],
     )
-    return {"escpos_payload": base64.b64encode(esc).decode("ascii")}
+    return EscposPayloadResponse(escpos_payload=base64.b64encode(esc).decode("ascii"))
 
 
-@router.get("/v1/print-jobs")
-def list_print_jobs(db: Session = Depends(get_db)):
+@router.get("/v1/print-jobs", response_model=list[PrintJobSummary])
+def list_print_jobs(db: Session = Depends(get_db)) -> list[PrintJobSummary]:
     rows = db.query(PrintJob).order_by(PrintJob.id.desc()).limit(50).all()
     return [
-        {
-            "id": r.id,
-            "local_order_id": r.local_order_id,
-            "printer_host": r.printer_host,
-            "status": r.status,
-            "last_error": r.last_error,
-        }
+        PrintJobSummary(
+            id=r.id,
+            local_order_id=r.local_order_id,
+            printer_host=r.printer_host,
+            status=r.status,
+            last_error=r.last_error,
+        )
         for r in rows
     ]

@@ -44,19 +44,26 @@ def test_reapply_pending_stock_after_cloud_pull():
                     json_body=json.dumps(bundle),
                 )
             )
-        db.add(
-            OutboxEntry(
-                client_order_id="test-order-1",
-                event_id=1,
-                payload_json=json.dumps(
-                    {
-                        "event_id": 1,
-                        "lines": [{"article_id": 42, "qty": 3}],
-                    }
-                ),
-                status="pending",
-            )
+        payload = json.dumps(
+            {
+                "event_id": 1,
+                "lines": [{"article_id": 42, "qty": 3}],
+            }
         )
+        outbox = db.query(OutboxEntry).filter(OutboxEntry.client_order_id == "test-order-1").first()
+        if outbox:
+            outbox.event_id = 1
+            outbox.payload_json = payload
+            outbox.status = "pending"
+        else:
+            db.add(
+                OutboxEntry(
+                    client_order_id="test-order-1",
+                    event_id=1,
+                    payload_json=payload,
+                    status="pending",
+                )
+            )
         db.commit()
 
         # Simulate cloud pull restoring pre-order stock
