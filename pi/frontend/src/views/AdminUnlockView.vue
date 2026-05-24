@@ -18,15 +18,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as store from '../store'
+import { useAdminSession } from '../composables/useAdminSession'
 import PinKeypad from '../components/PinKeypad.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { requiresPin, setAdminUnlocked, verifyAdminPin } = useAdminSession()
 const error = ref('')
 const verifying = ref(false)
 const keypadRef = ref(null)
-const needsPin = computed(() => store.adminRequiresPin())
+const needsPin = computed(() => requiresPin.value)
 
 function redirectAfterUnlock() {
   const redir = route.query.redirect
@@ -38,8 +39,8 @@ function redirectAfterUnlock() {
 }
 
 onMounted(() => {
-  if (!store.adminRequiresPin()) {
-    store.setAdminUnlocked(true)
+  if (!requiresPin.value) {
+    setAdminUnlocked(true)
     redirectAfterUnlock()
   }
 })
@@ -48,7 +49,7 @@ async function onComplete(pin) {
   error.value = ''
   verifying.value = true
   try {
-    await store.verifyAdminPin(pin)
+    await verifyAdminPin(pin)
     redirectAfterUnlock()
   } catch (e) {
     error.value = e.message || 'Ungültiger Code'

@@ -1,3 +1,5 @@
+import { parseApiErrorDetail } from './utils/apiError'
+
 const STORAGE_KEY = 'pi_api_base'
 const DEFAULT_API_BASE = 'http://127.0.0.1:8001'
 const ANDROID_API_BASE = 'http://192.168.192.10:8001'
@@ -48,12 +50,7 @@ export async function api(path, options = {}) {
     data = text
   }
   if (!res.ok) {
-    let detail = text
-    if (typeof data === 'object' && data !== null) {
-      if (typeof data.detail === 'string') detail = data.detail
-      else if (Array.isArray(data.detail)) detail = data.detail.map((e) => e?.msg || JSON.stringify(e)).join('; ')
-      else if (data.detail) detail = JSON.stringify(data.detail)
-    }
+    const detail = parseApiErrorDetail(data, text || res.statusText)
     const err = new Error(detail || res.statusText)
     err.status = res.status
     throw err

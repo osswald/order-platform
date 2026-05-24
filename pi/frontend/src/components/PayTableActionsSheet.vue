@@ -58,9 +58,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { api } from '../api'
-import * as store from '../store'
+import { useEventContext } from '../composables/useEventContext'
 import { formatAmount } from '../utils/money'
 import TableKeypad from './TableKeypad.vue'
+
+const { showToast } = useEventContext()
 
 const props = defineProps({
   open: Boolean,
@@ -106,7 +108,7 @@ async function openCollective() {
     const r = await api(`/v1/collective-bills/open?event_id=${props.eventId}`)
     bills.value = r.collective_bills || []
   } catch (e) {
-    store.showToast(e.message || 'Laden fehlgeschlagen', 'err')
+    showToast(e.message || 'Laden fehlgeschlagen', 'err')
     step.value = 'menu'
   } finally {
     loadingBills.value = false
@@ -124,11 +126,11 @@ async function postAssign(body) {
         ...body,
       }),
     })
-    store.showToast(`Posten zu «${res.name}» hinzugefügt`, 'ok')
+    showToast(`Posten zu «${res.name}» hinzugefügt`, 'ok')
     emit('done')
     close()
   } catch (e) {
-    store.showToast(e.message || 'Zuordnung fehlgeschlagen', 'err')
+    showToast(e.message || 'Zuordnung fehlgeschlagen', 'err')
   } finally {
     busy.value = false
   }
@@ -146,7 +148,7 @@ function assignNewBill() {
 
 async function onTransferSubmit(targetTable) {
   if (targetTable === props.fromTable) {
-    store.showToast('Ziel-Tisch muss ein anderer Tisch sein', 'err')
+    showToast('Ziel-Tisch muss ein anderer Tisch sein', 'err')
     return
   }
   busy.value = true
@@ -159,11 +161,11 @@ async function onTransferSubmit(targetTable) {
         selections: props.selections,
       }),
     })
-    store.showToast(`Posten nach Tisch ${targetTable} verschoben`, 'ok')
+    showToast(`Posten nach Tisch ${targetTable} verschoben`, 'ok')
     emit('done')
     close()
   } catch (e) {
-    store.showToast(e.message || 'Umbuchen fehlgeschlagen', 'err')
+    showToast(e.message || 'Umbuchen fehlgeschlagen', 'err')
   } finally {
     busy.value = false
   }

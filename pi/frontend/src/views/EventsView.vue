@@ -67,14 +67,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
+import { useAdminSession } from '../composables/useAdminSession'
+import { useBundle } from '../composables/useBundle'
+import { useWaiterSession } from '../composables/useWaiterSession'
 import { eventStatusLabel } from '../utils/eventStatus'
 
 const router = useRouter()
 const loading = ref(false)
+const { bundle, isBundleReady, refreshBundle, showToast, selectedEventId } = useBundle()
+const { setWaiter } = useWaiterSession()
+const { adminUnlocked, requiresPin, setAdminUnlocked } = useAdminSession()
 
-const events = computed(() => store.bundle.value?.events || [])
-const bundleReady = computed(() => store.bundleReady())
+const events = computed(() => bundle.value?.events || [])
+const bundleReady = isBundleReady
 
 const PAYMENT_MODE_LABELS = {
   instant: 'Sofort bezahlt',
@@ -89,19 +94,19 @@ function paymentModeLabel(mode) {
 async function reload() {
   loading.value = true
   try {
-    const n = await store.refreshBundle()
-    if (n > 0) store.showToast(`${n} Event(s) geladen.`, 'ok')
-    else store.showToast('Weiterhin keine aktiven Events.', 'err')
+    const n = await refreshBundle()
+    if (n > 0) showToast(`${n} Event(s) geladen.`, 'ok')
+    else showToast('Weiterhin keine aktiven Events.', 'err')
   } catch (e) {
-    store.showToast(e.message || 'Laden fehlgeschlagen', 'err')
+    showToast(e.message || 'Laden fehlgeschlagen', 'err')
   } finally {
     loading.value = false
   }
 }
 
 function pick(e) {
-  store.selectedEventId.value = e.id
-  store.setWaiter(null)
+  selectedEventId.value = e.id
+  setWaiter(null)
   router.push({ name: 'login' })
 }
 
@@ -114,26 +119,26 @@ function hasCashRegisters(e) {
 }
 
 function openKitchen(e) {
-  store.selectedEventId.value = e.id
-  store.setWaiter(null)
+  selectedEventId.value = e.id
+  setWaiter(null)
   router.push({ name: 'kitchen' })
 }
 
 function openRegisters(e) {
-  store.selectedEventId.value = e.id
-  store.setWaiter(null)
+  selectedEventId.value = e.id
+  setWaiter(null)
   router.push({ name: 'registers' })
 }
 
 function openPickup(e) {
-  store.selectedEventId.value = e.id
-  store.setWaiter(null)
+  selectedEventId.value = e.id
+  setWaiter(null)
   router.push({ name: 'pickup' })
 }
 
 function goAdmin() {
-  if (!store.adminRequiresPin() || store.adminUnlocked.value) {
-    if (!store.adminRequiresPin()) store.setAdminUnlocked(true)
+  if (!requiresPin.value || adminUnlocked.value) {
+    if (!requiresPin.value) setAdminUnlocked(true)
     router.push({ name: 'admin' })
   } else {
     router.push({ name: 'admin-unlock', query: { redirect: '/admin' } })

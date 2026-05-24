@@ -121,7 +121,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as store from '../store'
+import { useEventContext } from '../composables/useEventContext'
 import { api } from '../api'
 import { formatAmount } from '../utils/money'
 import { useSplitPay } from '../composables/useSplitPay'
@@ -139,7 +139,7 @@ const receiptFullySettled = ref(false)
 const printingReceipt = ref(false)
 
 const table = computed(() => parseInt(String(route.query.table), 10))
-const event = computed(() => store.selectedEvent.value)
+const { event, showToast } = useEventContext()
 const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').toLowerCase())
 
 const {
@@ -176,7 +176,7 @@ const {
 
 function onMenu() {
   if (!selectionsPayload().length) {
-    store.showToast('Keine Positionen oben ausgewählt', 'err')
+    showToast('Keine Positionen oben ausgewählt', 'err')
     return
   }
   actionsOpen.value = true
@@ -197,11 +197,11 @@ async function onPay() {
       return
     }
     if (fullySettled) {
-      store.showToast('Tisch vollständig abgerechnet.', 'ok')
+      showToast('Tisch vollständig abgerechnet.', 'ok')
       router.replace({ name: 'hub' })
     }
   } catch (e) {
-    if (e?.message) store.showToast(e.message, 'err')
+    if (e?.message) showToast(e.message, 'err')
   }
 }
 
@@ -210,9 +210,9 @@ async function printReceipt() {
   printingReceipt.value = true
   try {
     await printPaymentReceipt(pendingReceiptPaymentId.value)
-    store.showToast('Beleg gedruckt.', 'ok')
+    showToast('Beleg gedruckt.', 'ok')
   } catch (e) {
-    store.showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
+    showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
   } finally {
     printingReceipt.value = false
   }
@@ -230,7 +230,7 @@ onMounted(async () => {
   try {
     await reload()
   } catch (e) {
-    store.showToast(e.message || 'Laden fehlgeschlagen', 'err')
+    showToast(e.message || 'Laden fehlgeschlagen', 'err')
     router.replace({ name: 'hub' })
   } finally {
     loading.value = false

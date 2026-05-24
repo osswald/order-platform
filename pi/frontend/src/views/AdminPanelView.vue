@@ -49,43 +49,29 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
-import { api, getApiBase, isAndroidApp, setApiBase } from '../api'
+import { getApiBase, isAndroidApp } from '../api'
+import { useAdminSession } from '../composables/useAdminSession'
+import { useBundle } from '../composables/useBundle'
+import { useSyncOperations } from '../composables/useSyncOperations'
+import { formatDateTime } from '../utils/dateFormat'
 
 const router = useRouter()
+const { clearAdminSession } = useAdminSession()
+const { syncStatus, loadSyncStatus, saveApiBase, pullConfiguration, pushOutbox } = useSyncOperations()
+const { bundle, busy, lastSyncAt, syncError, refreshBundle, showToast } = useBundle()
 const baseInput = ref('')
-const busy = computed(() => store.busy.value)
-const bundle = computed(() => store.bundle.value)
-const lastSyncAt = computed(() => store.lastSyncAt.value)
-const syncError = computed(() => store.syncError.value)
-const eventCount = computed(() => store.bundle.value?.events?.length || 0)
+const eventCount = computed(() => bundle.value?.events?.length || 0)
 const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
-const syncStatus = ref(null)
 const androidApp = computed(() => isAndroidApp())
 
-function formatCycle(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleString('de-CH')
-  } catch {
-    return iso
-  }
-}
-
-async function loadSyncStatus() {
-  try {
-    syncStatus.value = await api('/v1/sync/status')
-  } catch {
-    syncStatus.value = null
-  }
-}
+const formatCycle = formatDateTime
 
 onMounted(async () => {
   baseInput.value = getApiBase()
   try {
-    await store.refreshBundle()
+    await refreshBundle()
     await loadSyncStatus()
   } catch {
     /* Pi unreachable */
@@ -93,32 +79,14 @@ onMounted(async () => {
 })
 
 function saveBase() {
-  const v = baseInput.value.trim()
-  if (v) setApiBase(v)
-  else {
-    localStorage.removeItem('pi_api_base')
-    baseInput.value = getApiBase()
-  }
-  store.showToast('API-Basis gespeichert.', 'ok')
+  baseInput.value = saveApiBase(baseInput.value)
 }
 
 async function doPull() {
-  store.busy.value = true
-  store.syncError.value = ''
   try {
-    const pull = await api('/v1/sync/pull', { method: 'POST' })
-    const count = await store.refreshBundle()
-    const n = pull?.event_count ?? count
-    store.showToast(
-      n > 0 ? `Konfiguration geladen (${n} Event(s)).` : 'Sync OK, aber keine aktiven Events in der Cloud.',
-      n > 0 ? 'ok' : 'err',
-    )
-    await loadSyncStatus()
-  } catch (e) {
-    store.syncError.value = e.message || 'Laden fehlgeschlagen'
-    store.showToast(store.syncError.value, 'err')
-  } finally {
-    store.busy.value = false
+    await pullConfiguration()
+  } catch {
+    /* toast shown in composable */
   }
 }
 
@@ -126,15 +94,13 @@ async function doPush() {
   pushing.value = true
   pushMsg.value = ''
   try {
-    const r = await api('/v1/sync/push', { method: 'POST' })
-    pushMsg.value = `Gesendet: ${r.sent}${r.errors?.length ? `, Fehler: ${r.errors.length}` : ''}`
-    pushOk.value = !r.errors?.length
-    store.showToast(pushOk.value ? 'Push OK' : 'Push mit Fehlern', pushOk.value ? 'ok' : 'err')
-    await loadSyncStatus()
-  } catch (e) {
-    pushMsg.value = e.message || 'Push fehlgeschlagen'
+    const result = await pushOutbox()
+    pushMsg.value = `Gesendet: ${result.sent}${result.errors?.length ? `, Fehler: ${result.errors.length}` : ''}`
+    pushOk.value = !result.errors?.length
+  } catch (error) {
+    pushMsg.value = error.message || 'Push fehlgeschlagen'
     pushOk.value = false
-    store.showToast(pushMsg.value, 'err')
+    showToast(pushMsg.value, 'err')
   } finally {
     pushing.value = false
   }
@@ -145,7 +111,7 @@ function goEvents() {
 }
 
 function endAdmin() {
-  store.clearAdminSession()
+  clearAdminSession()
   router.replace({ name: 'events' })
 }
 </script>

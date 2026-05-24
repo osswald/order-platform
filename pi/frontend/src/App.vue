@@ -26,9 +26,11 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useBundleRefresh } from './composables/useBundleRefresh'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
 import TwintQrSheet from './components/TwintQrSheet.vue'
+import { useBundle } from './composables/useBundle'
+import { useBundleRefresh } from './composables/useBundleRefresh'
+import { useToast } from './composables/useToast'
 import {
   pickerOpen as paymentPickerOpen,
   pickerTypes as paymentPickerTypes,
@@ -41,13 +43,15 @@ import {
   confirmTwintQr,
   cancelTwintQr,
 } from './utils/pickPaymentType'
-import * as store from './store'
+const route = useRoute()
+const { toast } = useToast()
+const { bundleReady, refreshBundle } = useBundle()
 
 useBundleRefresh()
 
 onMounted(() => {
-  if (!store.bundleReady()) {
-    store.refreshBundle().catch(() => {})
+  if (!bundleReady()) {
+    refreshBundle().catch(() => {})
   }
 })
 
@@ -67,7 +71,5 @@ function onTwintQrCancel() {
   cancelTwintQr()
 }
 
-const route = useRoute()
-const toast = computed(() => store.toast.value)
 const fullscreen = computed(() => Boolean(route.meta.fullscreen))
 </script>

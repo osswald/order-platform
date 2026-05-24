@@ -32,14 +32,14 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import * as store from '../store'
+import { useEventContext } from '../composables/useEventContext'
 import { api } from '../api'
 
 const orders = ref([])
 const error = ref('')
 let pollTimer = null
 
-const event = computed(() => store.selectedEvent.value)
+const { event } = useEventContext()
 const pendingOrders = computed(() => orders.value.filter((o) => o.pickup_status !== 'ready'))
 const readyOrders = computed(() =>
   orders.value

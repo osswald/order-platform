@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { api } from './api'
-import { lineTotalCents } from './utils/money'
+import { api } from '../api'
+import { lineTotalCents } from '../utils/money'
 
 /** @type {import('vue').Ref<object | null>} */
 export const bundle = ref(null)

@@ -56,19 +56,18 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
 import { isAndroidApp } from '../api'
+import { useEventContext } from '../composables/useEventContext'
 
 const router = useRouter()
-const event = computed(() => store.selectedEvent.value)
-const waiter = computed(() => store.waiter.value)
+const { event, waiter, setWaiter } = useEventContext()
 const androidApp = computed(() => isAndroidApp())
 const kitchenStations = computed(() =>
   (event.value?.configuration?.stations || []).filter((st) => st.kitchen_monitor_enabled),
 )
 
 function switchWaiter() {
-  store.setWaiter(null)
+  setWaiter(null)
   router.push({ name: 'login' })
 }
 </script>

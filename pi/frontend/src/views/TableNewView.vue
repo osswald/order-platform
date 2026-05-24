@@ -8,14 +8,15 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import * as store from '../store'
+import { useCart } from '../composables/useCart'
 import TableKeypad from '../components/TableKeypad.vue'
 
 const router = useRouter()
+const { activeTableNumber, clearCart } = useCart()
 
 function onTable(n) {
-  store.activeTableNumber.value = n
-  store.clearCart()
+  activeTableNumber.value = n
+  clearCart()
   router.push({ name: 'order', query: { table: String(n) } })
 }
 </script>

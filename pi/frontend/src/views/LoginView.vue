@@ -54,11 +54,12 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import * as store from '../store'
+import { useWaiterSession } from '../composables/useWaiterSession'
 
 const router = useRouter()
 const route = useRoute()
-const event = computed(() => store.selectedEvent.value)
+const { selectedEvent, setWaiter } = useWaiterSession()
+const event = selectedEvent
 const waiters = computed(() => event.value?.configuration?.event_waiters || [])
 const waiterId = ref(null)
 const waiterListOpen = ref(false)
@@ -95,7 +96,7 @@ function login() {
     err.value = 'PIN ungültig.'
     return
   }
-  store.setWaiter({ uuid: w.uuid, name: w.name })
+  setWaiter({ uuid: w.uuid, name: w.name })
   const redir = route.query.redirect
   if (typeof redir === 'string' && redir.startsWith('/')) {
     router.replace(redir)

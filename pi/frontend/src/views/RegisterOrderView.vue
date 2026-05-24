@@ -63,8 +63,9 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
 import { api } from '../api'
+import { useCart } from '../composables/useCart'
+import { useEventContext } from '../composables/useEventContext'
 import { formatMoney } from '../utils/money'
 import { articlesForIds, getDefaultLayout, hasAdditions, resolveStationUuidForArticle } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
@@ -89,21 +90,32 @@ const additionsPickerArticle = ref(null)
 const pendingAdd = ref(null)
 
 const { register, event, currency, updateDisplay, hubRoute } = useRegisterDisplay()
+const {
+  lines,
+  cartCount,
+  cartTotalCents,
+  addCartLine,
+  removeCartLine,
+  updateCartLine,
+  decrementCartLine,
+  availableQty,
+  getArticle,
+  articleName,
+  clearCart,
+} = useCart()
+const { waiter, showToast, patchEventArticles } = useEventContext()
 
-const lines = computed(() => store.cartLines.value)
-const cartCount = computed(() => store.cartCount.value)
 const articles = computed(() => event.value?.articles || {})
 const layout = computed(() => {
   const layouts = event.value?.configuration?.app_layouts || []
   return layouts.find((lo) => String(lo.uuid) === String(register.value?.layout_uuid)) || getDefaultLayout(event.value)
 })
-const totalLabel = computed(() => formatMoney(store.cartTotalCents.value, currency.value))
-const articleName = (id) => store.articleName(id)
+const totalLabel = computed(() => formatMoney(cartTotalCents.value, currency.value))
 
 const qtyModalMax = computed(() => {
   const line = qtyModalLine.value
   if (!line) return 999
-  const avail = store.availableQty(line.article_id, line.lineId)
+  const avail = availableQty(line.article_id, line.lineId)
   if (avail === null) return 999
   return line.qty + avail
 })
@@ -129,7 +141,7 @@ function onPickArticles(articleIds) {
 }
 
 function beginAdd(articleId, qty = 1) {
-  const art = store.getArticle(articleId)
+  const art = getArticle(articleId)
   if (art && hasAdditions(art)) {
     pendingAdd.value = { articleId, qty }
     additionsPickerArticle.value = art
@@ -137,7 +149,7 @@ function beginAdd(articleId, qty = 1) {
     return
   }
   const su = resolveStationUuidForArticle(event.value, articleId)
-  store.addCartLine({ article_id: articleId, qty, station_uuid: su, note: '', additions: [] })
+  addCartLine({ article_id: articleId, qty, station_uuid: su, note: '', additions: [] })
 }
 
 function onAddFromSheet({ article_id, qty }) {
@@ -155,7 +167,7 @@ function onAdditionsConfirm(additions) {
   const p = pendingAdd.value
   if (!p) return
   const su = resolveStationUuidForArticle(event.value, p.articleId)
-  store.addCartLine({
+  addCartLine({
     article_id: p.articleId,
     qty: p.qty,
     station_uuid: su,
@@ -167,7 +179,7 @@ function onAdditionsConfirm(additions) {
 
 function onTapName(line) {
   const su = resolveStationUuidForArticle(event.value, line.article_id)
-  store.addCartLine({
+  addCartLine({
     article_id: line.article_id,
     qty: 1,
     station_uuid: line.station_uuid ?? su,
@@ -186,22 +198,22 @@ function onQtyConfirm(n) {
   const line = qtyModalLine.value
   if (!line) return
   let qty = Math.max(0, Math.min(qtyModalMax.value, Number(n) || 0))
-  const avail = store.availableQty(line.article_id, line.lineId)
+  const avail = availableQty(line.article_id, line.lineId)
   if (avail !== null && qty > line.qty + avail) {
-    store.showToast(`Nur noch ${avail} verfügbar`, 'err')
+    showToast(`Nur noch ${avail} verfügbar`, 'err')
     qty = line.qty + avail
   }
-  if (qty <= 0) store.removeCartLine(line.lineId)
-  else store.updateCartLine(line.lineId, { qty })
+  if (qty <= 0) removeCartLine(line.lineId)
+  else updateCartLine(line.lineId, { qty })
   qtyModalOpen.value = false
 }
 
 function onTapPrice(lineId) {
-  store.decrementCartLine(lineId)
+  decrementCartLine(lineId)
 }
 
 function goBack() {
-  store.clearCart()
+  clearCart()
   updateDisplay({ state: 'idle', lines: [], total_cents: 0, show_twint: false, twint_qr_data_url: null })
   router.push(hubRoute())
 }
@@ -210,7 +222,7 @@ async function submitOrder() {
   if (!cartCount.value || !event.value || !register.value) return
   let payType
   try {
-    payType = await pickPaymentType(event.value, store.cartTotalCents.value, {
+    payType = await pickPaymentType(event.value, cartTotalCents.value, {
       onTwintShow: ({ dataUrl, amountCents }) =>
         updateDisplay({
           state: 'twint',
@@ -239,16 +251,16 @@ async function submitOrder() {
         client_order_id,
         event_id: event.value.id,
         table_number: null,
-        waiter_uuid: store.waiter.value?.uuid ?? null,
+        waiter_uuid: waiter.value?.uuid ?? null,
         order_source: 'cash_register',
         cash_register_uuid: register.value.uuid,
         lines: payloadLines,
-        payments: buildPayment(store.cartTotalCents.value, payType),
+        payments: buildPayment(cartTotalCents.value, payType),
       }),
     })
-    if (res.articles) store.patchEventArticles(event.value.id, res.articles)
-    store.clearCart()
-    store.showToast(`Pickup ${res.pickup_code}`, 'ok')
+    if (res.articles) patchEventArticles(event.value.id, res.articles)
+    clearCart()
+    showToast(`Pickup ${res.pickup_code}`, 'ok')
     await updateDisplay({
       state: 'submitted',
       pickup_code: res.pickup_code,
@@ -260,7 +272,7 @@ async function submitOrder() {
     })
     router.push(hubRoute())
   } catch (e) {
-    store.showToast(e.message || 'Fehler', 'err')
+    showToast(e.message || 'Fehler', 'err')
   } finally {
     submitting.value = false
   }

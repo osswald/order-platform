@@ -50,7 +50,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import * as store from '../store'
+import { useEventContext } from '../composables/useEventContext'
 import {
   getSelectedPrinter,
   isAndroidPrinterAvailable,
@@ -61,6 +61,7 @@ import {
   setSelectedPrinter,
 } from '../utils/androidPrinter'
 
+const { event } = useEventContext()
 const available = computed(() => isAndroidPrinterAvailable())
 const printers = ref([])
 const selectedAddress = ref('')
@@ -118,7 +119,7 @@ function selectPrinter(printer) {
 async function testPrint() {
   busy.value = true
   try {
-    await printTestReceipt(store.selectedEvent.value?.id)
+    await printTestReceipt(event.value?.id)
     show('Testbeleg gedruckt.', 'ok')
   } catch (e) {
     show(e.message || 'Testbeleg fehlgeschlagen.', 'err')

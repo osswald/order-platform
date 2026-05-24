@@ -53,8 +53,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as store from '../store'
 import { api } from '../api'
+import { useCart } from '../composables/useCart'
+import { useEventContext } from '../composables/useEventContext'
 import { formatAmount, lineTotalCents } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
@@ -64,8 +65,10 @@ import MoneyKeypad from '../components/MoneyKeypad.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { event, showToast } = useEventContext()
+const { activeTableNumber, articleName } = useCart()
 const orderId = computed(() => route.params.id)
-const table = computed(() => route.query.table || store.activeTableNumber.value)
+const table = computed(() => route.query.table || activeTableNumber.value)
 const totalCents = ref(0)
 const cashCents = ref(0)
 const loading = ref(true)
@@ -74,19 +77,18 @@ const printing = ref(false)
 const paidPaymentId = ref(null)
 const orderLines = ref([])
 
-const event = computed(() => store.selectedEvent.value)
 const articles = computed(() => event.value?.articles || {})
 
 const cashMismatch = computed(() => cashCents.value !== totalCents.value)
 
 function lineName(line) {
   const qty = Math.max(1, Number(line.qty) || 1)
-  const name = store.articleName(line.article_id)
+  const name = articleName(line.article_id)
   return qty > 1 ? `${qty}× ${name}` : name
 }
 
 onMounted(async () => {
-  const ev = store.selectedEvent.value
+  const ev = event.value
   if (!ev) {
     router.replace({ name: 'hub' })
     return
@@ -129,15 +131,15 @@ async function pay() {
         payments: buildPayment(cashCents.value, payType),
       }),
     })
-    store.activeTableNumber.value = null
-    store.showToast('Bezahlt.', 'ok')
+    activeTableNumber.value = null
+    showToast('Bezahlt.', 'ok')
     if (isAndroidPrinterAvailable() && res.payment_id) {
       paidPaymentId.value = res.payment_id
     } else {
       router.replace({ name: 'hub' })
     }
   } catch (e) {
-    store.showToast(e.message || 'Zahlung fehlgeschlagen', 'err')
+    showToast(e.message || 'Zahlung fehlgeschlagen', 'err')
   } finally {
     paying.value = false
   }
@@ -148,9 +150,9 @@ async function printReceipt() {
   printing.value = true
   try {
     await printPaymentReceipt(paidPaymentId.value)
-    store.showToast('Beleg gedruckt.', 'ok')
+    showToast('Beleg gedruckt.', 'ok')
   } catch (e) {
-    store.showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
+    showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
   } finally {
     printing.value = false
   }
@@ -162,7 +164,7 @@ function finish() {
 }
 
 function goBack() {
-  store.activeTableNumber.value = null
+  activeTableNumber.value = null
   router.replace({ name: 'hub' })
 }
 </script>

@@ -36,17 +36,18 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as store from '../store'
+import { useCart } from '../composables/useCart'
 import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 
 const route = useRoute()
 const router = useRouter()
+const { clearCart } = useCart()
 const { register, event, registerDisplayUrl, updateDisplay, orderRoute, displayRoute } = useRegisterDisplay()
 
 const displayUrl = computed(() => registerDisplayUrl())
 
 function startOrder() {
-  store.clearCart()
+  clearCart()
   router.push(orderRoute())
 }
 

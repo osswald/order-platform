@@ -1,22 +1,22 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as store from '../store'
 import { api } from '../api'
+import { useCart } from './useCart'
+import { useEventContext } from './useEventContext'
 
 export function useRegisterDisplay() {
   const route = useRoute()
   const router = useRouter()
+  const { event, currency } = useEventContext()
+  const { cartLines, cartTotalCents } = useCart()
 
   const registerUuid = computed(() => String(route.params.registerUuid || ''))
-  const event = computed(() => store.selectedEvent.value)
   const register = computed(
     () =>
       (event.value?.configuration?.cash_registers || []).find(
         (reg) => String(reg.uuid) === registerUuid.value,
       ) || null,
   )
-  const currency = computed(() => event.value?.currency || 'EUR')
-
   function registerDisplayPath() {
     return router.resolve({
       name: 'register-display',
@@ -39,8 +39,8 @@ export function useRegisterDisplay() {
           event_id: event.value.id,
           payload: {
             register_name: register.value.name,
-            lines: store.cartLines.value,
-            total_cents: store.cartTotalCents.value,
+            lines: cartLines.value,
+            total_cents: cartTotalCents.value,
             currency: currency.value,
             ...extra,
           },

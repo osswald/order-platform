@@ -1,5 +1,5 @@
 import { onMounted, onUnmounted } from 'vue'
-import * as store from '../store'
+import { bundleReady, refreshBundle } from '../store'
 
 const REFRESH_MS = 60_000
 
@@ -9,7 +9,7 @@ export function useBundleRefresh() {
 
   function tick() {
     if (document.visibilityState !== 'visible') return
-    store.refreshBundle().catch(() => {})
+    refreshBundle().catch(() => {})
   }
 
   function startTimer() {
@@ -34,7 +34,7 @@ export function useBundleRefresh() {
   }
 
   onMounted(() => {
-    if (store.bundleReady()) tick()
+    if (bundleReady()) tick()
     document.addEventListener('visibilitychange', onVisible)
     if (document.visibilityState === 'visible') startTimer()
   })

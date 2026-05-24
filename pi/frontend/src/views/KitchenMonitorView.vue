@@ -96,10 +96,9 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { api } from '../api'
-import * as store from '../store'
+import { useEventContext } from '../composables/useEventContext'
 
-const event = computed(() => store.selectedEvent.value)
-const waiter = computed(() => store.waiter.value)
+const { event, waiter } = useEventContext()
 const kitchenStations = computed(() =>
   (event.value?.configuration?.stations || [])
     .filter((st) => st.kitchen_monitor_enabled && st.uuid)

@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
-import * as store from '../store'
+import { setupRouterGuards } from './guards'
 
 const routes = [
   { path: '/', redirect: () => ({ name: 'events' }) },
@@ -148,34 +148,6 @@ const router = createRouter({
   routes,
 })
 
-const ROUTES_WITHOUT_BUNDLE = new Set(['events', 'admin-unlock', 'admin'])
-
-router.beforeEach(async (to) => {
-  if (to.meta.requiresAdmin && store.adminRequiresPin() && !store.adminUnlocked.value) {
-    return { name: 'admin-unlock', query: { redirect: to.fullPath } }
-  }
-  if (to.meta.requiresBundle && !store.bundleReady()) {
-    if (!ROUTES_WITHOUT_BUNDLE.has(to.name)) {
-      try {
-        await store.refreshBundle()
-      } catch {
-        /* bundle unavailable */
-      }
-    }
-    if (!store.bundleReady()) {
-      if (ROUTES_WITHOUT_BUNDLE.has(to.name)) {
-        return true
-      }
-      return { name: 'events' }
-    }
-  }
-  if (to.meta.requiresEvent && store.selectedEventId.value == null) {
-    return { name: 'events' }
-  }
-  if (to.meta.requiresWaiter && !store.waiter.value) {
-    return { name: 'login', query: { redirect: to.fullPath } }
-  }
-  return true
-})
+setupRouterGuards(router)
 
 export default router

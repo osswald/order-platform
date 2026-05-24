@@ -26,14 +26,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
 import { api } from '../api'
+import { useCart } from '../composables/useCart'
+import { useEventContext } from '../composables/useEventContext'
 import { formatAmount } from '../utils/money'
 
 const router = useRouter()
 const loading = ref(true)
 const tables = ref([])
-const event = computed(() => store.selectedEvent.value)
+const { event, showToast } = useEventContext()
+const { activeTableNumber } = useCart()
 
 onMounted(load)
 
@@ -48,7 +50,7 @@ async function load() {
     const r = await api(`/v1/tables/open?event_id=${ev.id}`)
     tables.value = r.tables || []
   } catch (e) {
-    store.showToast(e.message || 'Laden fehlgeschlagen', 'err')
+    showToast(e.message || 'Laden fehlgeschlagen', 'err')
     tables.value = []
   } finally {
     loading.value = false
@@ -56,7 +58,7 @@ async function load() {
 }
 
 function openTable(n) {
-  store.activeTableNumber.value = n
+  activeTableNumber.value = n
   router.push({ name: 'pay-table', query: { table: String(n) } })
 }
 </script>

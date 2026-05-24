@@ -48,8 +48,9 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import * as store from '../store'
 import { api } from '../api'
+import { useCart } from '../composables/useCart'
+import { useEventContext } from '../composables/useEventContext'
 import { formatAmount, lineTotalCents } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
 
@@ -57,14 +58,11 @@ const route = useRoute()
 const payload = ref({})
 let pollTimer = null
 
-const event = computed(() => store.selectedEvent.value)
+const { event } = useEventContext()
+const { articleName } = useCart()
 const registerUuid = computed(() => String(route.params.registerUuid || ''))
 const lines = computed(() => payload.value.lines || [])
 const articles = computed(() => event.value?.articles || {})
-
-function articleName(id) {
-  return store.articleName(id)
-}
 
 function lineTotal(line) {
   return formatAmount(lineTotalCents(line, articles.value))

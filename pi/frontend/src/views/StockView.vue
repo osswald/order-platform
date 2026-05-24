@@ -23,18 +23,21 @@
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
+import { stockArticlesForEvent } from '../store'
+import { useBundle } from '../composables/useBundle'
+import { useEventContext } from '../composables/useEventContext'
 
 const router = useRouter()
-const event = computed(() => store.selectedEvent.value)
-const articles = computed(() => store.stockArticlesForEvent(event.value))
+const { event } = useEventContext()
+const { refreshBundle } = useBundle()
+const articles = computed(() => stockArticlesForEvent(event.value))
 
 function onVisible() {
-  if (document.visibilityState === 'visible') store.refreshBundle()
+  if (document.visibilityState === 'visible') refreshBundle()
 }
 
 onMounted(() => {
-  store.refreshBundle()
+  refreshBundle()
   document.addEventListener('visibilitychange', onVisible)
 })
 

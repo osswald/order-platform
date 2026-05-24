@@ -33,10 +33,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import * as store from '../store'
+import { useCart } from '../composables/useCart'
+import { useEventContext } from '../composables/useEventContext'
 
 const router = useRouter()
-const event = computed(() => store.selectedEvent.value)
+const { event } = useEventContext()
+const { clearCart } = useCart()
 const registers = computed(() =>
   (event.value?.configuration?.cash_registers || []).slice().sort((a, b) => {
     const so = (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
@@ -45,7 +47,7 @@ const registers = computed(() =>
 )
 
 function openRegister(reg) {
-  store.clearCart()
+  clearCart()
   router.push({ name: 'register-hub', params: { registerUuid: reg.uuid }, query: { fresh: '1' } })
 }
 </script>

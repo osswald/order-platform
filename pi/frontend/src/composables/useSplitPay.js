@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import * as store from '../store'
+import { additionsSignature, articleName, showToast } from '../store'
 import { api } from '../api'
 import { formatAmount } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
@@ -27,7 +27,7 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
   const bottomGroups = computed(() => groups.value.filter((g) => g.basketQty < g.totalQty))
 
   function lineKey(articleId, note, additions) {
-    return `${articleId}:${note || ''}:${store.additionsSignature(additions || [])}`
+    return `${articleId}:${note || ''}:${additionsSignature(additions || [])}`
   }
 
   function initGroups(data) {
@@ -44,7 +44,7 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
         totalQty: g.total_qty,
         unitCents: g.unit_cents,
         basketQty: g.total_qty,
-        name: store.articleName(g.article_id),
+        name: articleName(g.article_id),
         additionLabels: lineAdditionLabels(line, arts),
       }
     })
@@ -117,7 +117,7 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
         onFullySettled?.()
         return res
       }
-      store.showToast(`Teilbetrag bezahlt. Rest: ${formatAmount(res.remaining_cents)}`, 'ok')
+      showToast(`Teilbetrag bezahlt. Rest: ${formatAmount(res.remaining_cents)}`, 'ok')
       await reload()
       return res
     } finally {

@@ -63,8 +63,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import * as store from '../store'
 import { api } from '../api'
+import { useCart } from '../composables/useCart'
+import { useEventContext } from '../composables/useEventContext'
 import { formatMoney } from '../utils/money'
 import { getDefaultLayout, articlesForIds, hasAdditions, resolveStationUuidForArticle } from '../utils/bundleHelpers'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
@@ -77,6 +78,21 @@ import QtyInputModal from '../components/QtyInputModal.vue'
 
 const route = useRoute()
 const router = useRouter()
+const {
+  lines,
+  cartCount,
+  cartTotalCents,
+  activeTableNumber,
+  addCartLine,
+  removeCartLine,
+  updateCartLine,
+  decrementCartLine,
+  availableQty,
+  getArticle,
+  articleName,
+  clearCart,
+} = useCart()
+const { event, currency, waiter, showToast, patchEventArticles } = useEventContext()
 const submitting = ref(false)
 const sheetOpen = ref(false)
 const sheetArticles = ref([])
@@ -88,33 +104,28 @@ const pendingAdd = ref(null)
 
 const tableNumber = computed(() => {
   const q = route.query.table
-  const n = parseInt(String(q ?? store.activeTableNumber.value), 10)
+  const n = parseInt(String(q ?? activeTableNumber.value), 10)
   return Number.isFinite(n) ? n : 0
 })
 
 watch(
   tableNumber,
   (n) => {
-    if (n >= 1 && n <= 99999) store.activeTableNumber.value = n
+    if (n >= 1 && n <= 99999) activeTableNumber.value = n
     else if (!route.query.table) router.replace({ name: 'table-new' })
   },
   { immediate: true },
 )
 
-const event = computed(() => store.selectedEvent.value)
-const lines = computed(() => store.cartLines.value)
-const cartCount = computed(() => store.cartCount.value)
 const articles = computed(() => event.value?.articles || {})
-const currency = computed(() => event.value?.currency || 'EUR')
 const layout = computed(() => (event.value ? getDefaultLayout(event.value) : null))
-const totalLabel = computed(() => formatMoney(store.cartTotalCents.value, currency.value))
+const totalLabel = computed(() => formatMoney(cartTotalCents.value, currency.value))
 const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').toLowerCase())
-const articleName = (id) => store.articleName(id)
 
 const qtyModalMax = computed(() => {
   const line = qtyModalLine.value
   if (!line) return 999
-  const avail = store.availableQty(line.article_id, line.lineId)
+  const avail = availableQty(line.article_id, line.lineId)
   if (avail === null) return 999
   return line.qty + avail
 })
@@ -131,7 +142,7 @@ function onPickArticles(articleIds) {
 }
 
 function beginAdd(articleId, qty = 1) {
-  const art = store.getArticle(articleId)
+  const art = getArticle(articleId)
   if (art && hasAdditions(art)) {
     pendingAdd.value = { articleId, qty }
     additionsPickerArticle.value = art
@@ -139,7 +150,7 @@ function beginAdd(articleId, qty = 1) {
     return
   }
   const su = resolveStationUuidForArticle(event.value, articleId)
-  store.addCartLine({ article_id: articleId, qty, station_uuid: su, note: '', additions: [] })
+  addCartLine({ article_id: articleId, qty, station_uuid: su, note: '', additions: [] })
 }
 
 function addOne(articleId) {
@@ -161,7 +172,7 @@ function onAdditionsConfirm(additions) {
   const p = pendingAdd.value
   if (!p) return
   const su = resolveStationUuidForArticle(event.value, p.articleId)
-  store.addCartLine({
+  addCartLine({
     article_id: p.articleId,
     qty: p.qty,
     station_uuid: su,
@@ -173,7 +184,7 @@ function onAdditionsConfirm(additions) {
 
 function onTapName(line) {
   const su = resolveStationUuidForArticle(event.value, line.article_id)
-  store.addCartLine({
+  addCartLine({
     article_id: line.article_id,
     qty: 1,
     station_uuid: line.station_uuid ?? su,
@@ -192,18 +203,18 @@ function onQtyConfirm(n) {
   const line = qtyModalLine.value
   if (!line) return
   let qty = Math.max(0, Math.min(qtyModalMax.value, Number(n) || 0))
-  const avail = store.availableQty(line.article_id, line.lineId)
+  const avail = availableQty(line.article_id, line.lineId)
   if (avail !== null && qty > line.qty + avail) {
-    store.showToast(`Nur noch ${avail} verfügbar`, 'err')
+    showToast(`Nur noch ${avail} verfügbar`, 'err')
     qty = line.qty + avail
   }
-  if (qty <= 0) store.removeCartLine(line.lineId)
-  else store.updateCartLine(line.lineId, { qty })
+  if (qty <= 0) removeCartLine(line.lineId)
+  else updateCartLine(line.lineId, { qty })
   qtyModalOpen.value = false
 }
 
 function onTapPrice(lineId) {
-  store.decrementCartLine(lineId)
+  decrementCartLine(lineId)
 }
 
 function goHub() {
@@ -231,29 +242,29 @@ async function submitOrder() {
         client_order_id,
         event_id: event.value.id,
         table_number: tableNumber.value,
-        waiter_uuid: store.waiter.value?.uuid ?? null,
+        waiter_uuid: waiter.value?.uuid ?? null,
         lines: payloadLines,
         payments: [],
       }),
     })
     if (res.articles) {
-      store.patchEventArticles(event.value.id, res.articles)
+      patchEventArticles(event.value.id, res.articles)
     }
     const pm = res.payment_mode || paymentMode.value
     if (pm === 'pay_now') {
-      store.clearCart()
+      clearCart()
       router.push({
         name: 'pay-table',
         query: { table: String(tableNumber.value) },
       })
       return
     }
-    store.clearCart()
-    store.activeTableNumber.value = null
-    store.showToast('Bestellung gespeichert.', 'ok')
+    clearCart()
+    activeTableNumber.value = null
+    showToast('Bestellung gespeichert.', 'ok')
     router.replace({ name: 'hub' })
   } catch (e) {
-    store.showToast(e.message || 'Fehler', 'err')
+    showToast(e.message || 'Fehler', 'err')
   } finally {
     submitting.value = false
   }
