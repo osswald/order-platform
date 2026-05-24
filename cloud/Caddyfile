@@ -1,0 +1,11 @@
+{
+	email admin@vendiqo.ch
+}
+
+admin.vendiqo.ch {
+	reverse_proxy cloud-frontend:80
+}
+
+api.vendiqo.ch {
+	reverse_proxy cloud-backend:8000
+}

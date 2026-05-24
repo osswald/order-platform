@@ -5,6 +5,7 @@ __pycache__/
 *.pyd
 .env
 .env.*
+!.env.example
 .env.cloud
 .env.pi
 .venv/

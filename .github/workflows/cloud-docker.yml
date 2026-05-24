@@ -1,0 +1,59 @@
+# Build cloud backend and frontend for linux/amd64 and push to GitHub Container Registry.
+name: Cloud Docker images
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "cloud/backend/**"
+      - "cloud/frontend/**"
+      - "cloud/docker-compose.prod.yml"
+      - "cloud/Caddyfile"
+      - ".github/workflows/cloud-docker.yml"
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./cloud/backend
+          file: ./cloud/backend/Dockerfile.prod
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:cloud-backend-latest
+            ${{ env.REGISTRY }}/${{ github.repository }}:cloud-backend-${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./cloud/frontend
+          file: ./cloud/frontend/Dockerfile.prod
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            VITE_API_BASE_URL=https://api.vendiqo.ch
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-latest
+            ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-${{ github.sha }}
