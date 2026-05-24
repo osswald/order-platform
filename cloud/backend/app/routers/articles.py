@@ -1,12 +1,13 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
 from ..models import Article, ArticleCategory, Organisation, User
-from .auth import get_current_user, get_db
+from .auth import get_current_user
+from ..deps import get_db
 
 router = APIRouter()
 
@@ -44,13 +45,12 @@ class ArticleUpdate(BaseModel):
 
 
 class ArticleRead(ArticleBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     article_category_name: str
     organisation_id: int
     organisation_name: str
-
-    class Config:
-        from_attributes = True
 
 
 class ArticleAdditionLinkIn(BaseModel):

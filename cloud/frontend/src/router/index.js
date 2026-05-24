@@ -1,17 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import Dashboard from './components/Dashboard.vue'
-import Events from './components/Events.vue'
-import Waiters from './components/Waiters.vue'
-import Articles from './components/Articles.vue'
-import ArticleCategories from './components/ArticleCategories.vue'
-import ApplianceLendings from './components/ApplianceLendings.vue'
-import Organisations from './components/Organisations.vue'
-import Appliances from './components/Appliances.vue'
-import Users from './components/Users.vue'
-import AccountSettings from './components/AccountSettings.vue'
-import LoginPage from './components/LoginPage.vue'
-import SectionPlaceholder from './components/SectionPlaceholder.vue'
+import Dashboard from '../components/Dashboard.vue'
+import Events from '../components/Events.vue'
+import Waiters from '../components/Waiters.vue'
+import Articles from '../components/Articles.vue'
+import ArticleCategories from '../components/ArticleCategories.vue'
+import ApplianceLendings from '../components/ApplianceLendings.vue'
+import Organisations from '../components/Organisations.vue'
+import Appliances from '../components/Appliances.vue'
+import Users from '../components/Users.vue'
+import AccountSettings from '../components/AccountSettings.vue'
+import LoginPage from '../components/LoginPage.vue'
+import SectionPlaceholder from '../components/SectionPlaceholder.vue'
 
 const routes = [
   {
@@ -108,9 +108,8 @@ export const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('access_token')
-  const isLoggedIn = !!token
+router.beforeEach((to, _from, next) => {
+  const isLoggedIn = !!localStorage.getItem('access_token')
 
   if (to.meta.guest) {
     if (isLoggedIn) {

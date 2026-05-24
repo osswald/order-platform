@@ -2,13 +2,14 @@ import re
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Organisation, User
 from ..security import get_password_hash
-from .auth import get_current_superuser, get_db
+from .auth import get_current_superuser
+from ..deps import get_db
 
 router = APIRouter()
 
@@ -40,6 +41,8 @@ class OrganisationLinkRead(BaseModel):
 
 
 class UserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str | None = None
     email: str
@@ -47,9 +50,6 @@ class UserRead(BaseModel):
     has_event_admin_pin: bool = False
     organisation_ids: List[int] = []
     organisations: List[OrganisationLinkRead] = []
-
-    class Config:
-        orm_mode = True
 
 
 class UserCreate(BaseModel):

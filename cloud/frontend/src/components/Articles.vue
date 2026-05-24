@@ -218,7 +218,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
-import { matchesActiveOrganisation } from '../orgScope'
+import { matchesActiveOrganisation } from '../utils/orgScope'
 
 const props = defineProps({
   activeOrganisationId: {

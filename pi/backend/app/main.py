@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import engine, Base, SessionLocal, apply_schema_patches
+from .bootstrap import ensure_default_synced_bundle
+from .database import Base, apply_schema_patches, engine
 from .models import CollectiveBill, SyncedBundle  # noqa: F401 — register tables for create_all
 from .print_worker import print_worker_loop
 from .sync_worker import sync_worker_loop
@@ -26,13 +27,7 @@ async def lifespan(app: FastAPI):
     global stop_print_worker, print_task, stop_sync_worker, sync_task
     Base.metadata.create_all(bind=engine)
     apply_schema_patches()
-    db = SessionLocal()
-    try:
-        if not db.query(SyncedBundle).filter(SyncedBundle.id == 1).first():
-            db.add(SyncedBundle(id=1, json_body="{}"))
-            db.commit()
-    finally:
-        db.close()
+    ensure_default_synced_bundle()
 
     stop_print_worker = asyncio.Event()
     print_task = asyncio.create_task(print_worker_loop(stop_print_worker))

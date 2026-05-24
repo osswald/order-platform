@@ -3,7 +3,7 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..event_config_validation import (
@@ -34,7 +34,8 @@ from ..twint_qr import (
 )
 from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_operational_data, validate_status_transition
 from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
-from .auth import get_current_superuser, get_current_user, get_db
+from .auth import get_current_superuser, get_current_user
+from ..deps import get_db
 
 router = APIRouter()
 
@@ -109,11 +110,10 @@ class EventUpdate(BaseModel):
 
 
 class EventRead(EventBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     organisation_name: str
-
-    class Config:
-        from_attributes = True
 
 
 class PrinterOptionRead(BaseModel):

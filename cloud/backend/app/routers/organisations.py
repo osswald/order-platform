@@ -2,11 +2,12 @@ from datetime import date, datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import ApplianceLending, Organisation, User
-from .auth import get_current_superuser, get_current_user, get_db
+from .auth import get_current_superuser, get_current_user
+from ..deps import get_db
 from .appliances import _assert_lending_is_planned, _utc_today
 from .events import ensure_user_can_use_organisation
 
@@ -35,11 +36,10 @@ class OrganisationUpdate(BaseModel):
 
 
 class OrganisationRead(OrganisationBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     user_ids: List[int] = []
-
-    class Config:
-        orm_mode = True
 
 
 class OrgApplianceLendingItem(BaseModel):

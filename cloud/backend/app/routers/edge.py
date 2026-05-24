@@ -24,7 +24,7 @@ from ..twint_qr import twint_qr_data_url_for_event
 from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import verify_password
-from .auth import get_db
+from ..deps import get_db
 from .events import serialize_event_configuration
 
 router = APIRouter()

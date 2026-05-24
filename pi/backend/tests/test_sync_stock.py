@@ -34,12 +34,16 @@ def test_reapply_pending_stock_after_cloud_pull():
     db = SessionLocal()
     try:
         bundle = _bundle_with_stock(10)
-        db.add(
-            SyncedBundle(
-                id=1,
-                json_body=json.dumps(bundle),
+        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
+        if row:
+            row.json_body = json.dumps(bundle)
+        else:
+            db.add(
+                SyncedBundle(
+                    id=1,
+                    json_body=json.dumps(bundle),
+                )
             )
-        )
         db.add(
             OutboxEntry(
                 client_order_id="test-order-1",

@@ -17,7 +17,7 @@ from ..sync_service import (
     reapply_pending_stock,
     sync_status,
 )
-from ..database import SessionLocal
+from ..deps import get_db
 from ..order_line_utils import copy_line_fiscal_fields
 from ..order_fiscal import (
     allocate_order_number,
@@ -98,14 +98,6 @@ def _validate_payment_types(ev: dict, payments: list) -> None:
                 status_code=400,
                 detail=f"Payment type «{t or '?'}» is not allowed for this event",
             )
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def _get_bundle_dict(db: Session) -> dict:

@@ -292,7 +292,8 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
-import { cancelPlannedLendingForAppliance } from '../applianceLending'
+import { parseApiErrorDetail } from '../utils/apiError'
+import { cancelPlannedLendingForAppliance } from '../utils/applianceLending'
 
 const appliances = ref([])
 const showDetail = ref(false)
@@ -416,22 +417,6 @@ function toIsoDate(d) {
   const mo = String(x.getMonth() + 1).padStart(2, '0')
   const day = String(x.getDate()).padStart(2, '0')
   return `${y}-${mo}-${day}`
-}
-
-async function parseApiErrorDetail(response) {
-  const text = await response.text()
-  try {
-    const data = JSON.parse(text)
-    if (typeof data.detail === 'string') return data.detail
-    if (Array.isArray(data.detail)) {
-      return data.detail
-        .map((e) => (e && typeof e.msg === 'string' ? e.msg : JSON.stringify(e)))
-        .join('; ')
-    }
-  } catch {
-    // not JSON
-  }
-  return text || 'Unbekannter Fehler'
 }
 
 const filteredAppliances = computed(() => {

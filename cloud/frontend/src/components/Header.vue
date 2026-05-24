@@ -17,12 +17,14 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
 import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 
 defineProps({
-  userEmail: String
+  userEmail: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['logout'])

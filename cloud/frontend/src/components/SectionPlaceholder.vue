@@ -11,9 +11,7 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue'
-
-const props = defineProps({
+defineProps({
   title: {
     type: String,
     default: 'Bereich in Arbeit',

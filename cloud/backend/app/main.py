@@ -1,15 +1,66 @@
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import engine, Base, apply_schema_patches
-from .routers import health, items, auth, organisations, appliances, users, events, waiters, article_categories, articles, edge
-from .security import get_password_hash
+
+from .database import SessionLocal, apply_schema_patches, engine, Base
 from .models import User
+from .routers import (
+    article_categories,
+    articles,
+    auth,
+    edge,
+    events,
+    health,
+    items,
+    organisations,
+    appliances,
+    users,
+    waiters,
+)
+from .security import get_password_hash
 
-app = FastAPI(title=os.getenv("APP_NAME", "cloud-backend"))
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
 
-# CORS
-allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+
+def _bootstrap_admin_user() -> None:
+    admin_email = os.getenv("ADMIN_EMAIL")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    if not admin_email or not admin_password:
+        return
+
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == admin_email).first()
+        if existing:
+            return
+        db.add(
+            User(
+                email=admin_email,
+                hashed_password=get_password_hash(admin_password),
+                is_superuser=True,
+            ),
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    apply_schema_patches()
+    _bootstrap_admin_user()
+    yield
+
+
+app = FastAPI(title=os.getenv("APP_NAME", "cloud-backend"), lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -17,29 +68,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def startup_event():
-    # create tables
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    # create admin user from env if provided
-    admin_email = os.getenv("ADMIN_EMAIL")
-    admin_password = os.getenv("ADMIN_PASSWORD")
-    if admin_email and admin_password:
-        from .database import SessionLocal
-
-        db = SessionLocal()
-        try:
-            existing = db.query(User).filter(User.email == admin_email).first()
-            if not existing:
-                user = User(email=admin_email, hashed_password=get_password_hash(admin_password), is_superuser=True)
-                db.add(user)
-                db.commit()
-        finally:
-            db.close()
-
 
 app.include_router(health.router)
 app.include_router(items.router, prefix="/items", tags=["items"])

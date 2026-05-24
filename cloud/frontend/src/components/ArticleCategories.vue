@@ -102,7 +102,7 @@ import Paginator from 'primevue/paginator'
 import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
-import { matchesActiveOrganisation } from '../orgScope'
+import { matchesActiveOrganisation } from '../utils/orgScope'
 
 const props = defineProps({
   activeOrganisationId: {

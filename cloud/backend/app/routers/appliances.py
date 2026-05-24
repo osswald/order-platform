@@ -5,13 +5,14 @@ from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import generate_appliance_name
 from ..models import Appliance, ApplianceLending, Organisation
 from ..security import get_password_hash
-from .auth import get_current_superuser, get_db
+from .auth import get_current_superuser
+from ..deps import get_db
 
 router = APIRouter()
 
@@ -99,6 +100,8 @@ class ApplianceLendingRead(BaseModel):
 
 
 class ApplianceRead(ApplianceBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     lending_status: str = "available"
     current_lending: CurrentLendingRead | None = None
@@ -106,9 +109,6 @@ class ApplianceRead(ApplianceBase):
     lendable: bool = True
     lend_block_reason: str | None = None
     edge_client_id: str | None = None
-
-    class Config:
-        from_attributes = True
 
 
 class ApplianceAdminCreated(ApplianceRead):

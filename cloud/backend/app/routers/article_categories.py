@@ -1,11 +1,12 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Article, ArticleCategory, Organisation, User
-from .auth import get_current_user, get_db
+from .auth import get_current_user
+from ..deps import get_db
 
 router = APIRouter()
 
@@ -26,12 +27,11 @@ class ArticleCategoryUpdate(BaseModel):
 
 
 class ArticleCategoryRead(ArticleCategoryBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     organisation_name: str
     article_count: int
-
-    class Config:
-        from_attributes = True
 
 
 def category_response(category: ArticleCategory) -> dict:

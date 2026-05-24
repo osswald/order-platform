@@ -77,12 +77,12 @@ import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import MultiSelect from 'primevue/multiselect'
 import { apiFetch } from '../api'
+import { parseApiErrorDetail } from '../utils/apiError'
 import {
   applianceDisplayName,
   applianceTypeLabel,
-  parseApiErrorDetail,
   toIsoDate,
-} from '../applianceLending'
+} from '../utils/applianceLending'
 
 const props = defineProps({
   visible: {

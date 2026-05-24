@@ -189,7 +189,7 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'
-import { cancelPlannedLending } from '../applianceLending'
+import { cancelPlannedLending } from '../utils/applianceLending'
 
 const organisations = ref([])
 const showDetail = ref(false)

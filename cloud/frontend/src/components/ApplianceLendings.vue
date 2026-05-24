@@ -105,7 +105,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
-import { cancelPlannedLending } from '../applianceLending'
+import { cancelPlannedLending } from '../utils/applianceLending'
 
 const props = defineProps({
   activeOrganisationId: {
