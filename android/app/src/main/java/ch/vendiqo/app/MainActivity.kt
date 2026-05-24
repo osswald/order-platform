@@ -1,4 +1,4 @@
-package ch.orderplatform.pi
+package ch.vendiqo.app
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -7,9 +7,11 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
+    private lateinit var printerBridge: BluetoothPrinterBridge
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,7 +33,22 @@ class MainActivity : ComponentActivity() {
             userAgentString = "$userAgentString PiFrontendAndroid"
         }
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        webView.addJavascriptInterface(BluetoothPrinterBridge(this), "AndroidPrinter")
+        printerBridge = BluetoothPrinterBridge(this)
+        webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (webView.canGoBack()) {
+                        webView.goBack()
+                    } else {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            },
+        )
 
         val remoteUrl = intent.getStringExtra("frontend_url")?.trim().orEmpty()
         if (remoteUrl.startsWith("http://") || remoteUrl.startsWith("https://")) {
@@ -41,12 +58,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            @Suppress("DEPRECATION")
-            super.onBackPressed()
+    override fun onDestroy() {
+        if (::webView.isInitialized) {
+            webView.destroy()
         }
+        super.onDestroy()
     }
 }

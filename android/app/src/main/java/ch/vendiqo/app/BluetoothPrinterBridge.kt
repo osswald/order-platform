@@ -1,4 +1,4 @@
-package ch.orderplatform.pi
+package ch.vendiqo.app
 
 import android.Manifest
 import android.app.Activity
@@ -54,7 +54,7 @@ class BluetoothPrinterBridge(private val activity: Activity) {
                     Manifest.permission.BLUETOOTH_CONNECT,
                     Manifest.permission.BLUETOOTH_SCAN,
                 ),
-                4101,
+                PERMISSION_REQUEST_CODE,
             )
         }
         return ok("requested" to true, "granted" to hasConnectPermission())
@@ -120,5 +120,9 @@ class BluetoothPrinterBridge(private val activity: Activity) {
         } catch (e: Exception) {
             error(e.message ?: "Bluetooth print failed.")
         }
+    }
+
+    companion object {
+        const val PERMISSION_REQUEST_CODE = 4101
     }
 }

@@ -19,3 +19,12 @@ dist/
 
 # IDE
 .vscode/
+android/.idea/
+
+# Android
+android/.gradle/
+android/local.properties
+android/keystore.properties
+android/app/build/
+android/build/
+android/app/src/main/assets/public/
