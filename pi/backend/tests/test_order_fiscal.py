@@ -4,67 +4,19 @@ import json
 import uuid
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from app.database import Base, apply_schema_patches
-from app.main import app
-from app.models import LocalOrder, SyncedBundle
+from app.models import LocalOrder
+from tests.fixtures_bundles import bundle_copy, order_fiscal_bundle
 
 
 @pytest.fixture
-def client():
-    import app.database as database
+def bundle():
+    return bundle_copy(order_fiscal_bundle())
 
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    database.engine = engine
-    database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    Session = database.SessionLocal
-    db = Session()
-    bundle = {
-        "organisation_id": 1,
-        "events": [
-            {
-                "id": 1,
-                "name": "Test",
-                "currency": "CHF",
-                "payment_mode": "pay_later",
-                "payment_types": ["cash"],
-                "articles": {
-                    "10": {"id": 10, "name": "Bier", "price": 5.0, "additions": []},
-                },
-                "configuration": {
-                    "stations": [],
-                    "waiters": [{"uuid": "w-1", "name": "Anna"}],
-                },
-            }
-        ],
-    }
-    db.add(SyncedBundle(id=1, json_body=json.dumps(bundle)))
-    db.commit()
-    db.close()
 
-    from app.routers import edge_api
-
-    def override_get_db():
-        session = Session()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    app.dependency_overrides[edge_api.get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c, Session
-    app.dependency_overrides.clear()
+@pytest.fixture
+def client(client_session):
+    return client_session
 
 
 def _ferdig(client, table: int = 5, qty: int = 1):

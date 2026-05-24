@@ -3,54 +3,14 @@
 import json
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from app.database import Base, apply_schema_patches
-from app.main import app
-from app.models import SyncedBundle
 from app.security import get_password_hash
+from tests.fixtures_bundles import admin_bundle, bundle_copy
 
 
 @pytest.fixture
-def client():
-    import app.database as database
-
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    database.engine = engine
-    database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    Session = database.SessionLocal
-    db = Session()
-    bundle = {
-        "organisation_id": 1,
-        "admin_pin_hashes": [get_password_hash("123456")],
-        "events": [],
-    }
-    db.add(SyncedBundle(id=1, json_body=json.dumps(bundle)))
-    db.commit()
-    db.close()
-
-    from app.routers import edge_api
-
-    def override_get_db():
-        session = Session()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    app.dependency_overrides[edge_api.get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+def bundle():
+    return bundle_copy(admin_bundle(pin_hashes=[get_password_hash("123456")]))
 
 
 def test_admin_verify_success(client):
@@ -66,6 +26,8 @@ def test_admin_verify_wrong_pin(client):
 
 def test_admin_verify_no_hashes(client):
     import app.database as database
+
+    from app.models import SyncedBundle
 
     Session = database.SessionLocal
     db = Session()
@@ -83,15 +45,15 @@ def test_admin_verify_no_hashes(client):
 def test_admin_verify_skips_corrupt_hash(client):
     import app.database as database
 
+    from app.models import SyncedBundle
+
     Session = database.SessionLocal
     db = Session()
-    bundle = {
-        "organisation_id": 1,
-        "admin_pin_hashes": ["not-a-valid-bcrypt-hash", get_password_hash("654321")],
-        "events": [],
-    }
+    updated = bundle_copy(
+        admin_bundle(pin_hashes=["not-a-valid-bcrypt-hash", get_password_hash("654321")])
+    )
     db.query(SyncedBundle).filter(SyncedBundle.id == 1).update(
-        {SyncedBundle.json_body: json.dumps(bundle)}
+        {SyncedBundle.json_body: json.dumps(updated)}
     )
     db.commit()
     db.close()

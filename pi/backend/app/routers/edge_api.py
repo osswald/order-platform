@@ -19,22 +19,32 @@ from ..sync_service import (
     sync_status,
 )
 from ..deps import get_db
+from ..schemas.bundle import EdgeBundleResponse
 from ..schemas.edge import (
+    AccountSummaryResponse,
     AdminStatusResponse,
     AdminVerifyBody,
     AssignCollectiveBody,
+    AssignCollectiveResponse,
+    CollectiveBillCreatedResponse,
+    CollectivePartialSettleResponse,
+    CollectiveSettleResponse,
     CollectiveBillCreateBody,
     EscposPayloadResponse,
+    KitchenOrdersResponse,
     KitchenStationsResponse,
     KitchenTicketPrintResponse,
     LineSelection,
     LocalOrderCreate,
     LocalOrderCreatedResponse,
     OkResponse,
+    OpenCollectiveBillsResponse,
+    OpenTablesResponse,
     OrderPayBody,
     OrderPayResponse,
     PaymentReceiptBody,
     PaymentReceiptEscposResponse,
+    PaymentsListResponse,
     PickupOrdersResponse,
     PickupPickedUpResponse,
     PrinterTestReceiptBody,
@@ -45,9 +55,12 @@ from ..schemas.edge import (
     SyncPullResponse,
     SyncPushResponse,
     SyncStatusResponse,
+    TablePartialSettleResponse,
     TableSettleBody,
     TableSettlePartialBody,
+    TableSettleResponse,
     TransferLinesBody,
+    TransferLinesResponse,
 )
 from ..order_line_utils import copy_line_fiscal_fields
 from ..order_fiscal import (
@@ -485,9 +498,9 @@ async def sync_pull(db: Session = Depends(get_db)) -> SyncPullResponse:
     return SyncPullResponse(ok=True, event_count=result["event_count"])
 
 
-@router.get("/v1/bundle")
-def get_bundle(db: Session = Depends(get_db)) -> dict[str, Any]:
-    return _get_bundle_dict(db)
+@router.get("/v1/bundle", response_model=EdgeBundleResponse)
+def get_bundle(db: Session = Depends(get_db)) -> EdgeBundleResponse:
+    return EdgeBundleResponse.model_validate(_get_bundle_dict(db))
 
 
 @router.get("/v1/meta", response_model=SyncMetaResponse)
@@ -874,8 +887,8 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     return OrderPayResponse(local_order_id=order.id, payment_id=receipt.id, payment_status="paid")
 
 
-@router.get("/v1/tables/open")
-def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/v1/tables/open", response_model=OpenTablesResponse)
+def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) -> OpenTablesResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -916,15 +929,15 @@ def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) 
         {**row, "currency": currency}
         for row in sorted(by_table.values(), key=lambda r: r["table_number"])
     ]
-    return {"event_id": event_id, "currency": currency, "tables": tables}
+    return OpenTablesResponse(event_id=event_id, currency=currency, tables=tables)
 
 
-@router.get("/v1/tables/{table_number}")
+@router.get("/v1/tables/{table_number}", response_model=AccountSummaryResponse)
 def get_table_summary(
     table_number: int,
     event_id: int = Query(...),
     db: Session = Depends(get_db),
-):
+) -> AccountSummaryResponse:
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
@@ -968,11 +981,13 @@ def get_table_summary(
                 }
             )
     summary["aggregated_lines"] = aggregated_lines
-    return summary
+    return AccountSummaryResponse.model_validate(summary)
 
 
-@router.post("/v1/tables/{table_number}/settle-partial")
-def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Session = Depends(get_db)):
+@router.post("/v1/tables/{table_number}/settle-partial", response_model=TablePartialSettleResponse)
+def settle_table_partial(
+    table_number: int, body: TableSettlePartialBody, db: Session = Depends(get_db)
+) -> TablePartialSettleResponse:
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
@@ -1135,17 +1150,19 @@ def settle_table_partial(table_number: int, body: TableSettlePartialBody, db: Se
         cents, _ = _line_totals(payload.get("lines") or [], arts)
         remaining_cents += cents
 
-    return {
-        "paid_cents": expected_cents,
-        "remaining_cents": remaining_cents,
-        "paid_order_ids": paid_order_ids,
-        "payment_id": payment_id,
-        "table_number": table_number,
-    }
+    return TablePartialSettleResponse(
+        paid_cents=expected_cents,
+        remaining_cents=remaining_cents,
+        paid_order_ids=paid_order_ids,
+        payment_id=payment_id,
+        table_number=table_number,
+    )
 
 
-@router.post("/v1/tables/{table_number}/settle")
-def settle_table(table_number: int, body: TableSettleBody, db: Session = Depends(get_db)):
+@router.post("/v1/tables/{table_number}/settle", response_model=TableSettleResponse)
+def settle_table(
+    table_number: int, body: TableSettleBody, db: Session = Depends(get_db)
+) -> TableSettleResponse:
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
@@ -1215,20 +1232,22 @@ def settle_table(table_number: int, body: TableSettleBody, db: Session = Depends
         source_id=table_number,
     )
     db.commit()
-    return {
-        "paid_order_ids": paid_ids,
-        "payment_id": receipt.id,
-        "total_cents": total_cents,
-        "table_number": table_number,
-    }
+    return TableSettleResponse(
+        paid_order_ids=paid_ids,
+        payment_id=receipt.id,
+        total_cents=total_cents,
+        table_number=table_number,
+    )
 
 
 def _selections_from_body(selections: list[LineSelection]) -> list[dict]:
     return [s.model_dump() for s in selections]
 
 
-@router.post("/v1/tables/{from_table}/transfer-lines")
-def transfer_table_lines(from_table: int, body: TransferLinesBody, db: Session = Depends(get_db)):
+@router.post("/v1/tables/{from_table}/transfer-lines", response_model=TransferLinesResponse)
+def transfer_table_lines(
+    from_table: int, body: TransferLinesBody, db: Session = Depends(get_db)
+) -> TransferLinesResponse:
     if from_table < 1 or from_table > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
     if body.target_table_number == from_table:
@@ -1273,15 +1292,17 @@ def transfer_table_lines(from_table: int, body: TransferLinesBody, db: Session =
         sync_outbox=_sync_outbox_payload,
     )
     db.commit()
-    return {
-        "from_table": from_table,
-        "target_table_number": body.target_table_number,
-        "moved_line_count": len(moved),
-    }
+    return TransferLinesResponse(
+        from_table=from_table,
+        target_table_number=body.target_table_number,
+        moved_line_count=len(moved),
+    )
 
 
-@router.post("/v1/tables/{from_table}/assign-collective")
-def assign_table_to_collective(from_table: int, body: AssignCollectiveBody, db: Session = Depends(get_db)):
+@router.post("/v1/tables/{from_table}/assign-collective", response_model=AssignCollectiveResponse)
+def assign_table_to_collective(
+    from_table: int, body: AssignCollectiveBody, db: Session = Depends(get_db)
+) -> AssignCollectiveResponse:
     if from_table < 1 or from_table > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
     if not body.selections:
@@ -1337,16 +1358,18 @@ def assign_table_to_collective(from_table: int, body: AssignCollectiveBody, db: 
         sync_outbox=_sync_outbox_payload,
     )
     db.commit()
-    return {
-        "collective_bill_id": bill.id,
-        "collective_bill_uuid": bill.uuid,
-        "name": bill.name,
-        "from_table": from_table,
-    }
+    return AssignCollectiveResponse(
+        collective_bill_id=bill.id,
+        collective_bill_uuid=bill.uuid,
+        name=bill.name,
+        from_table=from_table,
+    )
 
 
-@router.post("/v1/collective-bills")
-def create_collective_bill(body: CollectiveBillCreateBody, db: Session = Depends(get_db)):
+@router.post("/v1/collective-bills", response_model=CollectiveBillCreatedResponse)
+def create_collective_bill(
+    body: CollectiveBillCreateBody, db: Session = Depends(get_db)
+) -> CollectiveBillCreatedResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, body.event_id)
     if not ev:
@@ -1360,18 +1383,20 @@ def create_collective_bill(body: CollectiveBillCreateBody, db: Session = Depends
     db.add(bill)
     db.commit()
     db.refresh(bill)
-    return {
-        "id": bill.id,
-        "uuid": bill.uuid,
-        "name": bill.name,
-        "event_id": bill.event_id,
-        "total_cents": 0,
-        "order_count": 0,
-    }
+    return CollectiveBillCreatedResponse(
+        id=bill.id,
+        uuid=bill.uuid,
+        name=bill.name,
+        event_id=bill.event_id,
+        total_cents=0,
+        order_count=0,
+    )
 
 
-@router.get("/v1/collective-bills/open")
-def list_open_collective_bills(event_id: int = Query(...), db: Session = Depends(get_db)):
+@router.get("/v1/collective-bills/open", response_model=OpenCollectiveBillsResponse)
+def list_open_collective_bills(
+    event_id: int = Query(...), db: Session = Depends(get_db)
+) -> OpenCollectiveBillsResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -1417,15 +1442,17 @@ def list_open_collective_bills(event_id: int = Query(...), db: Session = Depends
                 "currency": currency,
             }
         )
-    return {"event_id": event_id, "currency": currency, "collective_bills": result}
+    return OpenCollectiveBillsResponse(
+        event_id=event_id, currency=currency, collective_bills=result
+    )
 
 
-@router.get("/v1/collective-bills/{bill_id}")
+@router.get("/v1/collective-bills/{bill_id}", response_model=AccountSummaryResponse)
 def get_collective_bill_summary(
     bill_id: int,
     event_id: int = Query(...),
     db: Session = Depends(get_db),
-):
+) -> AccountSummaryResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -1460,7 +1487,7 @@ def get_collective_bill_summary(
             "event_id": event_id,
         },
     )
-    return summary
+    return AccountSummaryResponse.model_validate(summary)
 
 
 def _settle_orders_partial(
@@ -1604,12 +1631,12 @@ def _settle_orders_partial(
     }
 
 
-@router.post("/v1/collective-bills/{bill_id}/settle-partial")
+@router.post("/v1/collective-bills/{bill_id}/settle-partial", response_model=CollectivePartialSettleResponse)
 def settle_collective_partial(
     bill_id: int,
     body: TableSettlePartialBody,
     db: Session = Depends(get_db),
-):
+) -> CollectivePartialSettleResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, body.event_id)
     if not ev:
@@ -1665,15 +1692,19 @@ def settle_collective_partial(
         cents, _ = _line_totals(payload.get("lines") or [], arts)
         remaining_cents += cents
 
-    return {
-        **result,
-        "remaining_cents": remaining_cents,
-        "collective_bill_id": bill.id,
-    }
+    return CollectivePartialSettleResponse(
+        paid_cents=result["paid_cents"],
+        paid_order_ids=result["paid_order_ids"],
+        payment_id=result["payment_id"],
+        remaining_cents=remaining_cents,
+        collective_bill_id=bill.id,
+    )
 
 
-@router.post("/v1/collective-bills/{bill_id}/settle")
-def settle_collective(bill_id: int, body: TableSettleBody, db: Session = Depends(get_db)):
+@router.post("/v1/collective-bills/{bill_id}/settle", response_model=CollectiveSettleResponse)
+def settle_collective(
+    bill_id: int, body: TableSettleBody, db: Session = Depends(get_db)
+) -> CollectiveSettleResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, body.event_id)
     if not ev:
@@ -1751,12 +1782,12 @@ def settle_collective(bill_id: int, body: TableSettleBody, db: Session = Depends
         source_id=bill.id,
     )
     db.commit()
-    return {
-        "paid_order_ids": paid_ids,
-        "payment_id": receipt.id,
-        "total_cents": total_cents,
-        "collective_bill_id": bill.id,
-    }
+    return CollectiveSettleResponse(
+        paid_order_ids=paid_ids,
+        payment_id=receipt.id,
+        total_cents=total_cents,
+        collective_bill_id=bill.id,
+    )
 
 
 def _bundle_dict_optional(db: Session) -> dict | None:
@@ -1935,12 +1966,12 @@ def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_
     return KitchenStationsResponse(stations=_kitchen_stations_for_event(ev))
 
 
-@router.get("/v1/kitchen/orders")
+@router.get("/v1/kitchen/orders", response_model=KitchenOrdersResponse)
 def list_kitchen_orders(
     event_id: int = Query(...),
     station_uuid: str = Query(...),
     db: Session = Depends(get_db),
-) -> dict[str, Any]:
+) -> KitchenOrdersResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -1967,7 +1998,7 @@ def list_kitchen_orders(
         serialized = _serialize_kitchen_ticket(ticket, order, lines, ev)
         if serialized["lines"]:
             out.append(serialized)
-    return {"orders": out}
+    return KitchenOrdersResponse(orders=out)
 
 
 @router.post("/v1/kitchen/tickets/{ticket_id}/print", response_model=KitchenTicketPrintResponse)
@@ -2123,13 +2154,13 @@ def put_register_display(
     )
 
 
-@router.get("/v1/payments")
+@router.get("/v1/payments", response_model=PaymentsListResponse)
 def list_payments(
     event_id: int = Query(...),
     waiter_uuid: str | None = Query(None),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-) -> dict[str, Any]:
+) -> PaymentsListResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
@@ -2166,7 +2197,7 @@ def list_payments(
                 "currency": ev.get("currency", "EUR"),
             }
         )
-    return {"payments": payments}
+    return PaymentsListResponse(payments=payments)
 
 
 @router.post("/v1/payments/{payment_id}/receipt", response_model=PaymentReceiptEscposResponse)

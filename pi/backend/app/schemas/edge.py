@@ -201,3 +201,125 @@ class PrintJobSummary(BaseModel):
     printer_host: str | None
     status: str | None
     last_error: str | None
+
+
+class OpenTableRow(BaseModel):
+    table_number: int
+    order_count: int
+    total_cents: int
+    item_count: int
+    currency: str
+
+
+class OpenTablesResponse(BaseModel):
+    event_id: int
+    currency: str
+    tables: list[OpenTableRow]
+
+
+class AccountSummaryResponse(BaseModel):
+    """Table or collective-bill open balance summary."""
+
+    model_config = ConfigDict(extra="allow")
+
+    currency: str
+    open_orders: list[dict[str, Any]]
+    line_groups: list[dict[str, Any]]
+    total_cents: int
+    item_count: int
+
+
+class TableSettleResponse(BaseModel):
+    paid_order_ids: list[int]
+    payment_id: int
+    total_cents: int
+    table_number: int
+
+
+class PartialSettleResponse(BaseModel):
+    paid_cents: int
+    paid_order_ids: list[int]
+    payment_id: int
+
+
+class TablePartialSettleResponse(PartialSettleResponse):
+    remaining_cents: int
+    table_number: int
+
+
+class TransferLinesResponse(BaseModel):
+    from_table: int
+    target_table_number: int
+    moved_line_count: int
+
+
+class AssignCollectiveResponse(BaseModel):
+    collective_bill_id: int
+    collective_bill_uuid: str
+    name: str
+    from_table: int
+
+
+class CollectiveBillCreatedResponse(BaseModel):
+    id: int
+    uuid: str
+    name: str
+    event_id: int
+    total_cents: int
+    order_count: int
+
+
+class CollectiveBillListItem(BaseModel):
+    id: int
+    uuid: str
+    name: str
+    order_count: int
+    total_cents: int
+    item_count: int
+    currency: str
+
+
+class OpenCollectiveBillsResponse(BaseModel):
+    event_id: int
+    currency: str
+    collective_bills: list[CollectiveBillListItem]
+
+
+class CollectivePartialSettleResponse(PartialSettleResponse):
+    remaining_cents: int
+    collective_bill_id: int
+
+
+class CollectiveSettleResponse(BaseModel):
+    paid_order_ids: list[int]
+    payment_id: int
+    total_cents: int
+    collective_bill_id: int
+
+
+class KitchenOrderTicket(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    local_order_id: int
+    event_id: int
+    station_uuid: str
+    status: str
+    lines: list[dict[str, Any]]
+
+
+class KitchenOrdersResponse(BaseModel):
+    orders: list[KitchenOrderTicket]
+
+
+class PaymentListItem(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    payment_id: int
+    total_cents: int
+    item_count: int
+    currency: str
+
+
+class PaymentsListResponse(BaseModel):
+    payments: list[PaymentListItem]

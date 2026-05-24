@@ -1,3 +1,4 @@
+from .bundle import EdgeBundleResponse
 from .common import HealthResponse, MessageResponse
 from .edge import (
     AdminStatusResponse,
@@ -33,6 +34,7 @@ from .edge import (
 __all__ = [
     "HealthResponse",
     "MessageResponse",
+    "EdgeBundleResponse",
     "AdminStatusResponse",
     "AdminVerifyBody",
     "AssignCollectiveBody",
