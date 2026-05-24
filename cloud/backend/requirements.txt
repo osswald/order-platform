@@ -8,3 +8,4 @@ bcrypt<5
 python-jose[cryptography]
 email-validator
 python-multipart
+slowapi

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
+from ..rate_limit import LOGIN_RATE_LIMIT, limiter
 from ..models import User
 from ..schemas import MessageResponse
 from ..security import (
@@ -77,7 +78,9 @@ class PasswordChange(BaseModel):
 
 
 @router.post("/token", response_model=Token)
+@limiter.limit(LOGIN_RATE_LIMIT)
 def login_for_access_token(
+    request: Request,
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),

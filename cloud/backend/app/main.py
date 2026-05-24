@@ -3,6 +3,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from .database import SessionLocal, apply_schema_patches, engine, Base
 from .models import User
@@ -19,6 +22,7 @@ from .routers import (
     users,
     waiters,
 )
+from .rate_limit import limiter
 from .security import get_password_hash
 
 allowed_origins = [
@@ -59,7 +63,22 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title=os.getenv("APP_NAME", "cloud-backend"), lifespan=lifespan)
+_enable_openapi = os.getenv("ENABLE_OPENAPI", "true").lower() == "true"
+_openapi_url = "/openapi.json" if _enable_openapi else None
+_docs_url = "/docs" if _enable_openapi else None
+_redoc_url = "/redoc" if _enable_openapi else None
+
+app = FastAPI(
+    title=os.getenv("APP_NAME", "cloud-backend"),
+    lifespan=lifespan,
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

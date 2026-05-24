@@ -2,10 +2,31 @@
 	email admin@vendiqo.ch
 }
 
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+(admin_headers) {
+	import security_headers
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.vendiqo.ch; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+}
+
 admin.vendiqo.ch {
-	reverse_proxy cloud-frontend:80
+	import admin_headers
+	reverse_proxy cloud-frontend:80 {
+		header_down -Server
+	}
 }
 
 api.vendiqo.ch {
-	reverse_proxy cloud-backend:8000
+	import security_headers
+	reverse_proxy cloud-backend:8000 {
+		header_down -Server
+	}
 }
