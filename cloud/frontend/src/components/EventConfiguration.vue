@@ -97,16 +97,61 @@
           </DataTable>
         </TabPanel>
 
-        <TabPanel header="Lagerartikel">
-          <EventStockTab :event-id="eventId" :stations="stationsLocal" />
-        </TabPanel>
-
-        <TabPanel header="Umsatz">
-          <EventSalesTab :event-id="eventId" />
-        </TabPanel>
-
-        <TabPanel header="Sammelrechnungen">
-          <EventCollectiveBillsTab :event-id="eventId" />
+        <TabPanel header="Kassen">
+          <div class="section-toolbar">
+            <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
+          </div>
+          <div v-for="(reg, ri) in cashRegistersLocal" :key="'reg-' + ri" class="config-card">
+            <div class="config-card-header">
+              <span>{{ reg.name || 'Unbenannte Kasse' }}</span>
+              <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeCashRegister(ri)" />
+            </div>
+            <div class="field-row">
+              <div class="form-field">
+                <label>Name</label>
+                <InputText v-model="reg.name" placeholder="z. B. Hauptkasse" />
+              </div>
+              <div class="form-field">
+                <label>Pickup-Code Buchstaben</label>
+                <InputText
+                  :modelValue="reg.pickup_code_prefix"
+                  maxlength="3"
+                  placeholder="A"
+                  @update:modelValue="(v) => { reg.pickup_code_prefix = normalizePickupPrefix(v) }"
+                />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="form-field">
+                <label>PIN</label>
+                <InputText v-model="reg.pin" maxlength="4" placeholder="0000" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="form-field">
+                <label>Layout</label>
+                <Select
+                  v-model="reg.layout_uuid"
+                  :options="layoutOptions"
+                  optionLabel="name"
+                  optionValue="value"
+                  placeholder="Layout wählen"
+                />
+              </div>
+              <div class="form-field">
+                <label>Kundendrucker</label>
+                <Select
+                  v-model="reg.receipt_printer_appliance_id"
+                  :options="printerOptions"
+                  optionLabel="name"
+                  optionValue="id"
+                  placeholder="Kein Drucker"
+                  showClear
+                />
+              </div>
+            </div>
+          </div>
+          <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
         </TabPanel>
 
         <TabPanel header="App-Layouts">
@@ -169,61 +214,16 @@
           </div>
         </TabPanel>
 
-        <TabPanel header="Kassen">
-          <div class="section-toolbar">
-            <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
-          </div>
-          <div v-for="(reg, ri) in cashRegistersLocal" :key="'reg-' + ri" class="config-card">
-            <div class="config-card-header">
-              <span>{{ reg.name || 'Unbenannte Kasse' }}</span>
-              <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeCashRegister(ri)" />
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <label>Name</label>
-                <InputText v-model="reg.name" placeholder="z. B. Hauptkasse" />
-              </div>
-              <div class="form-field">
-                <label>Pickup-Code Buchstaben</label>
-                <InputText
-                  :modelValue="reg.pickup_code_prefix"
-                  maxlength="3"
-                  placeholder="A"
-                  @update:modelValue="(v) => { reg.pickup_code_prefix = normalizePickupPrefix(v) }"
-                />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <label>PIN</label>
-                <InputText v-model="reg.pin" maxlength="4" placeholder="0000" />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <label>Layout</label>
-                <Select
-                  v-model="reg.layout_uuid"
-                  :options="layoutOptions"
-                  optionLabel="name"
-                  optionValue="value"
-                  placeholder="Layout wählen"
-                />
-              </div>
-              <div class="form-field">
-                <label>Kundendrucker</label>
-                <Select
-                  v-model="reg.receipt_printer_appliance_id"
-                  :options="printerOptions"
-                  optionLabel="name"
-                  optionValue="id"
-                  placeholder="Kein Drucker"
-                  showClear
-                />
-              </div>
-            </div>
-          </div>
-          <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
+        <TabPanel header="Lagerartikel">
+          <EventStockTab :event-id="eventId" :stations="stationsLocal" />
+        </TabPanel>
+
+        <TabPanel header="Umsatz">
+          <EventSalesTab :event-id="eventId" />
+        </TabPanel>
+
+        <TabPanel header="Sammelrechnungen">
+          <EventCollectiveBillsTab :event-id="eventId" />
         </TabPanel>
       </TabView>
 
