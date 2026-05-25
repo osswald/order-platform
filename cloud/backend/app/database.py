@@ -93,6 +93,18 @@ def apply_schema_patches() -> None:
         "ALTER TABLE events ADD COLUMN IF NOT EXISTS twint_qr_data TEXT",
     )
     _add_column_if_missing(
+        "events",
+        "cash_registers_enabled",
+        "ALTER TABLE events ADD COLUMN cash_registers_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS cash_registers_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "events",
+        "vouchers_enabled",
+        "ALTER TABLE events ADD COLUMN vouchers_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS vouchers_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
         "articles",
         "is_addition",
         "ALTER TABLE articles ADD COLUMN is_addition BOOLEAN NOT NULL DEFAULT 0",

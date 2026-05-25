@@ -109,6 +109,8 @@ class Event(Base):
     payment_types = Column(JSON, nullable=False, default=lambda: ["cash"])
     twint_qr_mime = Column(String(64), nullable=True)
     twint_qr_data = Column(String, nullable=True)  # base64-encoded PNG/SVG
+    cash_registers_enabled = Column(Boolean, nullable=False, default=False)
+    vouchers_enabled = Column(Boolean, nullable=False, default=False)
     organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
     organisation = relationship("Organisation", back_populates="events")
     stations = relationship(

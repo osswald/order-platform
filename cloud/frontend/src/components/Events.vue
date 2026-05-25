@@ -14,159 +14,62 @@
         v-if="editMode && activeId"
         :event-id="activeId"
         :organisation-id="activeOrganisationId"
+        :event-status="form.status"
+        :cash-registers-enabled="form.cashRegistersEnabled"
+        :vouchers-enabled="form.vouchersEnabled"
       >
         <template #stammdaten>
-          <div class="event-stammdaten">
-            <div class="form-field">
-              <label>Name</label>
-              <InputText v-model="form.name" placeholder="Sommerfest 2026" />
-            </div>
-
-            <div class="field-row">
-              <div class="form-field">
-                <label>Status</label>
-                <Select v-model="form.status" :options="selectableStatusOptions" optionLabel="label" optionValue="value" placeholder="Status wählen" />
-              </div>
-              <div class="form-field">
-                <label>Währung</label>
-                <Select v-model="form.currency" :options="currencyOptions" placeholder="Währung wählen" />
-              </div>
-            </div>
-
-            <div class="field-row">
-              <div class="form-field">
-                <label>Start</label>
-                <DatePicker v-model="form.start" showIcon showTime hourFormat="24" dateFormat="dd.mm.yy" placeholder="Startdatum wählen" />
-              </div>
-              <div class="form-field">
-                <label>Ende</label>
-                <DatePicker v-model="form.end" showIcon showTime hourFormat="24" dateFormat="dd.mm.yy" placeholder="Enddatum wählen" />
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Zahlungsmodus (Pi / Kellner)</label>
-              <Select
-                v-model="form.paymentMode"
-                :options="paymentModeOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Modus wählen"
-              />
-              <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = vor Abschluss; Später = nach Absenden.</small>
-            </div>
-
-            <div class="form-field">
-              <label>Zahlungsarten (Pi)</label>
-              <MultiSelect
-                v-model="form.paymentTypes"
-                :options="paymentTypeOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Zahlungsarten wählen"
-                display="chip"
-                class="w-full"
-              />
-              <small>Bei Abrechnung wählt der Kellner eine Art (Popup nur bei mehreren).</small>
-            </div>
-
-            <TwintQrField
-              v-if="showTwintQrSection"
-              :edit-mode="editMode"
-              :active-id="activeId"
-              :has-twint-qr="hasTwintQr"
-              :preview-url="twintQrPreviewUrl"
-              :busy="twintQrBusy"
-              @upload="uploadTwintQr"
-              @remove="removeTwintQr"
+          <EventStammdatenFields
+            :form="form"
+            :selectable-status-options="selectableStatusOptions"
+            :currency-options="currencyOptions"
+            :payment-mode-options="paymentModeOptions"
+            :payment-type-options="paymentTypeOptions"
+            :show-twint-qr-section="showTwintQrSection"
+            :edit-mode="editMode"
+            :active-id="activeId"
+            :has-twint-qr="hasTwintQr"
+            :twint-qr-preview-url="twintQrPreviewUrl"
+            :twint-qr-busy="twintQrBusy"
+            @upload="uploadTwintQr"
+            @remove="removeTwintQr"
+          />
+          <div class="actions">
+            <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
+            <Button
+              label="Event kopieren"
+              class="secondary-button"
+              type="button"
+              :disabled="copyBusy"
+              @click="copyEvent"
             />
-
-            <div class="actions">
-              <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-              <Button
-                label="Event kopieren"
-                class="secondary-button"
-                type="button"
-                :disabled="copyBusy"
-                @click="copyEvent"
-              />
-              <Button
-                label="Speichern"
-                class="primary-button"
-                :disabled="!canSave"
-                @click="saveEvent"
-              />
-            </div>
-            <p v-if="message" :class="messageType">{{ message }}</p>
+            <Button
+              label="Speichern"
+              class="primary-button"
+              :disabled="!canSave"
+              @click="saveEvent"
+            />
           </div>
+          <p v-if="message" :class="messageType">{{ message }}</p>
         </template>
       </EventConfiguration>
 
       <template v-else>
-        <div class="form-field">
-          <label>Name</label>
-          <InputText v-model="form.name" placeholder="Sommerfest 2026" />
-        </div>
-
-        <div class="field-row">
-          <div class="form-field">
-            <label>Status</label>
-            <Select v-model="form.status" :options="selectableStatusOptions" optionLabel="label" optionValue="value" placeholder="Status wählen" />
-          </div>
-          <div class="form-field">
-            <label>Währung</label>
-            <Select v-model="form.currency" :options="currencyOptions" placeholder="Währung wählen" />
-          </div>
-        </div>
-
-        <div class="field-row">
-          <div class="form-field">
-            <label>Start</label>
-            <DatePicker v-model="form.start" showIcon showTime hourFormat="24" dateFormat="dd.mm.yy" placeholder="Startdatum wählen" />
-          </div>
-          <div class="form-field">
-            <label>Ende</label>
-            <DatePicker v-model="form.end" showIcon showTime hourFormat="24" dateFormat="dd.mm.yy" placeholder="Enddatum wählen" />
-          </div>
-        </div>
-
-        <div class="form-field">
-          <label>Zahlungsmodus (Pi / Kellner)</label>
-          <Select
-            v-model="form.paymentMode"
-            :options="paymentModeOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Modus wählen"
-          />
-          <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = vor Abschluss; Später = nach Absenden.</small>
-        </div>
-
-        <div class="form-field">
-          <label>Zahlungsarten (Pi)</label>
-          <MultiSelect
-            v-model="form.paymentTypes"
-            :options="paymentTypeOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Zahlungsarten wählen"
-            display="chip"
-            class="w-full"
-          />
-          <small>Bei Abrechnung wählt der Kellner eine Art (Popup nur bei mehreren).</small>
-        </div>
-
-        <TwintQrField
-          v-if="showTwintQrSection"
+        <EventStammdatenFields
+          :form="form"
+          :selectable-status-options="selectableStatusOptions"
+          :currency-options="currencyOptions"
+          :payment-mode-options="paymentModeOptions"
+          :payment-type-options="paymentTypeOptions"
+          :show-twint-qr-section="showTwintQrSection"
           :edit-mode="editMode"
           :active-id="activeId"
           :has-twint-qr="hasTwintQr"
-          :preview-url="twintQrPreviewUrl"
-          :busy="twintQrBusy"
+          :twint-qr-preview-url="twintQrPreviewUrl"
+          :twint-qr-busy="twintQrBusy"
           @upload="uploadTwintQr"
           @remove="removeTwintQr"
         />
-
         <div class="actions">
           <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
           <Button
@@ -251,17 +154,15 @@ import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
-import DatePicker from 'primevue/datepicker'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Paginator from 'primevue/paginator'
-import MultiSelect from 'primevue/multiselect'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ListDetailLayout from './ListDetailLayout.vue'
 import EventConfiguration from './EventConfiguration.vue'
-import TwintQrField from './TwintQrField.vue'
+import EventStammdatenFields from './EventStammdatenFields.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
@@ -324,6 +225,8 @@ const emptyForm = () => ({
   currency: 'EUR',
   paymentMode: 'pay_later',
   paymentTypes: ['cash'],
+  cashRegistersEnabled: false,
+  vouchersEnabled: false,
 })
 
 const form = ref(emptyForm())
@@ -551,6 +454,8 @@ async function applyEventToForm(event) {
     paymentTypes: Array.isArray(event.payment_types) && event.payment_types.length
       ? [...event.payment_types]
       : ['cash'],
+    cashRegistersEnabled: Boolean(event.cash_registers_enabled),
+    vouchersEnabled: Boolean(event.vouchers_enabled),
   }
   originalStatus.value = event.status || 'config'
   message.value = ''
@@ -661,6 +566,8 @@ async function saveEvent() {
     currency: form.value.currency,
     payment_mode: form.value.paymentMode,
     payment_types: form.value.paymentTypes,
+    cash_registers_enabled: Boolean(form.value.cashRegistersEnabled),
+    vouchers_enabled: Boolean(form.value.vouchersEnabled),
   }
   if (!editMode.value) {
     payload.organisation_id = props.activeOrganisationId
@@ -732,28 +639,6 @@ h2 {
   margin-bottom: 1rem;
 }
 
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-label {
-  color: var(--p-text-color);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-small {
-  color: var(--p-text-muted-color);
-}
-
-:deep(.p-inputtext),
-:deep(.p-select),
-:deep(.p-datepicker) {
-  width: 100%;
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -813,7 +698,6 @@ small {
 }
 
 @media (max-width: 1000px) {
-  .field-row,
   .list-controls {
     grid-template-columns: 1fr;
   }

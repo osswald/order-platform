@@ -60,6 +60,8 @@ class EventBase(BaseModel):
     organisation_id: int
     payment_mode: str = "pay_later"
     payment_types: List[str] = Field(default_factory=lambda: ["cash"])
+    cash_registers_enabled: bool = False
+    vouchers_enabled: bool = False
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -86,6 +88,8 @@ class EventCreate(BaseModel):
     organisation_id: int | None = None
     payment_mode: str = "pay_later"
     payment_types: List[str] = Field(default_factory=lambda: ["cash"])
+    cash_registers_enabled: bool = False
+    vouchers_enabled: bool = False
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -116,6 +120,8 @@ class EventUpdate(BaseModel):
     organisation_id: int | None = None
     payment_mode: str | None = None
     payment_types: List[str] | None = None
+    cash_registers_enabled: bool | None = None
+    vouchers_enabled: bool | None = None
 
 
 class EventRead(EventBase):
@@ -268,6 +274,8 @@ def event_response(event: Event) -> dict:
         "payment_mode": getattr(event, "payment_mode", None) or "pay_later",
         "payment_types": payment_types_from_event(event),
         "has_twint_qr": has_twint_qr(event),
+        "cash_registers_enabled": bool(getattr(event, "cash_registers_enabled", False)),
+        "vouchers_enabled": bool(getattr(event, "vouchers_enabled", False)),
     }
 
 
@@ -772,6 +780,8 @@ def create_event(
         organisation_id=organisation.id,
         payment_mode=event_in.payment_mode,
         payment_types=event_in.payment_types,
+        cash_registers_enabled=bool(event_in.cash_registers_enabled),
+        vouchers_enabled=bool(event_in.vouchers_enabled),
     )
     db.add(event)
     db.commit()
@@ -859,6 +869,10 @@ def update_event(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=str(e),
             ) from e
+    if event_in.cash_registers_enabled is not None:
+        event.cash_registers_enabled = bool(event_in.cash_registers_enabled)
+    if event_in.vouchers_enabled is not None:
+        event.vouchers_enabled = bool(event_in.vouchers_enabled)
     if event.end < event.start:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="End must be after start")
 

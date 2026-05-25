@@ -8,6 +8,7 @@
     autocomplete="one-time-code"
     class="input"
     @input="onInput"
+    @keydown="onKeydown"
   />
 </template>
 
@@ -17,7 +18,14 @@ defineProps({
   maxlength: { type: Number, default: 12 },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'submit'])
+
+function onKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    emit('submit')
+  }
+}
 
 function onInput(event) {
   const max = Number(event.target.getAttribute('maxlength') || 12)

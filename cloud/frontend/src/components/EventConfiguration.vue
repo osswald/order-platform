@@ -97,7 +97,7 @@
           </DataTable>
         </TabPanel>
 
-        <TabPanel header="Kassen">
+        <TabPanel v-if="cashRegistersEnabled" header="Kassen">
           <div class="section-toolbar">
             <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
           </div>
@@ -154,7 +154,7 @@
           <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
         </TabPanel>
 
-        <TabPanel header="Gutscheine">
+        <TabPanel v-if="vouchersEnabled" header="Gutscheine">
           <div class="section-toolbar">
             <Button label="Gutschein hinzufügen" type="button" class="primary-button" @click="addVoucher" />
           </div>
@@ -265,11 +265,11 @@
           <EventStockTab :event-id="eventId" :stations="stationsLocal" />
         </TabPanel>
 
-        <TabPanel header="Umsatz">
+        <TabPanel v-if="showOperationalTabs" header="Umsatz">
           <EventSalesTab :event-id="eventId" />
         </TabPanel>
 
-        <TabPanel header="Sammelrechnungen">
+        <TabPanel v-if="showOperationalTabs" header="Sammelrechnungen">
           <EventCollectiveBillsTab :event-id="eventId" />
         </TabPanel>
       </TabView>
@@ -288,7 +288,7 @@
         <label>Farbe</label>
         <ColorPicker v-model="cellColorHex" format="hex" />
       </div>
-      <div class="form-field">
+      <div v-if="vouchersEnabled" class="form-field">
         <label>Betrags-Gutscheine (Layout-Zelle)</label>
         <MultiSelect
           v-model="cellEdit.voucher_definition_uuids"
@@ -377,7 +377,21 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  eventStatus: {
+    type: String,
+    default: 'config',
+  },
+  cashRegistersEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  vouchersEnabled: {
+    type: Boolean,
+    default: false,
+  },
 })
+
+const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 
 const loading = ref(true)
 const loadError = ref('')

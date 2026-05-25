@@ -7,6 +7,7 @@
     </div>
     <template v-else>
       <div class="card">
+        <form class="login-form" @submit.prevent="login">
         <div class="field">
           <label>Kellner</label>
           <button
@@ -37,10 +38,11 @@
         </div>
         <div class="field">
           <label>PIN</label>
-          <PinNumberInput v-model="pin" :maxlength="12" />
+          <PinNumberInput v-model="pin" :maxlength="12" @submit="login" />
         </div>
-        <button type="button" class="btn primary" @click="login">Anmelden</button>
+        <button type="submit" class="btn primary">Anmelden</button>
         <p v-if="err" class="err-msg">{{ err }}</p>
+        </form>
       </div>
     </template>
     <footer class="screen-footer">
@@ -109,6 +111,10 @@ function login() {
 </script>
 
 <style scoped>
+.login-form {
+  margin: 0;
+}
+
 .field {
   margin-bottom: 1rem;
 }
