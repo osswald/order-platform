@@ -21,19 +21,6 @@
         <small>Standard-PIN ist 0000.</small>
       </div>
 
-      <div class="form-field">
-        <label>Organisation</label>
-        <Select
-          v-model="form.organisationId"
-          :options="organisationOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Organisation wählen"
-          :disabled="organisationOptions.length === 1"
-          filter
-        />
-      </div>
-
       <div class="actions">
         <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
         <Button label="Speichern" class="primary-button" :disabled="!canSave" @click="saveWaiter" />
@@ -42,6 +29,9 @@
     </template>
 
     <template #table>
+      <p v-if="activeOrganisationId == null" class="empty-hint">
+        Bitte wählen Sie links eine Organisation.
+      </p>
       <div class="table-header">
         <h2>Alle Kellner</h2>
         <span>{{ filteredWaiters.length }} von {{ waitersInActiveOrganisation.length }} Einträgen</span>
@@ -97,7 +87,6 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Paginator from 'primevue/paginator'
-import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { matchesActiveOrganisation } from '../utils/orgScope'
@@ -110,7 +99,6 @@ const props = defineProps({
 })
 
 const waiters = ref([])
-const organisations = ref([])
 const showDetail = ref(false)
 const editMode = ref(false)
 const activeId = ref(null)
@@ -123,18 +111,15 @@ const pageSize = 20
 const emptyForm = () => ({
   name: '',
   pin: '0000',
-  organisationId: null,
 })
 
 const form = ref(emptyForm())
 
-const organisationOptions = computed(() =>
-  organisations.value.map((org) => ({ value: org.id, label: org.name }))
+const canCreateWaiters = computed(() => props.activeOrganisationId != null)
+
+const canSave = computed(
+  () => !!(props.activeOrganisationId != null && form.value.name && form.value.pin),
 )
-
-const canCreateWaiters = computed(() => organisationOptions.value.length > 0)
-
-const canSave = computed(() => !!(form.value.name && form.value.pin && form.value.organisationId))
 
 function matchesSearch(waiter, term) {
   if (!term) return true
@@ -181,6 +166,13 @@ watch([searchQuery, () => props.activeOrganisationId], () => {
   currentPage.value = 1
 })
 
+watch(
+  () => props.activeOrganisationId,
+  () => {
+    if (showDetail.value) resetForm()
+  },
+)
+
 watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
@@ -196,28 +188,11 @@ async function fetchWaiters() {
   }
 }
 
-async function fetchOrganisations() {
-  try {
-    const response = await apiFetch('/events/organisations')
-    if (response.ok) {
-      organisations.value = await response.json()
-    }
-  } catch (error) {
-    message.value = 'Organisationen konnten nicht geladen werden.'
-    messageType.value = 'error'
-  }
-}
-
 function resetForm() {
   editMode.value = false
   activeId.value = null
   showDetail.value = false
   form.value = emptyForm()
-  if (props.activeOrganisationId) {
-    form.value.organisationId = props.activeOrganisationId
-  } else if (organisationOptions.value.length === 1) {
-    form.value.organisationId = organisationOptions.value[0].value
-  }
   message.value = ''
 }
 
@@ -233,7 +208,6 @@ function editWaiter(waiter) {
   form.value = {
     name: waiter.name || '',
     pin: waiter.pin || '0000',
-    organisationId: waiter.organisation_id || null,
   }
   message.value = ''
 }
@@ -242,7 +216,9 @@ async function saveWaiter() {
   const payload = {
     name: form.value.name,
     pin: form.value.pin || '0000',
-    organisation_id: form.value.organisationId,
+  }
+  if (!editMode.value) {
+    payload.organisation_id = props.activeOrganisationId
   }
 
   try {
@@ -283,13 +259,15 @@ async function deleteWaiter(id) {
   }
 }
 
-onMounted(async () => {
-  await fetchOrganisations()
-  await fetchWaiters()
-})
+onMounted(fetchWaiters)
 </script>
 
 <style scoped>
+.empty-hint {
+  color: var(--p-text-muted-color);
+  margin: 0 0 1rem;
+}
+
 h2 {
   margin: 0 0 1.5rem;
   color: var(--p-text-color);

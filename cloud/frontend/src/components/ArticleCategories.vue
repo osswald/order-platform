@@ -15,22 +15,6 @@
         <InputText v-model="form.name" placeholder="Getränke" />
       </div>
 
-      <div class="form-field">
-        <label>Organisation</label>
-        <Select
-          v-model="form.organisationId"
-          :options="organisationOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Organisation wählen"
-          :disabled="organisationOptions.length === 1 || (editMode && activeArticleCount > 0)"
-          filter
-        />
-        <small v-if="editMode && activeArticleCount > 0">
-          Kategorien mit verknüpften Artikeln können nicht verschoben werden.
-        </small>
-      </div>
-
       <div class="actions">
         <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
         <Button label="Speichern" class="primary-button" :disabled="!canSave" @click="saveCategory" />
@@ -39,6 +23,9 @@
     </template>
 
     <template #table>
+      <p v-if="activeOrganisationId == null" class="empty-hint">
+        Bitte wählen Sie links eine Organisation.
+      </p>
       <div class="table-header">
         <h2>Alle Kategorien</h2>
         <span>{{ filteredCategories.length }} von {{ categoriesInActiveOrganisation.length }} Einträgen</span>
@@ -99,7 +86,6 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Paginator from 'primevue/paginator'
-import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { matchesActiveOrganisation } from '../utils/orgScope'
@@ -112,11 +98,9 @@ const props = defineProps({
 })
 
 const categories = ref([])
-const organisations = ref([])
 const showDetail = ref(false)
 const editMode = ref(false)
 const activeId = ref(null)
-const activeArticleCount = ref(0)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -125,18 +109,13 @@ const pageSize = 20
 
 const emptyForm = () => ({
   name: '',
-  organisationId: null,
 })
 
 const form = ref(emptyForm())
 
-const organisationOptions = computed(() =>
-  organisations.value.map((org) => ({ value: org.id, label: org.name }))
-)
+const canCreateCategories = computed(() => props.activeOrganisationId != null)
 
-const canCreateCategories = computed(() => organisationOptions.value.length > 0)
-
-const canSave = computed(() => !!(form.value.name && form.value.organisationId))
+const canSave = computed(() => !!(props.activeOrganisationId != null && form.value.name))
 
 function matchesSearch(category, term) {
   if (!term) return true
@@ -178,6 +157,13 @@ watch([searchQuery, () => props.activeOrganisationId], () => {
   currentPage.value = 1
 })
 
+watch(
+  () => props.activeOrganisationId,
+  () => {
+    if (showDetail.value) resetForm()
+  },
+)
+
 watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
@@ -193,29 +179,11 @@ async function fetchCategories() {
   }
 }
 
-async function fetchOrganisations() {
-  try {
-    const response = await apiFetch('/events/organisations')
-    if (response.ok) {
-      organisations.value = await response.json()
-    }
-  } catch (error) {
-    message.value = 'Organisationen konnten nicht geladen werden.'
-    messageType.value = 'error'
-  }
-}
-
 function resetForm() {
   editMode.value = false
   activeId.value = null
-  activeArticleCount.value = 0
   showDetail.value = false
   form.value = emptyForm()
-  if (props.activeOrganisationId) {
-    form.value.organisationId = props.activeOrganisationId
-  } else if (organisationOptions.value.length === 1) {
-    form.value.organisationId = organisationOptions.value[0].value
-  }
   message.value = ''
 }
 
@@ -228,10 +196,8 @@ function editCategory(category) {
   showDetail.value = true
   editMode.value = true
   activeId.value = category.id
-  activeArticleCount.value = category.article_count || 0
   form.value = {
     name: category.name || '',
-    organisationId: category.organisation_id || null,
   }
   message.value = ''
 }
@@ -239,7 +205,9 @@ function editCategory(category) {
 async function saveCategory() {
   const payload = {
     name: form.value.name,
-    organisation_id: form.value.organisationId,
+  }
+  if (!editMode.value) {
+    payload.organisation_id = props.activeOrganisationId
   }
 
   try {
@@ -280,13 +248,15 @@ async function deleteCategory(id) {
   }
 }
 
-onMounted(async () => {
-  await fetchOrganisations()
-  await fetchCategories()
-})
+onMounted(fetchCategories)
 </script>
 
 <style scoped>
+.empty-hint {
+  color: var(--p-text-muted-color);
+  margin: 0 0 1rem;
+}
+
 h2 {
   margin: 0 0 1.5rem;
   color: var(--p-text-color);

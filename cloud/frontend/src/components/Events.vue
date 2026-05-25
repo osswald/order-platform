@@ -13,7 +13,7 @@
       <EventConfiguration
         v-if="editMode && activeId"
         :event-id="activeId"
-        :organisation-id="form.organisationId"
+        :organisation-id="activeOrganisationId"
       >
         <template #stammdaten>
           <div class="event-stammdaten">
@@ -80,20 +80,6 @@
               @upload="uploadTwintQr"
               @remove="removeTwintQr"
             />
-
-            <div class="form-field">
-              <label>Organisation</label>
-              <Select
-                v-model="form.organisationId"
-                :options="organisationOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Organisation wählen"
-                :disabled="organisationOptions.length === 1"
-                filter
-              />
-              <small>Nur Benutzer dieser Organisation können die Veranstaltung sehen. Administratoren sehen alle.</small>
-            </div>
 
             <div class="actions">
               <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
@@ -181,20 +167,6 @@
           @remove="removeTwintQr"
         />
 
-        <div class="form-field">
-          <label>Organisation</label>
-          <Select
-            v-model="form.organisationId"
-            :options="organisationOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Organisation wählen"
-            :disabled="organisationOptions.length === 1"
-            filter
-          />
-          <small>Nur Benutzer dieser Organisation können die Veranstaltung sehen. Administratoren sehen alle.</small>
-        </div>
-
         <div class="actions">
           <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
           <Button
@@ -209,6 +181,9 @@
     </template>
 
     <template #table>
+      <p v-if="activeOrganisationId == null" class="empty-hint">
+        Bitte wählen Sie links eine Organisation.
+      </p>
       <div class="table-header">
         <h2>Alle Veranstaltungen</h2>
         <span>{{ filteredEvents.length }} von {{ eventsInActiveOrganisation.length }} Einträgen</span>
@@ -301,7 +276,6 @@ const props = defineProps({
 })
 
 const events = ref([])
-const organisations = ref([])
 const showDetail = ref(false)
 const editMode = ref(false)
 const activeId = ref(null)
@@ -339,7 +313,6 @@ const emptyForm = () => ({
   currency: 'EUR',
   paymentMode: 'pay_later',
   paymentTypes: ['cash'],
-  organisationId: null,
 })
 
 const form = ref(emptyForm())
@@ -353,20 +326,16 @@ const showTwintQrSection = computed(() =>
   Array.isArray(form.value.paymentTypes) && form.value.paymentTypes.includes('twint')
 )
 
-const organisationOptions = computed(() =>
-  organisations.value.map((org) => ({ value: org.id, label: org.name }))
-)
-
-const canCreateEvents = computed(() => organisationOptions.value.length > 0)
+const canCreateEvents = computed(() => props.activeOrganisationId != null)
 
 const canSave = computed(() => {
   return !!(
+    props.activeOrganisationId != null &&
     form.value.name &&
     form.value.status &&
     form.value.start &&
     form.value.end &&
     form.value.currency &&
-    form.value.organisationId &&
     Array.isArray(form.value.paymentTypes) &&
     form.value.paymentTypes.length > 0
   )
@@ -460,6 +429,13 @@ watch([searchQuery, statusFilter, () => props.activeOrganisationId], () => {
   currentPage.value = 1
 })
 
+watch(
+  () => props.activeOrganisationId,
+  () => {
+    if (showDetail.value) resetForm()
+  },
+)
+
 watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
@@ -471,18 +447,6 @@ async function fetchEvents() {
     events.value = await response.json()
   } catch (error) {
     message.value = 'Veranstaltungen konnten nicht geladen werden.'
-    messageType.value = 'error'
-  }
-}
-
-async function fetchOrganisations() {
-  try {
-    const response = await apiFetch('/events/organisations')
-    if (response.ok) {
-      organisations.value = await response.json()
-    }
-  } catch (error) {
-    message.value = 'Organisationen konnten nicht geladen werden.'
     messageType.value = 'error'
   }
 }
@@ -563,11 +527,6 @@ function resetForm() {
   revokeTwintQrPreview()
   form.value = emptyForm()
   originalStatus.value = 'config'
-  if (props.activeOrganisationId) {
-    form.value.organisationId = props.activeOrganisationId
-  } else if (organisationOptions.value.length === 1) {
-    form.value.organisationId = organisationOptions.value[0].value
-  }
   message.value = ''
 }
 
@@ -592,7 +551,6 @@ async function editEvent(event) {
     paymentTypes: Array.isArray(event.payment_types) && event.payment_types.length
       ? [...event.payment_types]
       : ['cash'],
-    organisationId: event.organisation_id || null,
   }
   originalStatus.value = event.status || 'config'
   message.value = ''
@@ -655,9 +613,11 @@ async function saveEvent() {
     start: toIso(form.value.start),
     end: toIso(form.value.end),
     currency: form.value.currency,
-    organisation_id: form.value.organisationId,
     payment_mode: form.value.paymentMode,
     payment_types: form.value.paymentTypes,
+  }
+  if (!editMode.value) {
+    payload.organisation_id = props.activeOrganisationId
   }
 
   try {
@@ -698,10 +658,7 @@ async function deleteEvent(id) {
   }
 }
 
-onMounted(async () => {
-  await fetchOrganisations()
-  await fetchEvents()
-})
+onMounted(fetchEvents)
 
 onUnmounted(() => {
   revokeTwintQrPreview()
@@ -709,6 +666,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.empty-hint {
+  color: var(--p-text-muted-color);
+  margin: 0 0 1rem;
+}
+
 h2 {
   margin: 0 0 1.5rem;
   color: var(--p-text-color);

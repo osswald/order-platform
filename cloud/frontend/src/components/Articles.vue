@@ -117,6 +117,9 @@
     </template>
 
     <template #table>
+      <p v-if="activeOrganisationId == null" class="empty-hint">
+        Bitte wählen Sie links eine Organisation.
+      </p>
       <div class="table-header">
         <h2>Alle Artikel</h2>
         <span>{{ filteredArticles.length }} von {{ articlesInActiveOrganisation.length }} Einträgen</span>
@@ -277,7 +280,7 @@ const articlesInActiveOrganisation = computed(() =>
 const categoryOptions = computed(() =>
   visibleCategories.value.map((category) => ({
     value: category.id,
-    label: `${category.name} (${category.organisation_name})`,
+    label: category.name,
   }))
 )
 
@@ -286,7 +289,9 @@ const categoryFilterOptions = computed(() => [
   ...categoryOptions.value,
 ])
 
-const canCreateArticles = computed(() => categoryOptions.value.length > 0)
+const canCreateArticles = computed(
+  () => props.activeOrganisationId != null && categoryOptions.value.length > 0,
+)
 
 const additionOptions = computed(() =>
   articles.value
@@ -308,6 +313,7 @@ const canSave = computed(() => {
     form.value.price !== undefined &&
     (form.value.isAddition || form.value.price >= 0)
   return !!(
+    props.activeOrganisationId != null &&
     form.value.name &&
     form.value.label &&
     form.value.label.length <= 22 &&
@@ -374,6 +380,13 @@ watch([searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId
   }
 })
 
+watch(
+  () => props.activeOrganisationId,
+  () => {
+    if (showDetail.value) resetForm()
+  },
+)
+
 watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
@@ -409,7 +422,7 @@ function resetForm() {
   additionsLocal.value = []
   additionPickIds.value = []
   additionsMessage.value = ''
-  if (categoryOptions.value.length === 1) {
+  if (categoryOptions.value.length > 0) {
     form.value.articleCategoryId = categoryOptions.value[0].value
   }
   message.value = ''
@@ -563,6 +576,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.empty-hint {
+  color: var(--p-text-muted-color);
+  margin: 0 0 1rem;
+}
+
 h2 {
   margin: 0 0 1.5rem;
   color: var(--p-text-color);
