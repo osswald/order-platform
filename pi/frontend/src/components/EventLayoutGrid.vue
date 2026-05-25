@@ -16,8 +16,8 @@
         gridRow: cell.row + 1,
         background: cell.color || '#334155',
       }"
-      :disabled="!cellArticleIds(cell).length"
-      @click="$emit('pick', cellArticleIds(cell))"
+      :disabled="!cellEnabled(cell)"
+      @click="onCellClick(cell)"
     >
       <span class="cell-label">{{ cell.label || '·' }}</span>
     </button>
@@ -25,19 +25,71 @@
 </template>
 
 <script setup>
-import { articlesForIds } from '../utils/bundleHelpers'
+import { showToast } from '../store'
+import { formatAmount, lineUnitCents } from '../utils/money'
+import {
+  articlesForIds,
+  cellVoucherUuids,
+  fixedAmountVouchersForCell,
+} from '../utils/bundleHelpers'
 
 const props = defineProps({
   layout: { type: Object, required: true },
   event: { type: Object, required: true },
 })
 
-defineEmits(['pick'])
+const emit = defineEmits(['pick', 'pick-voucher', 'pick-cell'])
 
 function cellArticleIds(cell) {
   const ids = cell.article_ids || []
   const arts = articlesForIds(props.event, ids)
   return arts.map((a) => a.id)
+}
+
+function cellEnabled(cell) {
+  return fixedAmountVouchersForCell(props.event, cell).length > 0 || cellArticleIds(cell).length > 0
+}
+
+function buildPickItems(cell) {
+  const items = []
+  const arts = props.event?.articles || {}
+  for (const vd of fixedAmountVouchersForCell(props.event, cell)) {
+    const cents = Math.max(0, Number(vd.value_cents) || 0)
+    items.push({
+      key: `voucher-${vd.uuid}`,
+      type: 'voucher',
+      voucher: vd,
+      label: `Gutschein: ${vd.name || 'Gutschein'}`,
+      priceLabel: formatAmount(cents),
+    })
+  }
+  for (const id of cellArticleIds(cell)) {
+    const a = arts[String(id)] || arts[id]
+    const unit = lineUnitCents({ article_id: id, qty: 1, additions: [] }, arts, props.event)
+    items.push({
+      key: `article-${id}`,
+      type: 'article',
+      article_id: id,
+      label: a?.name || `Artikel #${id}`,
+      priceLabel: formatAmount(unit),
+    })
+  }
+  return items
+}
+
+function onCellClick(cell) {
+  const items = buildPickItems(cell)
+  if (!items.length) {
+    showToast('Zelle ohne verkaufbare Inhalte', 'err')
+    return
+  }
+  if (items.length === 1) {
+    const one = items[0]
+    if (one.type === 'voucher') emit('pick-voucher', one.voucher)
+    else emit('pick', [one.article_id])
+    return
+  }
+  emit('pick-cell', { cell, items })
 }
 </script>
 

@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { api } from '../api'
 import { lineTotalCents } from '../utils/money'
+import { cartLineLabelForEvent, voucherDefinitionByUuid } from '../utils/bundleHelpers'
 
 /** @type {import('vue').Ref<object | null>} */
 export const bundle = ref(null)
@@ -350,8 +351,42 @@ export const cartCount = computed(() => cartLines.value.reduce((s, l) => s + l.q
 export const cartTotalCents = computed(() => {
   const ev = selectedEvent.value
   const arts = ev?.articles || {}
-  return cartLines.value.reduce((s, l) => s + lineTotalCents(l, arts), 0)
+  return cartLines.value.reduce((s, l) => s + lineTotalCents(l, arts, ev), 0)
 })
+
+export function addVoucherCartLine({ voucher_definition_uuid, qty = 1, unit_cents = null }) {
+  const ev = selectedEvent.value
+  if (!ev) {
+    showToast('Kein Event geladen', 'err')
+    return false
+  }
+  const vd = voucherDefinitionByUuid(ev, voucher_definition_uuid)
+  if (!vd || vd.kind !== 'fixed_amount') {
+    showToast('Unbekannter Gutschein', 'err')
+    return false
+  }
+  const uc = unit_cents != null ? Number(unit_cents) : Number(vd.value_cents) || 0
+  const existing = cartLines.value.find(
+    (l) => l.kind === 'voucher_sale' && l.voucher_definition_uuid === vd.uuid,
+  )
+  const addQty = Math.max(1, Number(qty) || 1)
+  if (existing) {
+    existing.qty += addQty
+    return true
+  }
+  cartLines.value.push({
+    lineId: `V-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    kind: 'voucher_sale',
+    voucher_definition_uuid: vd.uuid,
+    qty: addQty,
+    unit_cents: uc,
+  })
+  return true
+}
+
+export function cartLineLabel(line) {
+  return cartLineLabelForEvent(line, selectedEvent.value)
+}
 
 export function bundleReady() {
   const b = bundle.value

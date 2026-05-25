@@ -66,6 +66,40 @@ def kitchen_monitor_bundle() -> dict[str, Any]:
     return bundle
 
 
+def voucher_bundle() -> dict[str, Any]:
+    bundle = cash_register_bundle()
+    event = bundle["events"][0]
+    event["configuration"]["voucher_definitions"] = [
+        {
+            "uuid": "vd-20",
+            "name": "20 CHF Gutschein",
+            "kind": "fixed_amount",
+            "value_cents": 2000,
+            "allowed_article_ids": [],
+            "include_additions": True,
+        },
+        {
+            "uuid": "vd-drink",
+            "name": "1 Getränk",
+            "kind": "article_entitlement",
+            "value_cents": None,
+            "allowed_article_ids": [20],
+            "include_additions": True,
+        },
+    ]
+    event["configuration"]["app_layouts"][0]["cells"] = [
+        {
+            "row": 0,
+            "col": 0,
+            "label": "20.-",
+            "color": "#fef08a",
+            "article_ids": [],
+            "voucher_definition_uuid": "vd-20",
+        }
+    ]
+    return bundle
+
+
 def cash_register_bundle() -> dict[str, Any]:
     bundle = kitchen_monitor_bundle()
     event = bundle["events"][0]
@@ -75,6 +109,7 @@ def cash_register_bundle() -> dict[str, Any]:
         "st-bar": "127.0.0.1:9100",
     }
     event["configuration"]["event_waiters"] = []
+    event["configuration"]["voucher_definitions"] = []
     event["configuration"]["app_layouts"] = [
         {
             "uuid": "layout-1",

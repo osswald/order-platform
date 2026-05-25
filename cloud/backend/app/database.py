@@ -121,6 +121,19 @@ def apply_schema_patches() -> None:
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")
     _patch_entity_uuids("event_app_layouts")
+    _add_column_if_missing(
+        "event_app_layout_cells",
+        "voucher_definition_uuid",
+        "ALTER TABLE event_app_layout_cells ADD COLUMN voucher_definition_uuid VARCHAR(36)",
+        "ALTER TABLE event_app_layout_cells ADD COLUMN IF NOT EXISTS voucher_definition_uuid VARCHAR(36)",
+    )
+    _add_column_if_missing(
+        "event_app_layout_cells",
+        "voucher_definition_uuids",
+        "ALTER TABLE event_app_layout_cells ADD COLUMN voucher_definition_uuids JSON NOT NULL DEFAULT '[]'",
+        "ALTER TABLE event_app_layout_cells ADD COLUMN IF NOT EXISTS voucher_definition_uuids JSON NOT NULL DEFAULT '[]'",
+    )
+    _backfill_layout_cell_voucher_uuids()
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
 
@@ -135,6 +148,42 @@ def _ensure_event_cash_registers_table() -> None:
     from .models import EventCashRegister
 
     EventCashRegister.__table__.create(bind=engine, checkfirst=True)
+
+
+def _backfill_layout_cell_voucher_uuids() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_app_layout_cells" not in inspector.get_table_names():
+            return
+        col_names = {c["name"] for c in inspector.get_columns("event_app_layout_cells")}
+    except Exception:
+        return
+    if "voucher_definition_uuids" not in col_names or "voucher_definition_uuid" not in col_names:
+        return
+    with engine.begin() as conn:
+        if engine.dialect.name == "sqlite":
+            conn.execute(
+                text(
+                    "UPDATE event_app_layout_cells "
+                    "SET voucher_definition_uuids = json_array(voucher_definition_uuid) "
+                    "WHERE voucher_definition_uuid IS NOT NULL "
+                    "AND trim(voucher_definition_uuid) != '' "
+                    "AND (voucher_definition_uuids IS NULL OR voucher_definition_uuids = '[]')"
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    "UPDATE event_app_layout_cells "
+                    "SET voucher_definition_uuids = json_build_array(voucher_definition_uuid) "
+                    "WHERE voucher_definition_uuid IS NOT NULL "
+                    "AND TRIM(voucher_definition_uuid) <> '' "
+                    "AND ("
+                    "voucher_definition_uuids IS NULL "
+                    "OR voucher_definition_uuids::text = '[]'"
+                    ")"
+                )
+            )
 
 
 def _backfill_baseline_in_stock() -> None:

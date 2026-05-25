@@ -303,6 +303,50 @@ h2 {
   padding: 0;
 }
 
+.split-pay-screen .voucher-line {
+  display: flex;
+  background: #ecfdf5;
+  color: #111;
+  border-bottom: 1px solid #bbf7d0;
+}
+
+.split-pay-screen .voucher-line .cell {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.75rem 0.5rem;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.split-pay-screen .voucher-line .qty {
+  flex: 0 0 2.5rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.split-pay-screen .voucher-line .name {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.split-pay-screen .voucher-line .name-text {
+  font-weight: 600;
+  color: #166534;
+}
+
+.split-pay-screen .voucher-line .price {
+  flex: 0 0 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #15803d;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 .split-pay-screen .empty-hint {
   padding: 1rem;
   text-align: center;

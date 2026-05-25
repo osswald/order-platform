@@ -91,6 +91,7 @@ def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Eve
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
+            joinedload(Event.voucher_definitions),
         )
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
@@ -107,6 +108,7 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
+            joinedload(Event.voucher_definitions),
         )
         .filter(
             Event.organisation_id == organisation_id,
@@ -250,7 +252,10 @@ def submit_edge_order(
         )
 
     lines = (body.payload or {}).get("lines") or []
-    if lines:
+    stock_lines = [
+        ln for ln in lines if isinstance(ln, dict) and str(ln.get("kind") or "") != "voucher_sale"
+    ]
+    if stock_lines:
         from ..models import Article
 
         names: dict[int, str] = {}
@@ -265,7 +270,7 @@ def submit_edge_order(
         if extra_ids:
             for a in db.query(Article).filter(Article.id.in_(list(extra_ids))).all():
                 names[a.id] = a.name
-        apply_stock_deductions(db, event.id, lines, article_names=names)
+        apply_stock_deductions(db, event.id, stock_lines, article_names=names)
 
     from ..event_collective_bills import upsert_collective_bill_from_payload
 
@@ -275,6 +280,16 @@ def submit_edge_order(
         event_id=body.event_id,
         appliance_id=ctx.appliance.id,
         payload=payload,
+    )
+
+    from ..vouchers import persist_voucher_redemptions_from_payload
+
+    pay_cid = str(payload.get("client_order_id") or body.client_order_id)
+    persist_voucher_redemptions_from_payload(
+        db,
+        event_id=body.event_id,
+        payment_client_order_id=pay_cid,
+        redemptions=payload.get("voucher_redemptions") or [],
     )
 
     row = EdgeSubmittedOrder(

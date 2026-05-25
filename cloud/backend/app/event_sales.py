@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .additions import load_links_for_bases
-from .models import Article, EdgeSubmittedOrder, Event, Waiter
+from .models import Article, EdgeSubmittedOrder, Event, EventVoucherRedemption, Waiter
 
 
 PAYMENT_TYPE_LABELS = {
@@ -638,6 +638,21 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
         for k, v in sorted(by_payment.items(), key=lambda x: -x[1])
     ]
 
+    voucher_sold_cents = 0
+    for row in orders_rows:
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        for line in payload.get("lines") or []:
+            if not isinstance(line, dict) or str(line.get("kind") or "") != "voucher_sale":
+                continue
+            unit = max(0, int(line.get("unit_cents") or 0))
+            qty = max(1, int(line.get("qty") or 1))
+            voucher_sold_cents += unit * qty
+
+    redemption_rows = (
+        db.query(EventVoucherRedemption).filter(EventVoucherRedemption.event_id == event.id).all()
+    )
+    voucher_redeemed_cents = sum(max(0, int(r.applied_cents or 0)) for r in redemption_rows)
+
     return {
         "currency": currency,
         "totals": {
@@ -646,6 +661,9 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
             "line_cents": total_line_cents,
             "paid_cents": total_paid_cents,
             "open_cents": total_open_cents,
+            "voucher_sold_cents": voucher_sold_cents,
+            "voucher_redeemed_cents": voucher_redeemed_cents,
+            "voucher_redemption_count": len(redemption_rows),
         },
         "orders": orders_out,
         "by_waiter": by_waiter_list,

@@ -37,8 +37,15 @@
               @tap-name="bumpBasket(g, 1)"
               @tap-price="bumpBasket(g, -1)"
             />
+            <SplitPayVoucherRow
+              v-for="(v, vi) in voucherBasketLines"
+              :key="v.key"
+              :label="v.label"
+              :amount-cents="v.appliedCents"
+              @remove="removeVoucherLine(vi)"
+            />
           </ul>
-          <p v-if="!topGroups.length" class="muted empty-hint">
+          <p v-if="!topGroups.length && !voucherBasketLines.length" class="muted empty-hint">
             Unten „↑“ oder Zeilen antippen für Teilzahlung
           </p>
         </section>
@@ -56,10 +63,13 @@
           <button
             type="button"
             class="bar-main"
-            :disabled="!basketCents || paying"
+            :disabled="paying || !rawBasketCents"
             @click="onPay"
           >
             Teilbetrag {{ formatAmount(basketCents) }}
+            <template v-if="voucherCreditCents">
+              <span class="bar-sub">(−{{ formatAmount(voucherCreditCents) }} Gutschein)</span>
+            </template>
             <span class="check" aria-hidden="true">✓</span>
           </button>
         </div>
@@ -114,6 +124,17 @@
       :selections="selectionsPayload()"
       @close="actionsOpen = false"
       @done="onActionsDone"
+      @redeem-voucher="openVoucherRedeem"
+    />
+
+    <VoucherRedeemSheet
+      :open="voucherSheetOpen"
+      :event="event"
+      :gross-cents="rawBasketCents"
+      :selections="selectionsPayload()"
+      :line-groups="groups"
+      @close="voucherSheetOpen = false"
+      @apply="onVoucherApply"
     />
   </div>
 </template>
@@ -127,13 +148,18 @@ import { formatAmount } from '../utils/money'
 import { useSplitPay } from '../composables/useSplitPay'
 import SplitPayHeader from '../components/SplitPayHeader.vue'
 import SplitPayLineRow from '../components/SplitPayLineRow.vue'
+import SplitPayVoucherRow from '../components/SplitPayVoucherRow.vue'
+import { voucherDefinitionByUuid } from '../utils/bundleHelpers'
 import QtyInputModal from '../components/QtyInputModal.vue'
 import PayTableActionsSheet from '../components/PayTableActionsSheet.vue'
+import VoucherRedeemSheet from '../components/VoucherRedeemSheet.vue'
 import { isAndroidPrinterAvailable, printPaymentReceipt } from '../utils/androidPrinter'
 
 const route = useRoute()
 const router = useRouter()
 const actionsOpen = ref(false)
+const voucherSheetOpen = ref(false)
+const voucherRedemptions = ref([])
 const pendingReceiptPaymentId = ref(null)
 const receiptFullySettled = ref(false)
 const printingReceipt = ref(false)
@@ -163,9 +189,12 @@ const {
   selectionsPayload,
   reload,
   onGreenCheck,
+  rawBasketCents,
+  voucherCreditCents,
 } = useSplitPay({
   event,
   paymentMode,
+  voucherRedemptions,
   loadSummary: async () => {
     const ev = event.value
     if (!ev || !table.value) return { line_groups: [] }
@@ -175,14 +204,42 @@ const {
 })
 
 function onMenu() {
-  if (!selectionsPayload().length) {
-    showToast('Keine Positionen oben ausgewählt', 'err')
-    return
-  }
   actionsOpen.value = true
 }
 
+function openVoucherRedeem() {
+  actionsOpen.value = false
+  if (!rawBasketCents.value) {
+    showToast('Zuerst Positionen für Teilzahlung auswählen', 'err')
+    return
+  }
+  voucherSheetOpen.value = true
+}
+
+const voucherBasketLines = computed(() =>
+  voucherRedemptions.value.map((r, index) => {
+    const vd = voucherDefinitionByUuid(event.value, r.voucher_definition_uuid)
+    const name = vd?.name || 'Gutschein'
+    return {
+      key: `voucher-${index}-${r.voucher_definition_uuid}`,
+      label: `Gutschein: ${name}`,
+      appliedCents: Math.max(0, Number(r.applied_cents) || 0),
+    }
+  }),
+)
+
+function removeVoucherLine(index) {
+  voucherRedemptions.value = voucherRedemptions.value.filter((_, i) => i !== index)
+}
+
+function onVoucherApply(redemption) {
+  voucherRedemptions.value = [...voucherRedemptions.value, redemption]
+  voucherSheetOpen.value = false
+  showToast('Gutschein berücksichtigt', 'ok')
+}
+
 async function onActionsDone() {
+  voucherRedemptions.value = []
   await reload()
 }
 
@@ -244,5 +301,12 @@ onMounted(async () => {
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+.bar-sub {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.9;
 }
 </style>

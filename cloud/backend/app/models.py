@@ -125,6 +125,12 @@ class Event(Base):
         cascade="all, delete-orphan",
         order_by="EventCashRegister.sort_order",
     )
+    voucher_definitions = relationship(
+        "EventVoucherDefinition",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventVoucherDefinition.sort_order",
+    )
 
 
 class Waiter(Base):
@@ -302,6 +308,52 @@ class EdgeSubmittedOrder(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class EventVoucherDefinition(Base):
+    __tablename__ = "event_voucher_definitions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid_lib.uuid4()),
+    )
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    kind = Column(String(32), nullable=False)  # fixed_amount | article_entitlement
+    value_cents = Column(Integer, nullable=True)
+    allowed_article_ids = Column(JSON, nullable=False, default=list)
+    include_additions = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    event = relationship("Event", back_populates="voucher_definitions")
+
+
+class EventVoucherRedemption(Base):
+    """Audit row when a voucher type is redeemed at payment (synced from Pi)."""
+
+    __tablename__ = "event_voucher_redemptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid_lib.uuid4()),
+    )
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    voucher_definition_uuid = Column(String(36), nullable=False, index=True)
+    payment_client_order_id = Column(String(64), nullable=False, index=True)
+    kind = Column(String(32), nullable=False)
+    applied_cents = Column(Integer, nullable=False, default=0)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True)
+    note = Column(String, nullable=True)
+    additions = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    event = relationship("Event", backref="voucher_redemptions")
+
+
 class EventAppLayoutCell(Base):
     __tablename__ = "event_app_layout_cells"
     __table_args__ = (UniqueConstraint("layout_id", "row", "col", name="uq_event_app_layout_cell_pos"),)
@@ -312,6 +364,8 @@ class EventAppLayoutCell(Base):
     col = Column(Integer, nullable=False)
     label = Column(String, nullable=False, default="")
     color = Column(String, nullable=False, default="#eeeeee")
+    voucher_definition_uuid = Column(String(36), nullable=True)
+    voucher_definition_uuids = Column(JSON, nullable=False, default=list)
     layout = relationship("EventAppLayout", back_populates="cells")
     articles = relationship(
         "Article",

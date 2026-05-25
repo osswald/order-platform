@@ -22,6 +22,7 @@ from .models import (
     EventWaiter,
     Waiter,
 )
+from .vouchers import assert_layout_cells_vouchers, normalize_cell_voucher_uuids, replace_event_voucher_definitions
 
 
 PICKUP_PREFIX_RE = re.compile(r"^[A-Z]{1,3}$")
@@ -186,9 +187,11 @@ def replace_event_configuration(
     event_waiters_in: list,
     app_layouts_in: list,
     cash_registers_in: list | None = None,
+    voucher_definitions_in: list | None = None,
 ) -> None:
     """Replace all configuration children. Caller must commit. Validates before mutating."""
     cash_registers_in = cash_registers_in or []
+    voucher_definitions_in = voucher_definitions_in or []
     for st in stations_in:
         assert_station_articles_in_org(db, event, list(st.article_ids))
         assert_printer_eligible(db, event, st.printer_appliance_id)
@@ -197,6 +200,7 @@ def replace_event_configuration(
 
     assert_exactly_one_default_layout(app_layouts_in)
     assert_layout_cells_within_grid(app_layouts_in)
+    assert_layout_cells_vouchers(db, event, app_layouts_in, voucher_definitions_in)
     assert_cell_articles_subset_of_stations(stations_in, app_layouts_in)
     assert_cash_registers_valid(db, event, cash_registers_in, app_layouts_in)
 
@@ -286,18 +290,24 @@ def replace_event_configuration(
         db.add(lo)
         db.flush()
         for c in lo_in.cells:
+            v_uuids = normalize_cell_voucher_uuids(c)
+            v_uuid = v_uuids[0] if v_uuids else None
             cell = EventAppLayoutCell(
                 layout_id=lo.id,
                 row=c.row,
                 col=c.col,
                 label=(c.label or "").strip(),
                 color=(c.color or "#eeeeee").strip() or "#eeeeee",
+                voucher_definition_uuid=v_uuid,
+                voucher_definition_uuids=v_uuids,
             )
             db.add(cell)
             db.flush()
             if c.article_ids:
                 arts = db.query(Article).filter(Article.id.in_(list(set(c.article_ids)))).all()
                 cell.articles = arts
+
+    replace_event_voucher_definitions(db, event, voucher_definitions_in)
 
     existing_registers = {
         reg.uuid: reg

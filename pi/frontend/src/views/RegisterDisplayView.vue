@@ -22,14 +22,18 @@
         <h2>Ihre Bestellung</h2>
         <p v-if="!lines.length" class="muted">Noch keine Artikel.</p>
         <ul v-else>
-          <li v-for="line in lines" :key="line.lineId || `${line.article_id}-${line.qty}`">
-            <span>{{ Math.max(1, Number(line.qty) || 1) }}x {{ articleName(line.article_id) }}</span>
+          <li v-for="line in lines" :key="line.lineId || lineKey(line)">
+            <span>{{ Math.max(1, Number(line.qty) || 1) }}x {{ lineLabel(line) }}</span>
             <span>{{ lineTotal(line) }}</span>
             <span
               v-for="add in additionLabelsFor(line)"
               :key="add.id"
               class="addition"
             >+ {{ add.name }}</span>
+          </li>
+          <li v-for="v in voucherLines" :key="v.key" class="voucher-line">
+            <span>{{ v.label }}</span>
+            <span>−{{ formatAmount(v.applied_cents ?? v.appliedCents ?? 0) }}</span>
           </li>
         </ul>
       </div>
@@ -49,23 +53,33 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
-import { useCart } from '../composables/useCart'
 import { useEventContext } from '../composables/useEventContext'
 import { formatAmount, lineTotalCents } from '../utils/money'
-import { lineAdditionLabels } from '../utils/bundleHelpers'
+import { cartLineLabelForEvent, lineAdditionLabels } from '../utils/bundleHelpers'
 
 const route = useRoute()
 const payload = ref({})
 let pollTimer = null
 
 const { event } = useEventContext()
-const { articleName } = useCart()
 const registerUuid = computed(() => String(route.params.registerUuid || ''))
 const lines = computed(() => payload.value.lines || [])
+const voucherLines = computed(() => payload.value.voucher_lines || [])
 const articles = computed(() => event.value?.articles || {})
 
+function lineKey(line) {
+  if (line?.lineId) return line.lineId
+  if (line?.kind === 'voucher_sale') return `v-${line.voucher_definition_uuid}-${line.qty}`
+  return `${line.article_id}-${line.qty}`
+}
+
+function lineLabel(line) {
+  if (line?.display_label) return line.display_label
+  return cartLineLabelForEvent(line, event.value)
+}
+
 function lineTotal(line) {
-  return formatAmount(lineTotalCents(line, articles.value))
+  return formatAmount(lineTotalCents(line, articles.value, event.value))
 }
 
 function additionLabelsFor(line) {
@@ -160,6 +174,9 @@ li {
   width: 100%;
   font-size: 0.75em;
   color: #b8c1cc;
+}
+.voucher-line {
+  color: #86efac;
 }
 .order-total {
   flex-shrink: 0;

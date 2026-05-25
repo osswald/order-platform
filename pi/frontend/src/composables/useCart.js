@@ -2,6 +2,8 @@ import { computed } from 'vue'
 import {
   activeTableNumber,
   addCartLine,
+  addVoucherCartLine,
+  cartLineLabel,
   additionsSignature,
   articleName,
   availableAdditionQty,
@@ -25,6 +27,8 @@ export function useCart() {
     totalCents: cartTotalCents,
     activeTableNumber,
     addCartLine,
+    addVoucherCartLine,
+    cartLineLabel,
     removeCartLine,
     clearCart,
     decrementCartLine,

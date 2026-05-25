@@ -7,7 +7,7 @@
           {{ l.qty }}
         </button>
         <button type="button" class="cart-cell cart-name" @click="$emit('tap-name', l)">
-          <span class="cart-name-text">{{ label(l.article_id) }}</span>
+          <span class="cart-name-text">{{ label(l) }}</span>
           <span v-for="add in lineAdditions(l)" :key="add.id" class="cart-addition">+ {{ add.name }}</span>
         </button>
         <button type="button" class="cart-cell cart-price" @click="$emit('tap-price', l.lineId)">
@@ -30,8 +30,9 @@ const props = defineProps({
 
 defineEmits(['tap-qty', 'tap-name', 'tap-price'])
 
-function label(id) {
-  if (props.labelFn) return props.labelFn(id)
+function label(line) {
+  if (props.labelFn) return props.labelFn(line)
+  const id = line.article_id
   const a = props.articles[String(id)] || props.articles[id]
   return a?.name || `#${id}`
 }

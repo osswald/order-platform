@@ -165,6 +165,33 @@ def build_payment_receipt_text(
     return b"".join(out)
 
 
+def build_voucher_slip_text(
+    *,
+    event_name: str,
+    voucher_name: str,
+    value_cents: int,
+    currency: str = "EUR",
+    copy_index: int | None = None,
+    copy_total: int | None = None,
+    generated_at: str | None = None,
+) -> bytes:
+    """Customer-facing amount voucher slip (one per purchased unit)."""
+    out: list[bytes] = []
+    out.append(b"\x1b\x40")
+    out.append(b"\x1b!\x20")
+    out.append(b"GUTSCHEIN\n")
+    out.append(b"\x1b!\x00")
+    out.append(f"{event_name}\n".encode("utf-8", errors="replace"))
+    out.append(f"{voucher_name}\n".encode("utf-8", errors="replace"))
+    out.append(f"Wert: {_money(value_cents, currency)}\n".encode("utf-8", errors="replace"))
+    if copy_index is not None and copy_total is not None and copy_total > 1:
+        out.append(f"Kopie {copy_index}/{copy_total}\n".encode("utf-8", errors="replace"))
+    ts = generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    out.append(f"{ts}\n".encode("utf-8", errors="replace"))
+    out.append(b"\nEinloesung bei Zahlung.\n\n\n\x1dV\x00")
+    return b"".join(out)
+
+
 def build_escpos_receipt_text(
     payload: dict,
     event_name: str,

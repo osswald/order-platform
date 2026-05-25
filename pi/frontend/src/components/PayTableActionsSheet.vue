@@ -9,8 +9,11 @@
 
       <template v-if="step === 'menu'">
         <div class="menu-actions">
-          <button type="button" class="btn menu-btn" @click="step = 'transfer'">Tisch umbuchen</button>
-          <button type="button" class="btn menu-btn" @click="openCollective">Sammelrechnung</button>
+          <button type="button" class="btn menu-btn" @click="$emit('redeem-voucher')">Gutschein einlösen</button>
+          <template v-if="!voucherOnly">
+            <button type="button" class="btn menu-btn" @click="step = 'transfer'">Tisch umbuchen</button>
+            <button type="button" class="btn menu-btn" @click="openCollective">Sammelrechnung</button>
+          </template>
         </div>
         <button type="button" class="btn" @click="close">Abbrechen</button>
       </template>
@@ -67,11 +70,12 @@ const { showToast } = useEventContext()
 const props = defineProps({
   open: Boolean,
   eventId: { type: Number, required: true },
-  fromTable: { type: Number, required: true },
+  fromTable: { type: Number, default: null },
   selections: { type: Array, default: () => [] },
+  voucherOnly: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['close', 'done'])
+const emit = defineEmits(['close', 'done', 'redeem-voucher'])
 
 const step = ref('menu')
 const bills = ref([])
@@ -204,7 +208,7 @@ async function onTransferSubmit(targetTable) {
 .link-back {
   border: none;
   background: none;
-  color: var(--accent, #ea580c);
+  color: var(--primary);
   font-size: 0.95rem;
   cursor: pointer;
 }

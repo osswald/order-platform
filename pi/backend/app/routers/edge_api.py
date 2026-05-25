@@ -89,6 +89,7 @@ from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
     build_payment_receipt_text,
+    build_voucher_slip_text,
     group_lines_by_station,
     resolve_station_uuid_for_line,
     station_name_from_event,
@@ -96,6 +97,14 @@ from ..print_worker import (
 )
 from ..pricing import line_total_cents, line_unit_cents
 from ..stock import apply_stock_to_bundle, save_bundle, validate_stock
+from ..vouchers import (
+    article_lines_only,
+    compute_voucher_credits,
+    is_voucher_sale_line,
+    order_lines_total_cents,
+    voucher_definition_by_uuid,
+    voucher_sale_unit_cents,
+)
 
 router = APIRouter()
 
@@ -165,7 +174,9 @@ def _article_map(ev: dict) -> dict:
     return ev.get("articles") or {}
 
 
-def _line_totals(lines: list, articles: dict) -> tuple[int, int]:
+def _line_totals(lines: list, articles: dict, ev: dict | None = None) -> tuple[int, int]:
+    if ev is not None:
+        return order_lines_total_cents(lines, ev, articles)
     total_cents = 0
     item_count = 0
     for line in lines or []:
@@ -262,6 +273,8 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
                 continue
+            if is_voucher_sale_line(line):
+                continue
             aid = line.get("article_id")
             if aid is None:
                 continue
@@ -306,6 +319,52 @@ def _cash_register_from_event(ev: dict, cash_register_uuid: str | None) -> dict 
         if str(reg.get("uuid")) == str(cash_register_uuid):
             return reg
     return None
+
+
+def _receipt_register_uuid(ev: dict, cash_register_uuid: str | None) -> str | None:
+    if cash_register_uuid:
+        return str(cash_register_uuid)
+    for reg in (ev.get("configuration") or {}).get("cash_registers") or []:
+        if reg.get("receipt_printer_appliance_id"):
+            return str(reg.get("uuid"))
+    regs = (ev.get("configuration") or {}).get("cash_registers") or []
+    if regs:
+        return str(regs[0].get("uuid"))
+    return None
+
+
+def _create_voucher_print_job(
+    db: Session,
+    *,
+    order_id: int,
+    ev: dict,
+    cash_register_uuid: str | None,
+    voucher_name: str,
+    value_cents: int,
+    copy_index: int | None = None,
+    copy_total: int | None = None,
+) -> int:
+    reg_uuid = _receipt_register_uuid(ev, cash_register_uuid)
+    host, port = _resolve_printer(ev, reg_uuid)
+    esc = build_voucher_slip_text(
+        event_name=ev.get("name", "Event"),
+        voucher_name=voucher_name,
+        value_cents=value_cents,
+        currency=ev.get("currency", "EUR"),
+        copy_index=copy_index,
+        copy_total=copy_total,
+    )
+    pj = PrintJob(
+        local_order_id=order_id,
+        station_uuid=reg_uuid,
+        printer_host=host,
+        printer_port=port,
+        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        status="queued",
+    )
+    db.add(pj)
+    db.flush()
+    return pj.id
 
 
 def _allocate_pickup_number(db: Session, event_id: int) -> int:
@@ -678,9 +737,10 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             "note": ln.get("note") or "",
         }
         for ln in body.lines
-        if isinstance(ln, dict)
+        if isinstance(ln, dict) and ln.get("article_id") is not None and not is_voucher_sale_line(ln)
     ]
     validate_stock(ev, line_dicts)
+    has_voucher_sale = any(is_voucher_sale_line(ln) for ln in body.lines if isinstance(ln, dict))
 
     order_source = (body.order_source or "waiter").strip().lower()
     if order_source not in {"waiter", "cash_register"}:
@@ -697,11 +757,27 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     pm = (ev.get("payment_mode") or "pay_later").lower()
     arts = _article_map(ev)
     payments = list(body.payments or [])
-    line_cents, _ = _line_totals(body.lines, arts)
+    line_cents, _ = _line_totals(body.lines, arts, ev)
+    redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
+    if redemptions_in and not payments:
+        raise HTTPException(status_code=400, detail="Gutschein einlösen erfordert Zahlung")
+    article_gross, _ = order_lines_total_cents(article_lines_only(body.lines), ev, arts)
+    voucher_credit = 0
+    voucher_records: list[dict] = []
+    if redemptions_in:
+        voucher_credit, voucher_records = compute_voucher_credits(
+            ev,
+            gross_cents=article_gross,
+            redemptions=redemptions_in,
+            articles=arts,
+        )
+    expected_cents = max(0, line_cents - voucher_credit)
+    if has_voucher_sale and order_source != "cash_register" and pm not in ("instant",) and not payments:
+        raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
     if order_source == "cash_register":
         if not payments:
             raise HTTPException(status_code=400, detail="payments required for cash-register orders")
-        if _payments_total_cents(payments) != line_cents:
+        if _payments_total_cents(payments) != expected_cents:
             raise HTTPException(status_code=400, detail="payment amount must match order total")
     elif pm == "instant":
         payments = [{"type": "instant", "amount_cents": line_cents}]
@@ -710,7 +786,10 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         _validate_payment_types(ev, payments)
 
     payment_status = "paid" if order_source == "cash_register" else _payment_status_for_create(ev, payments)
+    if has_voucher_sale and payment_status != "paid":
+        raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
     order_lines = _lines_with_station_uuid(ev, body.lines)
+    article_order_lines = article_lines_only(order_lines)
     table_number_payload = None if order_source == "cash_register" else body.table_number
     table_number_db = 0 if order_source == "cash_register" else body.table_number
     pickup_number: int | None = None
@@ -731,6 +810,9 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         "payment_status": payment_status,
         "order_source": order_source,
     }
+    if voucher_records:
+        payload["voucher_redemptions"] = voucher_records
+        payload["voucher_credit_cents"] = voucher_credit
     if order_source == "cash_register":
         payload.update(
             {
@@ -769,10 +851,35 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     db.add(order)
     db.flush()
 
-    groups = group_lines_by_station(ev, order_lines)
+    groups = group_lines_by_station(ev, article_order_lines)
     print_job_ids: list[int] = []
     customer_print_job_ids: list[int] = []
     kitchen_ticket_ids: list[int] = []
+
+    if payment_status == "paid" and has_voucher_sale:
+        slip_units: list[tuple[str, int]] = []
+        for line in order_lines:
+            if not is_voucher_sale_line(line):
+                continue
+            vd = voucher_definition_by_uuid(ev, str(line.get("voucher_definition_uuid") or ""))
+            name = (vd or {}).get("name") or "Gutschein"
+            uc = voucher_sale_unit_cents(ev, line)
+            qty = max(1, int(line.get("qty") or 1))
+            slip_units.extend([(name, uc)] * qty)
+        total_slips = len(slip_units)
+        for idx, (vname, uc) in enumerate(slip_units, start=1):
+            print_job_ids.append(
+                _create_voucher_print_job(
+                    db,
+                    order_id=order.id,
+                    ev=ev,
+                    cash_register_uuid=body.cash_register_uuid,
+                    voucher_name=vname,
+                    value_cents=uc,
+                    copy_index=idx if total_slips > 1 else None,
+                    copy_total=total_slips if total_slips > 1 else None,
+                )
+            )
 
     for station_uuid, station_lines in groups.items():
         if _station_has_kitchen_monitor(ev, station_uuid) and station_uuid is not None:
@@ -1021,12 +1128,22 @@ def settle_table_partial(
         raise HTTPException(status_code=404, detail="No open orders for this table")
 
     line_groups = _build_line_groups_from_orders(orders, arts)
-    expected_cents = _selections_total_cents_from_groups(selections, line_groups)
+    gross_cents = _selections_total_cents_from_groups(selections, line_groups)
+    redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
+    voucher_credit, voucher_records = compute_voucher_credits(
+        ev,
+        gross_cents=gross_cents,
+        redemptions=redemptions_in,
+        articles=arts,
+        selections=selections,
+        line_groups=line_groups,
+    )
+    expected_cents = max(0, gross_cents - voucher_credit)
     paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
     if paid_total != expected_cents:
         raise HTTPException(
             status_code=400,
-            detail=f"Payment total {paid_total} does not match selection total {expected_cents}",
+            detail=f"Payment total {paid_total} does not match payable {expected_cents}",
         )
 
     need: dict[tuple[int, str, str], int] = {}
@@ -1042,6 +1159,8 @@ def settle_table_partial(
         open_lines: list[dict] = []
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
+                continue
+            if is_voucher_sale_line(line):
                 continue
             aid = line.get("article_id")
             if aid is None:
@@ -1100,6 +1219,8 @@ def settle_table_partial(
             "settled_at": now,
             "settlement_table": table_number,
             "partial_settlement": True,
+            "voucher_redemptions": voucher_records,
+            "voucher_credit_cents": voucher_credit,
         }
         order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
         if len(order_nums) == 1:
@@ -1156,6 +1277,7 @@ def settle_table_partial(
         paid_order_ids=paid_order_ids,
         payment_id=payment_id,
         table_number=table_number,
+        voucher_credit_cents=voucher_credit,
     )
 
 
@@ -1513,12 +1635,22 @@ def _settle_orders_partial(
         raise HTTPException(status_code=404, detail="No open orders")
 
     line_groups = _build_line_groups_from_orders(orders, arts)
-    expected_cents = _selections_total_cents_from_groups(selections, line_groups)
+    gross_cents = _selections_total_cents_from_groups(selections, line_groups)
+    redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
+    voucher_credit, voucher_records = compute_voucher_credits(
+        ev,
+        gross_cents=gross_cents,
+        redemptions=redemptions_in,
+        articles=arts,
+        selections=selections,
+        line_groups=line_groups,
+    )
+    expected_cents = max(0, gross_cents - voucher_credit)
     paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
     if paid_total != expected_cents:
         raise HTTPException(
             status_code=400,
-            detail=f"Payment total {paid_total} does not match selection total {expected_cents}",
+            detail=f"Payment total {paid_total} does not match payable {expected_cents}",
         )
 
     need: dict[tuple[int, str, str], int] = {}
@@ -1534,6 +1666,8 @@ def _settle_orders_partial(
         open_lines: list[dict] = []
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
+                continue
+            if is_voucher_sale_line(line):
                 continue
             aid = line.get("article_id")
             if aid is None:
@@ -1589,6 +1723,8 @@ def _settle_orders_partial(
             "payment_status": "paid",
             "settled_at": now,
             "partial_settlement": True,
+            "voucher_redemptions": voucher_records,
+            "voucher_credit_cents": voucher_credit,
             **settlement_meta,
         }
         order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}

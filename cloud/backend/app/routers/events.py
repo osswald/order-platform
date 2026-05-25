@@ -23,6 +23,7 @@ from ..models import (
     User,
 )
 from ..event_collective_bills import build_event_collective_bills_list
+from ..vouchers import cell_voucher_uuids_for_read
 from ..event_copy import copy_event, default_copy_name
 from ..event_sales import build_event_sales_report
 from ..payment_types_config import normalize_payment_types, payment_types_from_event
@@ -145,12 +146,24 @@ class EventWaiterConfigRead(BaseModel):
     source_waiter_id: int | None
 
 
+class VoucherDefinitionRead(BaseModel):
+    uuid: str
+    name: str
+    kind: str
+    value_cents: int | None = None
+    allowed_article_ids: List[int] = Field(default_factory=list)
+    include_additions: bool = True
+    sort_order: int = 0
+
+
 class LayoutCellRead(BaseModel):
     row: int
     col: int
     label: str
     color: str
     article_ids: List[int]
+    voucher_definition_uuid: str | None = None
+    voucher_definition_uuids: List[str] = Field(default_factory=list)
 
 
 class AppLayoutRead(BaseModel):
@@ -178,6 +191,7 @@ class EventConfigurationRead(BaseModel):
     event_waiters: List[EventWaiterConfigRead]
     app_layouts: List[AppLayoutRead]
     cash_registers: List[CashRegisterRead]
+    voucher_definitions: List[VoucherDefinitionRead] = Field(default_factory=list)
     printer_options: List[PrinterOptionRead]
 
 
@@ -196,12 +210,23 @@ class EventWaiterConfigIn(BaseModel):
     source_waiter_id: int | None = None
 
 
+class VoucherDefinitionIn(BaseModel):
+    uuid: str | None = None
+    name: str = Field(..., min_length=1, max_length=128)
+    kind: str = Field(..., min_length=1, max_length=32)
+    value_cents: int | None = Field(None, ge=1)
+    allowed_article_ids: List[int] = Field(default_factory=list)
+    include_additions: bool = True
+
+
 class LayoutCellIn(BaseModel):
     row: int = Field(..., ge=0)
     col: int = Field(..., ge=0)
     label: str = ""
     color: str = "#eeeeee"
     article_ids: List[int] = Field(default_factory=list)
+    voucher_definition_uuid: str | None = None
+    voucher_definition_uuids: List[str] = Field(default_factory=list)
 
 
 class AppLayoutIn(BaseModel):
@@ -227,6 +252,7 @@ class EventConfigurationIn(BaseModel):
     event_waiters: List[EventWaiterConfigIn] = Field(default_factory=list)
     app_layouts: List[AppLayoutIn] = Field(default_factory=list)
     cash_registers: List[CashRegisterIn] = Field(default_factory=list)
+    voucher_definitions: List[VoucherDefinitionIn] = Field(default_factory=list)
 
 
 def event_response(event: Event) -> dict:
@@ -259,6 +285,7 @@ def get_event_for_configuration(
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
+            joinedload(Event.voucher_definitions),
         )
         .filter(Event.id == event_id)
         .first()
@@ -298,6 +325,7 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
     for lo in sorted(event.app_layouts, key=lambda x: x.id):
         cells = []
         for cell in sorted(lo.cells, key=lambda c: (c.row, c.col)):
+            v_uuids = cell_voucher_uuids_for_read(cell)
             cells.append(
                 LayoutCellRead(
                     row=cell.row,
@@ -305,6 +333,8 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
                     label=cell.label or "",
                     color=cell.color or "#eeeeee",
                     article_ids=[a.id for a in cell.articles],
+                    voucher_definition_uuid=v_uuids[0] if v_uuids else None,
+                    voucher_definition_uuids=v_uuids,
                 )
             )
         app_layouts.append(
@@ -330,11 +360,24 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
         )
         for reg in sorted(event.cash_registers, key=lambda r: (r.sort_order, r.id))
     ]
+    voucher_definitions = [
+        VoucherDefinitionRead(
+            uuid=vd.uuid,
+            name=vd.name,
+            kind=vd.kind,
+            value_cents=vd.value_cents,
+            allowed_article_ids=list(vd.allowed_article_ids or []),
+            include_additions=bool(vd.include_additions),
+            sort_order=vd.sort_order,
+        )
+        for vd in sorted(event.voucher_definitions, key=lambda v: (v.sort_order, v.id))
+    ]
     return EventConfigurationRead(
         stations=stations,
         event_waiters=event_waiters,
         app_layouts=app_layouts,
         cash_registers=cash_registers,
+        voucher_definitions=voucher_definitions,
         printer_options=printer_options,
     )
 
@@ -685,6 +728,7 @@ def put_event_configuration(
             event_waiters_in=body.event_waiters,
             app_layouts_in=body.app_layouts,
             cash_registers_in=body.cash_registers,
+            voucher_definitions_in=body.voucher_definitions,
         )
         db.commit()
     except HTTPException:

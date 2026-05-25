@@ -6,7 +6,13 @@ import { lineAdditionLabels } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
 import { pickPaymentType } from '../utils/pickPaymentType'
 
-export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath }) {
+export function useSplitPay({
+  event,
+  paymentMode,
+  loadSummary,
+  settlePartialPath,
+  voucherRedemptions = ref([]),
+}) {
   const summary = ref(null)
   const groups = ref([])
   const loading = ref(true)
@@ -15,10 +21,14 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
   const qtyModalGroup = ref(null)
 
   const totalCents = computed(() => summary.value?.total_cents || 0)
-  const basketCents = computed(() =>
+  const rawBasketCents = computed(() =>
     groups.value.reduce((s, g) => s + g.unitCents * g.basketQty, 0),
   )
-  const restCents = computed(() => Math.max(0, totalCents.value - basketCents.value))
+  const voucherCreditCents = computed(() =>
+    (voucherRedemptions.value || []).reduce((s, r) => s + Math.max(0, Number(r.applied_cents) || 0), 0),
+  )
+  const basketCents = computed(() => Math.max(0, rawBasketCents.value - voucherCreditCents.value))
+  const restCents = computed(() => Math.max(0, totalCents.value - rawBasketCents.value))
   const basketItemCount = computed(() => groups.value.reduce((s, g) => s + g.basketQty, 0))
   const remainingItemCount = computed(() =>
     groups.value.reduce((s, g) => s + (g.totalQty - g.basketQty), 0),
@@ -111,6 +121,16 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
           event_id: event.value.id,
           payments,
           selections: selectionsPayload(),
+          voucher_redemptions: (voucherRedemptions.value || []).map((r) => ({
+            voucher_definition_uuid: r.voucher_definition_uuid,
+            article_id: r.article_id,
+            note: r.note || '',
+            qty: r.qty || 1,
+            additions: (r.additions || []).map((a) => ({
+              article_id: a.article_id,
+              qty: a.qty ?? 1,
+            })),
+          })),
         }),
       })
       if (res.remaining_cents <= 0) {
@@ -126,7 +146,7 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
   }
 
   async function onGreenCheck(onFullySettled) {
-    if (!basketCents.value) return
+    if (!rawBasketCents.value) return
     const payments = await paymentsForAmount(basketCents.value)
     return settlePartial(payments, onFullySettled)
   }
@@ -139,7 +159,10 @@ export function useSplitPay({ event, paymentMode, loadSummary, settlePartialPath
     qtyModalOpen,
     qtyModalGroup,
     totalCents,
+    rawBasketCents,
+    voucherCreditCents,
     basketCents,
+    voucherRedemptions,
     restCents,
     basketItemCount,
     remainingItemCount,

@@ -15,10 +15,12 @@ from .models import (
     EventArticleStock,
     EventCashRegister,
     EventStation,
+    EventVoucherDefinition,
     EventWaiter,
 )
 from .payment_types_config import payment_types_from_event
 from .stock import upsert_stock_rows
+from .vouchers import cell_voucher_uuids_for_read
 
 
 def _load_event_for_copy(db: Session, event_id: int) -> Event | None:
@@ -30,6 +32,7 @@ def _load_event_for_copy(db: Session, event_id: int) -> Event | None:
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
+            joinedload(Event.voucher_definitions),
         )
         .filter(Event.id == event_id)
         .first()
@@ -63,7 +66,26 @@ def _waiters_payload(event: Event) -> list:
     ]
 
 
-def _layouts_payload(event: Event) -> tuple[list, dict[str, str]]:
+def _vouchers_payload(event: Event) -> tuple[list, dict[str, str]]:
+    out = []
+    uuid_map: dict[str, str] = {}
+    for vd in sorted(event.voucher_definitions, key=lambda v: (v.sort_order, v.id)):
+        new_uuid = str(uuid.uuid4())
+        uuid_map[str(vd.uuid)] = new_uuid
+        out.append(
+            SimpleNamespace(
+                uuid=new_uuid,
+                name=vd.name,
+                kind=vd.kind,
+                value_cents=vd.value_cents,
+                allowed_article_ids=list(vd.allowed_article_ids or []),
+                include_additions=bool(vd.include_additions),
+            )
+        )
+    return out, uuid_map
+
+
+def _layouts_payload(event: Event, voucher_uuid_map: dict[str, str]) -> tuple[list, dict[str, str]]:
     out = []
     uuid_map: dict[str, str] = {}
     for lo in sorted(event.app_layouts, key=lambda x: x.id):
@@ -71,6 +93,9 @@ def _layouts_payload(event: Event) -> tuple[list, dict[str, str]]:
         uuid_map[str(lo.uuid)] = new_uuid
         cells = []
         for cell in sorted(lo.cells, key=lambda c: (c.row, c.col)):
+            old_uuids = cell_voucher_uuids_for_read(cell)
+            new_uuids = [voucher_uuid_map.get(str(u), str(u)) for u in old_uuids if u]
+            new_uuids = [u for u in new_uuids if u]
             cells.append(
                 SimpleNamespace(
                     row=cell.row,
@@ -78,6 +103,8 @@ def _layouts_payload(event: Event) -> tuple[list, dict[str, str]]:
                     label=cell.label or "",
                     color=cell.color or "#eeeeee",
                     article_ids=[a.id for a in cell.articles],
+                    voucher_definition_uuid=new_uuids[0] if new_uuids else None,
+                    voucher_definition_uuids=new_uuids,
                 )
             )
         out.append(
@@ -148,7 +175,8 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
     )
     stock_by_article = {r.article_id: r for r in source_stock}
 
-    layouts_payload, layout_uuid_map = _layouts_payload(source)
+    vouchers_payload, voucher_uuid_map = _vouchers_payload(source)
+    layouts_payload, layout_uuid_map = _layouts_payload(source, voucher_uuid_map)
 
     replace_event_configuration(
         db,
@@ -157,6 +185,7 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         event_waiters_in=_waiters_payload(source),
         app_layouts_in=layouts_payload,
         cash_registers_in=_cash_registers_payload(source, layout_uuid_map),
+        voucher_definitions_in=vouchers_payload,
     )
 
     from .additions import event_stock_article_ids

@@ -154,6 +154,54 @@
           <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
         </TabPanel>
 
+        <TabPanel header="Gutscheine">
+          <div class="section-toolbar">
+            <Button label="Gutschein hinzufügen" type="button" class="primary-button" @click="addVoucher" />
+          </div>
+          <p v-if="!vouchersLocal.length" class="muted">Noch keine Gutschein-Typen.</p>
+          <div v-for="(vd, vi) in vouchersLocal" :key="'vd-' + vi" class="config-card">
+            <div class="config-card-header">
+              <span>{{ vd.name || 'Unbenannter Gutschein' }}</span>
+              <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeVoucher(vi)" />
+            </div>
+            <div class="form-field">
+              <label>Name</label>
+              <InputText v-model="vd.name" placeholder="z. B. 20.- Gutschein" />
+            </div>
+            <div class="form-field">
+              <label>Art</label>
+              <Select
+                v-model="vd.kind"
+                :options="voucherKindOptions"
+                optionLabel="label"
+                optionValue="value"
+              />
+            </div>
+            <div v-if="vd.kind === 'fixed_amount'" class="form-field">
+              <label>Betrag ({{ currencyLabel }})</label>
+              <InputNumber v-model="vd.value_amount" :min="0.01" :max="9999" :minFractionDigits="2" :maxFractionDigits="2" />
+            </div>
+            <template v-else>
+              <div class="form-field">
+                <label>Berechtigte Artikel</label>
+                <MultiSelect
+                  v-model="vd.allowed_article_ids"
+                  :options="articleOptions"
+                  optionLabel="name"
+                  optionValue="value"
+                  placeholder="Artikel wählen"
+                  filter
+                  display="chip"
+                />
+              </div>
+              <div class="check-row">
+                <Checkbox :inputId="'vadd-' + vi" v-model="vd.include_additions" :binary="true" />
+                <label :for="'vadd-' + vi">Zusätze inklusive</label>
+              </div>
+            </template>
+          </div>
+        </TabPanel>
+
         <TabPanel header="App-Layouts">
           <div class="section-toolbar">
             <Button label="Layout hinzufügen" type="button" class="primary-button" @click="addLayout" />
@@ -204,10 +252,9 @@
                   @click="openCellDialog(li, pos.row, pos.col)"
                 >
                   <span class="grid-cell-label">{{ displayCell(lo, pos.row, pos.col).label || '·' }}</span>
-                  <span
-                    v-if="cellArticleCount(lo, pos.row, pos.col)"
-                    class="grid-cell-count"
-                  >{{ cellArticleCount(lo, pos.row, pos.col) }} Artikel</span>
+                  <span v-if="cellPreviewMeta(lo, pos.row, pos.col)" class="grid-cell-count">
+                    {{ cellPreviewMeta(lo, pos.row, pos.col) }}
+                  </span>
                 </button>
               </div>
             </div>
@@ -240,6 +287,19 @@
       <div class="form-field">
         <label>Farbe</label>
         <ColorPicker v-model="cellColorHex" format="hex" />
+      </div>
+      <div class="form-field">
+        <label>Betrags-Gutscheine (Layout-Zelle)</label>
+        <MultiSelect
+          v-model="cellEdit.voucher_definition_uuids"
+          :options="fixedAmountVoucherOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Gutscheine wählen"
+          display="chip"
+          filter
+          class="w-full"
+        />
       </div>
       <div class="form-field">
         <label>Artikel (nur Stationen-Artikel)</label>
@@ -330,14 +390,27 @@ const stationsLocal = ref([])
 const waitersLocal = ref([])
 const layoutsLocal = ref([])
 const cashRegistersLocal = ref([])
+const vouchersLocal = ref([])
 const articlesRaw = ref([])
+const currencyLabel = ref('CHF')
+
+const voucherKindOptions = [
+  { label: 'Betrags-Gutschein', value: 'fixed_amount' },
+  { label: 'Artikel-Gutschein (nur Einlösung)', value: 'article_entitlement' },
+]
 const waitersOrg = ref([])
 
 const cellDialogVisible = ref(false)
 const cellEditLayoutIndex = ref(0)
 const cellEditRow = ref(0)
 const cellEditCol = ref(0)
-const cellEdit = ref({ label: '', color: '#eeeeee', article_ids: [] })
+const cellEdit = ref({
+  label: '',
+  color: '#eeeeee',
+  article_ids: [],
+  voucher_definition_uuid: null,
+  voucher_definition_uuids: [],
+})
 const cellTreeNodes = ref([])
 const cellTreeSelection = ref({})
 const treeLoading = ref(false)
@@ -368,6 +441,15 @@ const layoutOptions = computed(() =>
   })),
 )
 
+const fixedAmountVoucherOptions = computed(() =>
+  vouchersLocal.value
+    .filter((vd) => vd.kind === 'fixed_amount' && vd.uuid)
+    .map((vd) => ({
+      label: vd.name || 'Gutschein',
+      value: vd.uuid,
+    })),
+)
+
 function newUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
@@ -389,12 +471,56 @@ function gridPositions(lo) {
 
 function displayCell(lo, row, col) {
   const c = lo.cells.find((x) => x.row === row && x.col === col)
-  return c || { row, col, label: '', color: '#eeeeee', article_ids: [] }
+  return c || {
+    row,
+    col,
+    label: '',
+    color: '#eeeeee',
+    article_ids: [],
+    voucher_definition_uuid: null,
+    voucher_definition_uuids: [],
+  }
 }
 
-function cellArticleCount(lo, row, col) {
-  const n = displayCell(lo, row, col).article_ids?.length || 0
-  return n > 0 ? n : 0
+function cellVoucherUuids(c) {
+  const list = c?.voucher_definition_uuids
+  if (Array.isArray(list) && list.length) return list.map(String)
+  if (c?.voucher_definition_uuid) return [String(c.voucher_definition_uuid)]
+  return []
+}
+
+function cellPreviewMeta(lo, row, col) {
+  const c = displayCell(lo, row, col)
+  const vCount = cellVoucherUuids(c).length
+  const aCount = c.article_ids?.length || 0
+  const parts = []
+  if (vCount) parts.push(`${vCount} Gutschein${vCount > 1 ? 'e' : ''}`)
+  if (aCount) parts.push(`${aCount} Artikel`)
+  return parts.join(' · ')
+}
+
+function addVoucher() {
+  vouchersLocal.value.push({
+    uuid: newUuid(),
+    name: '',
+    kind: 'fixed_amount',
+    value_amount: 20,
+    allowed_article_ids: [],
+    include_additions: true,
+  })
+}
+
+function removeVoucher(idx) {
+  const removed = vouchersLocal.value[idx]
+  vouchersLocal.value.splice(idx, 1)
+  if (!removed?.uuid) return
+  for (const lo of layoutsLocal.value) {
+    for (const c of lo.cells || []) {
+      const uuids = cellVoucherUuids(c).filter((u) => u !== removed.uuid)
+      c.voucher_definition_uuids = uuids
+      c.voucher_definition_uuid = uuids[0] || null
+    }
+  }
 }
 
 function hexToPicker(value) {
@@ -418,7 +544,15 @@ const cellColorHex = computed({
 function ensureCell(lo, row, col) {
   let c = lo.cells.find((x) => x.row === row && x.col === col)
   if (!c) {
-    c = { row, col, label: '', color: '#eeeeee', article_ids: [] }
+    c = {
+      row,
+      col,
+      label: '',
+      color: '#eeeeee',
+      article_ids: [],
+      voucher_definition_uuid: null,
+      voucher_definition_uuids: [],
+    }
     lo.cells.push(c)
   }
   return c
@@ -584,9 +718,19 @@ async function loadConfiguration() {
         label: c.label || '',
         color: c.color || '#eeeeee',
         article_ids: [...(c.article_ids || [])],
+        voucher_definition_uuid: c.voucher_definition_uuid || null,
+        voucher_definition_uuids: [...cellVoucherUuids(c)],
       })),
     }))
     ensureDefaultLayout()
+    vouchersLocal.value = (cfg.voucher_definitions || []).map((vd) => ({
+      uuid: vd.uuid ?? newUuid(),
+      name: vd.name || '',
+      kind: vd.kind || 'fixed_amount',
+      value_amount: vd.value_cents != null ? vd.value_cents / 100 : 20,
+      allowed_article_ids: [...(vd.allowed_article_ids || [])],
+      include_additions: vd.include_additions !== false,
+    }))
     cashRegistersLocal.value = (cfg.cash_registers || []).map((reg) => ({
       uuid: reg.uuid ?? null,
       name: reg.name || '',
@@ -608,7 +752,14 @@ async function openCellDialog(layoutIndex, row, col) {
   cellEditCol.value = col
   const lo = layoutsLocal.value[layoutIndex]
   const c = ensureCell(lo, row, col)
-  cellEdit.value = { label: c.label || '', color: c.color || '#eeeeee', article_ids: [...(c.article_ids || [])] }
+  const vUuids = cellVoucherUuids(c)
+  cellEdit.value = {
+    label: c.label || '',
+    color: c.color || '#eeeeee',
+    article_ids: [...(c.article_ids || [])],
+    voucher_definition_uuid: vUuids[0] || null,
+    voucher_definition_uuids: [...vUuids],
+  }
   cellTreeSelection.value = articleIdsToTreeSelection(c.article_ids)
   cellDialogVisible.value = true
   treeLoading.value = true
@@ -629,6 +780,9 @@ function applyCellDialog() {
   const c = ensureCell(lo, cellEditRow.value, cellEditCol.value)
   c.label = cellEdit.value.label || ''
   c.color = cellEdit.value.color || '#eeeeee'
+  const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
+  c.voucher_definition_uuids = vUuids
+  c.voucher_definition_uuid = vUuids[0] || null
   c.article_ids = treeSelectionToArticleIds(cellTreeSelection.value)
   cellDialogVisible.value = false
 }
@@ -693,14 +847,32 @@ function buildPutPayload() {
       is_default: !!lo.is_default,
       grid_width: lo.grid_width,
       grid_height: lo.grid_height,
-      cells: (lo.cells || []).map((c) => ({
-        row: c.row,
-        col: c.col,
-        label: c.label || '',
-        color: c.color || '#eeeeee',
-        article_ids: Array.isArray(c.article_ids) ? c.article_ids : [],
-      })),
+      cells: (lo.cells || []).map((c) => {
+        const vUuids = cellVoucherUuids(c)
+        return {
+          row: c.row,
+          col: c.col,
+          label: c.label || '',
+          color: c.color || '#eeeeee',
+          article_ids: Array.isArray(c.article_ids) ? c.article_ids : [],
+          voucher_definition_uuid: vUuids[0] || null,
+          voucher_definition_uuids: vUuids,
+        }
+      }),
     })),
+    voucher_definitions: vouchersLocal.value.map((vd) => {
+      const row = {
+        name: vd.name,
+        kind: vd.kind,
+        allowed_article_ids: Array.isArray(vd.allowed_article_ids) ? vd.allowed_article_ids : [],
+        include_additions: !!vd.include_additions,
+      }
+      if (vd.uuid) row.uuid = vd.uuid
+      if (vd.kind === 'fixed_amount') {
+        row.value_cents = Math.round(Number(vd.value_amount || 0) * 100)
+      }
+      return row
+    }),
     cash_registers: cashRegistersLocal.value.map((reg) => {
       const row = {
         name: reg.name,

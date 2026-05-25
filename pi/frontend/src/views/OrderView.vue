@@ -15,7 +15,7 @@
         :lines="lines"
         :articles="articles"
         :currency="currency"
-        :label-fn="articleName"
+        :label-fn="cartLineLabel"
         @tap-name="onTapName"
         @tap-qty="onTapQty"
         @tap-price="onTapPrice"
@@ -27,6 +27,8 @@
           :layout="layout"
           :event="event"
           @pick="onPickArticles"
+          @pick-voucher="onPickVoucher"
+          @pick-cell="onPickCell"
         />
         <StationFallbackList v-else-if="event" :event="event" @pick="onPickArticles" />
       </div>
@@ -47,6 +49,13 @@
       :currency="currency"
       @cancel="onAdditionsCancel"
       @confirm="onAdditionsConfirm"
+    />
+
+    <LayoutCellPickerSheet
+      :open="cellPickerOpen"
+      :items="cellPickerItems"
+      @close="cellPickerOpen = false"
+      @pick="onCellPickerPick"
     />
 
     <QtyInputModal
@@ -71,6 +80,7 @@ import { getDefaultLayout, articlesForIds, hasAdditions, resolveStationUuidForAr
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
 import CartPanel from '../components/CartPanel.vue'
 import EventLayoutGrid from '../components/EventLayoutGrid.vue'
+import LayoutCellPickerSheet from '../components/LayoutCellPickerSheet.vue'
 import StationFallbackList from '../components/StationFallbackList.vue'
 import ArticlePickerSheet from '../components/ArticlePickerSheet.vue'
 import AdditionsPickerSheet from '../components/AdditionsPickerSheet.vue'
@@ -84,18 +94,22 @@ const {
   cartTotalCents,
   activeTableNumber,
   addCartLine,
+  addVoucherCartLine,
   removeCartLine,
   updateCartLine,
   decrementCartLine,
   availableQty,
   getArticle,
   articleName,
+  cartLineLabel,
   clearCart,
 } = useCart()
 const { event, currency, waiter, showToast, patchEventArticles } = useEventContext()
 const submitting = ref(false)
 const sheetOpen = ref(false)
 const sheetArticles = ref([])
+const cellPickerOpen = ref(false)
+const cellPickerItems = ref([])
 const qtyModalOpen = ref(false)
 const qtyModalLine = ref(null)
 const additionsPickerOpen = ref(false)
@@ -129,6 +143,27 @@ const qtyModalMax = computed(() => {
   if (avail === null) return 999
   return line.qty + avail
 })
+
+function onPickVoucher(vd) {
+  addVoucherCartLine({ voucher_definition_uuid: vd.uuid, qty: 1 })
+}
+
+function onPickCell({ items }) {
+  cellPickerItems.value = items || []
+  cellPickerOpen.value = true
+}
+
+function onCellPickerPick(item) {
+  cellPickerOpen.value = false
+  if (!item) return
+  if (item.type === 'voucher' && item.voucher) {
+    onPickVoucher(item.voucher)
+    return
+  }
+  if (item.type === 'article' && item.article_id != null) {
+    addOne(item.article_id)
+  }
+}
 
 function onPickArticles(articleIds) {
   const arts = articlesForIds(event.value, articleIds)
@@ -226,16 +261,26 @@ async function submitOrder() {
   submitting.value = true
   try {
     const client_order_id = `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-    const payloadLines = lines.value.map((l) => ({
-      article_id: l.article_id,
-      qty: l.qty,
-      station_uuid: l.station_uuid,
-      note: l.note || '',
-      additions: (l.additions || []).map((a) => ({
-        article_id: a.article_id,
-        qty: a.qty ?? 1,
-      })),
-    }))
+    const payloadLines = lines.value.map((l) => {
+      if (l.kind === 'voucher_sale') {
+        return {
+          kind: 'voucher_sale',
+          voucher_definition_uuid: l.voucher_definition_uuid,
+          qty: l.qty,
+          unit_cents: l.unit_cents,
+        }
+      }
+      return {
+        article_id: l.article_id,
+        qty: l.qty,
+        station_uuid: l.station_uuid,
+        note: l.note || '',
+        additions: (l.additions || []).map((a) => ({
+          article_id: a.article_id,
+          qty: a.qty ?? 1,
+        })),
+      }
+    })
     const res = await api('/v1/orders', {
       method: 'POST',
       body: JSON.stringify({

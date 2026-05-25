@@ -9,6 +9,16 @@
       <span>{{ qty }}</span>
     </div>
     <button
+      v-if="showMenu"
+      type="button"
+      class="header-btn menu"
+      aria-label="Menü"
+      :disabled="disabled"
+      @click="$emit('menu')"
+    >
+      ☰
+    </button>
+    <button
       type="button"
       class="header-btn fertig"
       :disabled="disabled"
@@ -25,7 +35,8 @@ defineProps({
   totalLabel: { type: String, required: true },
   qty: { type: Number, default: 0 },
   disabled: { type: Boolean, default: false },
+  showMenu: { type: Boolean, default: false },
 })
 
-defineEmits(['back', 'submit'])
+defineEmits(['back', 'submit', 'menu'])
 </script>

@@ -10,6 +10,14 @@ from pydantic import BaseModel, ConfigDict, Field
 # --- Request bodies ---
 
 
+class VoucherRedemptionIn(BaseModel):
+    voucher_definition_uuid: str = Field(..., min_length=1)
+    article_id: int | None = None
+    note: str = ""
+    qty: int = Field(1, ge=1)
+    additions: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class LocalOrderCreate(BaseModel):
     client_order_id: str = Field(..., min_length=8, max_length=64)
     event_id: int
@@ -19,6 +27,7 @@ class LocalOrderCreate(BaseModel):
     cash_register_uuid: str | None = None
     lines: list[dict[str, Any]] = Field(default_factory=list)
     payments: list[dict[str, Any]] = Field(default_factory=list)
+    voucher_redemptions: list[VoucherRedemptionIn] = Field(default_factory=list)
 
 
 class RegisterDisplayBody(BaseModel):
@@ -46,6 +55,7 @@ class TableSettlePartialBody(BaseModel):
     event_id: int
     payments: list[dict[str, Any]] = Field(default_factory=list)
     selections: list[LineSelection] = Field(default_factory=list)
+    voucher_redemptions: list[VoucherRedemptionIn] = Field(default_factory=list)
 
 
 class TransferLinesBody(BaseModel):
@@ -245,6 +255,7 @@ class PartialSettleResponse(BaseModel):
 class TablePartialSettleResponse(PartialSettleResponse):
     remaining_cents: int
     table_number: int
+    voucher_credit_cents: int = 0
 
 
 class TransferLinesResponse(BaseModel):

@@ -38,7 +38,14 @@ function additionPriceCents(articles, baseArticle, additionId) {
   return a ? Math.round(Number(a.price || 0) * 100) : 0
 }
 
-export function lineUnitCents(line, articles) {
+export function lineUnitCents(line, articles, event = null) {
+  if (line?.kind === 'voucher_sale') {
+    if (line.unit_cents != null) return Math.max(0, Number(line.unit_cents))
+    const defs = event?.configuration?.voucher_definitions || []
+    const vUuid = String(line.voucher_definition_uuid || '')
+    const vd = defs.find((d) => String(d.uuid) === vUuid)
+    return Math.max(0, Number(vd?.value_cents) || 0)
+  }
   const base = articleEntry(articles, line.article_id)
   let unit = base ? Math.round(Number(base.price || 0) * 100) : 0
   for (const add of line.additions || []) {
@@ -48,7 +55,7 @@ export function lineUnitCents(line, articles) {
   return Math.max(0, unit)
 }
 
-export function lineTotalCents(line, articles) {
+export function lineTotalCents(line, articles, event = null) {
   const qty = Math.max(1, Number(line.qty) || 1)
-  return lineUnitCents(line, articles) * qty
+  return lineUnitCents(line, articles, event) * qty
 }
