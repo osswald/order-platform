@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
 from ..models import Article, ArticleCategory, Organisation, User
-from .auth import get_current_user
+from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
+from ..user_access import can_manage_tenant
 
 router = APIRouter()
 
@@ -84,40 +86,52 @@ def article_response(article: Article) -> dict:
     }
 
 
-def readable_articles_query(db: Session, current_user: User):
-    query = db.query(Article).options(
-        joinedload(Article.article_category).joinedload(ArticleCategory.organisation)
-    )
-    if current_user.is_superuser:
-        return query
-    return (
-        query.join(Article.article_category)
+def readable_articles_query(db: Session, current_user: User, hire_company_id: int):
+    query = (
+        db.query(Article)
+        .options(joinedload(Article.article_category).joinedload(ArticleCategory.organisation))
+        .join(Article.article_category)
         .join(ArticleCategory.organisation)
-        .join(Organisation.users)
-        .filter(User.id == current_user.id)
+        .filter(Organisation.hire_company_id == hire_company_id)
     )
-
-
-def readable_categories_query(db: Session, current_user: User):
-    query = db.query(ArticleCategory).options(joinedload(ArticleCategory.organisation))
-    if current_user.is_superuser:
+    if can_manage_tenant(current_user):
         return query
-    return (
-        query.join(ArticleCategory.organisation)
-        .join(Organisation.users)
-        .filter(User.id == current_user.id)
+    return query.join(Organisation.users).filter(User.id == current_user.id)
+
+
+def readable_categories_query(db: Session, current_user: User, hire_company_id: int):
+    query = (
+        db.query(ArticleCategory)
+        .options(joinedload(ArticleCategory.organisation))
+        .join(ArticleCategory.organisation)
+        .filter(Organisation.hire_company_id == hire_company_id)
     )
+    if can_manage_tenant(current_user):
+        return query
+    return query.join(Organisation.users).filter(User.id == current_user.id)
 
 
-def ensure_user_can_use_category(db: Session, current_user: User, category_id: int) -> ArticleCategory:
-    category = readable_categories_query(db, current_user).filter(ArticleCategory.id == category_id).first()
+def ensure_user_can_use_category(
+    db: Session, current_user: User, category_id: int, hire_company_id: int
+) -> ArticleCategory:
+    category = (
+        readable_categories_query(db, current_user, hire_company_id)
+        .filter(ArticleCategory.id == category_id)
+        .first()
+    )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
     return category
 
 
-def _get_readable_article(db: Session, current_user: User, article_id: int) -> Article | None:
-    return readable_articles_query(db, current_user).filter(Article.id == article_id).first()
+def _get_readable_article(
+    db: Session, current_user: User, article_id: int, hire_company_id: int
+) -> Article | None:
+    return (
+        readable_articles_query(db, current_user, hire_company_id)
+        .filter(Article.id == article_id)
+        .first()
+    )
 
 
 @router.get("/", response_model=List[ArticleRead])
@@ -125,8 +139,9 @@ def read_articles(
     is_addition: bool | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    query = readable_articles_query(db, current_user)
+    query = readable_articles_query(db, current_user, tenant.hire_company_id)
     if is_addition is not None:
         query = query.filter(Article.is_addition.is_(is_addition))
     articles = query.order_by(Article.name).all()
@@ -138,8 +153,9 @@ def read_article_additions(
     article_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    article = _get_readable_article(db, current_user, article_id)
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
     validate_base_article(db, article_id)
@@ -152,8 +168,9 @@ def put_article_additions(
     body: ArticleAdditionsUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    article = _get_readable_article(db, current_user, article_id)
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
     base = validate_base_article(db, article_id)
@@ -178,8 +195,9 @@ def read_article(
     article_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    article = _get_readable_article(db, current_user, article_id)
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
     return article_response(article)
@@ -190,8 +208,9 @@ def create_article(
     article_in: ArticleCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    category = ensure_user_can_use_category(db, current_user, article_in.article_category_id)
+    category = ensure_user_can_use_category(db, current_user, article_in.article_category_id, tenant.hire_company_id)
     article = Article(
         name=article_in.name,
         label=article_in.label,
@@ -213,13 +232,14 @@ def update_article(
     article_in: ArticleUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    article = _get_readable_article(db, current_user, article_id)
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
 
     if article_in.article_category_id is not None:
-        category = ensure_user_can_use_category(db, current_user, article_in.article_category_id)
+        category = ensure_user_can_use_category(db, current_user, article_in.article_category_id, tenant.hire_company_id)
         article.article_category_id = category.id
     if article_in.name is not None:
         article.name = article_in.name
@@ -248,8 +268,9 @@ def delete_article(
     article_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    article = _get_readable_article(db, current_user, article_id)
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
     db.delete(article)

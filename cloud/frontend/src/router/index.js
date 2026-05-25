@@ -7,6 +7,7 @@ import Articles from '../components/Articles.vue'
 import ArticleCategories from '../components/ArticleCategories.vue'
 import ApplianceLendings from '../components/ApplianceLendings.vue'
 import Organisations from '../components/Organisations.vue'
+import HireCompanies from '../components/HireCompanies.vue'
 import Appliances from '../components/Appliances.vue'
 import Users from '../components/Users.vue'
 import AccountSettings from '../components/AccountSettings.vue'
@@ -61,22 +62,28 @@ const routes = [
     meta: { requiresAuth: true, organisationScoped: true },
   },
   {
+    path: '/verleiher',
+    name: 'hire-companies',
+    component: HireCompanies,
+    meta: { requiresAuth: true, platformOnly: true },
+  },
+  {
     path: '/organisations',
     name: 'organisations',
     component: Organisations,
-    meta: { requiresAuth: true, adminOnly: true },
+    meta: { requiresAuth: true, tenantAdminOnly: true },
   },
   {
     path: '/appliances',
     name: 'appliances',
     component: Appliances,
-    meta: { requiresAuth: true, adminOnly: true },
+    meta: { requiresAuth: true, tenantAdminOnly: true },
   },
   {
     path: '/users',
     name: 'users',
     component: Users,
-    meta: { requiresAuth: true, adminOnly: true },
+    meta: { requiresAuth: true, tenantAdminOnly: true },
   },
   {
     path: '/settings',

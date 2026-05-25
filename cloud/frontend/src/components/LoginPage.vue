@@ -120,6 +120,14 @@ async function submit() {
     localStorage.setItem('access_token', data.access_token)
     localStorage.setItem('user_email', email.value)
     localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
+    if (data.role) localStorage.setItem('user_role', data.role)
+    if (data.hire_company_id != null) {
+      localStorage.setItem('user_hire_company_id', String(data.hire_company_id))
+      localStorage.setItem('active_hire_company_id', String(data.hire_company_id))
+    } else {
+      localStorage.removeItem('user_hire_company_id')
+    }
+    localStorage.setItem('is_tenant_admin', data.is_tenant_admin ? 'true' : 'false')
     if (data.user_id != null) {
       localStorage.setItem('user_id', String(data.user_id))
     }

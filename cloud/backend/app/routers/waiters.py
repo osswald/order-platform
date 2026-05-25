@@ -5,8 +5,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Organisation, User, Waiter
-from .auth import get_current_user
+from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..tenancy import (
+    TenantContext,
+    ensure_user_can_use_organisation,
+    get_current_tenant,
+)
+from ..user_access import can_manage_tenant
 
 router = APIRouter()
 
@@ -46,57 +52,25 @@ def waiter_response(waiter: Waiter) -> dict:
     }
 
 
-def readable_waiters_query(db: Session, current_user: User):
-    query = db.query(Waiter).options(joinedload(Waiter.organisation))
-    if current_user.is_superuser:
-        return query
-    return (
-        query.join(Waiter.organisation)
-        .join(Organisation.users)
-        .filter(User.id == current_user.id)
+def readable_waiters_query(db: Session, current_user: User, hire_company_id: int):
+    query = (
+        db.query(Waiter)
+        .options(joinedload(Waiter.organisation))
+        .join(Waiter.organisation)
+        .filter(Organisation.hire_company_id == hire_company_id)
     )
-
-
-def readable_organisations(db: Session, current_user: User) -> list[Organisation]:
-    if current_user.is_superuser:
-        return db.query(Organisation).order_by(Organisation.name).all()
-    return sorted(current_user.organisations or [], key=lambda org: org.name.lower())
-
-
-def ensure_organisation_exists(db: Session, organisation_id: int) -> Organisation:
-    organisation = db.query(Organisation).filter(Organisation.id == organisation_id).first()
-    if not organisation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
-    return organisation
-
-
-def ensure_user_can_use_organisation(
-    db: Session,
-    current_user: User,
-    organisation_id: int | None,
-) -> Organisation:
-    organisations = readable_organisations(db, current_user)
-    if organisation_id is None:
-        if len(organisations) == 1:
-            return organisations[0]
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Organisation is required when the user is linked to multiple organisations",
-        )
-    organisation = ensure_organisation_exists(db, organisation_id)
-    if current_user.is_superuser:
-        return organisation
-    if not any(org.id == organisation.id for org in organisations):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this organisation")
-    return organisation
+    if can_manage_tenant(current_user):
+        return query
+    return query.join(Organisation.users).filter(User.id == current_user.id)
 
 
 @router.get("/", response_model=List[WaiterRead])
 def read_waiters(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    waiters = readable_waiters_query(db, current_user).order_by(Waiter.name).all()
+    waiters = readable_waiters_query(db, current_user, tenant.hire_company_id).order_by(Waiter.name).all()
     return [waiter_response(waiter) for waiter in waiters]
 
 
@@ -105,8 +79,13 @@ def read_waiter(
     waiter_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    waiter = readable_waiters_query(db, current_user).filter(Waiter.id == waiter_id).first()
+    waiter = (
+        readable_waiters_query(db, current_user, tenant.hire_company_id)
+        .filter(Waiter.id == waiter_id)
+        .first()
+    )
     if not waiter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Waiter not found")
     return waiter_response(waiter)
@@ -117,8 +96,11 @@ def create_waiter(
     waiter_in: WaiterCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    organisation = ensure_user_can_use_organisation(db, current_user, waiter_in.organisation_id)
+    organisation = ensure_user_can_use_organisation(
+        db, current_user, waiter_in.organisation_id, tenant.hire_company_id
+    )
     waiter = Waiter(
         name=waiter_in.name,
         pin=waiter_in.pin or "0000",
@@ -136,13 +118,20 @@ def update_waiter(
     waiter_in: WaiterUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    waiter = readable_waiters_query(db, current_user).filter(Waiter.id == waiter_id).first()
+    waiter = (
+        readable_waiters_query(db, current_user, tenant.hire_company_id)
+        .filter(Waiter.id == waiter_id)
+        .first()
+    )
     if not waiter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Waiter not found")
 
     if waiter_in.organisation_id is not None:
-        organisation = ensure_user_can_use_organisation(db, current_user, waiter_in.organisation_id)
+        organisation = ensure_user_can_use_organisation(
+            db, current_user, waiter_in.organisation_id, tenant.hire_company_id
+        )
         waiter.organisation_id = organisation.id
     if waiter_in.name is not None:
         waiter.name = waiter_in.name
@@ -159,8 +148,13 @@ def delete_waiter(
     waiter_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    waiter = readable_waiters_query(db, current_user).filter(Waiter.id == waiter_id).first()
+    waiter = (
+        readable_waiters_query(db, current_user, tenant.hire_company_id)
+        .filter(Waiter.id == waiter_id)
+        .first()
+    )
     if not waiter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Waiter not found")
     db.delete(waiter)

@@ -5,8 +5,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Article, ArticleCategory, Organisation, User
-from .auth import get_current_user
+from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
+from ..user_access import can_manage_tenant
 
 router = APIRouter()
 
@@ -44,60 +46,32 @@ def category_response(category: ArticleCategory) -> dict:
     }
 
 
-def readable_categories_query(db: Session, current_user: User):
-    query = db.query(ArticleCategory).options(
-        joinedload(ArticleCategory.organisation),
-        joinedload(ArticleCategory.articles),
-    )
-    if current_user.is_superuser:
-        return query
-    return (
-        query.join(ArticleCategory.organisation)
-        .join(Organisation.users)
-        .filter(User.id == current_user.id)
-    )
-
-
-def readable_organisations(db: Session, current_user: User) -> list[Organisation]:
-    if current_user.is_superuser:
-        return db.query(Organisation).order_by(Organisation.name).all()
-    return sorted(current_user.organisations or [], key=lambda org: org.name.lower())
-
-
-def ensure_organisation_exists(db: Session, organisation_id: int) -> Organisation:
-    organisation = db.query(Organisation).filter(Organisation.id == organisation_id).first()
-    if not organisation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
-    return organisation
-
-
-def ensure_user_can_use_organisation(
-    db: Session,
-    current_user: User,
-    organisation_id: int | None,
-) -> Organisation:
-    organisations = readable_organisations(db, current_user)
-    if organisation_id is None:
-        if len(organisations) == 1:
-            return organisations[0]
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Organisation is required when the user is linked to multiple organisations",
+def readable_categories_query(db: Session, current_user: User, hire_company_id: int):
+    query = (
+        db.query(ArticleCategory)
+        .options(
+            joinedload(ArticleCategory.organisation),
+            joinedload(ArticleCategory.articles),
         )
-    organisation = ensure_organisation_exists(db, organisation_id)
-    if current_user.is_superuser:
-        return organisation
-    if not any(org.id == organisation.id for org in organisations):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this organisation")
-    return organisation
+        .join(ArticleCategory.organisation)
+        .filter(Organisation.hire_company_id == hire_company_id)
+    )
+    if can_manage_tenant(current_user):
+        return query
+    return query.join(Organisation.users).filter(User.id == current_user.id)
 
 
 @router.get("/", response_model=List[ArticleCategoryRead])
 def read_article_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    categories = readable_categories_query(db, current_user).order_by(ArticleCategory.name).all()
+    categories = (
+        readable_categories_query(db, current_user, tenant.hire_company_id)
+        .order_by(ArticleCategory.name)
+        .all()
+    )
     return [category_response(category) for category in categories]
 
 
@@ -106,8 +80,13 @@ def read_article_category(
     category_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    category = readable_categories_query(db, current_user).filter(ArticleCategory.id == category_id).first()
+    category = (
+        readable_categories_query(db, current_user, tenant.hire_company_id)
+        .filter(ArticleCategory.id == category_id)
+        .first()
+    )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
     return category_response(category)
@@ -118,8 +97,11 @@ def create_article_category(
     category_in: ArticleCategoryCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    organisation = ensure_user_can_use_organisation(db, current_user, category_in.organisation_id)
+    organisation = ensure_user_can_use_organisation(
+        db, current_user, category_in.organisation_id, tenant.hire_company_id
+    )
     category = ArticleCategory(name=category_in.name, organisation_id=organisation.id)
     db.add(category)
     db.commit()
@@ -133,8 +115,13 @@ def update_article_category(
     category_in: ArticleCategoryUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    category = readable_categories_query(db, current_user).filter(ArticleCategory.id == category_id).first()
+    category = (
+        readable_categories_query(db, current_user, tenant.hire_company_id)
+        .filter(ArticleCategory.id == category_id)
+        .first()
+    )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
 
@@ -144,7 +131,9 @@ def update_article_category(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Cannot move category while articles are linked",
             )
-        organisation = ensure_user_can_use_organisation(db, current_user, category_in.organisation_id)
+        organisation = ensure_user_can_use_organisation(
+            db, current_user, category_in.organisation_id, tenant.hire_company_id
+        )
         category.organisation_id = organisation.id
     if category_in.name is not None:
         category.name = category_in.name
@@ -159,8 +148,13 @@ def delete_article_category(
     category_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    category = readable_categories_query(db, current_user).filter(ArticleCategory.id == category_id).first()
+    category = (
+        readable_categories_query(db, current_user, tenant.hire_company_id)
+        .filter(ArticleCategory.id == category_id)
+        .first()
+    )
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
     if db.query(Article).filter(Article.article_category_id == category.id).count():

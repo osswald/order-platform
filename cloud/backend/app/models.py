@@ -20,6 +20,19 @@ class Item(Base):
     description = Column(String, nullable=True)
 
 
+class HireCompany(Base):
+    __tablename__ = "hire_companies"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    address = Column(String, nullable=True)
+    zip = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    organisations = relationship("Organisation", back_populates="hire_company")
+    appliances = relationship("Appliance", back_populates="hire_company")
+    users = relationship("User", back_populates="hire_company", foreign_keys="User.hire_company_id")
+
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -28,19 +41,24 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    role = Column(String(32), nullable=False, default="member")
+    hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=True, index=True)
     event_admin_pin_hash = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    hire_company = relationship("HireCompany", back_populates="users", foreign_keys=[hire_company_id])
     organisations = relationship("Organisation", secondary=organisation_users, back_populates="users")
 
 
 class Organisation(Base):
     __tablename__ = "organisations"
     id = Column(Integer, primary_key=True, index=True)
+    hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
     zip = Column(String, nullable=True)
     city = Column(String, nullable=True)
     country = Column(String, nullable=False)
+    hire_company = relationship("HireCompany", back_populates="organisations")
     users = relationship("User", secondary=organisation_users, back_populates="organisations")
     events = relationship("Event", back_populates="organisation", cascade="all, delete-orphan")
     waiters = relationship("Waiter", back_populates="organisation", cascade="all, delete-orphan")
@@ -51,6 +69,7 @@ class Organisation(Base):
 class Appliance(Base):
     __tablename__ = "appliances"
     id = Column(Integer, primary_key=True, index=True)
+    hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=False, index=True)
     type = Column(String, nullable=False)
     name = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
@@ -59,6 +78,7 @@ class Appliance(Base):
     # Raspberry Pi / edge: device authenticates to cloud with client id + secret (secret stored hashed).
     edge_client_id = Column(String(64), nullable=True, unique=True, index=True)
     edge_secret_hash = Column(String(255), nullable=True)
+    hire_company = relationship("HireCompany", back_populates="appliances")
     lendings = relationship("ApplianceLending", back_populates="appliance", cascade="all, delete-orphan")
 
 

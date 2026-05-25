@@ -2,60 +2,30 @@ from datetime import timedelta
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
 from ..rate_limit import LOGIN_RATE_LIMIT, limiter
-from ..models import User
+from ..models import HireCompany, User
+from ..user_access import is_org_admin, is_platform_admin, user_hire_company_id, user_role
 from ..schemas import MessageResponse
+from ..auth_deps import get_current_superuser, get_current_user
 from ..security import (
     create_access_token,
     create_refresh_token,
-    decode_access_token,
     decode_refresh_token,
     get_password_hash,
     verify_password,
 )
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    try:
-        payload = decode_access_token(token)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    email = payload.get("sub")
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
-
-
-def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Requires administrative privileges",
-        )
-    return current_user
+class HireCompanyBrief(BaseModel):
+    id: int
+    name: str
 
 
 class Token(BaseModel):
@@ -63,6 +33,9 @@ class Token(BaseModel):
     token_type: str = "bearer"
     is_admin: bool = False
     user_id: int | None = None
+    role: str = "member"
+    hire_company_id: int | None = None
+    is_tenant_admin: bool = False
 
 
 class MeResponse(BaseModel):
@@ -70,6 +43,20 @@ class MeResponse(BaseModel):
     email: str
     is_admin: bool
     name: str | None = None
+    role: str = "member"
+    hire_company_id: int | None = None
+    is_tenant_admin: bool = False
+    hire_companies: list[HireCompanyBrief] = []
+
+
+def _token_for_user(user: User) -> dict:
+    role = user_role(user)
+    return {
+        "is_admin": is_platform_admin(user),
+        "role": role,
+        "hire_company_id": user_hire_company_id(user),
+        "is_tenant_admin": is_org_admin(user),
+    }
 
 
 class PasswordChange(BaseModel):
@@ -108,21 +95,31 @@ def login_for_access_token(
         path="/",
     )
 
+    flags = _token_for_user(user)
     return Token(
         access_token=access_token,
         token_type="bearer",
-        is_admin=user.is_superuser,
         user_id=user.id,
+        **flags,
     )
 
 
 @router.get("/me", response_model=MeResponse)
-def read_me(current_user: User = Depends(get_current_user)) -> MeResponse:
+def read_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MeResponse:
+    flags = _token_for_user(current_user)
+    hire_companies: list[HireCompanyBrief] = []
+    if is_platform_admin(current_user):
+        rows = db.query(HireCompany).order_by(HireCompany.name).all()
+        hire_companies = [HireCompanyBrief(id=c.id, name=c.name) for c in rows]
     return MeResponse(
         id=current_user.id,
         email=current_user.email,
-        is_admin=current_user.is_superuser,
         name=current_user.name,
+        hire_companies=hire_companies,
+        **flags,
     )
 
 
@@ -140,11 +137,12 @@ def refresh_access_token(request: Request, db: Session = Depends(get_db)) -> Tok
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     access_token = create_access_token(data={"sub": user.email})
+    flags = _token_for_user(user)
     return Token(
         access_token=access_token,
         token_type="bearer",
-        is_admin=user.is_superuser,
         user_id=user.id,
+        **flags,
     )
 
 

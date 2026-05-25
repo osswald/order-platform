@@ -10,10 +10,15 @@
     <div class="app-body">
       <Sidebar
         v-if="!isMobile"
-        :is-admin="isAdmin"
+        :is-platform-admin="isPlatformAdmin"
+        :can-access-tenant-admin="canAccessTenantAdmin"
+        :hire-companies="hireCompanies"
+        :active-hire-company-id="activeHireCompanyId"
+        :show-hire-company-picker="isPlatformAdmin"
         :organisations="accessibleOrganisations"
         :active-organisation-id="activeOrganisationId"
         @change-organisation="setActiveOrganisation"
+        @change-hire-company="setActiveHireCompany"
       />
       <main class="main-content" :class="{ 'main-content--mobile': isMobile }">
         <RouterView v-slot="{ Component }">
@@ -35,10 +40,15 @@
       class="mobile-nav-drawer"
     >
       <AppNavMenu
-        :is-admin="isAdmin"
+        :is-platform-admin="isPlatformAdmin"
+        :can-access-tenant-admin="canAccessTenantAdmin"
+        :hire-companies="hireCompanies"
+        :active-hire-company-id="activeHireCompanyId"
+        :show-hire-company-picker="isPlatformAdmin"
         :organisations="accessibleOrganisations"
         :active-organisation-id="activeOrganisationId"
         @change-organisation="setActiveOrganisation"
+        @change-hire-company="setActiveHireCompany"
         @navigate="mobileNavOpen = false"
       />
     </Drawer>
@@ -46,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { provide, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Drawer from 'primevue/drawer'
 import Header from './components/Header.vue'
@@ -54,6 +64,7 @@ import Sidebar from './components/Sidebar.vue'
 import AppNavMenu from './components/AppNavMenu.vue'
 import { useAuthSession } from './composables/useAuthSession'
 import { useBreakpoint } from './composables/useBreakpoint'
+import { SESSION_CONTEXT_KEY } from './sessionContext'
 
 const MOBILE_BREAKPOINT = 992
 
@@ -79,11 +90,23 @@ const {
   authReady,
   userEmail,
   isAdmin,
+  isPlatformAdmin,
+  canAccessTenantAdmin,
+  hireCompanies,
+  activeHireCompanyId,
+  setActiveHireCompany,
   accessibleOrganisations,
   activeOrganisationId,
   setActiveOrganisation,
   handleLogout,
+  reloadHireCompaniesAndSelect,
+  reloadOrganisationsAndSelect,
 } = useAuthSession()
+
+provide(SESSION_CONTEXT_KEY, {
+  reloadHireCompaniesAndSelect,
+  reloadOrganisationsAndSelect,
+})
 </script>
 
 <style>

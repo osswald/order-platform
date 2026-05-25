@@ -34,8 +34,16 @@ from ..twint_qr import (
 )
 from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_operational_data, validate_status_transition
 from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
-from .auth import get_current_superuser, get_current_user
+from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..tenancy import (
+    TenantContext,
+    ensure_user_can_use_organisation,
+    get_current_tenant,
+    get_current_tenant_admin,
+    readable_events_query,
+    readable_organisations,
+)
 
 router = APIRouter()
 
@@ -237,54 +245,14 @@ def event_response(event: Event) -> dict:
     }
 
 
-def readable_events_query(db: Session, current_user: User):
-    query = db.query(Event).options(joinedload(Event.organisation))
-    if current_user.is_superuser:
-        return query
-    return (
-        query.join(Event.organisation)
-        .join(Organisation.users)
-        .filter(User.id == current_user.id)
-    )
-
-
-def ensure_organisation_exists(db: Session, organisation_id: int) -> Organisation:
-    organisation = db.query(Organisation).filter(Organisation.id == organisation_id).first()
-    if not organisation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
-    return organisation
-
-
-def readable_organisations(db: Session, current_user: User) -> list[Organisation]:
-    if current_user.is_superuser:
-        return db.query(Organisation).order_by(Organisation.name).all()
-    return sorted(current_user.organisations or [], key=lambda org: org.name.lower())
-
-
-def ensure_user_can_use_organisation(
+def get_event_for_configuration(
     db: Session,
     current_user: User,
-    organisation_id: int | None,
-) -> Organisation:
-    organisations = readable_organisations(db, current_user)
-    if organisation_id is None:
-        if len(organisations) == 1:
-            return organisations[0]
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Organisation is required when the user is linked to multiple organisations",
-        )
-    organisation = ensure_organisation_exists(db, organisation_id)
-    if current_user.is_superuser:
-        return organisation
-    if not any(org.id == organisation.id for org in organisations):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this organisation")
-    return organisation
-
-
-def get_event_for_configuration(db: Session, current_user: User, event_id: int) -> Event:
+    event_id: int,
+    hire_company_id: int,
+) -> Event:
     event = (
-        readable_events_query(db, current_user)
+        readable_events_query(db, current_user, hire_company_id)
         .options(
             joinedload(Event.organisation),
             joinedload(Event.stations).joinedload(EventStation.articles),
@@ -375,8 +343,9 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
 def read_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    events = readable_events_query(db, current_user).order_by(Event.start.desc()).all()
+    events = readable_events_query(db, current_user, tenant.hire_company_id).order_by(Event.start.desc()).all()
     return [event_response(event) for event in events]
 
 
@@ -384,8 +353,9 @@ def read_events(
 def read_event_organisations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    return [{"id": org.id, "name": org.name} for org in readable_organisations(db, current_user)]
+    return [{"id": org.id, "name": org.name} for org in readable_organisations(db, current_user, tenant.hire_company_id)]
 
 
 @router.get("/{event_id}/configuration", response_model=EventConfigurationRead)
@@ -393,8 +363,9 @@ def read_event_configuration(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return serialize_event_configuration(db, event)
 
 
@@ -403,8 +374,9 @@ def read_event_station_article_tree(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return {"nodes": build_station_article_tree(db, event)}
 
 
@@ -524,8 +496,9 @@ def read_event_sales_report(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_event_sales_report(db, event)
 
 
@@ -563,8 +536,9 @@ def read_event_collective_bills(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_event_collective_bills_list(db, event)
 
 
@@ -573,8 +547,9 @@ def get_event_twint_qr(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     payload = twint_qr_bytes(event)
     if not payload:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No TWINT QR code for this event")
@@ -588,8 +563,9 @@ async def put_event_twint_qr(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     if "twint" not in payment_types_from_event(event):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -611,8 +587,9 @@ def delete_event_twint_qr(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     clear_twint_qr(event)
     db.commit()
 
@@ -622,8 +599,9 @@ def read_event_stock(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     rows = ensure_stock_rows_for_event_articles(db, event, commit=True)
     art_by_id = {a.id: a for a in db.query(Article).filter(Article.id.in_([r.article_id for r in rows])).all()}
     items = []
@@ -650,8 +628,9 @@ def put_event_stock(
     body: EventStockUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     try:
         upsert_stock_rows(
             db,
@@ -695,8 +674,9 @@ def put_event_configuration(
     body: EventConfigurationIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     try:
         replace_event_configuration(
             db,
@@ -713,7 +693,7 @@ def put_event_configuration(
     except Exception:
         db.rollback()
         raise
-    event = get_event_for_configuration(db, current_user, event_id)
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return serialize_event_configuration(db, event)
 
 
@@ -722,8 +702,9 @@ def read_event(
     event_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = readable_events_query(db, current_user).filter(Event.id == event_id).first()
+    event = readable_events_query(db, current_user, tenant.hire_company_id).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     return event_response(event)
@@ -734,8 +715,9 @@ def create_event(
     event_in: EventCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id)
+    organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id, tenant.hire_company_id)
     create_status = assert_create_status(event_in.status)
     event = Event(
         name=event_in.name,
@@ -759,8 +741,9 @@ def copy_event_endpoint(
     body: EventCopyIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    source = get_event_for_configuration(db, current_user, event_id)
+    source = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     copy_name = (body.name or "").strip() or default_copy_name(source.name)
     try:
         new_event = copy_event(db, source, name=copy_name)
@@ -774,7 +757,7 @@ def copy_event_endpoint(
     except Exception:
         db.rollback()
         raise
-    new_event = get_event_for_configuration(db, current_user, new_event.id)
+    new_event = get_event_for_configuration(db, current_user, new_event.id, tenant.hire_company_id)
     return event_response(new_event)
 
 
@@ -784,13 +767,14 @@ def update_event(
     event_in: EventUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = readable_events_query(db, current_user).filter(Event.id == event_id).first()
+    event = readable_events_query(db, current_user, tenant.hire_company_id).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
     if event_in.organisation_id is not None:
-        organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id)
+        organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id, tenant.hire_company_id)
         event.organisation_id = organisation.id
     if event_in.name is not None:
         event.name = event_in.name
@@ -839,9 +823,18 @@ def update_event(
     return event_response(event)
 
 
-@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_superuser)])
-def delete_event(event_id: int, db: Session = Depends(get_db)):
-    event = db.query(Event).filter(Event.id == event_id).first()
+@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    event = (
+        readable_events_query(db, current_user, tenant.hire_company_id)
+        .filter(Event.id == event_id)
+        .first()
+    )
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     db.delete(event)

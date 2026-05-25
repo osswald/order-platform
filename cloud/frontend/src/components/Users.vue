@@ -16,9 +16,9 @@
         <label>Email</label>
         <InputText v-model="form.email" placeholder="max@example.com" />
       </div>
-      <div class="form-field checkbox-field">
-        <label>Admin</label>
-        <Checkbox v-model="form.is_admin" binary />
+      <div class="form-field">
+        <label>Rolle</label>
+        <Select v-model="form.role" :options="roleOptions" optionLabel="label" optionValue="value" />
       </div>
       <div class="form-field" v-if="!editMode">
         <label>Passwort</label>
@@ -89,8 +89,8 @@
         <Column field="id" header="ID" />
         <Column field="name" header="Name" />
         <Column field="email" header="Email" />
-        <Column field="is_admin" header="Admin">
-          <template #body="{ data }">{{ data.is_admin ? 'Ja' : 'Nein' }}</template>
+        <Column header="Rolle">
+          <template #body="{ data }">{{ roleLabel(data.role) }}</template>
         </Column>
         <Column header="Pi-Code">
           <template #body="{ data }">{{ data.has_event_admin_pin ? 'Ja' : 'Nein' }}</template>
@@ -126,6 +126,8 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+
+// isAdmin prop = platform administrator (from App.vue)
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -141,6 +143,10 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
 import { apiFetch } from '../api'
 
+const props = defineProps({
+  isAdmin: { type: Boolean, default: false },
+})
+
 const users = ref([])
 const showDetail = ref(false)
 const editMode = ref(false)
@@ -154,9 +160,26 @@ const currentPage = ref(1)
 const pageSize = 20
 const roleFilterOptions = [
   { value: '', label: 'Alle Rollen' },
-  { value: 'admin', label: 'Administratoren' },
-  { value: 'user', label: 'Benutzer' },
+  { value: 'org_admin', label: 'Organisations-Admins' },
+  { value: 'member', label: 'Mitglieder' },
 ]
+
+const roleOptions = computed(() => {
+  const opts = [
+    { value: 'member', label: 'Mitglied' },
+    { value: 'org_admin', label: 'Organisations-Admin' },
+  ]
+  if (props.isAdmin) {
+    opts.push({ value: 'platform_admin', label: 'Plattform-Admin' })
+  }
+  return opts
+})
+
+function roleLabel(role) {
+  if (role === 'platform_admin') return 'Plattform-Admin'
+  if (role === 'org_admin') return 'Organisations-Admin'
+  return 'Mitglied'
+}
 const organisationFilterOptions = [
   { value: '', label: 'Alle' },
   { value: 'with-orgs', label: 'Mit Organisationen' },
@@ -166,7 +189,7 @@ const organisationFilterOptions = [
 const form = ref({
   name: '',
   email: '',
-  is_admin: false,
+  role: 'member',
   password: '',
   organisationIdsArray: [],
   eventAdminPin: '',
@@ -220,8 +243,7 @@ const filteredUsers = computed(() => {
   const term = searchQuery.value.trim().toLowerCase()
   return users.value.filter((u) => {
     if (!matchesSearch(u, term)) return false
-    if (roleFilter.value === 'admin' && !u.is_admin) return false
-    if (roleFilter.value === 'user' && u.is_admin) return false
+    if (roleFilter.value && u.role !== roleFilter.value) return false
     const orgCount = organisationCount(u)
     if (organisationFilter.value === 'with-orgs' && orgCount === 0) return false
     if (organisationFilter.value === 'without-orgs' && orgCount > 0) return false
@@ -272,7 +294,7 @@ function resetForm() {
   form.value = {
     name: '',
     email: '',
-    is_admin: false,
+    role: 'member',
     password: '',
     organisationIdsArray: [],
     eventAdminPin: '',
@@ -294,7 +316,7 @@ function editUser(u) {
   form.value = {
     name: u.name || '',
     email: u.email || '',
-    is_admin: !!u.is_admin,
+    role: u.role || (u.is_admin ? 'platform_admin' : 'member'),
     password: '',
     organisationIdsArray: Array.isArray(u.organisation_ids) ? u.organisation_ids.slice() : [],
     eventAdminPin: '',
@@ -308,7 +330,7 @@ async function saveUser() {
   const payload = {
     name: form.value.name,
     email: form.value.email,
-    is_admin: form.value.is_admin,
+    role: form.value.role,
     organisation_ids: Array.isArray(form.value.organisationIdsArray)
       ? form.value.organisationIdsArray.map(Number)
       : [],

@@ -2,6 +2,8 @@ import os
 import uuid
 
 from sqlalchemy import create_engine, inspect, text
+
+from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
@@ -120,6 +122,7 @@ def apply_schema_patches() -> None:
     _patch_entity_uuids("event_waiters")
     _patch_entity_uuids("event_app_layouts")
     _relax_appliances_organisation_id()
+    _patch_hire_companies_tenancy()
 
 
 def _ensure_event_cash_registers_table() -> None:
@@ -181,6 +184,127 @@ def _patch_entity_uuids(table: str) -> None:
         if not is_sqlite:
             conn.execute(
                 text(f"ALTER TABLE {table} ALTER COLUMN uuid SET NOT NULL"),
+            )
+
+
+def _ensure_hire_companies_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "hire_companies" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import HireCompany
+
+    HireCompany.__table__.create(bind=engine, checkfirst=True)
+
+
+def _patch_hire_companies_tenancy() -> None:
+    """Multi-tenant: hire_companies + FK backfill (default Verleiher: Vendiqo)."""
+    _ensure_hire_companies_table()
+    _add_column_if_missing(
+        "users",
+        "role",
+        "ALTER TABLE users ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'member'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(32) NOT NULL DEFAULT 'member'",
+    )
+    _add_column_if_missing(
+        "users",
+        "hire_company_id",
+        "ALTER TABLE users ADD COLUMN hire_company_id INTEGER",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS hire_company_id INTEGER",
+    )
+    _add_column_if_missing(
+        "organisations",
+        "hire_company_id",
+        "ALTER TABLE organisations ADD COLUMN hire_company_id INTEGER",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS hire_company_id INTEGER",
+    )
+    _add_column_if_missing(
+        "appliances",
+        "hire_company_id",
+        "ALTER TABLE appliances ADD COLUMN hire_company_id INTEGER",
+        "ALTER TABLE appliances ADD COLUMN IF NOT EXISTS hire_company_id INTEGER",
+    )
+
+    default_name = os.getenv("DEFAULT_HIRE_COMPANY_NAME", DEFAULT_HIRE_COMPANY_NAME).strip() or DEFAULT_HIRE_COMPANY_NAME
+    is_sqlite = engine.dialect.name == "sqlite"
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id FROM hire_companies WHERE name = :name LIMIT 1"),
+            {"name": default_name},
+        ).fetchone()
+        if row:
+            default_id = row[0]
+        else:
+            if is_sqlite:
+                conn.execute(
+                    text(
+                        "INSERT INTO hire_companies (name) VALUES (:name)"
+                    ),
+                    {"name": default_name},
+                )
+                default_id = conn.execute(text("SELECT last_insert_rowid()")).scalar()
+            else:
+                inserted = conn.execute(
+                    text("INSERT INTO hire_companies (name) VALUES (:name) RETURNING id"),
+                    {"name": default_name},
+                ).fetchone()
+                default_id = inserted[0]
+
+        conn.execute(
+            text("UPDATE organisations SET hire_company_id = :hid WHERE hire_company_id IS NULL"),
+            {"hid": default_id},
+        )
+        conn.execute(
+            text("UPDATE appliances SET hire_company_id = :hid WHERE hire_company_id IS NULL"),
+            {"hid": default_id},
+        )
+        if is_sqlite:
+            conn.execute(
+                text(
+                    f"UPDATE users SET role = '{ROLE_PLATFORM_ADMIN}' "
+                    "WHERE is_superuser = 1 AND (role IS NULL OR role = '' OR role = 'member')"
+                ),
+            )
+            conn.execute(
+                text(
+                    f"UPDATE users SET role = '{ROLE_MEMBER}' WHERE role IS NULL OR role = ''"
+                ),
+            )
+            conn.execute(
+                text(
+                    "UPDATE users SET hire_company_id = NULL "
+                    f"WHERE role = '{ROLE_PLATFORM_ADMIN}' OR is_superuser = 1"
+                ),
+            )
+        else:
+            conn.execute(
+                text(
+                    f"UPDATE users SET role = '{ROLE_PLATFORM_ADMIN}' "
+                    "WHERE is_superuser IS TRUE AND (role IS NULL OR role = '' OR role = 'member')"
+                ),
+            )
+            conn.execute(
+                text(
+                    f"UPDATE users SET role = '{ROLE_MEMBER}' WHERE role IS NULL OR role = ''"
+                ),
+            )
+            conn.execute(
+                text(
+                    "UPDATE users SET hire_company_id = NULL "
+                    f"WHERE role = '{ROLE_PLATFORM_ADMIN}' OR is_superuser IS TRUE"
+                ),
+            )
+
+    if not is_sqlite:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE organisations ALTER COLUMN hire_company_id SET NOT NULL"),
+            )
+            conn.execute(
+                text("ALTER TABLE appliances ALTER COLUMN hire_company_id SET NOT NULL"),
             )
 
 

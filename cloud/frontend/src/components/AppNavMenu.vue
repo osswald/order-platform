@@ -1,16 +1,37 @@
 <template>
   <nav class="nav-menu">
+    <div v-if="showHireCompanyPicker" class="organisation-context">
+      <label>Aktiver Verleiher</label>
+      <Select
+        v-if="hireCompanyOptions.length > 1"
+        :modelValue="activeHireCompanyId"
+        :options="hireCompanyOptions"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Verleiher wählen"
+        @update:modelValue="changeHireCompany"
+      />
+      <span v-else-if="hireCompanyOptions.length === 1" class="context-value">
+        {{ activeHireCompanyName }}
+      </span>
+      <span v-else class="context-value context-value--muted">Keine Verleiher</span>
+    </div>
+
     <div class="organisation-context">
       <label>Aktive Organisation</label>
       <Select
+        v-if="organisationOptions.length > 1"
         :modelValue="activeOrganisationId"
         :options="organisationOptions"
         optionLabel="name"
         optionValue="id"
         placeholder="Keine Organisation"
-        :disabled="organisationOptions.length <= 1"
         @update:modelValue="changeOrganisation"
       />
+      <span v-else-if="organisationOptions.length === 1" class="context-value">
+        {{ activeOrganisationName }}
+      </span>
+      <span v-else class="context-value context-value--muted">Keine Organisation</span>
     </div>
 
     <div class="nav-section">
@@ -58,19 +79,25 @@
     <div class="nav-section">
       <h3 class="section-title">VERWALTUNG</h3>
       <ul class="menu-items">
-        <li v-if="isAdmin">
+        <li v-if="isPlatformAdmin">
+          <RouterLink :to="{ name: 'hire-companies' }" class="menu-item" @click="onNavigate">
+            <i class="icon pi pi-briefcase"></i>
+            <span class="label">Verleiher</span>
+          </RouterLink>
+        </li>
+        <li v-if="canAccessTenantAdmin">
           <RouterLink :to="routeTo('organisations')" class="menu-item" @click="onNavigate">
             <i class="icon pi pi-building"></i>
             <span class="label">Organisationen</span>
           </RouterLink>
         </li>
-        <li v-if="isAdmin">
+        <li v-if="canAccessTenantAdmin">
           <RouterLink :to="routeTo('appliances')" class="menu-item" @click="onNavigate">
             <i class="icon pi pi-desktop"></i>
             <span class="label">Geräte</span>
           </RouterLink>
         </li>
-        <li v-if="isAdmin">
+        <li v-if="canAccessTenantAdmin">
           <RouterLink :to="routeTo('users')" class="menu-item" @click="onNavigate">
             <i class="icon pi pi-user"></i>
             <span class="label">Benutzer</span>
@@ -93,7 +120,23 @@ import { RouterLink } from 'vue-router'
 import Select from 'primevue/select'
 
 const props = defineProps({
-  isAdmin: {
+  isPlatformAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  canAccessTenantAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  hireCompanies: {
+    type: Array,
+    default: () => [],
+  },
+  activeHireCompanyId: {
+    type: Number,
+    default: null,
+  },
+  showHireCompanyPicker: {
     type: Boolean,
     default: false,
   },
@@ -107,9 +150,24 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['change-organisation', 'navigate'])
+const emit = defineEmits(['change-organisation', 'change-hire-company', 'navigate'])
 
 const organisationOptions = computed(() => props.organisations)
+const hireCompanyOptions = computed(() => props.hireCompanies)
+
+const activeHireCompanyName = computed(() => {
+  const company = hireCompanyOptions.value.find(
+    (c) => Number(c.id) === Number(props.activeHireCompanyId),
+  )
+  return company?.name ?? hireCompanyOptions.value[0]?.name ?? '—'
+})
+
+const activeOrganisationName = computed(() => {
+  const org = organisationOptions.value.find(
+    (o) => Number(o.id) === Number(props.activeOrganisationId),
+  )
+  return org?.name ?? organisationOptions.value[0]?.name ?? '—'
+})
 
 function routeTo(name) {
   const query = {}
@@ -121,6 +179,10 @@ function routeTo(name) {
 
 function changeOrganisation(id) {
   emit('change-organisation', id)
+}
+
+function changeHireCompany(id) {
+  emit('change-hire-company', id)
 }
 
 function onNavigate() {
@@ -152,6 +214,18 @@ function onNavigate() {
 
 .organisation-context :deep(.p-select) {
   width: 100%;
+}
+
+.context-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--p-text-color);
+  padding: 0.15rem 0;
+}
+
+.context-value--muted {
+  font-weight: 500;
+  color: var(--p-text-muted-color);
 }
 
 .nav-section {

@@ -59,6 +59,7 @@ def get_edge_server_appliance(
     today = _utc_today()
     lending = (
         db.query(ApplianceLending)
+        .options(joinedload(ApplianceLending.organisation))
         .filter(
             ApplianceLending.appliance_id == appliance.id,
             ApplianceLending.returned_at.is_(None),
@@ -71,6 +72,12 @@ def get_edge_server_appliance(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No active appliance lending for this device today",
+        )
+    org = lending.organisation
+    if not org or org.hire_company_id != appliance.hire_company_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Lending organisation does not match appliance Verleiher",
         )
     return ApplianceEdgeContext(appliance, lending.organisation_id)
 

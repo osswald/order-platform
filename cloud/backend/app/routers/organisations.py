@@ -7,10 +7,17 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..dashboard_summary import build_organisation_dashboard_summary
 from ..models import ApplianceLending, Event, Organisation, User
-from .auth import get_current_superuser, get_current_user
+from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..tenancy import (
+    TenantContext,
+    ensure_org_in_tenant,
+    ensure_user_can_use_organisation,
+    get_current_tenant,
+    get_current_tenant_admin,
+    readable_events_query,
+)
 from .appliances import _assert_lending_is_planned, _utc_today
-from .events import ensure_user_can_use_organisation, readable_events_query
 
 router = APIRouter()
 
@@ -40,6 +47,7 @@ class OrganisationRead(OrganisationBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    hire_company_id: int
     user_ids: List[int] = []
 
 
@@ -61,6 +69,7 @@ class OrganisationApplianceLendingsRead(BaseModel):
 def organisation_response(org: Organisation) -> dict:
     return {
         "id": org.id,
+        "hire_company_id": org.hire_company_id,
         "name": org.name,
         "address": org.address,
         "zip": org.zip,
@@ -70,9 +79,17 @@ def organisation_response(org: Organisation) -> dict:
     }
 
 
-@router.get("/", response_model=List[OrganisationRead], dependencies=[Depends(get_current_superuser)])
-def read_organisations(db: Session = Depends(get_db)):
-    organisations = db.query(Organisation).all()
+@router.get("/", response_model=List[OrganisationRead])
+def read_organisations(
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    organisations = (
+        db.query(Organisation)
+        .filter(Organisation.hire_company_id == tenant.hire_company_id)
+        .order_by(Organisation.name)
+        .all()
+    )
     return [organisation_response(org) for org in organisations]
 
 
@@ -84,8 +101,9 @@ def read_organisation_appliance_lendings(
     organisation_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    ensure_user_can_use_organisation(db, current_user, organisation_id)
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
 
     today = datetime.now(timezone.utc).date()
     rows = (
@@ -102,6 +120,8 @@ def read_organisation_appliance_lendings(
 
     for row in rows:
         appliance = row.appliance
+        if appliance and appliance.hire_company_id != tenant.hire_company_id:
+            continue
         item = OrgApplianceLendingItem(
             lending_id=row.id,
             appliance_id=row.appliance_id,
@@ -132,10 +152,11 @@ def read_organisation_dashboard_summary(
     organisation_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    organisation = ensure_user_can_use_organisation(db, current_user, organisation_id)
+    organisation = ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
     events = (
-        readable_events_query(db, current_user)
+        readable_events_query(db, current_user, tenant.hire_company_id)
         .filter(Event.organisation_id == organisation_id)
         .order_by(Event.start.desc())
         .all()
@@ -152,11 +173,13 @@ def cancel_organisation_planned_lending(
     lending_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
-    ensure_user_can_use_organisation(db, current_user, organisation_id)
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
 
     lending = (
         db.query(ApplianceLending)
+        .options(joinedload(ApplianceLending.appliance))
         .filter(
             ApplianceLending.id == lending_id,
             ApplianceLending.organisation_id == organisation_id,
@@ -165,6 +188,8 @@ def cancel_organisation_planned_lending(
     )
     if not lending:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lending not found")
+    if lending.appliance and lending.appliance.hire_company_id != tenant.hire_company_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Lending not in this Verleiher")
 
     _assert_lending_is_planned(lending, _utc_today())
     db.delete(lending)
@@ -172,17 +197,24 @@ def cancel_organisation_planned_lending(
     return None
 
 
-@router.get("/{organisation_id}", response_model=OrganisationRead, dependencies=[Depends(get_current_superuser)])
-def read_organisation(organisation_id: int, db: Session = Depends(get_db)):
-    org = db.query(Organisation).filter(Organisation.id == organisation_id).first()
-    if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
+@router.get("/{organisation_id}", response_model=OrganisationRead)
+def read_organisation(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)
 
 
-@router.post("/", response_model=OrganisationRead, dependencies=[Depends(get_current_superuser)])
-def create_organisation(org_in: OrganisationCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=OrganisationRead, status_code=status.HTTP_201_CREATED)
+def create_organisation(
+    org_in: OrganisationCreate,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
     db_org = Organisation(
+        hire_company_id=tenant.hire_company_id,
         name=org_in.name,
         address=org_in.address,
         zip=org_in.zip,
@@ -191,6 +223,12 @@ def create_organisation(org_in: OrganisationCreate, db: Session = Depends(get_db
     )
     if org_in.user_ids:
         users = db.query(User).filter(User.id.in_(org_in.user_ids)).all()
+        for u in users:
+            if u.hire_company_id and u.hire_company_id != tenant.hire_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User belongs to another Verleiher",
+                )
         db_org.users = users
     db.add(db_org)
     db.commit()
@@ -198,11 +236,14 @@ def create_organisation(org_in: OrganisationCreate, db: Session = Depends(get_db
     return organisation_response(db_org)
 
 
-@router.put("/{organisation_id}", response_model=OrganisationRead, dependencies=[Depends(get_current_superuser)])
-def update_organisation(organisation_id: int, org_in: OrganisationUpdate, db: Session = Depends(get_db)):
-    org = db.query(Organisation).filter(Organisation.id == organisation_id).first()
-    if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
+@router.put("/{organisation_id}", response_model=OrganisationRead)
+def update_organisation(
+    organisation_id: int,
+    org_in: OrganisationUpdate,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     if org_in.name is not None:
         org.name = org_in.name
     if org_in.address is not None:
@@ -214,17 +255,27 @@ def update_organisation(organisation_id: int, org_in: OrganisationUpdate, db: Se
     if org_in.country is not None:
         org.country = org_in.country
     if org_in.user_ids is not None:
-        org.users = db.query(User).filter(User.id.in_(org_in.user_ids)).all()
+        users = db.query(User).filter(User.id.in_(org_in.user_ids)).all()
+        db_org_users = users
+        for u in db_org_users:
+            if u.hire_company_id and u.hire_company_id != tenant.hire_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User belongs to another Verleiher",
+                )
+        org.users = db_org_users
     db.commit()
     db.refresh(org)
     return organisation_response(org)
 
 
-@router.delete("/{organisation_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_superuser)])
-def delete_organisation(organisation_id: int, db: Session = Depends(get_db)):
-    org = db.query(Organisation).filter(Organisation.id == organisation_id).first()
-    if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
+@router.delete("/{organisation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_organisation(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     db.delete(org)
     db.commit()
     return {"detail": "Organisation deleted"}

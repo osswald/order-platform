@@ -176,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, inject } from 'vue'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -190,6 +190,9 @@ import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'
 import { cancelPlannedLending } from '../utils/applianceLending'
+import { SESSION_CONTEXT_KEY } from '../sessionContext'
+
+const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
 const organisations = ref([])
 const showDetail = ref(false)
@@ -408,8 +411,12 @@ async function saveOrganisation() {
     if (!response.ok) {
       throw new Error(await response.text())
     }
+    const saved = await response.json()
     const wasEdit = editMode.value
     await fetchOrganisations()
+    if (!wasEdit && sessionContext) {
+      await sessionContext.reloadOrganisationsAndSelect(saved.id)
+    }
     resetForm()
     message.value = wasEdit ? 'Organisation aktualisiert.' : 'Organisation erstellt.'
     messageType.value = 'success'

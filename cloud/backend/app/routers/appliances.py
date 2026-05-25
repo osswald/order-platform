@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session, joinedload
 from ..appliance_naming import generate_appliance_name
 from ..models import Appliance, ApplianceLending, Organisation
 from ..security import get_password_hash
-from .auth import get_current_superuser
 from ..deps import get_db
+from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
 
 router = APIRouter()
 
@@ -233,14 +233,29 @@ def _clear_printer_only_fields(appliance: Appliance) -> None:
         appliance.ip_address = None
 
 
-@router.get("/", response_model=List[ApplianceRead], dependencies=[Depends(get_current_superuser)])
+def _get_appliance_in_tenant(db: Session, appliance_id: int, hire_company_id: int) -> Appliance:
+    appliance = db.query(Appliance).filter(Appliance.id == appliance_id).first()
+    if not appliance:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
+    if appliance.hire_company_id != hire_company_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Appliance not in this Verleiher")
+    return appliance
+
+
+@router.get("/", response_model=List[ApplianceRead])
 def read_appliances(
     lend_check_start: date | None = Query(None),
     lend_check_duration: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
     today = _utc_today()
-    appliances = db.query(Appliance).order_by(Appliance.id).all()
+    appliances = (
+        db.query(Appliance)
+        .filter(Appliance.hire_company_id == tenant.hire_company_id)
+        .order_by(Appliance.id)
+        .all()
+    )
     if not appliances:
         return []
 
@@ -291,9 +306,14 @@ def read_appliances(
     ]
 
 
-@router.get("/{appliance_id}", response_model=ApplianceRead, dependencies=[Depends(get_current_superuser)])
-def read_appliance(appliance_id: int, db: Session = Depends(get_db)):
+@router.get("/{appliance_id}", response_model=ApplianceRead)
+def read_appliance(
+    appliance_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
     today = _utc_today()
+    _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     appliance = (
         db.query(Appliance)
         .options(
@@ -302,16 +322,19 @@ def read_appliance(appliance_id: int, db: Session = Depends(get_db)):
         .filter(Appliance.id == appliance_id)
         .first()
     )
-    if not appliance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
     return _appliance_to_read(appliance, today=today, active_by_appliance_id=None, include_lendings=True)
 
 
-@router.post("/", response_model=ApplianceAdminCreated, dependencies=[Depends(get_current_superuser)])
-def create_appliance(appliance_in: ApplianceCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=ApplianceAdminCreated)
+def create_appliance(
+    appliance_in: ApplianceCreate,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
     appliance_type = validate_type(appliance_in.type)
 
     appliance = Appliance(
+        hire_company_id=tenant.hire_company_id,
         type=appliance_type,
         model=appliance_in.model,
         comment=appliance_in.comment,
@@ -338,11 +361,14 @@ def create_appliance(appliance_in: ApplianceCreate, db: Session = Depends(get_db
     return ApplianceAdminCreated(**d)
 
 
-@router.put("/{appliance_id}", response_model=ApplianceRead, dependencies=[Depends(get_current_superuser)])
-def update_appliance(appliance_id: int, appliance_in: ApplianceUpdate, db: Session = Depends(get_db)):
-    appliance = db.query(Appliance).filter(Appliance.id == appliance_id).first()
-    if not appliance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
+@router.put("/{appliance_id}", response_model=ApplianceRead)
+def update_appliance(
+    appliance_id: int,
+    appliance_in: ApplianceUpdate,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
 
     previous_type = appliance.type
     new_type = validate_type(appliance_in.type) if appliance_in.type is not None else appliance.type
@@ -390,12 +416,13 @@ def update_appliance(appliance_id: int, appliance_in: ApplianceUpdate, db: Sessi
 @router.post(
     "/{appliance_id}/edge-credentials",
     response_model=ApplianceAdminCreated,
-    dependencies=[Depends(get_current_superuser)],
 )
-def rotate_appliance_edge_credentials(appliance_id: int, db: Session = Depends(get_db)):
-    appliance = db.query(Appliance).filter(Appliance.id == appliance_id).first()
-    if not appliance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
+def rotate_appliance_edge_credentials(
+    appliance_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     if appliance.type != "server":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -416,12 +443,13 @@ def rotate_appliance_edge_credentials(appliance_id: int, db: Session = Depends(g
 @router.delete(
     "/{appliance_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_superuser)],
 )
-def delete_appliance(appliance_id: int, db: Session = Depends(get_db)):
-    appliance = db.query(Appliance).filter(Appliance.id == appliance_id).first()
-    if not appliance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
+def delete_appliance(
+    appliance_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     db.delete(appliance)
     db.commit()
     return None
@@ -430,20 +458,15 @@ def delete_appliance(appliance_id: int, db: Session = Depends(get_db)):
 @router.post(
     "/{appliance_id}/lendings",
     response_model=ApplianceRead,
-    dependencies=[Depends(get_current_superuser)],
 )
 def create_appliance_lending(
     appliance_id: int,
     body: ApplianceLendingCreate,
     db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
-    appliance = db.query(Appliance).filter(Appliance.id == appliance_id).first()
-    if not appliance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
-
-    org = db.query(Organisation).filter(Organisation.id == body.organisation_id).first()
-    if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
+    _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
+    ensure_org_in_tenant(db, body.organisation_id, tenant.hire_company_id)
 
     # Inclusive end: duration_days calendar days including start_date.
     end_date = body.start_date + timedelta(days=body.duration_days - 1)
@@ -489,9 +512,14 @@ def create_appliance_lending(
 @router.post(
     "/{appliance_id}/lendings/{lending_id}/return",
     response_model=ApplianceRead,
-    dependencies=[Depends(get_current_superuser)],
 )
-def return_appliance_lending(appliance_id: int, lending_id: int, db: Session = Depends(get_db)):
+def return_appliance_lending(
+    appliance_id: int,
+    lending_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     lending = (
         db.query(ApplianceLending)
         .filter(
@@ -527,13 +555,14 @@ def return_appliance_lending(appliance_id: int, lending_id: int, db: Session = D
 @router.delete(
     "/{appliance_id}/lendings/{lending_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_superuser)],
 )
 def cancel_planned_appliance_lending(
     appliance_id: int,
     lending_id: int,
     db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
+    _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     lending = (
         db.query(ApplianceLending)
         .filter(

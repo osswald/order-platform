@@ -1,10 +1,15 @@
 <template>
   <aside class="sidebar">
     <AppNavMenu
-      :is-admin="isAdmin"
+      :is-platform-admin="isPlatformAdmin"
+      :can-access-tenant-admin="canAccessTenantAdmin"
+      :hire-companies="hireCompanies"
+      :active-hire-company-id="activeHireCompanyId"
+      :show-hire-company-picker="showHireCompanyPicker"
       :organisations="organisations"
       :active-organisation-id="activeOrganisationId"
       @change-organisation="$emit('change-organisation', $event)"
+      @change-hire-company="$emit('change-hire-company', $event)"
     />
   </aside>
 </template>
@@ -13,21 +18,16 @@
 import AppNavMenu from './AppNavMenu.vue'
 
 defineProps({
-  isAdmin: {
-    type: Boolean,
-    default: false,
-  },
-  organisations: {
-    type: Array,
-    default: () => [],
-  },
-  activeOrganisationId: {
-    type: Number,
-    default: null,
-  },
+  isPlatformAdmin: { type: Boolean, default: false },
+  canAccessTenantAdmin: { type: Boolean, default: false },
+  hireCompanies: { type: Array, default: () => [] },
+  activeHireCompanyId: { type: Number, default: null },
+  showHireCompanyPicker: { type: Boolean, default: false },
+  organisations: { type: Array, default: () => [] },
+  activeOrganisationId: { type: Number, default: null },
 })
 
-defineEmits(['change-organisation'])
+defineEmits(['change-organisation', 'change-hire-company'])
 </script>
 
 <style scoped>

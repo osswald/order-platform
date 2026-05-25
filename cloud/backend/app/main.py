@@ -9,6 +9,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from .database import SessionLocal, apply_schema_patches, engine, Base
 from .models import User
+from .roles import ROLE_PLATFORM_ADMIN
 from .routers import (
     article_categories,
     articles,
@@ -16,6 +17,7 @@ from .routers import (
     edge,
     events,
     health,
+    hire_companies,
     items,
     organisations,
     appliances,
@@ -42,12 +44,17 @@ def _bootstrap_admin_user() -> None:
     try:
         existing = db.query(User).filter(User.email == admin_email).first()
         if existing:
+            if not getattr(existing, "role", None) or existing.role == "member":
+                existing.role = ROLE_PLATFORM_ADMIN
+                existing.is_superuser = True
+                db.commit()
             return
         db.add(
             User(
                 email=admin_email,
                 hashed_password=get_password_hash(admin_password),
                 is_superuser=True,
+                role=ROLE_PLATFORM_ADMIN,
             ),
         )
         db.commit()
@@ -89,6 +96,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(items.router, prefix="/items", tags=["items"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])

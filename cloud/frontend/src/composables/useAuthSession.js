@@ -1,8 +1,12 @@
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { apiFetch } from '../api'
 
-function parseOrganisationId(value) {
+const ROLE_PLATFORM = 'platform_admin'
+const ROLE_ORG_ADMIN = 'org_admin'
+const ROLE_MEMBER = 'member'
+
+function parseId(value) {
   if (value == null || value === '') return null
   const id = Number(value)
   return Number.isFinite(id) ? id : null
@@ -15,9 +19,56 @@ export function useAuthSession() {
   const isLoggedIn = ref(!!localStorage.getItem('access_token'))
   const authReady = ref(!isLoggedIn.value)
   const userEmail = ref(localStorage.getItem('user_email') || '')
-  const isAdmin = ref(localStorage.getItem('is_admin') === 'true')
+  const userRole = ref(localStorage.getItem('user_role') || ROLE_MEMBER)
+  const isPlatformAdmin = ref(localStorage.getItem('is_admin') === 'true')
+  const isTenantAdmin = ref(localStorage.getItem('is_tenant_admin') === 'true')
+  const userHireCompanyId = ref(parseId(localStorage.getItem('user_hire_company_id')))
+  const hireCompanies = ref([])
+  const activeHireCompanyId = ref(parseId(localStorage.getItem('active_hire_company_id')))
   const accessibleOrganisations = ref([])
-  const activeOrganisationId = ref(parseOrganisationId(route.query.organisation))
+  const activeOrganisationId = ref(parseId(route.query.organisation))
+
+  const isAdmin = computed(() => isPlatformAdmin.value)
+  const canAccessTenantAdmin = computed(
+    () =>
+      userRole.value === ROLE_ORG_ADMIN ||
+      (isPlatformAdmin.value && activeHireCompanyId.value != null),
+  )
+
+  function syncActiveHireCompany() {
+    if (userRole.value === ROLE_ORG_ADMIN && userHireCompanyId.value != null) {
+      activeHireCompanyId.value = userHireCompanyId.value
+      localStorage.setItem('active_hire_company_id', String(userHireCompanyId.value))
+      return
+    }
+    if (!isPlatformAdmin.value) {
+      activeHireCompanyId.value = null
+      localStorage.removeItem('active_hire_company_id')
+      return
+    }
+    if (!hireCompanies.value.length) {
+      activeHireCompanyId.value = null
+      localStorage.removeItem('active_hire_company_id')
+      return
+    }
+    const fromStorage = parseId(localStorage.getItem('active_hire_company_id'))
+    const exists = hireCompanies.value.some((c) => Number(c.id) === Number(fromStorage))
+    const next = exists ? fromStorage : hireCompanies.value[0].id
+    activeHireCompanyId.value = next
+    localStorage.setItem('active_hire_company_id', String(next))
+  }
+
+  function setActiveHireCompany(id) {
+    if (userRole.value === ROLE_ORG_ADMIN) return
+    const parsed = parseId(id)
+    activeHireCompanyId.value = parsed
+    if (parsed != null) {
+      localStorage.setItem('active_hire_company_id', String(parsed))
+    } else {
+      localStorage.removeItem('active_hire_company_id')
+    }
+    fetchAccessibleOrganisations()
+  }
 
   function updateRouteOrganisation() {
     if (!isLoggedIn.value || route.name === 'login') return
@@ -38,31 +89,50 @@ export function useAuthSession() {
     })
   }
 
+  function applySessionData(data) {
+    isPlatformAdmin.value = !!data.is_admin
+    userRole.value = data.role || (data.is_admin ? ROLE_PLATFORM : ROLE_MEMBER)
+    isTenantAdmin.value = !!data.is_tenant_admin
+    userHireCompanyId.value = parseId(data.hire_company_id)
+    localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
+    localStorage.setItem('user_role', userRole.value)
+    localStorage.setItem('is_tenant_admin', data.is_tenant_admin ? 'true' : 'false')
+    if (data.hire_company_id != null) {
+      localStorage.setItem('user_hire_company_id', String(data.hire_company_id))
+    } else {
+      localStorage.removeItem('user_hire_company_id')
+    }
+    if (data.email) {
+      userEmail.value = data.email
+      localStorage.setItem('user_email', data.email)
+    }
+    if (data.id != null) {
+      localStorage.setItem('user_id', String(data.id))
+    }
+    hireCompanies.value = Array.isArray(data.hire_companies) ? data.hire_companies : []
+    syncActiveHireCompany()
+  }
+
   async function syncSession() {
     const token = localStorage.getItem('access_token')
     if (!token) {
-      isAdmin.value = false
+      isPlatformAdmin.value = false
+      isTenantAdmin.value = false
       return false
     }
     try {
       const response = await apiFetch('/auth/me')
       if (!response.ok) {
-        isAdmin.value = false
+        isPlatformAdmin.value = false
+        isTenantAdmin.value = false
         return false
       }
       const data = await response.json()
-      isAdmin.value = !!data.is_admin
-      localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
-      if (data.id != null) {
-        localStorage.setItem('user_id', String(data.id))
-      }
-      if (data.email) {
-        userEmail.value = data.email
-        localStorage.setItem('user_email', data.email)
-      }
+      applySessionData(data)
       return true
     } catch {
-      isAdmin.value = false
+      isPlatformAdmin.value = false
+      isTenantAdmin.value = false
       return false
     }
   }
@@ -74,8 +144,8 @@ export function useAuthSession() {
       return
     }
 
-    const fromRoute = parseOrganisationId(route.query.organisation)
-    const fromStorage = parseOrganisationId(localStorage.getItem('active_organisation_id'))
+    const fromRoute = parseId(route.query.organisation)
+    const fromStorage = parseId(localStorage.getItem('active_organisation_id'))
     const candidate = fromRoute ?? fromStorage ?? accessibleOrganisations.value[0].id
     const exists = accessibleOrganisations.value.some(
       (org) => Number(org.id) === Number(candidate),
@@ -88,6 +158,11 @@ export function useAuthSession() {
   async function fetchAccessibleOrganisations() {
     const token = localStorage.getItem('access_token')
     if (!token) {
+      accessibleOrganisations.value = []
+      syncActiveOrganisation()
+      return
+    }
+    if (isPlatformAdmin.value && activeHireCompanyId.value == null) {
       accessibleOrganisations.value = []
       syncActiveOrganisation()
       return
@@ -125,19 +200,29 @@ export function useAuthSession() {
   }
 
   function enforceRouteAccess() {
-    if (!isLoggedIn.value || !route.meta.adminOnly || isAdmin.value) return
-    router.replace({
-      name: 'no-access',
-      params: { section: route.name },
-      query: route.query,
-    })
+    if (!isLoggedIn.value) return
+    if (route.meta.platformOnly && !isPlatformAdmin.value) {
+      router.replace({
+        name: 'no-access',
+        params: { section: route.name },
+        query: route.query,
+      })
+      return
+    }
+    if (route.meta.tenantAdminOnly && !canAccessTenantAdmin.value) {
+      router.replace({
+        name: 'no-access',
+        params: { section: route.name },
+        query: route.query,
+      })
+    }
   }
 
   watch(
     () => route.query.organisation,
     (organisation) => {
       if (!isLoggedIn.value) return
-      const id = parseOrganisationId(organisation)
+      const id = parseId(organisation)
       if (id === activeOrganisationId.value) return
 
       if (id != null && accessibleOrganisations.value.some((org) => Number(org.id) === Number(id))) {
@@ -161,6 +246,12 @@ export function useAuthSession() {
     },
   )
 
+  watch(activeHireCompanyId, () => {
+    if (isLoggedIn.value) {
+      fetchAccessibleOrganisations()
+    }
+  })
+
   onMounted(async () => {
     if (isLoggedIn.value) {
       const ok = await syncSession()
@@ -178,10 +269,27 @@ export function useAuthSession() {
     window.addEventListener('storage', () => {
       isLoggedIn.value = !!localStorage.getItem('access_token')
       userEmail.value = localStorage.getItem('user_email') || ''
-      isAdmin.value = localStorage.getItem('is_admin') === 'true'
-      activeOrganisationId.value = parseOrganisationId(route.query.organisation)
+      isPlatformAdmin.value = localStorage.getItem('is_admin') === 'true'
+      userRole.value = localStorage.getItem('user_role') || ROLE_MEMBER
+      isTenantAdmin.value = localStorage.getItem('is_tenant_admin') === 'true'
+      activeOrganisationId.value = parseId(route.query.organisation)
+      activeHireCompanyId.value = parseId(localStorage.getItem('active_hire_company_id'))
     })
   })
+
+  async function reloadHireCompaniesAndSelect(companyId = null) {
+    await syncSession()
+    if (companyId != null) {
+      setActiveHireCompany(companyId)
+    }
+  }
+
+  async function reloadOrganisationsAndSelect(organisationId = null) {
+    await fetchAccessibleOrganisations()
+    if (organisationId != null) {
+      setActiveOrganisation(organisationId)
+    }
+  }
 
   async function handleLogout() {
     try {
@@ -192,10 +300,16 @@ export function useAuthSession() {
     localStorage.removeItem('access_token')
     localStorage.removeItem('user_email')
     localStorage.removeItem('is_admin')
+    localStorage.removeItem('user_role')
+    localStorage.removeItem('is_tenant_admin')
+    localStorage.removeItem('user_hire_company_id')
+    localStorage.removeItem('active_hire_company_id')
     localStorage.removeItem('user_id')
     localStorage.removeItem('active_organisation_id')
     accessibleOrganisations.value = []
+    hireCompanies.value = []
     activeOrganisationId.value = null
+    activeHireCompanyId.value = null
     isLoggedIn.value = false
     userEmail.value = ''
     router.replace({ name: 'login' })
@@ -206,9 +320,19 @@ export function useAuthSession() {
     authReady,
     userEmail,
     isAdmin,
+    isPlatformAdmin,
+    isTenantAdmin,
+    userRole,
+    canAccessTenantAdmin,
+    hireCompanies,
+    activeHireCompanyId,
+    setActiveHireCompany,
     accessibleOrganisations,
     activeOrganisationId,
     setActiveOrganisation,
     handleLogout,
+    fetchAccessibleOrganisations,
+    reloadHireCompaniesAndSelect,
+    reloadOrganisationsAndSelect,
   }
 }

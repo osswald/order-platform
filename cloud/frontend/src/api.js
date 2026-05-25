@@ -26,6 +26,13 @@ export async function refreshAccessToken() {
   if (!data?.access_token) return false
   localStorage.setItem('access_token', data.access_token)
   localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
+  if (data.role) localStorage.setItem('user_role', data.role)
+  if (data.hire_company_id != null) {
+    localStorage.setItem('user_hire_company_id', String(data.hire_company_id))
+  } else {
+    localStorage.removeItem('user_hire_company_id')
+  }
+  localStorage.setItem('is_tenant_admin', data.is_tenant_admin ? 'true' : 'false')
   if (data.user_id != null) {
     localStorage.setItem('user_id', String(data.user_id))
   }
@@ -42,6 +49,10 @@ export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('access_token')
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`)
+  }
+  const hireCompanyId = localStorage.getItem('active_hire_company_id')
+  if (hireCompanyId && !headers.has('X-Hire-Company-Id')) {
+    headers.set('X-Hire-Company-Id', hireCompanyId)
   }
   const credentials = rest.credentials ?? 'include'
 
