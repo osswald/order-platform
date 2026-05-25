@@ -247,6 +247,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -262,6 +263,7 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import EventConfiguration from './EventConfiguration.vue'
 import TwintQrField from './TwintQrField.vue'
 import { apiFetch } from '../api'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 
 const props = defineProps({
@@ -275,10 +277,19 @@ const props = defineProps({
   },
 })
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('events')
+
 const events = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
+const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -432,7 +443,7 @@ watch([searchQuery, statusFilter, () => props.activeOrganisationId], () => {
 watch(
   () => props.activeOrganisationId,
   () => {
-    if (showDetail.value) resetForm()
+    if (showDetail.value) goToList()
   },
 )
 
@@ -519,10 +530,7 @@ async function removeTwintQr() {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
+function clearFormState() {
   hasTwintQr.value = false
   revokeTwintQrPreview()
   form.value = emptyForm()
@@ -530,15 +538,7 @@ function resetForm() {
   message.value = ''
 }
 
-function openCreateForm() {
-  resetForm()
-  showDetail.value = true
-}
-
-async function editEvent(event) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = event.id
+async function applyEventToForm(event) {
   hasTwintQr.value = Boolean(event.has_twint_qr)
   revokeTwintQrPreview()
   form.value = {
@@ -555,6 +555,51 @@ async function editEvent(event) {
   originalStatus.value = event.status || 'config'
   message.value = ''
   if (hasTwintQr.value) await loadTwintQrPreview()
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = events.value.find((e) => Number(e.id) === Number(id))
+  if (!row) {
+    try {
+      const response = await apiFetch(`/events/${id}`)
+      if (!response.ok) throw new Error(await response.text())
+      row = await response.json()
+    } catch {
+      message.value = 'Veranstaltung nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  await applyEventToForm(row)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
+function openCreateForm() {
+  goToCreate()
+}
+
+async function editEvent(event) {
+  await applyEventToForm(event)
+  goToDetail(event.id)
 }
 
 function defaultCopyName(name) {
@@ -584,9 +629,10 @@ async function copyEvent() {
     if (!response.ok) throw new Error(await response.text())
     const created = await response.json()
     await fetchEvents()
-    await editEvent(created)
     message.value = `Veranstaltung «${created.name}» erstellt.`
     messageType.value = 'success'
+    await goToDetail(created.id)
+    await applyEventToForm(created)
   } catch {
     message.value = 'Event konnte nicht kopiert werden.'
     messageType.value = 'error'
@@ -633,10 +679,10 @@ async function saveEvent() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchEvents()
-    resetForm()
     message.value = wasEdit ? 'Veranstaltung aktualisiert.' : 'Veranstaltung erstellt.'
     messageType.value = 'success'
-  } catch (error) {
+    await goToList()
+  } catch {
     message.value = 'Fehler beim Speichern der Veranstaltung.'
     messageType.value = 'error'
   }
@@ -652,7 +698,10 @@ async function deleteEvent(id) {
     await fetchEvents()
     message.value = 'Veranstaltung gelöscht.'
     messageType.value = 'success'
-  } catch (error) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Veranstaltung konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }

@@ -207,6 +207,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -221,6 +222,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 
 const props = defineProps({
@@ -230,11 +232,20 @@ const props = defineProps({
   },
 })
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('articles')
+
 const articles = ref([])
 const categories = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
+const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -383,7 +394,7 @@ watch([searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId
 watch(
   () => props.activeOrganisationId,
   () => {
-    if (showDetail.value) resetForm()
+    if (showDetail.value) goToList()
   },
 )
 
@@ -414,10 +425,7 @@ async function fetchCategories() {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
+function clearFormState() {
   form.value = emptyForm()
   additionsLocal.value = []
   additionPickIds.value = []
@@ -428,10 +436,60 @@ function resetForm() {
   message.value = ''
 }
 
+async function applyArticleToForm(article) {
+  form.value = {
+    name: article.name || '',
+    label: article.label || '',
+    price: article.price ?? 0,
+    isAddition: !!article.is_addition,
+    monitorStock: !!article.monitor_stock,
+    inStock: article.in_stock ?? 0,
+    articleCategoryId: article.article_category_id || null,
+  }
+  message.value = ''
+  if (!article.is_addition) await loadAdditions(article.id)
+  else additionsLocal.value = []
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    form.value.isAddition = typeFilter.value === 'additions'
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = articles.value.find((a) => Number(a.id) === Number(id))
+  if (!row) {
+    try {
+      const response = await apiFetch(`/articles/${id}`)
+      if (!response.ok) throw new Error(await response.text())
+      row = await response.json()
+    } catch {
+      message.value = 'Artikel nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  await applyArticleToForm(row)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
 function openCreateForm() {
-  resetForm()
-  form.value.isAddition = typeFilter.value === 'additions'
-  showDetail.value = true
+  goToCreate()
 }
 
 async function loadAdditions(articleId) {
@@ -451,24 +509,9 @@ async function loadAdditions(articleId) {
   }
 }
 
-function editArticle(article) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = article.id
-  form.value = {
-    name: article.name || '',
-    label: article.label || '',
-    price: article.price ?? 0,
-    isAddition: !!article.is_addition,
-    monitorStock: !!article.monitor_stock,
-    inStock: article.in_stock ?? 0,
-    articleCategoryId: article.article_category_id || null,
-  }
-  message.value = ''
-  if (!article.is_addition) loadAdditions(article.id)
-  else {
-    additionsLocal.value = []
-  }
+async function editArticle(article) {
+  await applyArticleToForm(article)
+  goToDetail(article.id)
 }
 
 function onAdditionPick(ids) {
@@ -544,10 +587,10 @@ async function saveArticle() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchArticles()
-    resetForm()
     message.value = wasEdit ? 'Artikel aktualisiert.' : 'Artikel erstellt.'
     messageType.value = 'success'
-  } catch (error) {
+    await goToList()
+  } catch {
     message.value = 'Fehler beim Speichern des Artikels.'
     messageType.value = 'error'
   }
@@ -563,7 +606,10 @@ async function deleteArticle(id) {
     await fetchArticles()
     message.value = 'Artikel gelöscht.'
     messageType.value = 'success'
-  } catch (error) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Artikel konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }

@@ -126,6 +126,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 // isAdmin prop = platform administrator (from App.vue)
 import Button from 'primevue/button'
@@ -142,15 +143,25 @@ import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
 import { apiFetch } from '../api'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 
 const props = defineProps({
   isAdmin: { type: Boolean, default: false },
 })
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('users')
+
 const users = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
+const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -287,32 +298,18 @@ async function fetchUsers() {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
-  form.value = {
-    name: '',
-    email: '',
-    role: 'member',
-    password: '',
-    organisationIdsArray: [],
-    eventAdminPin: '',
-    hasEventAdminPin: false,
-    clearEventAdminPin: false,
-  }
-  message.value = ''
-}
+const emptyUserForm = () => ({
+  name: '',
+  email: '',
+  role: 'member',
+  password: '',
+  organisationIdsArray: [],
+  eventAdminPin: '',
+  hasEventAdminPin: false,
+  clearEventAdminPin: false,
+})
 
-function openCreateForm() {
-  resetForm()
-  showDetail.value = true
-}
-
-function editUser(u) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = u.id
+function applyUserToForm(u) {
   form.value = {
     name: u.name || '',
     email: u.email || '',
@@ -324,6 +321,50 @@ function editUser(u) {
     clearEventAdminPin: false,
   }
   message.value = ''
+}
+
+function clearFormState() {
+  form.value = emptyUserForm()
+  message.value = ''
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  const row = users.value.find((u) => Number(u.id) === Number(id))
+  if (!row) {
+    message.value = 'Benutzer nicht gefunden.'
+    messageType.value = 'error'
+    goToList()
+    return
+  }
+  applyUserToForm(row)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
+function openCreateForm() {
+  goToCreate()
+}
+
+function editUser(u) {
+  applyUserToForm(u)
+  goToDetail(u.id)
 }
 
 async function saveUser() {
@@ -356,10 +397,10 @@ async function saveUser() {
     if (!resp.ok) throw new Error(await resp.text())
     const wasEdit = editMode.value
     await fetchUsers()
-    resetForm()
     message.value = wasEdit ? 'Benutzer aktualisiert.' : 'Benutzer erstellt.'
     messageType.value = 'success'
-  } catch (e) {
+    await goToList()
+  } catch {
     message.value = 'Fehler beim Speichern des Benutzers.'
     messageType.value = 'error'
   }
@@ -377,7 +418,10 @@ async function deleteUser(id) {
     await fetchUsers()
     message.value = 'Benutzer gelöscht.'
     messageType.value = 'success'
-  } catch (e) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Benutzer konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }

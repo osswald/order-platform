@@ -177,6 +177,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, inject } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -190,14 +191,24 @@ import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'
 import { cancelPlannedLending } from '../utils/applianceLending'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('organisations')
+
 const organisations = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
+const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -350,32 +361,16 @@ async function cancelPlannedLendingRow(row) {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
-  orgApplianceLendings.value = null
-  lendingDialogVisible.value = false
-  form.value = {
-    name: '',
-    address: '',
-    zip: '',
-    city: '',
-    country: '',
-    userIdsArray: [],
-  }
-  message.value = ''
-}
+const emptyOrgForm = () => ({
+  name: '',
+  address: '',
+  zip: '',
+  city: '',
+  country: '',
+  userIdsArray: [],
+})
 
-function openCreateForm() {
-  resetForm()
-  showDetail.value = true
-}
-
-function editOrganisation(org) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = org.id
+function applyOrganisationToForm(org) {
   form.value = {
     name: org.name,
     address: org.address || '',
@@ -385,6 +380,59 @@ function editOrganisation(org) {
     userIdsArray: org.user_ids ? org.user_ids.slice() : [],
   }
   message.value = ''
+}
+
+function clearFormState() {
+  orgApplianceLendings.value = null
+  lendingDialogVisible.value = false
+  form.value = emptyOrgForm()
+  message.value = ''
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = organisations.value.find((o) => Number(o.id) === Number(id))
+  if (!row) {
+    try {
+      const response = await apiFetch(`/organisations/${id}`)
+      if (!response.ok) throw new Error(await response.text())
+      row = await response.json()
+    } catch {
+      message.value = 'Organisation nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  applyOrganisationToForm(row)
+  fetchOrgApplianceLendings(id)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
+function openCreateForm() {
+  goToCreate()
+}
+
+function editOrganisation(org) {
+  applyOrganisationToForm(org)
+  goToDetail(org.id)
   fetchOrgApplianceLendings(org.id)
 }
 
@@ -417,10 +465,10 @@ async function saveOrganisation() {
     if (!wasEdit && sessionContext) {
       await sessionContext.reloadOrganisationsAndSelect(saved.id)
     }
-    resetForm()
     message.value = wasEdit ? 'Organisation aktualisiert.' : 'Organisation erstellt.'
     messageType.value = 'success'
-  } catch (error) {
+    await goToList()
+  } catch {
     message.value = 'Fehler beim Speichern der Organisation.'
     messageType.value = 'error'
   }
@@ -440,7 +488,10 @@ async function deleteOrganisation(id) {
     await fetchOrganisations()
     message.value = 'Organisation gelöscht.'
     messageType.value = 'success'
-  } catch (error) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Organisation konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }

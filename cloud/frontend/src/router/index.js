@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { listDetailRoutes } from '../composables/useListDetailRouting'
 
 import Dashboard from '../components/Dashboard.vue'
 import Events from '../components/Events.vue'
@@ -13,6 +14,10 @@ import Users from '../components/Users.vue'
 import AccountSettings from '../components/AccountSettings.vue'
 import LoginPage from '../components/LoginPage.vue'
 import SectionPlaceholder from '../components/SectionPlaceholder.vue'
+
+const orgScoped = { requiresAuth: true, organisationScoped: true }
+const platformOnly = { requiresAuth: true, platformOnly: true }
+const tenantAdminOnly = { requiresAuth: true, tenantAdminOnly: true }
 
 const routes = [
   {
@@ -29,67 +34,47 @@ const routes = [
     path: '/dashboard',
     name: 'dashboard',
     component: Dashboard,
-    meta: { requiresAuth: true, organisationScoped: true },
+    meta: orgScoped,
   },
-  {
-    path: '/events',
-    name: 'events',
-    component: Events,
-    meta: { requiresAuth: true, organisationScoped: true },
-  },
-  {
-    path: '/waiters',
-    name: 'waiters',
-    component: Waiters,
-    meta: { requiresAuth: true, organisationScoped: true },
-  },
-  {
-    path: '/articles',
-    name: 'articles',
-    component: Articles,
-    meta: { requiresAuth: true, organisationScoped: true },
-  },
-  {
+  ...listDetailRoutes({ path: '/events', listName: 'events', component: Events, meta: orgScoped }),
+  ...listDetailRoutes({ path: '/waiters', listName: 'waiters', component: Waiters, meta: orgScoped }),
+  ...listDetailRoutes({ path: '/articles', listName: 'articles', component: Articles, meta: orgScoped }),
+  ...listDetailRoutes({
     path: '/article-categories',
-    name: 'article-categories',
+    listName: 'article-categories',
     component: ArticleCategories,
-    meta: { requiresAuth: true, organisationScoped: true },
-  },
+    meta: orgScoped,
+  }),
   {
     path: '/appliance-lendings',
     name: 'appliance-lendings',
     component: ApplianceLendings,
-    meta: { requiresAuth: true, organisationScoped: true },
+    meta: orgScoped,
   },
-  {
+  ...listDetailRoutes({
     path: '/verleiher',
-    name: 'hire-companies',
+    listName: 'hire-companies',
     component: HireCompanies,
-    meta: { requiresAuth: true, platformOnly: true },
-  },
-  {
+    meta: platformOnly,
+  }),
+  ...listDetailRoutes({
     path: '/organisations',
-    name: 'organisations',
+    listName: 'organisations',
     component: Organisations,
-    meta: { requiresAuth: true, tenantAdminOnly: true },
-  },
-  {
+    meta: tenantAdminOnly,
+  }),
+  ...listDetailRoutes({
     path: '/appliances',
-    name: 'appliances',
+    listName: 'appliances',
     component: Appliances,
-    meta: { requiresAuth: true, tenantAdminOnly: true },
-  },
-  {
-    path: '/users',
-    name: 'users',
-    component: Users,
-    meta: { requiresAuth: true, tenantAdminOnly: true },
-  },
+    meta: tenantAdminOnly,
+  }),
+  ...listDetailRoutes({ path: '/users', listName: 'users', component: Users, meta: tenantAdminOnly }),
   {
     path: '/settings',
     name: 'settings',
     component: AccountSettings,
-    meta: { requiresAuth: true, organisationScoped: true },
+    meta: orgScoped,
   },
   {
     path: '/no-access/:section',

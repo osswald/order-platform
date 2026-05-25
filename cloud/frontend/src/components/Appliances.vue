@@ -278,6 +278,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -294,11 +295,21 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { cancelPlannedLendingForAppliance } from '../utils/applianceLending'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
+
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('appliances')
 
 const appliances = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
+const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -509,10 +520,7 @@ async function copyEdgeField(label, text) {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
+function clearDetailState() {
   form.value = emptyForm()
   message.value = ''
   applianceDetail.value = null
@@ -521,15 +529,7 @@ function resetForm() {
   clearEdgeCredentialsReveal()
 }
 
-function openCreateForm() {
-  resetForm()
-  showDetail.value = true
-}
-
-function editAppliance(device) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = device.id
+function applyDeviceToForm(device) {
   clearEdgeCredentialsReveal()
   form.value = {
     type: device.type,
@@ -540,6 +540,52 @@ function editAppliance(device) {
   }
   message.value = ''
   resetLendForm()
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearDetailState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearDetailState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = appliances.value.find((d) => Number(d.id) === Number(id))
+  if (!row) {
+    try {
+      const response = await apiFetch(`/appliances/${id}`)
+      if (!response.ok) throw new Error(await response.text())
+      row = await response.json()
+    } catch {
+      message.value = 'Gerät nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  applyDeviceToForm(row)
+  await fetchApplianceDetail(id)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
+function openCreateForm() {
+  goToCreate()
+}
+
+function editAppliance(device) {
+  applyDeviceToForm(device)
+  goToDetail(device.id)
   fetchApplianceDetail(device.id)
 }
 
@@ -580,26 +626,23 @@ async function saveAppliance() {
     await fetchAppliances()
     if (wasEdit && savedId) {
       await fetchApplianceDetail(savedId)
+      message.value = 'Gerät aktualisiert.'
+      messageType.value = 'success'
     } else if (body.type === 'server' && body.edge_secret) {
-      editMode.value = true
-      activeId.value = body.id
-      form.value = {
-        type: body.type,
-        name: body.name || '',
-        ip_address: body.ip_address || '',
-        model: body.model || '',
-        comment: body.comment || '',
-      }
       edgeCredentialsRevealed.value = {
         clientId: body.edge_client_id,
         secret: body.edge_secret,
       }
+      message.value = 'Gerät erstellt.'
+      messageType.value = 'success'
+      await goToDetail(body.id)
+      applyDeviceToForm(body)
       await fetchApplianceDetail(body.id)
     } else {
-      resetForm()
+      message.value = 'Gerät erstellt.'
+      messageType.value = 'success'
+      await goToList()
     }
-    message.value = wasEdit ? 'Gerät aktualisiert.' : 'Gerät erstellt.'
-    messageType.value = 'success'
   } catch (error) {
     message.value = 'Fehler beim Speichern des Geräts.'
     messageType.value = 'error'
@@ -660,7 +703,10 @@ async function deleteAppliance(id) {
     await fetchAppliances()
     message.value = 'Gerät gelöscht.'
     messageType.value = 'success'
-  } catch (error) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Gerät konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }

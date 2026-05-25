@@ -79,6 +79,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -88,6 +89,7 @@ import InputText from 'primevue/inputtext'
 import Paginator from 'primevue/paginator'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 
 const props = defineProps({
@@ -97,10 +99,18 @@ const props = defineProps({
   },
 })
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('article-categories')
+
 const categories = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -160,7 +170,7 @@ watch([searchQuery, () => props.activeOrganisationId], () => {
 watch(
   () => props.activeOrganisationId,
   () => {
-    if (showDetail.value) resetForm()
+    if (showDetail.value) goToList()
   },
 )
 
@@ -179,27 +189,59 @@ async function fetchCategories() {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
+function applyCategoryToForm(category) {
+  form.value = { name: category.name || '' }
+  message.value = ''
+}
+
+function clearFormState() {
   form.value = emptyForm()
   message.value = ''
 }
 
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = categories.value.find((c) => Number(c.id) === Number(id))
+  if (!row) {
+    try {
+      const response = await apiFetch(`/article-categories/${id}`)
+      if (!response.ok) throw new Error(await response.text())
+      row = await response.json()
+    } catch {
+      message.value = 'Kategorie nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  applyCategoryToForm(row)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
 function openCreateForm() {
-  resetForm()
-  showDetail.value = true
+  goToCreate()
 }
 
 function editCategory(category) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = category.id
-  form.value = {
-    name: category.name || '',
-  }
-  message.value = ''
+  applyCategoryToForm(category)
+  goToDetail(category.id)
 }
 
 async function saveCategory() {
@@ -211,7 +253,9 @@ async function saveCategory() {
   }
 
   try {
-    const path = editMode.value ? `/article-categories/${activeId.value}` : '/article-categories/'
+    const path = editMode.value
+      ? `/article-categories/${routeEntityId.value}`
+      : '/article-categories/'
     const method = editMode.value ? 'PUT' : 'POST'
     const response = await apiFetch(path, {
       method,
@@ -223,10 +267,10 @@ async function saveCategory() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchCategories()
-    resetForm()
     message.value = wasEdit ? 'Kategorie aktualisiert.' : 'Kategorie erstellt.'
     messageType.value = 'success'
-  } catch (error) {
+    await goToList()
+  } catch {
     message.value = 'Fehler beim Speichern der Kategorie.'
     messageType.value = 'error'
   }
@@ -242,7 +286,10 @@ async function deleteCategory(id) {
     await fetchCategories()
     message.value = 'Kategorie gelöscht.'
     messageType.value = 'success'
-  } catch (error) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Kategorie kann nur gelöscht werden, wenn keine Artikel verknüpft sind.'
     messageType.value = 'error'
   }

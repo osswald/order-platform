@@ -80,6 +80,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -89,6 +90,7 @@ import InputText from 'primevue/inputtext'
 import Paginator from 'primevue/paginator'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 
 const props = defineProps({
@@ -98,10 +100,18 @@ const props = defineProps({
   },
 })
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('waiters')
+
 const waiters = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -144,8 +154,8 @@ const filteredWaiters = computed(() => {
 
 const waitersInActiveOrganisation = computed(() =>
   waiters.value.filter((waiter) =>
-    matchesActiveOrganisation(props.activeOrganisationId, waiter.organisation_id)
-  )
+    matchesActiveOrganisation(props.activeOrganisationId, waiter.organisation_id),
+  ),
 )
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredWaiters.value.length / pageSize)))
@@ -169,7 +179,7 @@ watch([searchQuery, () => props.activeOrganisationId], () => {
 watch(
   () => props.activeOrganisationId,
   () => {
-    if (showDetail.value) resetForm()
+    if (showDetail.value) goToList()
   },
 )
 
@@ -182,34 +192,68 @@ async function fetchWaiters() {
     const response = await apiFetch('/waiters/')
     if (!response.ok) throw new Error(await response.text())
     waiters.value = await response.json()
-  } catch (error) {
+  } catch {
     message.value = 'Kellner konnten nicht geladen werden.'
     messageType.value = 'error'
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
-  form.value = emptyForm()
-  message.value = ''
-}
-
-function openCreateForm() {
-  resetForm()
-  showDetail.value = true
-}
-
-function editWaiter(waiter) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = waiter.id
+function applyWaiterToForm(waiter) {
   form.value = {
     name: waiter.name || '',
     pin: waiter.pin || '0000',
   }
   message.value = ''
+}
+
+function clearFormState() {
+  form.value = emptyForm()
+  message.value = ''
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = waiters.value.find((w) => Number(w.id) === Number(id))
+  if (!row) {
+    try {
+      const response = await apiFetch(`/waiters/${id}`)
+      if (!response.ok) throw new Error(await response.text())
+      row = await response.json()
+    } catch {
+      message.value = 'Kellner nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  applyWaiterToForm(row)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
+function openCreateForm() {
+  goToCreate()
+}
+
+function editWaiter(waiter) {
+  applyWaiterToForm(waiter)
+  goToDetail(waiter.id)
 }
 
 async function saveWaiter() {
@@ -222,7 +266,7 @@ async function saveWaiter() {
   }
 
   try {
-    const path = editMode.value ? `/waiters/${activeId.value}` : '/waiters/'
+    const path = editMode.value ? `/waiters/${routeEntityId.value}` : '/waiters/'
     const method = editMode.value ? 'PUT' : 'POST'
     const response = await apiFetch(path, {
       method,
@@ -234,10 +278,10 @@ async function saveWaiter() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchWaiters()
-    resetForm()
     message.value = wasEdit ? 'Kellner aktualisiert.' : 'Kellner erstellt.'
     messageType.value = 'success'
-  } catch (error) {
+    await goToList()
+  } catch {
     message.value = 'Fehler beim Speichern des Kellners.'
     messageType.value = 'error'
   }
@@ -253,7 +297,10 @@ async function deleteWaiter(id) {
     await fetchWaiters()
     message.value = 'Kellner gelöscht.'
     messageType.value = 'success'
-  } catch (error) {
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
+  } catch {
     message.value = 'Kellner konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }

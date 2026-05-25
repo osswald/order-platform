@@ -69,21 +69,31 @@
 </template>
 
 <script setup>
-import { inject, onMounted, ref } from 'vue'
+import { inject, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
+import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
+const route = useRoute()
+const {
+  isCreateMode,
+  editMode,
+  showDetail,
+  routeEntityId,
+  goToList,
+  goToCreate,
+  goToDetail,
+} = useListDetailRouting('hire-companies')
+
 const companies = ref([])
-const showDetail = ref(false)
-const editMode = ref(false)
-const activeId = ref(null)
 const message = ref('')
 const messageType = ref('')
 
@@ -106,23 +116,15 @@ async function fetchCompanies() {
   }
 }
 
-function resetForm() {
-  editMode.value = false
-  activeId.value = null
-  showDetail.value = false
-  form.value = { name: '', address: '', zip: '', city: '', country: '' }
-  message.value = ''
-}
+const emptyForm = () => ({
+  name: '',
+  address: '',
+  zip: '',
+  city: '',
+  country: '',
+})
 
-function openCreateForm() {
-  resetForm()
-  showDetail.value = true
-}
-
-function editCompany(row) {
-  showDetail.value = true
-  editMode.value = true
-  activeId.value = row.id
+function applyCompanyToForm(row) {
   form.value = {
     name: row.name || '',
     address: row.address || '',
@@ -131,6 +133,56 @@ function editCompany(row) {
     country: row.country || '',
   }
   message.value = ''
+}
+
+function clearFormState() {
+  form.value = emptyForm()
+  message.value = ''
+}
+
+async function syncRouteToForm() {
+  if (!showDetail.value) {
+    clearFormState()
+    return
+  }
+  if (isCreateMode.value) {
+    clearFormState()
+    return
+  }
+  const id = routeEntityId.value
+  if (id == null) {
+    goToList()
+    return
+  }
+  let row = companies.value.find((c) => Number(c.id) === Number(id))
+  if (!row) {
+    try {
+      const resp = await apiFetch(`/hire-companies/${id}`)
+      if (!resp.ok) throw new Error(await resp.text())
+      row = await resp.json()
+    } catch {
+      message.value = 'Verleiher nicht gefunden.'
+      messageType.value = 'error'
+      goToList()
+      return
+    }
+  }
+  applyCompanyToForm(row)
+}
+
+watch(() => [route.name, route.params.id], syncRouteToForm, { immediate: true })
+
+function resetForm() {
+  goToList()
+}
+
+function openCreateForm() {
+  goToCreate()
+}
+
+function editCompany(row) {
+  applyCompanyToForm(row)
+  goToDetail(row.id)
 }
 
 async function saveCompany() {
@@ -142,7 +194,9 @@ async function saveCompany() {
     country: form.value.country || null,
   }
   try {
-    const path = editMode.value ? `/hire-companies/${activeId.value}` : '/hire-companies/'
+    const path = editMode.value
+      ? `/hire-companies/${routeEntityId.value}`
+      : '/hire-companies/'
     const method = editMode.value ? 'PUT' : 'POST'
     const resp = await apiFetch(path, {
       method,
@@ -156,9 +210,9 @@ async function saveCompany() {
     if (!wasEdit && sessionContext) {
       await sessionContext.reloadHireCompaniesAndSelect(saved.id)
     }
-    resetForm()
     message.value = wasEdit ? 'Verleiher aktualisiert.' : 'Verleiher erstellt.'
     messageType.value = 'success'
+    await goToList()
   } catch {
     message.value = 'Fehler beim Speichern.'
     messageType.value = 'error'
@@ -173,6 +227,9 @@ async function deleteCompany(id) {
     await fetchCompanies()
     message.value = 'Verleiher gelöscht.'
     messageType.value = 'success'
+    if (Number(routeEntityId.value) === Number(id)) {
+      await goToList()
+    }
   } catch {
     message.value = 'Verleiher konnte nicht gelöscht werden.'
     messageType.value = 'error'
