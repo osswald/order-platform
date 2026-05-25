@@ -159,4 +159,25 @@ watch(
   font-size: 1rem;
   font-weight: 600;
 }
+
+.section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 992px) {
+  .section-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-toolbar :deep(.p-button) {
+    width: 100%;
+  }
+
+  .stock-qty-input {
+    max-width: 100%;
+  }
+}
 </style>

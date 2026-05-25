@@ -901,4 +901,39 @@ label {
 .w-full {
   width: 100%;
 }
+
+@media (max-width: 992px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .config-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .layout-header-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .section-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-toolbar :deep(.p-button) {
+    width: 100%;
+  }
+
+  .config-save :deep(.p-button) {
+    width: 100%;
+  }
+
+  :deep(.p-tabview-nav) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+}
 </style>

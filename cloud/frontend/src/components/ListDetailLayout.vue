@@ -104,4 +104,23 @@ const emit = defineEmits(['open-create'])
 .primary-button {
   font-weight: 700;
 }
+
+@media (max-width: 768px) {
+  .panel {
+    padding: 1rem;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panel-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .panel-header :deep(.p-button) {
+    width: 100%;
+  }
+}
 </style>

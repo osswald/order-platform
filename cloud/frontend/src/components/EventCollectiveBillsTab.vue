@@ -174,6 +174,9 @@ watch(() => props.eventId, load)
 
 <style scoped>
 .section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 .footnote {
@@ -231,5 +234,22 @@ watch(() => props.eventId, load)
 }
 .error {
   color: var(--red-500, #ef4444);
+}
+
+@media (max-width: 992px) {
+  .section-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-toolbar :deep(.p-button) {
+    width: 100%;
+  }
+
+  .order-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
 }
 </style>

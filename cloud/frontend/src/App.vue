@@ -1,15 +1,21 @@
 <template>
   <RouterView v-if="authReady && !isLoggedIn" />
   <div v-else-if="authReady" class="app-layout">
-    <Header :user-email="userEmail" @logout="handleLogout" />
+    <Header
+      :user-email="userEmail"
+      :is-mobile="isMobile"
+      @logout="handleLogout"
+      @toggle-nav="mobileNavOpen = !mobileNavOpen"
+    />
     <div class="app-body">
       <Sidebar
+        v-if="!isMobile"
         :is-admin="isAdmin"
         :organisations="accessibleOrganisations"
         :active-organisation-id="activeOrganisationId"
         @change-organisation="setActiveOrganisation"
       />
-      <main class="main-content">
+      <main class="main-content" :class="{ 'main-content--mobile': isMobile }">
         <RouterView v-slot="{ Component }">
           <component
             :is="Component"
@@ -19,13 +25,54 @@
         </RouterView>
       </main>
     </div>
+
+    <Drawer
+      v-model:visible="mobileNavOpen"
+      position="left"
+      :modal="true"
+      :dismissable="true"
+      header="Menü"
+      class="mobile-nav-drawer"
+    >
+      <AppNavMenu
+        :is-admin="isAdmin"
+        :organisations="accessibleOrganisations"
+        :active-organisation-id="activeOrganisationId"
+        @change-organisation="setActiveOrganisation"
+        @navigate="mobileNavOpen = false"
+      />
+    </Drawer>
   </div>
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import Drawer from 'primevue/drawer'
 import Header from './components/Header.vue'
 import Sidebar from './components/Sidebar.vue'
+import AppNavMenu from './components/AppNavMenu.vue'
 import { useAuthSession } from './composables/useAuthSession'
+import { useBreakpoint } from './composables/useBreakpoint'
+
+const MOBILE_BREAKPOINT = 992
+
+const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
+const mobileNavOpen = ref(false)
+const route = useRoute()
+
+watch(
+  () => route.fullPath,
+  () => {
+    mobileNavOpen.value = false
+  },
+)
+
+watch(isMobile, (mobile) => {
+  if (!mobile) {
+    mobileNavOpen.value = false
+  }
+})
 
 const {
   isLoggedIn,
@@ -40,6 +87,8 @@ const {
 </script>
 
 <style>
+@import './assets/responsive.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -78,9 +127,22 @@ body {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--p-surface-ground);
+}
+
+.main-content--mobile {
+  width: 100%;
+}
+
+.mobile-nav-drawer {
+  width: min(280px, 85vw);
+}
+
+.mobile-nav-drawer :deep(.p-drawer-content) {
+  padding: 1.25rem 0;
 }
 
 .main-content::-webkit-scrollbar {

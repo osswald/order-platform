@@ -44,8 +44,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "DEV_FRONTEND_URL", "\"http://localhost:5174\"")
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "DEV_FRONTEND_URL", "\"\"")
             val releaseSigning = signingConfigs.getByName("release")
             if (releaseSigning.storeFile?.exists() == true) {
                 signingConfig = releaseSigning
@@ -84,9 +88,9 @@ tasks.register<Exec>("buildPiFrontend") {
     inputs.file(frontendLockFile)
     outputs.dir(frontendDistDir)
     val apiBase = (project.findProperty("VITE_API_BASE") as String?)?.trim().orEmpty()
-    environment(
-        "VITE_API_BASE" to apiBase,
-    )
+    if (apiBase.isNotEmpty()) {
+        environment("VITE_API_BASE" to apiBase)
+    }
     commandLine("npm", "run", "build", "--", "--mode", "android")
 }
 

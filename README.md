@@ -33,7 +33,7 @@ Für eine lokale Kombination beibehalten Sie `docker-compose.yml` im Projektstam
 - Cloud-Frontend: `http://localhost:5173`
 - Pi-Backend: `http://localhost:8001`
 - Pi-Frontend: `http://localhost:5174`
-- Android-App: lädt das gebündelte `pi/frontend`; Standard-Pi-API `http://192.168.192.10:8001`
+- Android-App (Debug/Emulator): lädt Pi-Frontend von `http://localhost:5174` (`adb reverse tcp:5174 tcp:5174`); API `http://localhost:8001`
 
 ## Struktur
 

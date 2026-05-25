@@ -50,12 +50,15 @@ class MainActivity : ComponentActivity() {
             },
         )
 
-        val remoteUrl = intent.getStringExtra("frontend_url")?.trim().orEmpty()
-        if (remoteUrl.startsWith("http://") || remoteUrl.startsWith("https://")) {
-            webView.loadUrl(remoteUrl)
-        } else {
-            webView.loadUrl("file:///android_asset/public/index.html")
+        val intentUrl = intent.getStringExtra("frontend_url")?.trim().orEmpty()
+        val useBundled = intent.getBooleanExtra("use_bundled_frontend", false)
+        val loadUrl = when {
+            intentUrl.startsWith("http://") || intentUrl.startsWith("https://") -> intentUrl
+            BuildConfig.DEBUG && !useBundled && BuildConfig.DEV_FRONTEND_URL.isNotBlank() ->
+                BuildConfig.DEV_FRONTEND_URL
+            else -> "file:///android_asset/public/index.html"
         }
+        webView.loadUrl(loadUrl)
     }
 
     override fun onDestroy() {

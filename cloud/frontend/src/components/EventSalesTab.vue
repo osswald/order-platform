@@ -227,6 +227,9 @@ watch(
 
 <style scoped>
 .section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 .footnote {
@@ -289,5 +292,26 @@ watch(
 }
 .error {
   color: var(--red-500, #ef4444);
+}
+
+@media (max-width: 992px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .section-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-toolbar :deep(.p-button) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

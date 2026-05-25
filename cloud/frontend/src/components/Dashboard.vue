@@ -482,6 +482,24 @@ function attentionIcon(type) {
     padding: 1rem;
   }
 
+  .dashboard-header {
+    margin-bottom: 1rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .toolbar :deep(.p-button) {
+    width: 100%;
+  }
+
   .cards-grid {
     grid-template-columns: 1fr;
   }
@@ -490,8 +508,8 @@ function attentionIcon(type) {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-header h1 {
-    font-size: 1.8rem;
+  .stat-card {
+    padding: 1.25rem;
   }
 }
 </style>

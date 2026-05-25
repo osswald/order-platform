@@ -37,7 +37,7 @@
         </div>
         <div class="field">
           <label>PIN</label>
-          <input v-model="pin" type="password" class="input" maxlength="12" autocomplete="one-time-code" />
+          <PinNumberInput v-model="pin" :maxlength="12" />
         </div>
         <button type="button" class="btn primary" @click="login">Anmelden</button>
         <p v-if="err" class="err-msg">{{ err }}</p>
@@ -53,6 +53,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import PinNumberInput from '../components/PinNumberInput.vue'
 import { useWaiterSession } from '../composables/useWaiterSession'
 import { setRegisterSession } from '../store'
 

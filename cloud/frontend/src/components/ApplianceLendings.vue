@@ -221,4 +221,20 @@ onMounted(() => {
 .error {
   margin: 0 0 1rem;
 }
+
+@media (max-width: 1000px) {
+  .lend-sections {
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .lend-sections {
+    gap: 1rem;
+  }
+
+  .lend-section :deep(.p-button) {
+    width: 100%;
+  }
+}
 </style>
