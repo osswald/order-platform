@@ -440,6 +440,49 @@ def rotate_appliance_edge_credentials(
     return ApplianceAdminCreated(**d)
 
 
+@router.post(
+    "/{appliance_id}/pairing-sessions",
+    response_model=AppliancePairingSessionRead,
+)
+def create_appliance_pairing_session(
+    appliance_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+):
+    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
+    if appliance.type != "server":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pairing sessions are only for server appliances",
+        )
+
+    now = datetime.now(timezone.utc)
+    db.query(AppliancePairingSession).filter(
+        AppliancePairingSession.appliance_id == appliance.id,
+        AppliancePairingSession.consumed_at.is_(None),
+        AppliancePairingSession.expires_at > now,
+    ).update({"consumed_at": now}, synchronize_session=False)
+
+    code = _generate_pairing_code()
+    session = AppliancePairingSession(
+        appliance_id=appliance.id,
+        code_hash=get_password_hash(code),
+        expires_at=now + timedelta(minutes=15),
+        created_by_user_id=current_user.id,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return AppliancePairingSessionRead(
+        id=session.id,
+        appliance_id=appliance.id,
+        pairing_code=code,
+        pairing_code_display=_format_pairing_code(code),
+        expires_at=session.expires_at,
+    )
+
+
 @router.delete(
     "/{appliance_id}",
     status_code=status.HTTP_204_NO_CONTENT,

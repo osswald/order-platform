@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  pi-backend:
+    image: ${PI_BACKEND_IMAGE:-ghcr.io/vendiqo/order-platform:pi-backend-latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/pi.db}
+      EDGE_CONFIG_FILE: ${EDGE_CONFIG_FILE:-/data/edge.env}
+      DEFAULT_CLOUD_BASE_URL: ${DEFAULT_CLOUD_BASE_URL:-https://api.vendiqo.ch}
+      APP_NAME: pi-backend
+      PRINT_TO_FILE: ${PRINT_TO_FILE:-}
+      PRINT_OUTPUT_DIR: ${PRINT_OUTPUT_DIR:-/data/print-vouchers}
+      SYNC_ENABLED: ${SYNC_ENABLED:-1}
+      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-60}
+    volumes:
+      - pi-data:/data
+    networks:
+      - pi-net
+
+  pi-frontend:
+    image: ${PI_FRONTEND_IMAGE:-ghcr.io/vendiqo/order-platform:pi-frontend-latest}
+    restart: unless-stopped
+    depends_on:
+      - pi-backend
+    ports:
+      - "80:80"
+    networks:
+      - pi-net
+
+volumes:
+  pi-data: {}
+
+networks:
+  pi-net:
+    driver: bridge

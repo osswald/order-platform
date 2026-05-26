@@ -11,7 +11,15 @@ export function isAndroidApp() {
 }
 
 function defaultApiBase() {
-  return (import.meta.env.VITE_API_BASE || (isAndroidApp() ? ANDROID_API_BASE : DEFAULT_API_BASE)).replace(/\/$/, '')
+  if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE.replace(/\/$/, '')
+  if (isAndroidApp()) return ANDROID_API_BASE
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return window.location.origin.replace(/\/$/, '')
+    }
+  }
+  return DEFAULT_API_BASE
 }
 
 export function getApiBase() {

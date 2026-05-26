@@ -891,6 +891,45 @@ textarea {
   margin-top: 1.5rem;
 }
 
+.pairing-panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-border-radius-lg);
+}
+
+.pairing-panel h4 {
+  margin: 0 0 0.75rem;
+}
+
+.pairing-code-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--p-border-radius-lg);
+  background: var(--p-surface-100);
+}
+
+.pairing-code-label {
+  display: block;
+  color: var(--p-text-muted-color);
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.pairing-code-card strong {
+  display: block;
+  font-family: ui-monospace, monospace;
+  font-size: 1.75rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.pairing-code-card p {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  line-height: 1.4;
+}
+
 .lending-section h3 {
   margin: 0 0 1rem;
   font-size: 1.05rem;

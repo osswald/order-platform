@@ -80,6 +80,7 @@ class Appliance(Base):
     edge_secret_hash = Column(String(255), nullable=True)
     hire_company = relationship("HireCompany", back_populates="appliances")
     lendings = relationship("ApplianceLending", back_populates="appliance", cascade="all, delete-orphan")
+    pairing_sessions = relationship("AppliancePairingSession", back_populates="appliance", cascade="all, delete-orphan")
 
 
 class ApplianceLending(Base):
@@ -94,6 +95,21 @@ class ApplianceLending(Base):
     returned_at = Column(DateTime(timezone=True), nullable=True)
     appliance = relationship("Appliance", back_populates="lendings")
     organisation = relationship("Organisation", back_populates="appliance_lendings")
+
+
+class AppliancePairingSession(Base):
+    """Short-lived one-time code used by an unpaired Raspberry Pi to obtain edge credentials."""
+
+    __tablename__ = "appliance_pairing_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="CASCADE"), nullable=False, index=True)
+    code_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    appliance = relationship("Appliance", back_populates="pairing_sessions")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
 
 
 class Event(Base):

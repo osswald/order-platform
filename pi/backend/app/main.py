@@ -11,7 +11,7 @@ from .database import Base, apply_schema_patches, engine
 from .models import CollectiveBill, SyncedBundle  # noqa: F401 — register tables for create_all
 from .print_worker import print_worker_loop
 from .sync_worker import sync_worker_loop
-from .routers import health, edge_api
+from .routers import health, edge_api, setup
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -68,4 +68,5 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(setup.router, tags=["setup"])
 app.include_router(edge_api.router, tags=["edge"])
