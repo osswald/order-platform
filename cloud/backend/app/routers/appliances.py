@@ -9,7 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import generate_appliance_name
-from ..models import Appliance, ApplianceLending, Organisation
+from ..auth_deps import get_current_user
+from ..models import Appliance, ApplianceLending, AppliancePairingSession, Organisation, User
 from ..security import get_password_hash
 from ..deps import get_db
 from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
@@ -115,7 +116,6 @@ class ApplianceAdminCreated(ApplianceRead):
     """Admin-only response when edge credentials are issued."""
 
     edge_secret: str | None = Field(None, description="Plain secret; returned only when created or rotated")
-
 
 class AppliancePairingSessionRead(BaseModel):
     id: int
@@ -249,7 +249,6 @@ def _get_appliance_in_tenant(db: Session, appliance_id: int, hire_company_id: in
     if appliance.hire_company_id != hire_company_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Appliance not in this Verleiher")
     return appliance
-
 
 def _generate_pairing_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
@@ -455,6 +454,49 @@ def rotate_appliance_edge_credentials(
     d = read.model_dump() if hasattr(read, "model_dump") else read.dict()
     d["edge_secret"] = secret
     return ApplianceAdminCreated(**d)
+
+
+@router.post(
+    "/{appliance_id}/pairing-sessions",
+    response_model=AppliancePairingSessionRead,
+)
+def create_appliance_pairing_session(
+    appliance_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+):
+    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
+    if appliance.type != "server":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pairing sessions are only for server appliances",
+        )
+
+    now = datetime.now(timezone.utc)
+    db.query(AppliancePairingSession).filter(
+        AppliancePairingSession.appliance_id == appliance.id,
+        AppliancePairingSession.consumed_at.is_(None),
+        AppliancePairingSession.expires_at > now,
+    ).update({"consumed_at": now}, synchronize_session=False)
+
+    code = _generate_pairing_code()
+    session = AppliancePairingSession(
+        appliance_id=appliance.id,
+        code_hash=get_password_hash(code),
+        expires_at=now + timedelta(minutes=15),
+        created_by_user_id=current_user.id,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return AppliancePairingSessionRead(
+        id=session.id,
+        appliance_id=appliance.id,
+        pairing_code=code,
+        pairing_code_display=_format_pairing_code(code),
+        expires_at=session.expires_at,
+    )
 
 
 @router.delete(
