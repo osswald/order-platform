@@ -5,7 +5,9 @@ const routes = [
   { path: '/', redirect: () => ({ name: 'events' }) },
   {
     path: '/setup',
-    redirect: (to) => ({ name: 'admin', query: to.query }),
+    name: 'setup',
+    component: () => import('../views/SetupPairingView.vue'),
+    meta: { title: 'Pi koppeln', fullscreen: true },
   },
   {
     path: '/admin/unlock',

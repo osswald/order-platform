@@ -25,9 +25,10 @@
 
 <script setup>
 import { computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
 import TwintQrSheet from './components/TwintQrSheet.vue'
+import { api } from './api'
 import { useBundle } from './composables/useBundle'
 import { useBundleRefresh } from './composables/useBundleRefresh'
 import { useToast } from './composables/useToast'
@@ -44,12 +45,20 @@ import {
   cancelTwintQr,
 } from './utils/pickPaymentType'
 const route = useRoute()
+const router = useRouter()
 const { toast } = useToast()
 const { bundleReady, refreshBundle } = useBundle()
 
 useBundleRefresh()
 
 onMounted(() => {
+  api('/v1/setup/status')
+    .then((status) => {
+      if (!status?.configured && route.name !== 'setup') {
+        router.replace({ name: 'setup' })
+      }
+    })
+    .catch(() => {})
   if (!bundleReady()) {
     refreshBundle().catch(() => {})
   }

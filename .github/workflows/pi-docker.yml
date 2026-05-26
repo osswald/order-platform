@@ -8,6 +8,7 @@ on:
     branches: [main, master]
     paths:
       - "pi/backend/**"
+      - "pi/frontend/**"
       - ".github/workflows/pi-docker.yml"
 
 env:
@@ -35,7 +36,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
           context: ./pi/backend
@@ -45,3 +46,14 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./pi/frontend
+          file: ./pi/frontend/Dockerfile.prod
+          platforms: linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-latest
+            ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-${{ github.sha }}

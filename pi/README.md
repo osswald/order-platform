@@ -8,6 +8,25 @@ On-prem stack: **FastAPI** + **SQLite** + **PWA** for waiters. Pulls event bundl
 2. On each boot, run `docker compose pull` (host cron or systemd) so images update from your registry.
 3. Container images are built in CI (see `.github/workflows/pi-docker.yml`) and stored in **GHCR** (or any registry). The Pi only **pulls** images; it does not run cloud workloads.
 
+## Headless first-boot pairing
+
+The production Pi image is intended to boot headlessly on the Verleiher router with a fixed Ethernet address:
+
+```text
+eth0:    192.168.192.10/23
+gateway: 192.168.192.1
+dns:     192.168.192.1
+```
+
+When the Pi has no edge credentials, open `http://192.168.192.10` from a device on the same router network. In cloud admin, open the server appliance and create a short-lived pairing code. Enter that code on the Pi setup page. The Pi calls `POST /edge/v1/pair`, receives `EDGE_CLIENT_ID` and `EDGE_SECRET` once, and stores them in `/data/edge.env` on the persistent Docker volume.
+
+Image/build assets live in `pi/deploy/`:
+
+- `networkmanager-vendiqo-eth0.nmconnection` sets `192.168.192.10/23`
+- `vendiqo-pi.service` starts `docker compose -f docker-compose.prod.yml up -d`
+- `vendiqo-pi-update.timer` periodically pulls new container images
+- `install-vendiqo-pi.sh` installs these files into a Raspberry Pi OS image or running Pi
+
 ## Environment (`pi/.env` or compose `environment`)
 
 | Variable | Description |

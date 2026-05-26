@@ -1,15 +1,19 @@
 """Device-authenticated API for on-prem Raspberry Pi (server appliance)."""
 
+import re
+import secrets
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import (
     Appliance,
     ApplianceLending,
+    AppliancePairingSession,
     EdgeSubmittedOrder,
     Event,
     EventAppLayout,
@@ -23,11 +27,13 @@ from ..payment_types_config import payment_types_from_event
 from ..twint_qr import twint_qr_data_url_for_event
 from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES
 from ..stock import apply_stock_deductions, article_snapshot_for_event
-from ..security import verify_password
+from ..security import get_password_hash, verify_password
 from ..deps import get_db
+from ..rate_limit import EDGE_PAIR_RATE_LIMIT, limiter
 from .events import serialize_event_configuration
 
 router = APIRouter()
+PAIRING_CODE_PATTERN = re.compile(r"\D+")
 
 
 def _utc_today():
@@ -164,6 +170,59 @@ class EdgeBundleRead(BaseModel):
     server_time: datetime
     events: list[EdgeEventBundle]
     admin_pin_hashes: list[str] = Field(default_factory=list)
+
+
+class EdgePairRequest(BaseModel):
+    pairing_code: str = Field(..., min_length=6, max_length=32)
+    device_name: str | None = Field(None, max_length=255)
+
+
+class EdgePairResponse(BaseModel):
+    appliance_id: int
+    appliance_name: str | None = None
+    edge_client_id: str
+    edge_secret: str
+
+
+def _normalize_pairing_code(code: str) -> str:
+    return PAIRING_CODE_PATTERN.sub("", code or "")
+
+
+@router.post("/v1/pair", response_model=EdgePairResponse)
+@limiter.limit(EDGE_PAIR_RATE_LIMIT)
+def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depends(get_db)):
+    code = _normalize_pairing_code(body.pairing_code)
+    if len(code) != 6:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Pairing code must have 6 digits")
+
+    now = datetime.now(timezone.utc)
+    sessions = (
+        db.query(AppliancePairingSession)
+        .join(Appliance, Appliance.id == AppliancePairingSession.appliance_id)
+        .filter(
+            Appliance.type == "server",
+            AppliancePairingSession.consumed_at.is_(None),
+            AppliancePairingSession.expires_at > now,
+        )
+        .all()
+    )
+    matched = next((session for session in sessions if verify_password(code, session.code_hash)), None)
+    if matched is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired pairing code")
+
+    appliance = matched.appliance
+    appliance.edge_client_id = uuid4().hex
+    secret = secrets.token_urlsafe(32)
+    appliance.edge_secret_hash = get_password_hash(secret)
+    matched.consumed_at = now
+    db.commit()
+    db.refresh(appliance)
+    return EdgePairResponse(
+        appliance_id=appliance.id,
+        appliance_name=appliance.name,
+        edge_client_id=appliance.edge_client_id,
+        edge_secret=secret,
+    )
 
 
 def _admin_pin_hashes_for_org(db: Session, organisation_id: int) -> list[str]:
