@@ -1,178 +1,341 @@
-# Raspberry Pi edge (venue server)
+# Raspberry Pi edge server
 
-On-prem stack: **FastAPI** + **SQLite** + **PWA** for waiters. Pulls event bundles from **cloud** using device credentials (`X-Edge-Client-Id` / `X-Edge-Secret`) on the server appliance.
+The Raspberry Pi stack is the on-prem venue server:
 
-## Hybrid SD / Docker updates
+- **FastAPI** backend
+- **SQLite** local data store
+- **Vue PWA** for waiters, registers, pickup screens, and kitchen monitors
+- automatic cloud sync through the cloud edge API
 
-1. Flash a small Raspberry Pi OS image with Docker and a one-shot bootstrap (copy `EDGE_CLIENT_ID` and `EDGE_SECRET` from cloud admin after creating or rotating server appliance credentials).
-2. On each boot, run `docker compose pull` (host cron or systemd) so images update from your registry.
-3. Container images are built in CI (see `.github/workflows/pi-docker.yml`) and stored in **GHCR** (or any registry). The Pi only **pulls** images; it does not run cloud workloads.
+The Pi is designed to keep selling while the internet is unavailable. It serves the local PWA and stores orders in SQLite, then pushes them to cloud when connectivity returns.
 
-## Headless first-boot pairing
+## Production network and first boot
 
-The production Pi image is intended to boot headlessly on the Verleiher router with a fixed Ethernet address:
+Production Pis are intended to run headlessly on the Verleiher-supplied router.
 
 ```text
+Pi URL:  http://192.168.192.10
 eth0:    192.168.192.10/23
 gateway: 192.168.192.1
-dns:     192.168.192.1
+dns:     192.168.192.1, 1.1.1.1
 ```
 
-When the Pi has no edge credentials, open `http://192.168.192.10` from a device on the same router network. In cloud admin, open the server appliance and create a short-lived pairing code. Enter that code on the Pi setup page. The Pi calls `POST /edge/v1/pair`, receives `EDGE_CLIENT_ID` and `EDGE_SECRET` once, and stores them in `/data/edge.env` on the persistent Docker volume.
+The static Ethernet config is in:
 
-Image/build assets live in `pi/deploy/`:
+```text
+pi/deploy/networkmanager-vendiqo-eth0.nmconnection
+```
 
-- `networkmanager-vendiqo-eth0.nmconnection` sets `192.168.192.10/23`
-- `vendiqo-pi.service` starts `docker compose -f docker-compose.prod.yml up -d`
-- `vendiqo-pi-update.timer` periodically pulls new container images
-- `install-vendiqo-pi.sh` installs these files into a Raspberry Pi OS image or running Pi
+On first boot, open the Pi from a device on the same router network:
 
-## Environment (`pi/.env` or compose `environment`)
+```text
+http://192.168.192.10
+```
+
+If the Pi is not paired yet, the PWA redirects to the local setup page.
+
+## Cloud pairing
+
+Pairing is the normal production credential flow.
+
+1. In cloud admin, create or open a **server** appliance.
+2. In the server appliance detail, create a Raspberry Pi pairing code.
+3. Boot the Pi SD card and open `http://192.168.192.10`.
+4. Enter the pairing code on the Pi setup page.
+5. The Pi calls cloud `POST /edge/v1/pair`.
+6. Cloud creates a new SD-card installation credential for that server appliance.
+7. The Pi stores the returned credentials in `/data/edge.env`.
+
+The cloud only returns `EDGE_SECRET` once during pairing. The Pi backend reads credentials from environment variables first and then from `/data/edge.env`.
+
+## Multiple SD cards per server
+
+A server appliance can have multiple paired SD cards, for example:
+
+```text
+Apollo
+- Main SD card
+- Backup SD card 1
+- Backup SD card 2
+```
+
+Each SD card gets its own:
+
+- `edge_client_id`
+- `edge_secret`
+- label/device name
+- status (`active` / `revoked`)
+- `last_seen_at`
+
+This is safer than cloning one secret because cloud can identify and revoke one broken/lost card without invalidating the others.
+
+Important operating rule:
+
+> Only one SD card for the same server appliance should be powered on at a time.
+
+If the active SD card breaks, insert a paired backup SD card and boot the Pi. It should continue syncing as the same server appliance. In cloud admin, individual SD cards can be revoked from the server appliance detail.
+
+Legacy manual appliance credentials (`EDGE_CLIENT_ID` / `EDGE_SECRET` on the appliance itself) are still accepted for compatibility, but new production setup should use pairing.
+
+## Credential/config files
+
+### Production paired Pi
+
+Stored on the persistent Docker volume:
+
+```text
+/data/edge.env
+```
+
+Example:
+
+```env
+CLOUD_BASE_URL=https://api.vendiqo.ch
+EDGE_CLIENT_ID=...
+EDGE_SECRET=...
+```
+
+### Local development
+
+For local Docker development, copy `pi/.env.example` to `pi/.env` and fill values manually if needed.
 
 | Variable | Description |
 |----------|-------------|
-| `CLOUD_BASE_URL` | Cloud API base URL (no trailing slash). Docker defaults to `http://host.docker.internal:8000` so the Pi container can reach cloud on the host. Production: `https://api.example.com` |
-| `EDGE_CLIENT_ID` | From cloud `ApplianceAdminCreated.edge_client_id` |
-| `EDGE_SECRET` | Plain secret shown once at create/rotate |
-| `DATABASE_URL` | Default `sqlite:////data/pi.db` (use volume `/data`) |
-| `SYNC_ENABLED` | `1` (default): background push/pull when cloud credentials are set; `0` to disable |
-| `SYNC_INTERVAL_SECONDS` | Seconds between sync attempts (default `60`, minimum `15`) |
+| `CLOUD_BASE_URL` | Cloud API base URL, no trailing slash. Local default is `http://host.docker.internal:8000`; production default is `https://api.vendiqo.ch`. |
+| `EDGE_CLIENT_ID` | Legacy/manual edge client id, or value written by pairing into `/data/edge.env`. |
+| `EDGE_SECRET` | Legacy/manual edge secret, or value written by pairing into `/data/edge.env`. |
+| `EDGE_CONFIG_FILE` | Credential file path. Production default: `/data/edge.env`. |
+| `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
+| `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
+| `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
+| `PRINT_TO_FILE` | `1` writes vouchers to files instead of network printers. |
+| `PRINT_OUTPUT_DIR` | Default: `/data/print-vouchers`. |
+
+## Production Docker stack
+
+Production compose:
+
+```text
+pi/docker-compose.prod.yml
+```
+
+Services:
+
+- `pi-backend`: FastAPI + SQLite + sync/print workers
+- `pi-frontend`: nginx static PWA, reverse-proxies `/v1/*` to backend
+
+The production frontend is exposed on port 80, so devices use:
+
+```text
+http://192.168.192.10
+```
+
+The production images are built by:
+
+```text
+.github/workflows/pi-docker.yml
+```
+
+Published tags:
+
+```text
+ghcr.io/<owner>/<repo>:pi-backend-latest
+ghcr.io/<owner>/<repo>:pi-frontend-latest
+ghcr.io/<owner>/<repo>:pi-backend-<sha>
+ghcr.io/<owner>/<repo>:pi-frontend-<sha>
+```
+
+## Host deploy assets
+
+Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
+
+| File | Purpose |
+|------|---------|
+| `install-vendiqo-pi.sh` | Copies compose/systemd/network files into a running Pi or image. |
+| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/23`. |
+| `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
+| `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
+| `vendiqo-pi-update.timer` | Runs container update periodically. |
+
+## SDM image build scaffold
+
+The generic SD image scaffold is under:
+
+```text
+pi/image/
+```
+
+It uses [sdm](https://github.com/gitbls/sdm) to customize a Raspberry Pi OS Lite arm64 image.
+
+Build outline:
+
+```bash
+sudo pi/image/build-sdm-image.sh \
+  --base-img /path/to/raspios-lite-arm64.img \
+  --output-dir /tmp/vendiqo-pi-image
+```
+
+The generated image contains:
+
+- Docker Engine
+- Docker Compose plugin
+- production Pi compose file
+- static `eth0` NetworkManager profile
+- Vendiqo systemd service and update timer
+- no appliance secret
+
+After flashing, pair each SD card separately through `http://192.168.192.10`.
+
+See `pi/image/README.md` for image build details.
 
 ## Cloud API used by Pi
 
-- `GET {CLOUD_BASE_URL}/edge/v1/bundle` — active events + configuration + article snapshot  
-- `POST {CLOUD_BASE_URL}/edge/v1/orders` — idempotent order upload (`client_order_id`)
+The Pi authenticates with:
 
-## Local Pi HTTP API (LAN)
+```text
+X-Edge-Client-Id
+X-Edge-Secret
+```
 
-- `POST /v1/sync/pull` — download bundle from cloud into SQLite  
-- `POST /v1/sync/push` — flush pending outbox to cloud (manual; auto sync also pushes)  
-- `GET /v1/sync/status` — auto-sync state (`configured`, `last_cycle_at`, pending outbox count, …)  
-- `GET /v1/bundle` — cached bundle JSON  
-- `GET /v1/meta` — last bundle pull time  
-- `POST /v1/orders` — create local order (`table_number` required) + outbox + **one print job per station** (only that station’s lines)  
-- `POST /v1/orders/{id}/pay` — pay one order (legacy API; frontend uses split pay via `settle-partial`)  
-- `GET /v1/tables/{table_number}?event_id=` — open orders + `line_groups` (merged qty per article) for split pay  
-- `GET /v1/tables/open?event_id=` — list all tables with unpaid orders (summary per table)  
-- `POST /v1/tables/{table_number}/settle-partial` — pay selected line qty (split pay)  
-- `POST /v1/tables/{table_number}/settle` — pay all open orders on a table  
-- `GET /v1/admin/status` — whether bundle exists and admin PIN is required  
-- `POST /v1/admin/verify` — verify 6-digit Pi admin code (against hashes from synced bundle)  
-- `GET /v1/print-jobs` — list print job queue (ESC/POS worker)  
+Cloud endpoints:
 
-### Automatic cloud sync
+- `POST {CLOUD_BASE_URL}/edge/v1/pair` - first-boot pairing, creates one SD-card installation credential.
+- `GET {CLOUD_BASE_URL}/edge/v1/bundle` - active events, configuration, articles, printer mappings, admin PIN hashes.
+- `POST {CLOUD_BASE_URL}/edge/v1/orders` - idempotent order upload by `client_order_id`.
 
-When `CLOUD_BASE_URL`, `EDGE_CLIENT_ID`, and `EDGE_SECRET` are set, the Pi backend runs a background loop (default every **60 s**): **push** pending orders to the cloud, then **pull** the latest bundle. If the cloud is unreachable, the Pi keeps serving waiters from the cached bundle and local SQLite; sync retries on the next interval.
+Cloud edge auth also requires an active appliance lending for today UTC. If sync returns:
 
-After each pull, stock levels are adjusted again for orders not yet acknowledged by the cloud so local deductions are not overwritten.
+- **401**: credentials are missing, wrong, or revoked.
+- **403**: credentials are valid, but no active appliance lending exists for today.
 
-The Kellner-PWA refreshes the cached bundle from the Pi API (not directly from the cloud) while the tab is visible.
+## Local Pi HTTP API
 
-Table state (`table_number`, `payment_status` open/paid) lives **only on the Pi**; cloud receives the same JSON payload including `table_number` on push.
+Setup/sync:
 
-### Station printing
+- `GET /v1/setup/status` - pairing/setup status.
+- `POST /v1/setup/pair` - submit cloud URL and pairing code; writes `/data/edge.env`.
+- `POST /v1/sync/pull` - download bundle from cloud into SQLite.
+- `POST /v1/sync/push` - flush pending outbox to cloud.
+- `GET /v1/sync/status` - auto-sync state.
+- `GET /v1/bundle` - cached bundle JSON.
+- `GET /v1/meta` - last bundle pull time.
 
-Each order is split by `station_id` on the lines (missing ids are inferred from the event station config). Every station gets its own voucher to the printer mapped in the bundle (`printer_hosts` per station id).
+Orders/tables:
 
-### Testing: print to file
+- `POST /v1/orders` - create local order and enqueue outbox + print jobs.
+- `POST /v1/orders/{id}/pay` - legacy order payment endpoint.
+- `GET /v1/tables/{table_number}?event_id=` - open table orders and merged line groups.
+- `GET /v1/tables/open?event_id=` - all open tables.
+- `POST /v1/tables/{table_number}/settle-partial` - split-pay selected quantities.
+- `POST /v1/tables/{table_number}/settle` - pay all open orders on a table.
 
-Set in `pi/.env`:
+Admin/printing/registers:
+
+- `GET /v1/admin/status` - bundle/admin PIN status.
+- `POST /v1/admin/verify` - verify 6-digit Pi admin code.
+- `GET /v1/print-jobs` - print queue.
+- register, kitchen, pickup, collective bill, voucher, and receipt endpoints are served from the same backend and consumed only by the Pi PWA.
+
+## Automatic cloud sync
+
+When cloud credentials are configured, the Pi backend runs a background loop, default every 60 seconds:
+
+1. push pending local orders to cloud
+2. pull the latest event bundle
+3. reapply pending local stock deductions so unsynced local orders are not overwritten by cloud stock
+
+If cloud is unreachable, the Pi keeps serving from SQLite and retries on the next cycle.
+
+Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud receives the order payload including `table_number` when orders are pushed.
+
+## Station printing
+
+Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
+
+To test without network printers, set:
 
 ```env
 PRINT_TO_FILE=1
 PRINT_OUTPUT_DIR=/data/print-vouchers
 ```
 
-Restart `pi-backend`. Vouchers are written as `.txt` under that directory (on Docker: volume `pi-data`, path `/data/print-vouchers`). Network printers are not contacted. One file per station per order.
+Then inspect files:
 
 ```bash
 docker compose exec pi-backend ls -la /data/print-vouchers
 ```
 
-## Kellner-PWA (Mobil)
+## Kellner PWA
 
-Die Vue-PWA unter [pi/frontend/](pi/frontend/) spricht **nur** den Pi-Backend. **Keine** Offline-Warteschlange im Browser.
+The Vue PWA under `pi/frontend/` talks only to the Pi backend. There is no browser-side offline order queue; offline behavior is handled by the Pi server and SQLite.
 
-### Kellner vs. Admin
+Roles:
 
-| Rolle | Zugang | Funktionen |
-|-------|--------|------------|
-| **Kellner** | Event wählen → Kellner/PIN → Hub | Neue Bestellung, Tisch abrechnen, **Offene Tische**, **Lagerbestand** |
-| **Admin** | Startseite **Events** → **Admin** | Pi-API-URL, manueller Sync (pull/push), Auto-Sync-Status |
+| Role | Access | Features |
+|------|--------|----------|
+| Kellner | Event wählen -> Kellner/PIN -> Hub | New orders, table settlement, open tables, stock. |
+| Admin | Events -> Admin | Pi API URL, manual sync, auto-sync status. |
 
-Der **Pi Admin-Code** (6 Ziffern) wird in der **Cloud** unter Benutzer → Organisationen zuordnen → Feld **Pi Admin-Code** gesetzt. Beim Sync landen gehashte Codes im Bundle (`admin_pin_hashes`); der Pi prüft den Code lokal. Die Admin-Session gilt nur für diesen Browser-Tab (`sessionStorage`).
+The **Pi Admin-Code** is configured in cloud under user/organisation assignment. Hashed admin PINs sync in the bundle as `admin_pin_hashes`; the Pi verifies them locally.
 
-**Erstinbetriebnahme:** App öffnen → **Events** → **Admin** (ohne Code, solange noch kein Bundle bzw. keine PIN-Hashes) → **Konfiguration laden** → Events erscheinen für Kellner. Nachdem in der Cloud ein Pi Admin-Code gesetzt wurde: erneut syncen; danach verlangt **Admin** den 6-stelligen Code.
+## Ordering behavior
 
-**Kellner-Ablauf:** Event → Kellner/PIN → **Hub** → **Neue Bestellung** (Tischnummer 1–99999) → **Split-Screen** (Warenkorb oben, Layout-Grid unten) → **FERTIG**. Optional **Tisch abrechnen** oder **Offene Tische** für offene Posten (`pay_later`). **Lagerbestand** zeigt Artikel mit `monitor_stock` und `in_stock` aus dem Bundle.
+### Stock
 
-### Lagerbestand (pro Event)
+Cloud manages event stock under Veranstaltung -> Lagerartikel. The Pi uses event stock from the synced bundle.
 
-In der **Cloud** unter Veranstaltung → **Lagerartikel** (Tab): alle an Stationen verknüpften Artikel, **Bestand führen** und **Bestand** pro Event (`event_article_stock`). Beim Bundle-Sync und bei Bestellungen gilt dieser Event-Bestand (nicht der globale Artikel-Stammdaten-Bestand).
+| Location | Behavior |
+|----------|----------|
+| Cloud Lagerartikel | `monitor_stock` / `in_stock` per event. |
+| Pi Neue Bestellung | Sold out at 0; quantity capped by stock. |
+| Pi `POST /v1/orders` | Local bundle stock is reduced immediately. |
+| Pi Lagerbestand | Shows local current stock after orders and sync. |
+| Cloud push | Deducts event stock once per `client_order_id`. |
 
-| Ort | Verhalten |
-|-----|-----------|
-| Cloud **Lagerartikel** | `monitor_stock` / `in_stock` pro Event speichern |
-| Pi **Neue Bestellung** | Ausverkauft bei 0; Hinweis „Nur noch N verfügbar“; Menge begrenzt |
-| Pi **FERTIG** (`POST /v1/orders`) | Bestand im lokalen Bundle wird reduziert; Response enthält `articles`-Patch |
-| Pi **Lagerbestand** | Aktuelle Werte (nach Bestellung + bei Tab-Wechsel Sync) |
-| Cloud (Push) | `POST /edge/v1/orders` reduziert Event-Bestand einmal pro `client_order_id` |
+### Additions
 
-Artikel nur im App-Layout (ohne Station) erscheinen nicht unter Lagerartikel; im Bundle sind sie ohne Bestandsführung verkaufbar, solange sie nicht auch einer Station zugeordnet sind.
+Cloud articles can be marked as additions (`is_addition`) and linked to base articles. The Pi addition picker enforces the configured additions and applies price adjustments locally.
 
-### Zusätze (Additions)
+### Payment mode
 
-In der **Cloud** unter **Artikel**: Typ **Zusätze** anlegen (`is_addition`). **Preis** des Zusatzes: `0` = kostenlos, positiv = Aufpreis, negativ = Abzug vom Artikelpreis. Am **Basisartikel** (Artikel bearbeiten → Abschnitt Zusätze) die erlaubten Zusätze verknüpfen.
+| Cloud mode | Pi behavior |
+|------------|-------------|
+| `pay_later` | Order remains open; settle later at the table. |
+| `pay_now` | Order remains open; Pi opens split-pay after order. |
+| `instant` | Order is immediately paid. |
 
-| Schritt | Verhalten |
-|---------|-----------|
-| Kellner wählt Artikel mit Zusätzen | Pflicht-Dialog **Zusätze** (0..n wählbar, auch leer bestätigen) |
-| Warenkorb / FERTIG | Zeile enthält `additions: [{ article_id, qty }]`; Preis = Basis + Summe Zusatzpreise (min. 0 pro Stück) |
-| Lager | Zusätze mit Bestandsführung in **Lagerartikel** und bei Bestellung wie Artikel abgezogen |
-| Druck | Bon listet Zusätze unter der Position |
+`POST /v1/orders` payload:
 
-Zusätze erscheinen nicht im Layout-Grid (nur über den Zusatz-Dialog am Basisartikel).
+- `client_order_id`
+- `event_id`
+- `table_number`
+- optional `waiter_id`
+- `lines[]`
+- `payments[]`
 
-### Split pay (Tisch abrechnen)
+## Local development
 
-**Tisch abrechnen** öffnet den Teilbetrag-Bildschirm (Vollbild): oben Positionen für die aktuelle Zahlung, unten Rest des Tisches (`verbleibend / gesamt`). Unten antippen (+1 in den Teilbetrag), oben: **Menge** = Popup, **Name** = +1, **Preis** = −1. Grüner Haken = Teilbetrag sofort verbuchen (kein Bargeld-Keypad).
-
-### `payment_mode` nach FERTIG
-
-| Modus (Cloud) | Verhalten |
-|---------------|-----------|
-| `pay_later` | Bestellung **offen**; Abrechnung am Tisch (Split pay) |
-| `pay_now` | Bestellung **offen**; nach FERTIG direkt **Split-Pay-Bildschirm** am Tisch |
-| `instant` (**Sofort bezahlt**) | Nach FERTIG sofort **bezahlt**, kein Zahlungsbildschirm (Rechnung später / gratis Events) |
-
-### Payload `POST /v1/orders`
-
-- `client_order_id`, `event_id`, **`table_number`** (1–99999), `waiter_id?`, `lines[]`, `payments[]`
-- `lines`: `{ article_id, qty, station_id?, note?, additions?: [{ article_id, qty }] }`
-- `payments`:
-  - **`pay_later` / `pay_now`:** `[]` bei Bestellung; Zahlung via `POST /v1/tables/{n}/settle-partial` (Split pay) oder `settle`
-  - **`instant`:** automatisch `[{ "type": "instant", "amount_cents": N }]` beim Anlegen (Summe = Zeilensumme in Cent)
-
-PWA in Docker: compose maps host **5174** → container **5174** (same Vite port as local `npm run dev`). Cloud frontend can stay on **5173** when you run both on one machine.
-
-## Local dev next to cloud
+Run cloud and Pi side by side:
 
 | App | Command | URL |
 |-----|---------|-----|
-| Cloud frontend | `cd cloud/frontend && npm run dev` | http://localhost:5173 |
-| Pi frontend | `cd pi/frontend && npm run dev` | http://localhost:5174 |
+| Cloud frontend | `cd cloud/frontend && npm run dev` | `http://localhost:5173` |
+| Pi frontend | `cd pi/frontend && npm run dev` | `http://localhost:5174` |
 
-Set `VITE_API_BASE` for the Pi PWA to your Pi backend (e.g. `http://127.0.0.1:8001`). Cloud UI continues to use its own `api.js` against the cloud backend.
+Local Docker:
 
-## Local Docker: Pi + cloud on one machine
+```bash
+cd cloud
+docker compose up -d
 
-1. Start cloud: `cd cloud && docker compose up -d` (API on host **http://localhost:8000**).
-2. In cloud admin: create org, an **active event** (start/end including **today UTC**), a **server** appliance with edge credentials, and an **appliance lending** covering today.
-3. Copy **edge client id** and **edge secret** from the cloud admin UI into `pi/.env` as `EDGE_CLIENT_ID` and `EDGE_SECRET` (they must be non-empty — blank values produce a **503** with a `missing` list on sync).
-4. Start Pi: `cd pi && docker compose up -d --build`.
+cd ../pi
+cp .env.example .env
+docker compose up -d --build
+```
 
-`pi/docker-compose` sets **`CLOUD_BASE_URL`** to `http://host.docker.internal:8000` by default so `pi-backend` can reach cloud (inside a container, `localhost` would not be the host). **`VITE_API_BASE`** defaults to `http://localhost:8001` so the PWA in your browser talks to the published Pi API.
+For local development, `pi/docker-compose.yml` defaults `CLOUD_BASE_URL` to `http://host.docker.internal:8000` and publishes:
 
-If sync returns **403** from cloud, check **appliance lending** dates (cloud edge auth requires an active lending for “today” in UTC). If **401**, check edge id/secret. If the Pi container cannot resolve `host.docker.internal`, ensure Docker is recent enough that `extra_hosts: host-gateway` works (Compose file already adds it for Linux).
+- backend API: `http://localhost:8001`
+- Vite Pi PWA: `http://localhost:5174`
 
-On venue LAN, point phones to the Pi host and the port you expose (e.g. Caddy/nginx in front of the PWA).
+Set `VITE_API_BASE` for the Pi PWA if your backend is elsewhere.
