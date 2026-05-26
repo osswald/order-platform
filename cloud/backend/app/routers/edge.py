@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..models import (
     Appliance,
+    ApplianceEdgeCredential,
     ApplianceLending,
     AppliancePairingSession,
     EdgeSubmittedOrder,
@@ -41,9 +42,15 @@ def _utc_today():
 
 
 class ApplianceEdgeContext:
-    def __init__(self, appliance: Appliance, organisation_id: int):
+    def __init__(
+        self,
+        appliance: Appliance,
+        organisation_id: int,
+        edge_credential: ApplianceEdgeCredential | None = None,
+    ):
         self.appliance = appliance
         self.organisation_id = organisation_id
+        self.edge_credential = edge_credential
 
 
 def get_edge_server_appliance(
@@ -56,11 +63,28 @@ def get_edge_server_appliance(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing X-Edge-Client-Id or X-Edge-Secret",
         )
-    appliance = db.query(Appliance).filter(Appliance.edge_client_id == x_edge_client_id).first()
-    if not appliance or appliance.type != "server":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
-    if not appliance.edge_secret_hash or not verify_password(x_edge_secret, appliance.edge_secret_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
+    edge_credential = (
+        db.query(ApplianceEdgeCredential)
+        .join(Appliance, Appliance.id == ApplianceEdgeCredential.appliance_id)
+        .filter(
+            ApplianceEdgeCredential.edge_client_id == x_edge_client_id,
+            ApplianceEdgeCredential.status == "active",
+            ApplianceEdgeCredential.revoked_at.is_(None),
+            Appliance.type == "server",
+        )
+        .first()
+    )
+    if edge_credential is not None:
+        appliance = edge_credential.appliance
+        if not verify_password(x_edge_secret, edge_credential.edge_secret_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
+    else:
+        # Legacy single appliance credential support for manually configured Pis.
+        appliance = db.query(Appliance).filter(Appliance.edge_client_id == x_edge_client_id).first()
+        if not appliance or appliance.type != "server":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
+        if not appliance.edge_secret_hash or not verify_password(x_edge_secret, appliance.edge_secret_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
 
     today = _utc_today()
     lending = (
@@ -85,7 +109,10 @@ def get_edge_server_appliance(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Lending organisation does not match appliance Verleiher",
         )
-    return ApplianceEdgeContext(appliance, lending.organisation_id)
+    if edge_credential is not None:
+        edge_credential.last_seen_at = datetime.now(timezone.utc)
+        db.commit()
+    return ApplianceEdgeContext(appliance, lending.organisation_id, edge_credential=edge_credential)
 
 
 def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Event | None:
@@ -180,6 +207,8 @@ class EdgePairRequest(BaseModel):
 class EdgePairResponse(BaseModel):
     appliance_id: int
     appliance_name: str | None = None
+    edge_credential_id: int
+    installation_label: str | None = None
     edge_client_id: str
     edge_secret: str
 
@@ -211,16 +240,25 @@ def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depe
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired pairing code")
 
     appliance = matched.appliance
-    appliance.edge_client_id = uuid4().hex
     secret = secrets.token_urlsafe(32)
-    appliance.edge_secret_hash = get_password_hash(secret)
+    label = (body.device_name or "").strip() or None
+    edge_credential = ApplianceEdgeCredential(
+        appliance_id=appliance.id,
+        label=label,
+        edge_client_id=uuid4().hex,
+        edge_secret_hash=get_password_hash(secret),
+        status="active",
+    )
+    db.add(edge_credential)
     matched.consumed_at = now
     db.commit()
-    db.refresh(appliance)
+    db.refresh(edge_credential)
     return EdgePairResponse(
         appliance_id=appliance.id,
         appliance_name=appliance.name,
-        edge_client_id=appliance.edge_client_id,
+        edge_credential_id=edge_credential.id,
+        installation_label=edge_credential.label,
+        edge_client_id=edge_credential.edge_client_id,
         edge_secret=secret,
     )
 

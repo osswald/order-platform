@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import generate_appliance_name
 from ..auth_deps import get_current_user
-from ..models import Appliance, ApplianceLending, AppliancePairingSession, Organisation, User
+from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, Organisation, User
 from ..security import get_password_hash
 from ..deps import get_db
 from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
@@ -100,6 +100,16 @@ class ApplianceLendingRead(BaseModel):
     segment: str
 
 
+class ApplianceEdgeCredentialRead(BaseModel):
+    id: int
+    label: str | None = None
+    edge_client_id: str
+    status: str
+    created_at: datetime | None = None
+    last_seen_at: datetime | None = None
+    revoked_at: datetime | None = None
+
+
 class ApplianceRead(ApplianceBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -110,6 +120,7 @@ class ApplianceRead(ApplianceBase):
     lendable: bool = True
     lend_block_reason: str | None = None
     edge_client_id: str | None = None
+    edge_credentials: list[ApplianceEdgeCredentialRead] | None = None
 
 
 class ApplianceAdminCreated(ApplianceRead):
@@ -187,6 +198,26 @@ def _appliance_to_read(
                 )
             )
 
+    edge_credentials: list[ApplianceEdgeCredentialRead] | None = None
+    if include_lendings and appliance.type == "server":
+        rows = sorted(
+            getattr(appliance, "edge_credentials", []) or [],
+            key=lambda row: (row.created_at or datetime.min.replace(tzinfo=timezone.utc), row.id),
+            reverse=True,
+        )
+        edge_credentials = [
+            ApplianceEdgeCredentialRead(
+                id=row.id,
+                label=row.label,
+                edge_client_id=row.edge_client_id,
+                status=row.status,
+                created_at=row.created_at,
+                last_seen_at=row.last_seen_at,
+                revoked_at=row.revoked_at,
+            )
+            for row in rows
+        ]
+
     return ApplianceRead(
         id=appliance.id,
         type=appliance.type,
@@ -200,6 +231,7 @@ def _appliance_to_read(
         lendable=lendable,
         lend_block_reason=lend_block_reason,
         edge_client_id=getattr(appliance, "edge_client_id", None),
+        edge_credentials=edge_credentials,
     )
 
 
@@ -334,6 +366,7 @@ def read_appliance(
         db.query(Appliance)
         .options(
             joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
+            joinedload(Appliance.edge_credentials),
         )
         .filter(Appliance.id == appliance_id)
         .first()
@@ -499,6 +532,44 @@ def create_appliance_pairing_session(
     )
 
 
+@router.post(
+    "/{appliance_id}/edge-credentials/{credential_id}/revoke",
+    response_model=ApplianceRead,
+)
+def revoke_appliance_edge_credential(
+    appliance_id: int,
+    credential_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
+    credential = (
+        db.query(ApplianceEdgeCredential)
+        .filter(
+            ApplianceEdgeCredential.id == credential_id,
+            ApplianceEdgeCredential.appliance_id == appliance.id,
+        )
+        .first()
+    )
+    if credential is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edge credential not found")
+    now = datetime.now(timezone.utc)
+    credential.status = "revoked"
+    credential.revoked_at = now
+    db.commit()
+    db.refresh(appliance)
+    appliance = (
+        db.query(Appliance)
+        .options(
+            joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
+            joinedload(Appliance.edge_credentials),
+        )
+        .filter(Appliance.id == appliance_id)
+        .first()
+    )
+    return _appliance_to_read(appliance, today=_utc_today(), include_lendings=True)
+
+
 @router.delete(
     "/{appliance_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -561,6 +632,7 @@ def create_appliance_lending(
         db.query(Appliance)
         .options(
             joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
+            joinedload(Appliance.edge_credentials),
         )
         .filter(Appliance.id == appliance_id)
         .first()
@@ -604,6 +676,7 @@ def return_appliance_lending(
         db.query(Appliance)
         .options(
             joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
+            joinedload(Appliance.edge_credentials),
         )
         .filter(Appliance.id == appliance_id)
         .first()

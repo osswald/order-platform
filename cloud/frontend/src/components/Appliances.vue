@@ -115,6 +115,66 @@
             class="secondary-button"
             @click="rotateEdgeCredentials"
           />
+
+          <div class="pairing-panel">
+            <h4>Raspberry Pi SD-Karten</h4>
+            <p class="edge-credentials-hint">
+              Jede gekoppelte SD-Karte erhält eigene Zugangsdaten. Es darf immer nur eine Karte pro Server aktiv laufen.
+            </p>
+            <Button
+              type="button"
+              label="Kopplungscode für weitere SD-Karte erzeugen"
+              class="primary-button"
+              :disabled="pairingLoading"
+              @click="createPairingSession"
+            />
+            <div v-if="pairingSession" class="pairing-code-card">
+              <span class="pairing-code-label">Kopplungscode</span>
+              <strong>{{ pairingSession.pairing_code_display }}</strong>
+              <p>
+                Öffnen Sie <code>{{ pairingSession.setup_url }}</code> auf der neuen SD-Karte und geben Sie diesen Code ein.
+                Gültig bis {{ formatDeDateTime(pairingSession.expires_at) }}.
+              </p>
+            </div>
+            <p v-if="pairingMessage" :class="pairingMessageType">{{ pairingMessage }}</p>
+
+            <DataTable
+              :value="applianceDetail.edge_credentials || []"
+              dataKey="id"
+              class="edge-installations-table"
+              responsiveLayout="scroll"
+            >
+              <template #empty>Keine gekoppelten SD-Karten.</template>
+              <Column field="label" header="SD-Karte">
+                <template #body="{ data }">{{ data.label || `SD-Karte ${data.id}` }}</template>
+              </Column>
+              <Column field="edge_client_id" header="Client-ID">
+                <template #body="{ data }">
+                  <span class="cell-truncate" :title="data.edge_client_id">{{ data.edge_client_id }}</span>
+                </template>
+              </Column>
+              <Column field="status" header="Status">
+                <template #body="{ data }">
+                  <Tag :value="data.status === 'active' ? 'Aktiv' : 'Gesperrt'" :severity="data.status === 'active' ? 'success' : 'danger'" />
+                </template>
+              </Column>
+              <Column header="Zuletzt online">
+                <template #body="{ data }">{{ formatDeDateTime(data.last_seen_at) }}</template>
+              </Column>
+              <Column header="Aktion">
+                <template #body="{ data }">
+                  <Button
+                    v-if="data.status === 'active'"
+                    label="Sperren"
+                    class="secondary-button"
+                    type="button"
+                    @click="revokeEdgeCredential(data.id)"
+                  />
+                  <span v-else>—</span>
+                </template>
+              </Column>
+            </DataTable>
+          </div>
         </div>
 
         <div class="lending-section">
@@ -322,6 +382,10 @@ const organisations = ref([])
 const applianceDetail = ref(null)
 const lendingMessage = ref('')
 const lendingMessageType = ref('')
+const pairingSession = ref(null)
+const pairingMessage = ref('')
+const pairingMessageType = ref('')
+const pairingLoading = ref(false)
 const cancellingLendingId = ref(null)
 /** Einmalige Anzeige nach POST /appliances (Server) oder POST .../edge-credentials */
 const edgeCredentialsRevealed = ref(null)
@@ -419,6 +483,13 @@ function formatDeDate(iso) {
   const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
   if (!y || !m || !d) return iso
   return new Date(y, m - 1, d).toLocaleDateString('de-DE')
+}
+
+function formatDeDateTime(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('de-DE')
 }
 
 function toIsoDate(d) {
@@ -524,6 +595,8 @@ function clearDetailState() {
   form.value = emptyForm()
   message.value = ''
   applianceDetail.value = null
+  pairingSession.value = null
+  pairingMessage.value = ''
   resetLendForm()
   lendingMessage.value = ''
   clearEdgeCredentialsReveal()
@@ -531,6 +604,8 @@ function clearDetailState() {
 
 function applyDeviceToForm(device) {
   clearEdgeCredentialsReveal()
+  pairingSession.value = null
+  pairingMessage.value = ''
   form.value = {
     type: device.type,
     name: device.name || '',
@@ -685,6 +760,51 @@ async function rotateEdgeCredentials() {
     messageType.value = 'success'
   } catch {
     message.value = 'Edge-Zugangsdaten konnten nicht neu ausgegeben werden.'
+    messageType.value = 'error'
+  }
+}
+
+async function createPairingSession() {
+  if (!activeId.value || applianceDetail.value?.type !== 'server') return
+  pairingLoading.value = true
+  pairingMessage.value = ''
+  pairingSession.value = null
+  try {
+    const response = await apiFetch(`/appliances/${activeId.value}/pairing-sessions`, { method: 'POST' })
+    if (!response.ok) {
+      pairingMessage.value = await parseApiErrorDetail(response)
+      pairingMessageType.value = 'error'
+      return
+    }
+    pairingSession.value = await response.json()
+    pairingMessage.value = 'Kopplungscode erzeugt.'
+    pairingMessageType.value = 'success'
+  } catch {
+    pairingMessage.value = 'Kopplungscode konnte nicht erzeugt werden.'
+    pairingMessageType.value = 'error'
+  } finally {
+    pairingLoading.value = false
+  }
+}
+
+async function revokeEdgeCredential(credentialId) {
+  if (!activeId.value || !credentialId) return
+  if (!confirm('Diese SD-Karte wirklich sperren? Sie kann danach nicht mehr mit der Cloud synchronisieren.')) return
+  try {
+    const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials/${credentialId}/revoke`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      message.value = await parseApiErrorDetail(response)
+      messageType.value = 'error'
+      return
+    }
+    applianceDetail.value = await response.json()
+    await fetchAppliances()
+    message.value = 'SD-Karte wurde gesperrt.'
+    messageType.value = 'success'
+  } catch {
+    message.value = 'SD-Karte konnte nicht gesperrt werden.'
     messageType.value = 'error'
   }
 }

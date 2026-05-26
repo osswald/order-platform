@@ -81,6 +81,7 @@ class Appliance(Base):
     hire_company = relationship("HireCompany", back_populates="appliances")
     lendings = relationship("ApplianceLending", back_populates="appliance", cascade="all, delete-orphan")
     pairing_sessions = relationship("AppliancePairingSession", back_populates="appliance", cascade="all, delete-orphan")
+    edge_credentials = relationship("ApplianceEdgeCredential", back_populates="appliance", cascade="all, delete-orphan")
 
 
 class ApplianceLending(Base):
@@ -110,6 +111,22 @@ class AppliancePairingSession(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     appliance = relationship("Appliance", back_populates="pairing_sessions")
     created_by = relationship("User", foreign_keys=[created_by_user_id])
+
+
+class ApplianceEdgeCredential(Base):
+    """One credentialed SD-card/Pi installation for a server appliance."""
+
+    __tablename__ = "appliance_edge_credentials"
+    id = Column(Integer, primary_key=True, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="CASCADE"), nullable=False, index=True)
+    label = Column(String(255), nullable=True)
+    edge_client_id = Column(String(64), nullable=False, unique=True, index=True)
+    edge_secret_hash = Column(String(255), nullable=False)
+    status = Column(String(32), nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    appliance = relationship("Appliance", back_populates="edge_credentials")
 
 
 class Event(Base):

@@ -147,6 +147,7 @@ def apply_schema_patches() -> None:
     )
     _backfill_layout_cell_voucher_uuids()
     _ensure_appliance_pairing_sessions_table()
+    _ensure_appliance_edge_credentials_table()
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
 
@@ -161,6 +162,18 @@ def _ensure_appliance_pairing_sessions_table() -> None:
     from .models import AppliancePairingSession
 
     AppliancePairingSession.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_appliance_edge_credentials_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "appliance_edge_credentials" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import ApplianceEdgeCredential
+
+    ApplianceEdgeCredential.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_event_cash_registers_table() -> None:
