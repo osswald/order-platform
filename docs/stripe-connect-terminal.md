@@ -6,9 +6,10 @@ collected from Android waiter devices.
 
 ## Ownership model
 
-- A Stripe connected account belongs to a `HireCompany` (`Verleiher`).
-- Events inherit card-payment capability through their organisation's
-  `hire_company_id`.
+- A Stripe connected account belongs to an `Organisation`.
+- `HireCompany` (`Verleiher`) remains the tenant/security boundary for admins
+  and appliances, but payouts and Terminal charges are scoped to the event's
+  organisation.
 - Raspberry Pi devices and Android devices never receive the platform Stripe
   secret key. They call Pi-local endpoints, which proxy to cloud edge endpoints
   using existing `X-Edge-Client-Id` / `X-Edge-Secret` credentials.
@@ -17,12 +18,13 @@ collected from Android waiter devices.
 
 Cloud admin onboarding:
 
-- `GET /stripe/connect/status`
-- `POST /stripe/connect/account-link`
-- `POST /stripe/connect/refresh`
+- `GET /stripe/connect/organisations/{organisation_id}/status`
+- `POST /stripe/connect/organisations/{organisation_id}/account-link`
+- `POST /stripe/connect/organisations/{organisation_id}/refresh`
 
-The onboarding request returns a Stripe Account Link for the active tenant. The
-cloud stores the connected account id and readiness flags on `hire_companies`.
+The onboarding request returns a Stripe Account Link for the selected
+organisation. The cloud stores the connected account id and readiness flags on
+`organisations`.
 
 Edge-authenticated Terminal endpoints:
 
@@ -36,7 +38,8 @@ exception to the general rule of not hard-coding payment method types.
 
 ## Pi and Android flow
 
-1. Cloud admin enables `stripe_terminal` as an event payment type.
+1. Cloud admin connects the event organisation to Stripe and enables
+   `stripe_terminal` as an event payment type.
 2. Pi sync pulls the event bundle and exposes `stripe_terminal` locally.
 3. The waiter selects "Karte" in the Android WebView.
 4. The PWA calls `POST /v1/terminal/payment-intents` on the Pi.

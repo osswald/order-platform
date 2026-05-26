@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import get_db
 from ..event_status import ORDER_ACCEPT_STATUSES
-from ..models import Event, HireCompany
+from ..models import Event, Organisation
 from ..payment_types_config import payment_types_from_event
 from ..stripe_client import StripeConfigError
 from .. import stripe_client
@@ -78,7 +78,7 @@ def _intent_response(intent) -> TerminalPaymentIntentRead:
     )
 
 
-def _terminal_company_for_event(db: Session, ctx: ApplianceEdgeContext, event_id: int) -> tuple[Event, HireCompany]:
+def _terminal_organisation_for_event(db: Session, ctx: ApplianceEdgeContext, event_id: int) -> tuple[Event, Organisation]:
     event = _load_event_for_org(db, event_id, ctx.organisation_id)
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
@@ -90,12 +90,12 @@ def _terminal_company_for_event(db: Session, ctx: ApplianceEdgeContext, event_id
     if STRIPE_TERMINAL_PAYMENT_TYPE not in payment_types_from_event(event):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Stripe Terminal is not enabled for this event")
 
-    company = event.organisation.hire_company
-    if not company or not company.stripe_account_id:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Verleiher has no connected Stripe account")
-    if not company.stripe_charges_enabled:
+    organisation = event.organisation
+    if not organisation or not organisation.stripe_account_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Organisation has no connected Stripe account")
+    if not organisation.stripe_charges_enabled:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Connected Stripe account is not ready for charges")
-    return event, company
+    return event, organisation
 
 
 @router.post("/v1/terminal/connection-token", response_model=TerminalConnectionTokenRead)
@@ -104,9 +104,9 @@ def create_terminal_connection_token(
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),
 ) -> TerminalConnectionTokenRead:
-    _, company = _terminal_company_for_event(db, ctx, body.event_id)
+    _, organisation = _terminal_organisation_for_event(db, ctx, body.event_id)
     try:
-        token = stripe_client.create_terminal_connection_token(account_id=company.stripe_account_id)
+        token = stripe_client.create_terminal_connection_token(account_id=organisation.stripe_account_id)
     except Exception as exc:
         raise _stripe_error(exc) from exc
     return TerminalConnectionTokenRead(secret=str(_stripe_attr(token, "secret")))
@@ -118,20 +118,20 @@ def create_terminal_payment_intent(
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),
 ) -> TerminalPaymentIntentRead:
-    event, company = _terminal_company_for_event(db, ctx, body.event_id)
+    event, organisation = _terminal_organisation_for_event(db, ctx, body.event_id)
     currency = (body.currency or event.currency or "CHF").upper()
     metadata = {
         "event_id": str(event.id),
-        "organisation_id": str(ctx.organisation_id),
+        "organisation_id": str(organisation.id),
         "appliance_id": str(ctx.appliance.id),
-        "hire_company_id": str(company.id),
+        "hire_company_id": str(organisation.hire_company_id),
         **{str(k): str(v) for k, v in body.metadata.items() if v is not None},
     }
     if body.client_order_id:
         metadata["client_order_id"] = body.client_order_id
     try:
         intent = stripe_client.create_terminal_payment_intent(
-            account_id=company.stripe_account_id,
+            account_id=organisation.stripe_account_id,
             amount_cents=body.amount_cents,
             currency=currency,
             metadata=metadata,
@@ -151,10 +151,10 @@ def read_terminal_payment_intent(
 ) -> TerminalPaymentIntentRead:
     if not PAYMENT_INTENT_ID_PATTERN.match(payment_intent_id):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid PaymentIntent id")
-    _, company = _terminal_company_for_event(db, ctx, event_id)
+    _, organisation = _terminal_organisation_for_event(db, ctx, event_id)
     try:
         intent = stripe_client.retrieve_terminal_payment_intent(
-            account_id=company.stripe_account_id,
+            account_id=organisation.stripe_account_id,
             payment_intent_id=payment_intent_id,
         )
     except Exception as exc:

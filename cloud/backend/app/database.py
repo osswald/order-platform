@@ -150,7 +150,7 @@ def apply_schema_patches() -> None:
     _ensure_appliance_edge_credentials_table()
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
-    _patch_hire_company_stripe_connect()
+    _patch_organisation_stripe_connect()
 
 
 def _ensure_appliance_pairing_sessions_table() -> None:
@@ -189,8 +189,8 @@ def _ensure_event_cash_registers_table() -> None:
     EventCashRegister.__table__.create(bind=engine, checkfirst=True)
 
 
-def _patch_hire_company_stripe_connect() -> None:
-    """Stripe Connect status lives on the Verleiher payout boundary."""
+def _patch_organisation_stripe_connect() -> None:
+    """Stripe Connect status lives on the organisation payout boundary."""
     stripe_columns = [
         ("stripe_account_id", "VARCHAR(255)", "VARCHAR(255)"),
         ("stripe_charges_enabled", "BOOLEAN NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT FALSE"),
@@ -201,10 +201,10 @@ def _patch_hire_company_stripe_connect() -> None:
     ]
     for col, sqlite_type, pg_type in stripe_columns:
         _add_column_if_missing(
-            "hire_companies",
+            "organisations",
             col,
-            f"ALTER TABLE hire_companies ADD COLUMN {col} {sqlite_type}",
-            f"ALTER TABLE hire_companies ADD COLUMN IF NOT EXISTS {col} {pg_type}",
+            f"ALTER TABLE organisations ADD COLUMN {col} {sqlite_type}",
+            f"ALTER TABLE organisations ADD COLUMN IF NOT EXISTS {col} {pg_type}",
         )
 
 

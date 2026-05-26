@@ -26,7 +26,7 @@ def _configure() -> None:
     stripe.api_version = STRIPE_API_VERSION
 
 
-def create_connected_account(*, hire_company_id: int, name: str, country: str | None) -> Any:
+def create_connected_account(*, organisation_id: int, hire_company_id: int, name: str, country: str | None) -> Any:
     _configure()
     return stripe.Account.create(
         type="express",
@@ -37,7 +37,10 @@ def create_connected_account(*, hire_company_id: int, name: str, country: str | 
             "card_payments": {"requested": True},
             "transfers": {"requested": True},
         },
-        metadata={"hire_company_id": str(hire_company_id)},
+        metadata={
+            "organisation_id": str(organisation_id),
+            "hire_company_id": str(hire_company_id),
+        },
     )
 
 
