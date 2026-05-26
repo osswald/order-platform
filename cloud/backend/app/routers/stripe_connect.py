@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 
 import stripe
@@ -29,8 +30,8 @@ class StripeConnectStatus(BaseModel):
 
 
 class StripeAccountLinkRequest(BaseModel):
-    return_url: str = Field(..., min_length=1)
-    refresh_url: str = Field(..., min_length=1)
+    return_url: str | None = Field(None, min_length=1)
+    refresh_url: str | None = Field(None, min_length=1)
 
 
 class StripeAccountLinkResponse(StripeConnectStatus):
@@ -65,6 +66,13 @@ def _status_response(company: HireCompany) -> StripeConnectStatus:
     )
 
 
+def _account_link_url(value: str | None, env_name: str) -> str:
+    url = (value or os.getenv(env_name) or "").strip()
+    if not url:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"{env_name} is required")
+    return url
+
+
 @router.get("/status", response_model=StripeConnectStatus)
 def read_connect_status(
     tenant: TenantContext = Depends(get_current_tenant_admin),
@@ -91,8 +99,8 @@ def create_connect_account_link(
 
         link = stripe_client.create_account_link(
             account_id=company.stripe_account_id,
-            return_url=body.return_url,
-            refresh_url=body.refresh_url,
+            return_url=_account_link_url(body.return_url, "STRIPE_CONNECT_RETURN_URL"),
+            refresh_url=_account_link_url(body.refresh_url, "STRIPE_CONNECT_REFRESH_URL"),
         )
     except Exception as exc:
         raise _stripe_error(exc) from exc
