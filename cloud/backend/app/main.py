@@ -20,6 +20,8 @@ from .routers import (
     hire_companies,
     items,
     organisations,
+    stripe_connect,
+    stripe_terminal,
     appliances,
     users,
     waiters,
@@ -107,3 +109,5 @@ app.include_router(article_categories.router, prefix="/article-categories", tags
 app.include_router(articles.router, prefix="/articles", tags=["articles"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])
+app.include_router(stripe_connect.router, prefix="/stripe/connect", tags=["stripe-connect"])
+app.include_router(stripe_terminal.router, prefix="/edge", tags=["stripe-terminal"])
