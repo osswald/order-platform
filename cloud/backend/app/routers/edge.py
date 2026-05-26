@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -29,6 +29,7 @@ from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import get_password_hash, verify_password
 from ..deps import get_db
+from ..rate_limit import EDGE_PAIR_RATE_LIMIT, limiter
 from .events import serialize_event_configuration
 
 router = APIRouter()
@@ -188,7 +189,8 @@ def _normalize_pairing_code(code: str) -> str:
 
 
 @router.post("/v1/pair", response_model=EdgePairResponse)
-def pair_edge_device(body: EdgePairRequest, db: Session = Depends(get_db)):
+@limiter.limit(EDGE_PAIR_RATE_LIMIT)
+def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depends(get_db)):
     code = _normalize_pairing_code(body.pairing_code)
     if len(code) != 6:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Pairing code must have 6 digits")

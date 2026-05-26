@@ -146,8 +146,21 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_app_layout_cells ADD COLUMN IF NOT EXISTS voucher_definition_uuids JSON NOT NULL DEFAULT '[]'",
     )
     _backfill_layout_cell_voucher_uuids()
+    _ensure_appliance_pairing_sessions_table()
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
+
+
+def _ensure_appliance_pairing_sessions_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "appliance_pairing_sessions" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import AppliancePairingSession
+
+    AppliancePairingSession.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_event_cash_registers_table() -> None:
