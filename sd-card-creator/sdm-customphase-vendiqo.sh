@@ -52,9 +52,10 @@ elif [ "$phase" = "1" ]; then
     ca-certificates \
     curl \
     docker.io \
-    docker-compose-plugin \
     network-manager \
     xz-utils
+  apt-get install -y --no-install-recommends docker-compose-plugin || \
+    apt-get install -y --no-install-recommends docker-compose-v2
 
   systemctl enable NetworkManager.service
   systemctl enable docker.service
