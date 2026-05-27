@@ -18,7 +18,12 @@
     </section>
 
     <section v-else-if="payload.state === 'ordering'" class="order-preview">
-      <div class="order-body">
+      <div
+        ref="orderBodyRef"
+        class="order-body"
+        :class="{ 'order-body--scrolled': orderBodyScrolled }"
+        @scroll="onOrderBodyScroll"
+      >
         <h2>Ihre Bestellung</h2>
         <p v-if="!lines.length" class="muted">Noch keine Artikel.</p>
         <ul v-else>
@@ -50,7 +55,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
 import { useEventContext } from '../composables/useEventContext'
@@ -59,7 +64,10 @@ import { cartLineLabelForEvent, lineAdditionLabels } from '../utils/bundleHelper
 
 const route = useRoute()
 const payload = ref({})
+const orderBodyRef = ref(null)
+const orderBodyScrolled = ref(false)
 let pollTimer = null
+let lastCartSignature = ''
 
 const { event } = useEventContext()
 const registerUuid = computed(() => String(route.params.registerUuid || ''))
@@ -85,6 +93,54 @@ function lineTotal(line) {
 function additionLabelsFor(line) {
   return lineAdditionLabels(line, articles.value)
 }
+
+function cartScrollSignature() {
+  const cartLines = payload.value.lines || []
+  const vouchers = payload.value.voucher_lines || []
+  const last = cartLines[cartLines.length - 1]
+  const lastVoucher = vouchers[vouchers.length - 1]
+  const lastId = last ? last.lineId || lineKey(last) : ''
+  const lastQty = last ? Math.max(1, Number(last.qty) || 1) : 0
+  const lastVoucherKey = lastVoucher ? String(lastVoucher.key || '') : ''
+  return `${cartLines.length}|${lastId}|${lastQty}|${vouchers.length}|${lastVoucherKey}`
+}
+
+function scrollToLatest() {
+  const el = orderBodyRef.value
+  if (!el) return
+  el.scrollTop = el.scrollHeight
+}
+
+function onOrderBodyScroll() {
+  const el = orderBodyRef.value
+  orderBodyScrolled.value = Boolean(el && el.scrollTop > 4)
+}
+
+function maybeScrollToLatest() {
+  if (payload.value.state !== 'ordering') return
+  const sig = cartScrollSignature()
+  if (sig === lastCartSignature) return
+  lastCartSignature = sig
+  const cartLines = payload.value.lines || []
+  const vouchers = payload.value.voucher_lines || []
+  if (!cartLines.length && !vouchers.length) return
+  nextTick(() => {
+    scrollToLatest()
+    onOrderBodyScroll()
+  })
+}
+
+watch(
+  () => [payload.value.state, payload.value.lines, payload.value.voucher_lines],
+  () => {
+    if (payload.value.state !== 'ordering') {
+      lastCartSignature = ''
+      orderBodyScrolled.value = false
+      return
+    }
+    maybeScrollToLatest()
+  },
+)
 
 async function loadDisplay() {
   if (!event.value?.id || !registerUuid.value) return
@@ -151,6 +207,20 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-anchor: auto;
+}
+.order-body--scrolled::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: block;
+  height: 2rem;
+  margin-bottom: -2rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(22, 26, 31, 0.98), transparent);
 }
 .order-preview h2,
 .twint-panel h2 {

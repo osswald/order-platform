@@ -4,6 +4,36 @@ import { api } from '../api'
 import { useCart } from './useCart'
 import { useEventContext } from './useEventContext'
 
+let pickupHoldUntil = 0
+let idleTimerId = null
+
+export function idleDisplayPayload() {
+  return {
+    state: 'idle',
+    lines: [],
+    total_cents: 0,
+    show_twint: false,
+    twint_qr_data_url: null,
+    voucher_lines: [],
+  }
+}
+
+export function canSetIdleNow() {
+  return Date.now() >= pickupHoldUntil
+}
+
+export function clearPickupHold() {
+  pickupHoldUntil = 0
+  if (idleTimerId != null) {
+    clearTimeout(idleTimerId)
+    idleTimerId = null
+  }
+}
+
+export function holdPickupDisplay(ms = 10000) {
+  pickupHoldUntil = Date.now() + ms
+}
+
 export function useRegisterDisplay() {
   const route = useRoute()
   const router = useRouter()
@@ -30,7 +60,7 @@ export function useRegisterDisplay() {
     return `${window.location.origin}${path}`
   }
 
-  async function updateDisplay(extra = {}) {
+  async function pushDisplayPayload(payload) {
     if (!event.value?.id || !register.value?.uuid) return
     try {
       await api(`/v1/registers/${encodeURIComponent(register.value.uuid)}/display`, {
@@ -39,16 +69,41 @@ export function useRegisterDisplay() {
           event_id: event.value.id,
           payload: {
             register_name: register.value.name,
-            lines: cartLines.value,
-            total_cents: cartTotalCents.value,
             currency: currency.value,
-            ...extra,
+            ...payload,
           },
         }),
       })
     } catch {
       /* second screen is best-effort */
     }
+  }
+
+  async function updateDisplay(extra = {}) {
+    if (!event.value?.id || !register.value?.uuid) return
+    await pushDisplayPayload({
+      lines: cartLines.value,
+      total_cents: cartTotalCents.value,
+      ...extra,
+    })
+  }
+
+  async function setDisplayIdle() {
+    if (!canSetIdleNow()) return
+    await pushDisplayPayload(idleDisplayPayload())
+  }
+
+  function scheduleIdleAfterPickup(ms = 10000) {
+    if (idleTimerId != null) {
+      clearTimeout(idleTimerId)
+      idleTimerId = null
+    }
+    holdPickupDisplay(ms)
+    idleTimerId = setTimeout(() => {
+      idleTimerId = null
+      pickupHoldUntil = 0
+      setDisplayIdle()
+    }, ms)
   }
 
   function hubRoute() {
@@ -71,6 +126,10 @@ export function useRegisterDisplay() {
     registerDisplayPath,
     registerDisplayUrl,
     updateDisplay,
+    pushDisplayPayload,
+    setDisplayIdle,
+    scheduleIdleAfterPickup,
+    clearPickupHold,
     hubRoute,
     orderRoute,
     displayRoute,

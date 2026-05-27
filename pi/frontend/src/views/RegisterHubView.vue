@@ -22,19 +22,25 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCart } from '../composables/useCart'
 import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 import { useRegisterSession } from '../composables/useRegisterSession'
 
-const route = useRoute()
 const router = useRouter()
+const route = useRoute()
 const { clearCart } = useCart()
-const { register, event, updateDisplay, orderRoute } = useRegisterDisplay()
+const { register, setDisplayIdle, clearPickupHold, orderRoute } = useRegisterDisplay()
 const { setRegisterSession } = useRegisterSession()
 
+function refreshHubDisplay() {
+  if (route.name !== 'register-hub' || !register.value) return
+  setDisplayIdle()
+}
+
 function startOrder() {
+  clearPickupHold()
   clearCart()
   router.push(orderRoute())
 }
@@ -44,20 +50,14 @@ function switchRegister() {
   router.push({ name: 'registers' })
 }
 
+watch(() => route.name, refreshHubDisplay)
+
 onMounted(() => {
   if (!register.value) {
     router.replace({ name: 'registers' })
     return
   }
-  if (route.query.fresh === '1') {
-    updateDisplay({
-      state: 'idle',
-      lines: [],
-      total_cents: 0,
-      show_twint: false,
-      twint_qr_data_url: null,
-    })
-  }
+  refreshHubDisplay()
 })
 </script>
 

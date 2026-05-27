@@ -108,6 +108,7 @@ import {
 } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
 import { pickPaymentType } from '../utils/pickPaymentType'
+import { useRoute } from 'vue-router'
 import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
 import CartPanel from '../components/CartPanel.vue'
@@ -121,6 +122,7 @@ import VoucherRedeemSheet from '../components/VoucherRedeemSheet.vue'
 import SplitPayVoucherRow from '../components/SplitPayVoucherRow.vue'
 
 const router = useRouter()
+const route = useRoute()
 const submitting = ref(false)
 const voucherSheetOpen = ref(false)
 const voucherRedemptions = ref([])
@@ -134,7 +136,17 @@ const additionsPickerOpen = ref(false)
 const additionsPickerArticle = ref(null)
 const pendingAdd = ref(null)
 
-const { register, event, currency, updateDisplay, hubRoute } = useRegisterDisplay()
+const {
+  register,
+  event,
+  currency,
+  updateDisplay,
+  pushDisplayPayload,
+  setDisplayIdle,
+  scheduleIdleAfterPickup,
+  clearPickupHold,
+  hubRoute,
+} = useRegisterDisplay()
 const {
   lines,
   cartCount,
@@ -340,9 +352,15 @@ function onTapPrice(lineId) {
   decrementCartLine(lineId)
 }
 
+function syncDisplayToCart() {
+  if (submitting.value || route.name !== 'register-order') return
+  updateDisplay(orderingPayload())
+}
+
 function goBack() {
+  clearPickupHold()
   clearCart()
-  updateDisplay({ state: 'idle', lines: [], total_cents: 0, show_twint: false, twint_qr_data_url: null })
+  setDisplayIdle()
   router.push(hubRoute())
 }
 
@@ -376,7 +394,7 @@ async function submitOrder() {
           twint_qr_data_url: dataUrl,
           total_cents: amountCents,
         }),
-      onTwintHide: () => updateDisplay(orderingPayload()),
+      onTwintHide: () => {},
     })
   } catch {
     return
@@ -425,10 +443,8 @@ async function submitOrder() {
       }),
     })
     if (res.articles) patchEventArticles(event.value.id, res.articles)
-    voucherRedemptions.value = []
-    clearCart()
-    showToast(`Pickup ${res.pickup_code}`, 'ok')
-    await updateDisplay({
+    scheduleIdleAfterPickup(10000)
+    await pushDisplayPayload({
       state: 'submitted',
       pickup_code: res.pickup_code,
       pickup_status: res.pickup_status,
@@ -436,8 +452,12 @@ async function submitOrder() {
       total_cents: 0,
       show_twint: false,
       twint_qr_data_url: null,
+      voucher_lines: [],
     })
-    router.push(hubRoute())
+    voucherRedemptions.value = []
+    clearCart()
+    showToast(`Pickup ${res.pickup_code}`, 'ok')
+    await router.push(hubRoute())
   } catch (e) {
     showToast(e.message || 'Fehler', 'err')
   } finally {
@@ -445,14 +465,15 @@ async function submitOrder() {
   }
 }
 
-watch([lines, voucherRedemptions], () => updateDisplay(orderingPayload()), { deep: true })
+watch([lines, voucherRedemptions, cartCount], () => syncDisplayToCart(), { deep: true })
 
 onMounted(() => {
   if (!register.value) {
     router.replace({ name: 'registers' })
     return
   }
-  updateDisplay(orderingPayload({ lines: [], total_cents: 0 }))
+  clearPickupHold()
+  syncDisplayToCart()
 })
 </script>
 
