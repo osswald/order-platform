@@ -4,6 +4,22 @@ set -euo pipefail
 phase="${1:-}"
 pfx="$(basename "$0")"
 
+load_sdm_params() {
+  if [ -n "${csrc:-}" ]; then
+    return
+  fi
+
+  if [ -n "${SDMPT:-}" ] && [ -f "$SDMPT/etc/sdm/sdm-readparams" ]; then
+    # SDM v15 runs custom scripts as child processes, so --csrc is not exported.
+    # Source the generated params file to recover csrc during phase 0.
+    # shellcheck disable=SC1090
+    . "$SDMPT/etc/sdm/sdm-readparams"
+  elif [ -f /etc/sdm/sdm-readparams ]; then
+    # shellcheck disable=SC1091
+    . /etc/sdm/sdm-readparams
+  fi
+}
+
 log() {
   if command -v logtoboth >/dev/null 2>&1; then
     logtoboth "* $pfx $*"
@@ -11,6 +27,8 @@ log() {
     echo "* $pfx $*"
   fi
 }
+
+load_sdm_params
 
 if [ "$phase" = "0" ]; then
   : "${SDMPT:?SDMPT must be set by sdm in phase 0}"
