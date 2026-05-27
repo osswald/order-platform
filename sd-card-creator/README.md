@@ -88,6 +88,7 @@ Credentials are stored in `/data/edge.env` inside the persistent Docker volume.
 ## Security / caveats
 
 - Compose uses **`privileged: true`** and mounts **`/dev:/dev`** for loop devices and SDM. Only run on a trusted machine.
+- The Linux host must support loop partition devices (for example `loop.max_part` greater than `0`) and `vfat` mounts, because SDM mounts both partitions from the Raspberry Pi image.
 - **Docker Desktop on Mac** runs Linux in a VM; if `sdm --customize` fails on loop devices, try native Linux or a Linux VM.
 
 ## Files in this directory
