@@ -178,7 +178,8 @@ function routeTo(name) {
 }
 
 function changeOrganisation(id) {
-  emit('change-organisation', id)
+  const value = typeof id === 'object' && id != null && id.id != null ? id.id : id
+  emit('change-organisation', value)
 }
 
 function changeHireCompany(id) {

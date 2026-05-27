@@ -1,15 +1,14 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiFetch } from '../api'
+import { apiFetch, clearAuthStorage } from '../api'
+import { normalizeOrganisationId } from '../utils/orgId'
 
 const ROLE_PLATFORM = 'platform_admin'
 const ROLE_ORG_ADMIN = 'org_admin'
 const ROLE_MEMBER = 'member'
 
 function parseId(value) {
-  if (value == null || value === '') return null
-  const id = Number(value)
-  return Number.isFinite(id) ? id : null
+  return normalizeOrganisationId(value)
 }
 
 export function useAuthSession() {
@@ -125,6 +124,9 @@ export function useAuthSession() {
       if (!response.ok) {
         isPlatformAdmin.value = false
         isTenantAdmin.value = false
+        if (response.status === 401) {
+          clearAuthStorage()
+        }
         return false
       }
       const data = await response.json()
@@ -184,17 +186,12 @@ export function useAuthSession() {
   }
 
   function setActiveOrganisation(id) {
-    if (id == null || id === '') {
-      activeOrganisationId.value = null
-      localStorage.removeItem('active_organisation_id')
+    const parsed = normalizeOrganisationId(id)
+    activeOrganisationId.value = parsed
+    if (parsed != null) {
+      localStorage.setItem('active_organisation_id', String(parsed))
     } else {
-      const parsed = Number(id)
-      activeOrganisationId.value = Number.isFinite(parsed) ? parsed : null
-      if (activeOrganisationId.value != null) {
-        localStorage.setItem('active_organisation_id', String(activeOrganisationId.value))
-      } else {
-        localStorage.removeItem('active_organisation_id')
-      }
+      localStorage.removeItem('active_organisation_id')
     }
     updateRouteOrganisation()
   }
@@ -297,15 +294,7 @@ export function useAuthSession() {
     } catch {
       // ignore
     }
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user_email')
-    localStorage.removeItem('is_admin')
-    localStorage.removeItem('user_role')
-    localStorage.removeItem('is_tenant_admin')
-    localStorage.removeItem('user_hire_company_id')
-    localStorage.removeItem('active_hire_company_id')
-    localStorage.removeItem('user_id')
-    localStorage.removeItem('active_organisation_id')
+    clearAuthStorage()
     accessibleOrganisations.value = []
     hireCompanies.value = []
     activeOrganisationId.value = null

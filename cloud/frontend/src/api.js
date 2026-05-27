@@ -4,6 +4,19 @@ export function apiBaseUrl() {
   return API_BASE
 }
 
+/** Remove tokens and session keys after failed auth (stale token, missing refresh cookie). */
+export function clearAuthStorage() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('user_email')
+  localStorage.removeItem('is_admin')
+  localStorage.removeItem('user_role')
+  localStorage.removeItem('is_tenant_admin')
+  localStorage.removeItem('user_hire_company_id')
+  localStorage.removeItem('active_hire_company_id')
+  localStorage.removeItem('user_id')
+  localStorage.removeItem('active_organisation_id')
+}
+
 /**
  * Build absolute URL for API paths (always starts with /).
  */
@@ -68,6 +81,9 @@ export async function apiFetch(path, options = {}) {
 
   const refreshed = await refreshAccessToken()
   if (!refreshed) {
+    if (res.status === 401) {
+      clearAuthStorage()
+    }
     return res
   }
 

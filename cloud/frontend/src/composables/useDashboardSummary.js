@@ -1,5 +1,10 @@
-import { ref, watch } from 'vue'
+import { ref, unref, watch } from 'vue'
 import { apiFetch } from '../api'
+import { normalizeOrganisationId } from '../utils/orgId'
+
+function resolveOrganisationId(activeOrganisationIdRef) {
+  return normalizeOrganisationId(unref(activeOrganisationIdRef))
+}
 
 export function useDashboardSummary(activeOrganisationIdRef) {
   const loading = ref(false)
@@ -7,8 +12,8 @@ export function useDashboardSummary(activeOrganisationIdRef) {
   const summary = ref(null)
 
   async function load() {
-    const orgId = activeOrganisationIdRef?.value ?? activeOrganisationIdRef
-    if (orgId == null || orgId === '') {
+    const orgId = resolveOrganisationId(activeOrganisationIdRef)
+    if (orgId == null) {
       summary.value = null
       loadError.value = ''
       loading.value = false
@@ -30,7 +35,7 @@ export function useDashboardSummary(activeOrganisationIdRef) {
   }
 
   watch(
-    () => (typeof activeOrganisationIdRef === 'object' ? activeOrganisationIdRef.value : activeOrganisationIdRef),
+    () => resolveOrganisationId(activeOrganisationIdRef),
     () => {
       load()
     },

@@ -16,7 +16,7 @@
         :active-hire-company-id="activeHireCompanyId"
         :show-hire-company-picker="isPlatformAdmin"
         :organisations="accessibleOrganisations"
-        :active-organisation-id="activeOrganisationId"
+        :active-organisation-id="activeOrganisationIdForViews"
         @change-organisation="setActiveOrganisation"
         @change-hire-company="setActiveHireCompany"
       />
@@ -25,7 +25,7 @@
           <component
             :is="Component"
             :is-admin="isAdmin"
-            :active-organisation-id="activeOrganisationId"
+            :active-organisation-id="activeOrganisationIdForViews"
           />
         </RouterView>
       </main>
@@ -46,7 +46,7 @@
         :active-hire-company-id="activeHireCompanyId"
         :show-hire-company-picker="isPlatformAdmin"
         :organisations="accessibleOrganisations"
-        :active-organisation-id="activeOrganisationId"
+        :active-organisation-id="activeOrganisationIdForViews"
         @change-organisation="setActiveOrganisation"
         @change-hire-company="setActiveHireCompany"
         @navigate="mobileNavOpen = false"
@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { provide, ref, watch } from 'vue'
+import { computed, provide, ref, unref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Drawer from 'primevue/drawer'
 import Header from './components/Header.vue'
@@ -65,6 +65,7 @@ import AppNavMenu from './components/AppNavMenu.vue'
 import { useAuthSession } from './composables/useAuthSession'
 import { useBreakpoint } from './composables/useBreakpoint'
 import { SESSION_CONTEXT_KEY } from './sessionContext'
+import { normalizeOrganisationId } from './utils/orgId'
 
 const MOBILE_BREAKPOINT = 992
 
@@ -102,6 +103,11 @@ const {
   reloadHireCompaniesAndSelect,
   reloadOrganisationsAndSelect,
 } = useAuthSession()
+
+/** Unwrap ref for dynamic <component> props (avoids passing Ref / object to children). */
+const activeOrganisationIdForViews = computed(() =>
+  normalizeOrganisationId(unref(activeOrganisationId)),
+)
 
 provide(SESSION_CONTEXT_KEY, {
   reloadHireCompaniesAndSelect,
