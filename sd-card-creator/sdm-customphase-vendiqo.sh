@@ -67,6 +67,7 @@ elif [ "$phase" = "1" ]; then
   apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    docker-cli \
     docker.io \
     network-manager \
     xz-utils
