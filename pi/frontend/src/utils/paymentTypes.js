@@ -1,9 +1,10 @@
-export const PAYMENT_TYPE_ORDER = ['cash', 'twint', 'sumup']
+export const PAYMENT_TYPE_ORDER = ['cash', 'twint', 'sumup', 'stripe_terminal']
 
 export const PAYMENT_TYPE_LABELS = {
   cash: 'Bargeld',
   twint: 'TWINT',
   sumup: 'SumUp',
+  stripe_terminal: 'Karte',
 }
 
 export function paymentTypeLabel(type) {

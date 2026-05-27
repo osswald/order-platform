@@ -150,6 +150,7 @@ def apply_schema_patches() -> None:
     _ensure_appliance_edge_credentials_table()
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
+    _patch_organisation_stripe_connect()
 
 
 def _ensure_appliance_pairing_sessions_table() -> None:
@@ -186,6 +187,25 @@ def _ensure_event_cash_registers_table() -> None:
     from .models import EventCashRegister
 
     EventCashRegister.__table__.create(bind=engine, checkfirst=True)
+
+
+def _patch_organisation_stripe_connect() -> None:
+    """Stripe Connect status lives on the organisation payout boundary."""
+    stripe_columns = [
+        ("stripe_account_id", "VARCHAR(255)", "VARCHAR(255)"),
+        ("stripe_charges_enabled", "BOOLEAN NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("stripe_payouts_enabled", "BOOLEAN NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("stripe_details_submitted", "BOOLEAN NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("stripe_onboarding_started_at", "DATETIME", "TIMESTAMP WITH TIME ZONE"),
+        ("stripe_account_updated_at", "DATETIME", "TIMESTAMP WITH TIME ZONE"),
+    ]
+    for col, sqlite_type, pg_type in stripe_columns:
+        _add_column_if_missing(
+            "organisations",
+            col,
+            f"ALTER TABLE organisations ADD COLUMN {col} {sqlite_type}",
+            f"ALTER TABLE organisations ADD COLUMN IF NOT EXISTS {col} {pg_type}",
+        )
 
 
 def _backfill_layout_cell_voucher_uuids() -> None:

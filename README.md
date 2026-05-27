@@ -47,3 +47,4 @@ Für eine lokale Kombination beibehalten Sie `docker-compose.yml` im Projektstam
 
 - Backends verbinden sich per Docker Compose mit eigenen PostgreSQL-Datenbanken.
 - Frontends werden als Vite-Dev-Server gestartet.
+- Stripe Connect/Terminal Integrationspfad: `docs/stripe-connect-terminal.md`.

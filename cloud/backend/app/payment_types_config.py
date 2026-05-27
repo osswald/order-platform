@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup"})
-PAYMENT_TYPE_ORDER = ("cash", "twint", "sumup")
+ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "stripe_terminal"})
+PAYMENT_TYPE_ORDER = ("cash", "twint", "sumup", "stripe_terminal")
 
 
 def normalize_payment_types(types: list[str] | None) -> list[str]:

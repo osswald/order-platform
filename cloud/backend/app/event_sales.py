@@ -15,6 +15,7 @@ PAYMENT_TYPE_LABELS = {
     "cash": "Bargeld",
     "twint": "TWINT",
     "sumup": "SumUp",
+    "stripe_terminal": "Karte (Stripe Terminal)",
     "instant": "Sofort",
     "open": "Offen",
 }

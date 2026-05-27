@@ -6,10 +6,17 @@ from datetime import datetime, timedelta, timezone
 
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..cloud_client import CloudConfigError
+from ..cloud_client import (
+    CloudConfigError,
+    create_terminal_connection_token as cloud_create_terminal_connection_token,
+    create_terminal_payment_intent as cloud_create_terminal_payment_intent,
+    retrieve_terminal_payment_intent as cloud_retrieve_terminal_payment_intent,
+)
 from ..sync_service import (
     is_cloud_configured,
     pending_outbox_count,
@@ -109,7 +116,7 @@ from ..vouchers import (
 router = APIRouter()
 
 PAYMENT_MODES_CASH = {"pay_now", "instant"}
-ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup"})
+ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "stripe_terminal"})
 
 
 def _event_payment_types(ev: dict) -> set[str]:
@@ -533,6 +540,81 @@ def _cloud_config_http_error(e: CloudConfigError) -> HTTPException:
             "missing": e.missing,
         },
     )
+
+
+def _cloud_gateway_http_error(e: httpx.HTTPStatusError) -> HTTPException:
+    try:
+        detail = e.response.json()
+    except Exception:
+        detail = e.response.text or "Cloud request failed"
+    return HTTPException(status_code=e.response.status_code, detail=detail)
+
+
+class TerminalConnectionTokenBody(BaseModel):
+    event_id: int
+
+
+class TerminalPaymentIntentBody(BaseModel):
+    event_id: int
+    amount_cents: int = Field(..., gt=0)
+    currency: str | None = Field(None, min_length=3, max_length=3)
+    client_order_id: str | None = Field(None, max_length=64)
+    idempotency_key: str | None = Field(None, max_length=255)
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+def _terminal_event_or_error(db: Session, event_id: int) -> dict:
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Event not found in local bundle")
+    if "stripe_terminal" not in _event_payment_types(ev):
+        raise HTTPException(status_code=403, detail="Stripe Terminal is not enabled for this event")
+    return ev
+
+
+@router.post("/v1/terminal/connection-token")
+async def terminal_connection_token(body: TerminalConnectionTokenBody, db: Session = Depends(get_db)) -> dict:
+    _terminal_event_or_error(db, body.event_id)
+    try:
+        return await cloud_create_terminal_connection_token(body.event_id)
+    except CloudConfigError as e:
+        raise _cloud_config_http_error(e) from e
+    except httpx.HTTPStatusError as e:
+        raise _cloud_gateway_http_error(e) from e
+
+
+@router.post("/v1/terminal/payment-intents")
+async def terminal_payment_intent(body: TerminalPaymentIntentBody, db: Session = Depends(get_db)) -> dict:
+    ev = _terminal_event_or_error(db, body.event_id)
+    try:
+        return await cloud_create_terminal_payment_intent(
+            event_id=body.event_id,
+            amount_cents=body.amount_cents,
+            currency=body.currency or ev.get("currency"),
+            client_order_id=body.client_order_id,
+            idempotency_key=body.idempotency_key,
+            metadata=body.metadata,
+        )
+    except CloudConfigError as e:
+        raise _cloud_config_http_error(e) from e
+    except httpx.HTTPStatusError as e:
+        raise _cloud_gateway_http_error(e) from e
+
+
+@router.get("/v1/terminal/payment-intents/{payment_intent_id}")
+async def terminal_payment_intent_status(
+    payment_intent_id: str,
+    event_id: int = Query(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    _terminal_event_or_error(db, event_id)
+    try:
+        return await cloud_retrieve_terminal_payment_intent(event_id=event_id, payment_intent_id=payment_intent_id)
+    except CloudConfigError as e:
+        raise _cloud_config_http_error(e) from e
+    except httpx.HTTPStatusError as e:
+        raise _cloud_gateway_http_error(e) from e
 
 
 @router.get("/v1/sync/status", response_model=SyncStatusResponse)

@@ -215,6 +215,7 @@ const paymentTypeOptions = [
   { value: 'cash', label: 'Bargeld' },
   { value: 'twint', label: 'TWINT' },
   { value: 'sumup', label: 'SumUp' },
+  { value: 'stripe_terminal', label: 'Karte (Stripe Terminal)' },
 ]
 
 const emptyForm = () => ({

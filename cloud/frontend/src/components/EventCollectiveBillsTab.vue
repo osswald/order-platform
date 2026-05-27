@@ -144,6 +144,7 @@ const PAYMENT_LABELS = {
   cash: 'Bargeld',
   twint: 'TWINT',
   sumup: 'SumUp',
+  stripe_terminal: 'Karte',
   instant: 'Sofort',
 }
 

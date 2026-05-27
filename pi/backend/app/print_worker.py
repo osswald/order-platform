@@ -74,6 +74,7 @@ def _payment_type_label(payment_type: str) -> str:
         "cash": "Bar",
         "twint": "TWINT",
         "sumup": "SumUp",
+        "stripe_terminal": "Karte",
         "instant": "Sofort",
     }
     key = str(payment_type or "").lower()
