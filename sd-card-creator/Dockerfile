@@ -8,6 +8,7 @@ RUN apt-get update \
     bash \
     ca-certificates \
     curl \
+    fdisk \
     xz-utils \
   && rm -rf /var/lib/apt/lists/*
 

@@ -28,7 +28,7 @@ Compose loads **`BASE_IMG_URL`** from **[`.env.example`](.env.example)**. To use
 ```bash
 cd sd-card-creator
 docker compose build
-docker compose up
+docker compose up --abort-on-container-exit --exit-code-from image-build
 ```
 
 Use foreground `docker compose up` so you see logs until the run finishes. The first run **downloads** the base image (can take a while).
