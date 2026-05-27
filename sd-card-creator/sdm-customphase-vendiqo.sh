@@ -20,6 +20,22 @@ load_sdm_params() {
   fi
 }
 
+install_docker_compose() {
+  if apt-get install -y --no-install-recommends docker-compose-plugin; then
+    return
+  fi
+
+  if apt-get install -y --no-install-recommends docker-compose-v2; then
+    return
+  fi
+
+  install -d -m 0755 /usr/local/lib/docker/cli-plugins
+  curl -fsSL \
+    https://github.com/docker/compose/releases/latest/download/docker-compose-linux-aarch64 \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
+}
+
 log() {
   echo "* $pfx $*"
 }
@@ -54,8 +70,8 @@ elif [ "$phase" = "1" ]; then
     docker.io \
     network-manager \
     xz-utils
-  apt-get install -y --no-install-recommends docker-compose-plugin || \
-    apt-get install -y --no-install-recommends docker-compose-v2
+  install_docker_compose
+  docker compose version
 
   systemctl enable NetworkManager.service
   systemctl enable docker.service
