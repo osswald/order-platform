@@ -4,13 +4,43 @@ set -euo pipefail
 phase="${1:-}"
 pfx="$(basename "$0")"
 
-log() {
-  if command -v logtoboth >/dev/null 2>&1; then
-    logtoboth "* $pfx $*"
-  else
-    echo "* $pfx $*"
+load_sdm_params() {
+  if [ -n "${csrc:-}" ]; then
+    return
+  fi
+
+  if [ -n "${SDMPT:-}" ] && [ -f "$SDMPT/etc/sdm/sdm-readparams" ]; then
+    # SDM v15 runs custom scripts as child processes, so --csrc is not exported.
+    # Source the generated params file to recover csrc during phase 0.
+    # shellcheck disable=SC1090
+    . "$SDMPT/etc/sdm/sdm-readparams"
+  elif [ -f /etc/sdm/sdm-readparams ]; then
+    # shellcheck disable=SC1091
+    . /etc/sdm/sdm-readparams
   fi
 }
+
+install_docker_compose() {
+  if apt-get install -y --no-install-recommends docker-compose-plugin; then
+    return
+  fi
+
+  if apt-get install -y --no-install-recommends docker-compose-v2; then
+    return
+  fi
+
+  install -d -m 0755 /usr/local/lib/docker/cli-plugins
+  curl -fsSL \
+    https://github.com/docker/compose/releases/latest/download/docker-compose-linux-aarch64 \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
+}
+
+log() {
+  echo "* $pfx $*"
+}
+
+load_sdm_params
 
 if [ "$phase" = "0" ]; then
   : "${SDMPT:?SDMPT must be set by sdm in phase 0}"
@@ -37,10 +67,12 @@ elif [ "$phase" = "1" ]; then
   apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    docker-cli \
     docker.io \
-    docker-compose-plugin \
     network-manager \
     xz-utils
+  install_docker_compose
+  docker compose version
 
   systemctl enable NetworkManager.service
   systemctl enable docker.service
