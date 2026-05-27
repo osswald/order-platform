@@ -22,7 +22,7 @@ load_sdm_params() {
 
 log() {
   if command -v logtoboth >/dev/null 2>&1; then
-    logtoboth "* $pfx $*"
+    logtoboth "* $pfx $*" ""
   else
     echo "* $pfx $*"
   fi
