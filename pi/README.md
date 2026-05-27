@@ -157,36 +157,9 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 | `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
 | `vendiqo-pi-update.timer` | Runs container update periodically. |
 
-## SDM image build scaffold
+## SD card image build
 
-The generic SD image scaffold is under:
-
-```text
-pi/image/
-```
-
-It uses [sdm](https://github.com/gitbls/sdm) to customize a Raspberry Pi OS Lite arm64 image.
-
-Build outline:
-
-```bash
-sudo pi/image/build-sdm-image.sh \
-  --base-img /path/to/raspios-lite-arm64.img \
-  --output-dir /tmp/vendiqo-pi-image
-```
-
-The generated image contains:
-
-- Docker Engine
-- Docker Compose plugin
-- production Pi compose file
-- static `eth0` NetworkManager profile
-- Vendiqo systemd service and update timer
-- no appliance secret
-
-After flashing, pair each SD card separately through `http://192.168.192.10`.
-
-See `pi/image/README.md` for image build details.
+Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (Docker on macOS: `docker compose up`; Linux: `sudo sd-card-creator/build-sdm-image.sh`). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`.
 
 ## Cloud API used by Pi
 

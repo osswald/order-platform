@@ -1,0 +1,9 @@
+*
+!Dockerfile
+!docker-compose.yml
+!entrypoint.sh
+!build-sdm-image.sh
+!sdm-customphase-vendiqo.sh
+!.env.example
+!.gitignore
+!README.md

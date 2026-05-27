@@ -6,7 +6,7 @@ usage() {
 Build a generic Vendiqo Raspberry Pi image with sdm.
 
 Usage:
-  sudo pi/image/build-sdm-image.sh --base-img /path/raspios.img [--output-dir /path/out]
+  sudo sd-card-creator/build-sdm-image.sh --base-img /path/raspios.img [--output-dir /path/out]
 
 Environment:
   SDM_BIN       Path to sdm executable. Default: /usr/local/sdm/sdm, then sdm from PATH.
@@ -59,7 +59,7 @@ if [ ! -f "$BASE_IMG" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PI_DIR="$(cd "$SCRIPT_DIR/../pi" && pwd)"
 OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR/out}"
 IMAGE_NAME="${IMAGE_NAME:-vendiqo-pi-$(date +%Y%m%d-%H%M).img}"
 WORK_IMG="$OUTPUT_DIR/$IMAGE_NAME"
