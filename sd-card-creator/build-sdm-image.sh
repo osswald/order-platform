@@ -11,7 +11,8 @@ Usage:
 Environment:
   SDM_BIN       Path to sdm executable. Default: /usr/local/sdm/sdm, then sdm from PATH.
   SDM_CUSTOMIZE_ARGS
-                Optional extra arguments before --customize, e.g. "--chroot".
+                Extra arguments before --customize.
+                Default: "--extend --xmb 2048" to fit Docker and updates.
   IMAGE_NAME    Output image base name. Default: vendiqo-pi-YYYYmmdd-HHMM.img
 
 The resulting image contains no appliance secret. Pair the Pi on first boot at:
@@ -83,7 +84,8 @@ mkdir -p "$OUTPUT_DIR"
 cp "$BASE_IMG" "$WORK_IMG"
 
 SDM_ARGS=()
-if [ -n "${SDM_CUSTOMIZE_ARGS:-}" ]; then
+SDM_CUSTOMIZE_ARGS="${SDM_CUSTOMIZE_ARGS:---extend --xmb 2048}"
+if [ -n "$SDM_CUSTOMIZE_ARGS" ]; then
   # Intentionally split like shell arguments so callers can pass SDM flags.
   # shellcheck disable=SC2206
   SDM_ARGS=(${SDM_CUSTOMIZE_ARGS})
