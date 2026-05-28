@@ -621,12 +621,12 @@ async def terminal_payment_intent_status(
 def get_sync_status(db: Session = Depends(get_db)) -> SyncStatusResponse:
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     last_sync_at = row.updated_at.isoformat() if row and row.updated_at else None
-    return SyncStatusResponse(
+    return SyncStatusResponse.model_validate({
         **sync_status,
-        configured=is_cloud_configured(),
-        pending_outbox_count=pending_outbox_count(db),
-        bundle_last_sync_at=last_sync_at,
-    )
+        "configured": is_cloud_configured(),
+        "pending_outbox_count": pending_outbox_count(db),
+        "bundle_last_sync_at": last_sync_at,
+    })
 
 
 @router.post("/v1/sync/pull", response_model=SyncPullResponse)
