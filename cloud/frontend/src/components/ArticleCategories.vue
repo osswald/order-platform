@@ -43,7 +43,8 @@
       <DataTable
         :value="paginatedCategories"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editCategory($event.data)"
       >

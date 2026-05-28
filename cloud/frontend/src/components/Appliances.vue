@@ -142,7 +142,8 @@
               :value="applianceDetail.edge_credentials || []"
               dataKey="id"
               class="edge-installations-table"
-              responsiveLayout="scroll"
+              responsiveLayout="stack"
+              breakpoint="768px"
             >
               <template #empty>Keine gekoppelten SD-Karten.</template>
               <Column field="label" header="SD-Karte">
@@ -220,7 +221,7 @@
 
         <div class="lending-section">
           <h3>Historie</h3>
-          <DataTable :value="applianceDetail.lendings || []" dataKey="id" class="lendings-table" responsiveLayout="scroll">
+          <DataTable :value="applianceDetail.lendings || []" dataKey="id" class="lendings-table" responsiveLayout="stack" breakpoint="768px">
             <template #empty>Keine Ausleihen.</template>
             <Column field="organisation_name" header="Organisation" />
             <Column field="start_date" header="Von">
@@ -284,7 +285,8 @@
       <DataTable
         :value="paginatedAppliances"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editAppliance($event.data)"
       >

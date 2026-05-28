@@ -108,7 +108,8 @@
       <DataTable
         :value="paginatedEvents"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editEvent($event.data)"
       >

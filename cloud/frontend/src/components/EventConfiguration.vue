@@ -5,11 +5,14 @@
     <template v-else>
       <p v-if="configMessage" :class="configMessageType">{{ configMessage }}</p>
 
-      <TabView>
-        <TabPanel v-if="$slots.stammdaten" header="Stammdaten">
+      <component
+        :is="isMobile ? 'div' : TabView"
+        :class="{ 'event-config-accordion': isMobile }"
+      >
+        <EventConfigSection v-if="$slots.stammdaten" title="Stammdaten" :mobile="isMobile" open>
           <slot name="stammdaten" />
-        </TabPanel>
-        <TabPanel header="Stationen">
+        </EventConfigSection>
+        <EventConfigSection title="Stationen" :mobile="isMobile" :open="!$slots.stammdaten">
           <div class="section-toolbar">
             <Button label="Station hinzufügen" type="button" class="primary-button" @click="addStation" />
           </div>
@@ -64,14 +67,14 @@
             </div>
           </div>
           <p v-if="!stationsLocal.length" class="muted">Noch keine Stationen.</p>
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel header="Event-Kellner">
+        <EventConfigSection title="Event-Kellner" :mobile="isMobile">
           <div class="section-toolbar">
             <Button label="Kellner hinzufügen" type="button" class="primary-button" @click="addWaiterRow" />
             <Button label="Aus Organisation übernehmen" type="button" class="secondary-button" @click="openWaiterPick" />
           </div>
-          <DataTable :value="waitersLocal" dataKey="_key" class="list-table nested" responsiveLayout="scroll">
+          <DataTable :value="waitersLocal" dataKey="_key" class="list-table nested" responsiveLayout="stack" breakpoint="768px">
             <Column field="name" header="Name">
               <template #body="{ data }">
                 <InputText v-model="data.name" class="w-full" />
@@ -95,9 +98,9 @@
               </template>
             </Column>
           </DataTable>
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel v-if="cashRegistersEnabled" header="Kassen">
+        <EventConfigSection v-if="cashRegistersEnabled" title="Kassen" :mobile="isMobile">
           <div class="section-toolbar">
             <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
           </div>
@@ -152,9 +155,9 @@
             </div>
           </div>
           <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel v-if="vouchersEnabled" header="Gutscheine">
+        <EventConfigSection v-if="vouchersEnabled" title="Gutscheine" :mobile="isMobile">
           <div class="section-toolbar">
             <Button label="Gutschein hinzufügen" type="button" class="primary-button" @click="addVoucher" />
           </div>
@@ -200,9 +203,9 @@
               </div>
             </template>
           </div>
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel header="App-Layouts">
+        <EventConfigSection title="App-Layouts" :mobile="isMobile">
           <div class="section-toolbar">
             <Button label="Layout hinzufügen" type="button" class="primary-button" @click="addLayout" />
           </div>
@@ -259,20 +262,20 @@
               </div>
             </div>
           </div>
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel header="Lagerartikel">
+        <EventConfigSection title="Lagerartikel" :mobile="isMobile">
           <EventStockTab :event-id="eventId" :stations="stationsLocal" />
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel v-if="showOperationalTabs" header="Umsatz">
+        <EventConfigSection v-if="showOperationalTabs" title="Umsatz" :mobile="isMobile">
           <EventSalesTab :event-id="eventId" />
-        </TabPanel>
+        </EventConfigSection>
 
-        <TabPanel v-if="showOperationalTabs" header="Sammelrechnungen">
+        <EventConfigSection v-if="showOperationalTabs" title="Sammelrechnungen" :mobile="isMobile">
           <EventCollectiveBillsTab :event-id="eventId" />
-        </TabPanel>
-      </TabView>
+        </EventConfigSection>
+      </component>
 
       <div class="config-save">
         <Button label="Konfiguration speichern" class="primary-button" type="button" :disabled="saving" @click="saveConfiguration" />
@@ -349,7 +352,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineComponent, h } from 'vue'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import ColorPicker from 'primevue/colorpicker'
@@ -364,6 +367,7 @@ import TabPanel from 'primevue/tabpanel'
 import TabView from 'primevue/tabview'
 import TreeSelect from 'primevue/treeselect'
 import { apiFetch } from '../api'
+import { useBreakpoint } from '../composables/useBreakpoint'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
@@ -391,7 +395,49 @@ const props = defineProps({
   },
 })
 
+const { matches: isMobile } = useBreakpoint(768)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
+
+const EventConfigSection = defineComponent({
+  name: 'EventConfigSection',
+  props: {
+    title: {
+      type: String,
+      required: true,
+    },
+    mobile: {
+      type: Boolean,
+      default: false,
+    },
+    open: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(sectionProps, { slots }) {
+    return () => {
+      if (!sectionProps.mobile) {
+        return h(TabPanel, { header: sectionProps.title }, slots)
+      }
+
+      return h(
+        'details',
+        {
+          class: 'event-config-accordion-panel',
+          open: sectionProps.open || undefined,
+        },
+        [
+          h('summary', { class: 'event-config-accordion-header' }, [
+            h('span', sectionProps.title),
+            h('i', { class: 'pi pi-chevron-down', 'aria-hidden': 'true' }),
+          ]),
+          h('div', { class: 'event-config-accordion-content' }, slots.default?.()),
+        ],
+      )
+    }
+  },
+})
+
 
 const loading = ref(true)
 const loadError = ref('')
@@ -957,6 +1003,51 @@ watch(
   border-top: none;
 }
 
+.event-config-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.event-config-accordion-panel {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-border-radius-lg);
+  background: var(--p-surface-card);
+  overflow: hidden;
+}
+
+.event-config-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  color: var(--p-text-color);
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.event-config-accordion-header::-webkit-details-marker {
+  display: none;
+}
+
+.event-config-accordion-panel[open] .event-config-accordion-header {
+  border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.event-config-accordion-panel[open] .event-config-accordion-header i {
+  transform: rotate(180deg);
+}
+
+.event-config-accordion-header i {
+  transition: transform 0.2s ease;
+}
+
+.event-config-accordion-content {
+  padding: 1rem;
+}
+
 .muted {
   color: var(--p-text-muted-color);
 }
@@ -1117,9 +1208,8 @@ label {
     width: 100%;
   }
 
-  :deep(.p-tabview-nav) {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+  .event-config-accordion-content {
+    padding: 0.75rem;
   }
 }
 </style>

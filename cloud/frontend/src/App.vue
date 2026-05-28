@@ -138,19 +138,20 @@ body {
 }
 
 #app {
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 .app-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .app-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -164,6 +165,17 @@ body {
 
 .main-content--mobile {
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  #app,
+  .app-layout {
+    min-height: 100dvh;
+  }
+
+  .main-content {
+    overflow-x: auto;
+  }
 }
 
 .mobile-nav-drawer {

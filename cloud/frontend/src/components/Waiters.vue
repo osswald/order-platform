@@ -49,7 +49,8 @@
       <DataTable
         :value="paginatedWaiters"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editWaiter($event.data)"
       >

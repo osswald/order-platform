@@ -51,7 +51,8 @@
             :value="orgApplianceLendings.current"
             dataKey="lending_id"
             class="list-table nested-table"
-            responsiveLayout="scroll"
+            responsiveLayout="stack"
+            breakpoint="768px"
           >
             <template #empty>Keine aktiven Ausleihen.</template>
             <Column field="appliance_id" header="ID" />
@@ -72,7 +73,8 @@
             :value="orgApplianceLendings.planned"
             dataKey="lending_id"
             class="list-table nested-table"
-            responsiveLayout="scroll"
+            responsiveLayout="stack"
+            breakpoint="768px"
           >
             <template #empty>Keine geplanten Ausleihen.</template>
             <Column field="appliance_id" header="ID" />
@@ -140,7 +142,8 @@
       <DataTable
         :value="paginatedOrganisations"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editOrganisation($event.data)"
       >

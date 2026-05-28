@@ -1,4 +1,120 @@
 :root {
   --vq-breakpoint-md: 768px;
   --vq-breakpoint-lg: 992px;
+  --vq-mobile-page-padding: 1rem;
+  --vq-mobile-control-min-height: 2.75rem;
+}
+
+@media (max-width: 768px) {
+  .p-card .p-card-body,
+  .p-card .p-card-content {
+    padding: 1rem;
+  }
+
+  .actions,
+  .section-toolbar,
+  .twint-qr-actions,
+  .dialog-actions {
+    align-items: stretch !important;
+    flex-direction: column !important;
+    width: 100%;
+  }
+
+  .actions > .p-button,
+  .section-toolbar > .p-button,
+  .twint-qr-actions > .p-button,
+  .dialog-actions > .p-button,
+  .primary-button,
+  .secondary-button {
+    min-height: var(--vq-mobile-control-min-height);
+  }
+
+  .actions > .p-button,
+  .section-toolbar > .p-button,
+  .twint-qr-actions > .p-button,
+  .dialog-actions > .p-button {
+    justify-content: center;
+    width: 100% !important;
+  }
+
+  .table-header {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .list-controls,
+  .field-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .p-inputtext,
+  .p-inputnumber,
+  .p-inputnumber-input,
+  .p-select,
+  .p-multiselect,
+  .p-datepicker,
+  .p-treeselect,
+  .p-password,
+  .p-password-input {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .p-select-overlay,
+  .p-multiselect-overlay,
+  .p-datepicker-panel,
+  .p-treeselect-overlay,
+  .p-autocomplete-overlay {
+    left: 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
+    min-width: 0 !important;
+    width: calc(100vw - 2rem) !important;
+  }
+
+  .p-select-list,
+  .p-multiselect-list {
+    max-width: 100%;
+  }
+
+  .p-select-option,
+  .p-multiselect-option {
+    white-space: normal;
+  }
+
+  .p-dialog {
+    margin: 0.75rem;
+    max-height: calc(100dvh - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
+    width: calc(100vw - 1.5rem) !important;
+  }
+
+  .p-dialog-content {
+    overflow-x: hidden;
+  }
+
+  .p-paginator {
+    justify-content: flex-start;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  .p-datatable {
+    max-width: 100%;
+  }
+
+  .p-datatable .p-datatable-table-container {
+    overflow-x: visible;
+  }
+
+  .p-datatable .p-datatable-tbody > tr {
+    border: 1px solid var(--p-content-border-color);
+    border-radius: var(--p-border-radius-lg);
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    min-width: 0;
+    word-break: break-word;
+  }
 }
