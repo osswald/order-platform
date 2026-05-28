@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   pi-backend:
-    image: ${PI_BACKEND_IMAGE:-ghcr.io/vendiqo/order-platform:pi-backend-latest}
+    image: ${PI_BACKEND_IMAGE:-ghcr.io/osswald/order-platform:pi-backend-latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/pi.db}
@@ -19,7 +19,7 @@ services:
       - pi-net
 
   pi-frontend:
-    image: ${PI_FRONTEND_IMAGE:-ghcr.io/vendiqo/order-platform:pi-frontend-latest}
+    image: ${PI_FRONTEND_IMAGE:-ghcr.io/osswald/order-platform:pi-frontend-latest}
     restart: unless-stopped
     depends_on:
       - pi-backend

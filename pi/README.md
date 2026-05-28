@@ -136,14 +136,22 @@ The production images are built by:
 .github/workflows/pi-docker.yml
 ```
 
-Published tags:
+Published tags (GHCR, public):
 
 ```text
-ghcr.io/<owner>/<repo>:pi-backend-latest
-ghcr.io/<owner>/<repo>:pi-frontend-latest
-ghcr.io/<owner>/<repo>:pi-backend-<sha>
-ghcr.io/<owner>/<repo>:pi-frontend-<sha>
+ghcr.io/osswald/order-platform:pi-backend-latest
+ghcr.io/osswald/order-platform:pi-frontend-latest
+ghcr.io/osswald/order-platform:pi-backend-<sha>
+ghcr.io/osswald/order-platform:pi-frontend-<sha>
 ```
+
+On an already-flashed Pi that still points at the wrong registry, copy the updated compose file and run:
+
+```bash
+sudo bash pi/deploy/apply-ghcr-images.sh
+```
+
+(from a git checkout on the Pi, or copy `pi/deploy/pi.prod.env` and `pi/docker-compose.prod.yml` to `/opt/vendiqo/pi/` then `sudo docker compose -f /opt/vendiqo/pi/docker-compose.prod.yml pull && sudo systemctl restart vendiqo-pi`).
 
 ## Host deploy assets
 
@@ -152,6 +160,8 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 | File | Purpose |
 |------|---------|
 | `install-vendiqo-pi.sh` | Copies compose/systemd/network files into a running Pi or image. |
+| `pi.prod.env` | GHCR image tags for `/opt/vendiqo/pi/.env` (optional; defaults are in `docker-compose.prod.yml`). |
+| `apply-ghcr-images.sh` | Updates `/opt/vendiqo/pi` on a running Pi and restarts the stack. |
 | `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/23`. |
 | `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
 | `vendiqo-pi-update.service` | Pulls and restarts updated containers. |

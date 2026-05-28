@@ -6,6 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 install -d -m 0755 "$APP_DIR"
 install -m 0644 "$SCRIPT_DIR/../docker-compose.prod.yml" "$APP_DIR/docker-compose.prod.yml"
+if [ -f "$SCRIPT_DIR/pi.prod.env" ]; then
+  install -m 0644 "$SCRIPT_DIR/pi.prod.env" "$APP_DIR/.env"
+fi
 
 if [ -f "$SCRIPT_DIR/vendiqo-pi.service" ]; then
   install -m 0644 "$SCRIPT_DIR/vendiqo-pi.service" /etc/systemd/system/vendiqo-pi.service
