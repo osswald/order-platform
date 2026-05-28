@@ -154,10 +154,12 @@
   .mobile-cell-label {
     color: var(--p-text-muted-color);
     display: inline-flex;
-    flex: 0 0 38%;
+    flex: 0 0 auto;
     font-size: 0.8rem;
     font-weight: 700;
+    min-width: 6.75rem;
     text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .mobile-cell-value {
