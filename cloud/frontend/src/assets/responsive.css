@@ -5,6 +5,14 @@
   --vq-mobile-control-min-height: 2.75rem;
 }
 
+.mobile-cell-label {
+  display: none;
+}
+
+.mobile-cell-value {
+  display: contents;
+}
+
 @media (max-width: 768px) {
   .p-card .p-card-body,
   .p-card .p-card-content {
@@ -102,6 +110,20 @@
     max-width: 100%;
   }
 
+  .p-datatable .p-datatable-table {
+    display: block;
+    width: 100%;
+  }
+
+  .p-datatable .p-datatable-thead {
+    display: none;
+  }
+
+  .p-datatable .p-datatable-tbody {
+    display: block;
+    width: 100%;
+  }
+
   .p-datatable .p-datatable-table-container {
     overflow-x: visible;
   }
@@ -109,12 +131,43 @@
   .p-datatable .p-datatable-tbody > tr {
     border: 1px solid var(--p-content-border-color);
     border-radius: var(--p-border-radius-lg);
+    display: block;
     margin-bottom: 0.75rem;
     overflow: hidden;
+    width: 100%;
   }
 
   .p-datatable .p-datatable-tbody > tr > td {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
     min-width: 0;
+    width: 100%;
     word-break: break-word;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td + td {
+    border-top: 1px solid var(--p-content-border-color);
+  }
+
+  .mobile-cell-label {
+    color: var(--p-text-muted-color);
+    display: inline-flex;
+    flex: 0 0 38%;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .mobile-cell-value {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .mobile-cell-value .p-button {
+    width: 100%;
   }
 }
