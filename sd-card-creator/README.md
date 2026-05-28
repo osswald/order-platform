@@ -10,14 +10,23 @@ The image has **no** `EDGE_CLIENT_ID` or `EDGE_SECRET`. Pair each SD card on fir
    - On Apple Silicon, prefer an **arm64** Ubuntu image (faster arm64 Pi image customization).
    - Allocate **≥ 32 GB** disk and **≥ 4 GB RAM**.
 2. Clone this repo in the VM (or use a shared folder).
-3. Build:
+3. Configure the local Pi login password:
 
    ```bash
    cd sd-card-creator
+   cp .env.example .env
+   editor .env
+   ```
+
+   Set exactly one of `PI_PASSWORD` or `PI_PASSWORD_HASH`.
+
+4. Build:
+
+   ```bash
    ./build-on-ubuntu.sh
    ```
 
-4. Flash `output/vendiqo-pi-*.img` or `output/vendiqo-pi-*.img.xz` with [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+5. Flash `output/vendiqo-pi-*.img` or `output/vendiqo-pi-*.img.xz` with [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
 
 `build-on-ubuntu.sh` installs host packages and SDM (if needed), downloads the base image (see below), then runs `build-sdm-image.sh` with sudo.
 
@@ -37,9 +46,24 @@ dns:     192.168.192.1, 1.1.1.1
 
 (Source: [`pi/deploy/networkmanager-vendiqo-eth0.nmconnection`](../pi/deploy/networkmanager-vendiqo-eth0.nmconnection), applied via SDM `network` plugin.)
 
-## Base image URL
+## Build configuration
 
 Set **`BASE_IMG_URL`** in [`.env`](.env) (copy from [`.env.example`](.env.example)). Default points at Raspberry Pi OS Lite arm64 Trixie; see [downloads.raspberrypi.com](https://downloads.raspberrypi.com/).
+
+The same `.env` file configures Raspberry Pi OS first-boot prompts through SDM:
+
+| Variable | Default | Role |
+|----------|---------|------|
+| `PI_LOCALE` | `en_GB.UTF-8` | System locale |
+| `PI_KEYMAP` | `ch` | Swiss German keyboard layout |
+| `PI_TIMEZONE` | `Europe/Zurich` | System timezone |
+| `PI_WIFI_COUNTRY` | `CH` | WiFi regulatory country |
+| `PI_USERNAME` | `vendiqo-user` | Local OS user |
+| `PI_PASSWORD` | empty | Plaintext password, kept only in local `.env` |
+| `PI_PASSWORD_HASH` | empty | Hashed password alternative to `PI_PASSWORD` |
+
+Set exactly one of `PI_PASSWORD` or `PI_PASSWORD_HASH`; `.env` is gitignored.
+Use `sudo sdm --info locale`, `sudo sdm --info keymap`, `sudo sdm --info timezone`, and `sudo sdm --info wifi` to list valid values.
 
 ## Output
 
@@ -59,6 +83,9 @@ Flashable files appear under **`output/`**:
 
 | Plugin | Role |
 |--------|------|
+| `user` | Create `PI_USERNAME` with the configured password |
+| `L10n` | Apply locale, Swiss German keyboard, timezone, and WiFi country |
+| `disables` | Disable `piwiz` so first boot does not ask for setup values |
 | `apps` | `ca-certificates`, `curl`, `network-manager`, `xz-utils` |
 | `docker-install` | Docker Engine per upstream install guide |
 | `network` | Static `eth0` via `nmconn` from `pi/deploy/` |
@@ -85,6 +112,7 @@ If SDM and dependencies are already installed:
 ```bash
 # optional: set BASE_IMG_URL in .env, then download via build-on-ubuntu.sh once,
 # or place your own base image at input/base.img
+# required: set PI_PASSWORD or PI_PASSWORD_HASH in sd-card-creator/.env
 
 sudo sd-card-creator/build-sdm-image.sh \
   --base-img sd-card-creator/input/base.img \
