@@ -3,6 +3,7 @@ import { parseApiErrorDetail } from './utils/apiError'
 const STORAGE_KEY = 'pi_api_base'
 const DEFAULT_API_BASE = 'http://127.0.0.1:8001'
 const ANDROID_API_BASE = 'http://localhost:8001'
+const PI_BACKEND_PORT = '8001'
 
 export function isAndroidApp() {
   if (import.meta.env.VITE_ANDROID_APP === 'true') return true
@@ -40,16 +41,52 @@ export function setApiBase(url) {
   localStorage.setItem(STORAGE_KEY, t)
 }
 
+function buildApiUrl(base, path) {
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+function fallbackPiBackendBase(base) {
+  try {
+    const parsed = new URL(base)
+    if (!/^https?:$/.test(parsed.protocol)) return null
+    if (parsed.port) return null
+    if ((parsed.pathname || '/') !== '/') return null
+    parsed.port = PI_BACKEND_PORT
+    parsed.pathname = ''
+    return parsed.toString().replace(/\/$/, '')
+  } catch {
+    return null
+  }
+}
+
+function isFetchNetworkError(error) {
+  return error instanceof TypeError
+}
+
 export async function api(path, options = {}) {
   const base = getApiBase()
-  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`
-  const res = await fetch(url, {
+  const requestOptions = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     },
-  })
+  }
+  const url = buildApiUrl(base, path)
+  let res
+  try {
+    res = await fetch(url, requestOptions)
+  } catch (error) {
+    const fallbackBase = fallbackPiBackendBase(base)
+    if (!fallbackBase || !isFetchNetworkError(error)) throw error
+    const fallbackUrl = buildApiUrl(fallbackBase, path)
+    res = await fetch(fallbackUrl, requestOptions)
+    try {
+      setApiBase(fallbackBase)
+    } catch {
+      /* storage unavailable */
+    }
+  }
   const text = await res.text()
   let data
   try {
