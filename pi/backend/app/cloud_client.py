@@ -5,6 +5,8 @@ from typing import Any
 
 import httpx
 
+from .edge_config import read_edge_config
+
 
 class CloudConfigError(Exception):
     """Raised when required cloud / edge env vars are missing or blank."""
@@ -15,9 +17,10 @@ class CloudConfigError(Exception):
 
 
 def _resolve_config() -> tuple[str, str, str]:
-    base = (os.environ.get("CLOUD_BASE_URL") or "").strip().rstrip("/")
-    cid = (os.environ.get("EDGE_CLIENT_ID") or "").strip()
-    secret = (os.environ.get("EDGE_SECRET") or "").strip()
+    values = read_edge_config()
+    base = (values.get("CLOUD_BASE_URL") or os.environ.get("CLOUD_BASE_URL") or "").strip().rstrip("/")
+    cid = (values.get("EDGE_CLIENT_ID") or os.environ.get("EDGE_CLIENT_ID") or "").strip()
+    secret = (values.get("EDGE_SECRET") or os.environ.get("EDGE_SECRET") or "").strip()
     return base, cid, secret
 
 

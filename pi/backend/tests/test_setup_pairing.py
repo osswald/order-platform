@@ -29,18 +29,20 @@ def test_setup_status_reports_unpaired(client, monkeypatch, tmp_path):
 
 def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
     config_path = _isolate_edge_config(monkeypatch, tmp_path)
+    cloud_bundle = {
+        "organisation_id": 7,
+        "events": [{"id": 42, "name": "Cloud Event", "configuration": {}}],
+    }
 
     class FakeResponse:
+        def __init__(self, payload: dict):
+            self._payload = payload
+
         def raise_for_status(self) -> None:
             return None
 
         def json(self) -> dict:
-            return {
-                "appliance_id": 42,
-                "appliance_name": "apollo",
-                "edge_client_id": "client-123",
-                "edge_secret": "secret-456",
-            }
+            return self._payload
 
     class FakeAsyncClient:
         def __init__(self, *args, **kwargs):
@@ -55,7 +57,20 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
         async def post(self, url: str, json: dict):
             assert url == "https://api.vendiqo.ch/edge/v1/pair"
             assert json == {"pairing_code": "123-456", "device_name": "vendiqo-pi"}
-            return FakeResponse()
+            return FakeResponse({
+                "appliance_id": 42,
+                "appliance_name": "apollo",
+                "edge_client_id": "client-123",
+                "edge_secret": "secret-456",
+            })
+
+        async def get(self, url: str, headers: dict):
+            assert url == "https://api.vendiqo.ch/edge/v1/bundle"
+            assert headers == {
+                "X-Edge-Client-Id": "client-123",
+                "X-Edge-Secret": "secret-456",
+            }
+            return FakeResponse(cloud_bundle)
 
     import app.routers.setup as setup_router
 
@@ -79,6 +94,18 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
     assert status.status_code == 200
     assert status.json()["configured"] is True
     assert status.json()["cloud_base_url"] == "https://api.vendiqo.ch"
+
+    sync_status = client.get("/v1/sync/status")
+    assert sync_status.status_code == 200
+    assert sync_status.json()["configured"] is True
+
+    sync_pull = client.post("/v1/sync/pull")
+    assert sync_pull.status_code == 200, sync_pull.text
+    assert sync_pull.json()["event_count"] == 1
+
+    bundle = client.get("/v1/bundle")
+    assert bundle.status_code == 200
+    assert bundle.json()["organisation_id"] == 7
 
 
 def test_setup_pair_rejects_invalid_cloud_url(client, monkeypatch, tmp_path):
