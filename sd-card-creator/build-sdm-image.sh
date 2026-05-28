@@ -64,7 +64,8 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PI_DIR="$(cd "$SCRIPT_DIR/../pi" && pwd)"
-OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR/out}"
+DEPLOY_DIR="$PI_DIR/deploy"
+OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR/output}"
 IMAGE_NAME="${IMAGE_NAME:-vendiqo-pi-$(date +%Y%m%d-%H%M).img}"
 WORK_IMG="$OUTPUT_DIR/$IMAGE_NAME"
 
@@ -81,6 +82,20 @@ if [ -z "$SDM" ]; then
   exit 1
 fi
 
+NMCONN="$DEPLOY_DIR/networkmanager-vendiqo-eth0.nmconnection"
+for required in \
+  "$PI_DIR/docker-compose.prod.yml" \
+  "$DEPLOY_DIR/vendiqo-pi.service" \
+  "$DEPLOY_DIR/vendiqo-pi-update.service" \
+  "$DEPLOY_DIR/vendiqo-pi-update.timer" \
+  "$NMCONN"
+do
+  if [ ! -f "$required" ]; then
+    echo "Missing deploy asset: $required" >&2
+    exit 1
+  fi
+done
+
 mkdir -p "$OUTPUT_DIR"
 cp "$BASE_IMG" "$WORK_IMG"
 
@@ -92,9 +107,20 @@ if [ -n "$SDM_CUSTOMIZE_ARGS" ]; then
   SDM_ARGS=(${SDM_CUSTOMIZE_ARGS})
 fi
 
+# SDM plugins: packages, Docker, static eth0, Vendiqo unit files, enabled services.
+SDM_PLUGIN_ARGS=(
+  --plugin "apps:apps=ca-certificates,curl,network-manager,xz-utils"
+  --plugin docker-install
+  --plugin "network:nmconn=${NMCONN}"
+  --plugin "copyfile:from=${PI_DIR}/docker-compose.prod.yml|to=/opt/vendiqo/pi|mkdirif|chmod=644"
+  --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi.service|to=/etc/systemd/system|chmod=644"
+  --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi-update.service|to=/etc/systemd/system|chmod=644"
+  --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi-update.timer|to=/etc/systemd/system|chmod=644"
+  --plugin "system:name=vendiqo|service-enable=NetworkManager.service,docker.service,vendiqo-pi.service,vendiqo-pi-update.timer"
+)
+
 "$SDM" "${SDM_ARGS[@]}" --customize "$WORK_IMG" \
-  --cscript "$SCRIPT_DIR/sdm-customphase-vendiqo.sh" \
-  --csrc "$PI_DIR"
+  "${SDM_PLUGIN_ARGS[@]}"
 
 xz -T0 -f -k "$WORK_IMG"
 

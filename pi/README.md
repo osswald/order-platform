@@ -159,7 +159,7 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 
 ## SD card image build
 
-Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (Docker on macOS: `docker compose up`; Linux: `sudo sd-card-creator/build-sdm-image.sh`). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`.
+Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`.
 
 ## Cloud API used by Pi
 

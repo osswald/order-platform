@@ -1,8 +1,29 @@
-# Vendiqo Pi SD card image (Docker + SDM)
+# Vendiqo Pi SD card image (SDM on Linux)
 
-Build a **generic** Raspberry Pi OS image with [sdm](https://github.com/gitbls/sdm). On **macOS** (or any host without native SDM), use Docker here; on Linux you can run the same scripts on the host.
+Build a **generic** Raspberry Pi OS image with [sdm](https://github.com/gitbls/sdm). Run the build on a **Linux host** — on macOS, use an **Ubuntu VM in UTM** (Docker Desktop cannot run SDM’s systemd-nspawn customize step).
 
 The image has **no** `EDGE_CLIENT_ID` or `EDGE_SECRET`. Pair each SD card on first boot (see [First boot](#first-boot)).
+
+## Quick start (UTM + Ubuntu)
+
+1. Install [UTM](https://mac.getutm.app/) and create an **Ubuntu 24.04 LTS** VM.
+   - On Apple Silicon, prefer an **arm64** Ubuntu image (faster arm64 Pi image customization).
+   - Allocate **≥ 32 GB** disk and **≥ 4 GB RAM**.
+2. Clone this repo in the VM (or use a shared folder).
+3. Build:
+
+   ```bash
+   cd sd-card-creator
+   ./build-on-ubuntu.sh
+   ```
+
+4. Flash `output/vendiqo-pi-*.img` or `output/vendiqo-pi-*.img.xz` with [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+
+`build-on-ubuntu.sh` installs host packages and SDM (if needed), downloads the base image (see below), then runs `build-sdm-image.sh` with sudo.
+
+## macOS without UTM
+
+Use UTM Ubuntu or any other Linux machine with native SDM. Building inside Docker on Mac is **not supported** (SDM Phase 1 needs host systemd/nspawn).
 
 ## Network
 
@@ -14,47 +35,37 @@ gateway: 192.168.192.1
 dns:     192.168.192.1, 1.1.1.1
 ```
 
-## Prerequisites (Docker)
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac or Windows) or Docker Engine (Linux)
-- Several GB free disk space (download + expanded `.img` + Vendiqo output)
+(Source: [`pi/deploy/networkmanager-vendiqo-eth0.nmconnection`](../pi/deploy/networkmanager-vendiqo-eth0.nmconnection), applied via SDM `network` plugin.)
 
 ## Base image URL
 
-Compose loads **`BASE_IMG_URL`** from **[`.env.example`](.env.example)**. To use another Raspberry Pi OS Lite arm64 release, edit that URL (see [downloads.raspberrypi.com](https://downloads.raspberrypi.com/)).
-
-## Build (Docker)
-
-```bash
-cd sd-card-creator
-docker compose build
-docker compose up
-```
-
-Use foreground `docker compose up` so you see logs until the run finishes. The first run **downloads** the base image (can take a while).
+Set **`BASE_IMG_URL`** in [`.env`](.env) (copy from [`.env.example`](.env.example)). Default points at Raspberry Pi OS Lite arm64 Trixie; see [downloads.raspberrypi.com](https://downloads.raspberrypi.com/).
 
 ## Output
 
-Flashable files appear under **`sd-card-creator/output/`**:
+Flashable files appear under **`output/`**:
 
 - `vendiqo-pi-*.img`
 - `vendiqo-pi-*.img.xz`
 
-Flash with [Raspberry Pi Imager](https://www.raspberrypi.com/software/) or another imager.
-
 ## Cache
 
-- **`input/base.img`** — reused on the next run if it already exists (skips download). Delete it to force a fresh download.
-- **`input/`** may also hold a transient `base.img.xz` during download; large files are gitignored.
+- **`input/base.img`** — reused on the next run if it already exists. Delete it to force a fresh download.
+- Large files under `input/` and `output/` are gitignored.
 
 ## What SDM installs
 
-SDM customizes the base image using scripts in this directory and assets from [`pi/`](../pi/) (`deploy/`, `docker-compose.prod.yml`):
+[`build-sdm-image.sh`](build-sdm-image.sh) uses SDM plugins (no custom phase script):
 
-- Docker Engine and Docker Compose plugin
-- production Pi compose file under `/opt/vendiqo/pi`
-- static `eth0` NetworkManager profile
-- `vendiqo-pi.service` and `vendiqo-pi-update.timer`
+| Plugin | Role |
+|--------|------|
+| `apps` | `ca-certificates`, `curl`, `network-manager`, `xz-utils` |
+| `docker-install` | Docker Engine per upstream install guide |
+| `network` | Static `eth0` via `nmconn` from `pi/deploy/` |
+| `copyfile` | `docker-compose.prod.yml`, systemd units under `/etc/systemd/system` |
+| `system` | Enable `NetworkManager`, `docker`, `vendiqo-pi`, `vendiqo-pi-update.timer` |
+
+Deploy assets live under [`pi/`](../pi/) (`deploy/`, `docker-compose.prod.yml`).
 
 ## First boot
 
@@ -67,33 +78,32 @@ After flashing:
 
 Credentials are stored in `/data/edge.env` inside the persistent Docker volume.
 
-## Native Linux (no Docker)
+## Advanced: manual build
 
-1. Install SDM:
+If SDM and dependencies are already installed:
 
-   ```bash
-   curl -L https://raw.githubusercontent.com/gitbls/sdm/master/install-sdm | bash
-   ```
+```bash
+# optional: set BASE_IMG_URL in .env, then download via build-on-ubuntu.sh once,
+# or place your own base image at input/base.img
 
-2. Download and uncompress Raspberry Pi OS Lite arm64 (or set `BASE_IMG_URL` and use the Docker download step once).
+sudo sd-card-creator/build-sdm-image.sh \
+  --base-img sd-card-creator/input/base.img \
+  --output-dir sd-card-creator/output
+```
 
-3. From the repo root:
+Run from the **repository root** (paths above are relative to repo root).
 
-   ```bash
-   sudo sd-card-creator/build-sdm-image.sh \
-     --base-img /path/to/raspios-lite-arm64.img \
-     --output-dir /path/to/out
-   ```
+## Troubleshooting
 
-## Security / caveats
-
-- Compose uses **`privileged: true`** and mounts **`/dev:/dev`** for loop devices and SDM. Only run on a trusted machine.
-- **Docker Desktop on Mac** runs Linux in a VM; if `sdm --customize` fails on loop devices, try native Linux or a Linux VM.
+- **`Failed to open system bus` / nspawn errors** — You are not on a real Linux host with systemd (e.g. Docker on Mac). Use UTM Ubuntu and `./build-on-ubuntu.sh`.
+- **Incomplete `vendiqo-pi-*.img` after a failed run** — Do not flash; delete the partial file and rebuild.
+- **amd64 Ubuntu VM on Apple Silicon** — SDM uses `qemu-user-static` for arm64 images; the first build may be slower than on an arm64 VM.
 
 ## Files in this directory
 
 | File | Purpose |
 |------|---------|
-| `build-sdm-image.sh` | Copy base `.img`, run `sdm --customize`, compress with `xz` |
-| `sdm-customphase-vendiqo.sh` | SDM customization phases (invoked by SDM) |
-| `entrypoint.sh` | Docker: download base image, then run `build-sdm-image.sh` |
+| `build-on-ubuntu.sh` | UTM/Linux entry point: deps, SDM, download, build |
+| `build-sdm-image.sh` | Copy base `.img`, run `sdm --customize` with plugins, compress with `xz` |
+| `lib/common.sh` | Load `.env`, download/cache `input/base.img` |
+| `.env.example` | Default `BASE_IMG_URL` |
