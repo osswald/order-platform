@@ -14,7 +14,8 @@
             :value="group.items"
             dataKey="id"
             class="list-table nested"
-            responsiveLayout="scroll"
+            responsiveLayout="stack"
+            breakpoint="768px"
           >
             <Column field="name" header="Artikel" />
             <Column header="Bestand führen">

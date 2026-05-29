@@ -45,7 +45,8 @@
       <DataTable
         :value="companies"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editCompany($event.data)"
       >

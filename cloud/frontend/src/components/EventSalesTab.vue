@@ -45,7 +45,8 @@
         :value="report.orders"
         dataKey="id"
         class="list-table nested"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
       >
         <Column expander style="width: 3rem" />
         <Column header="Bestell-Nr.">
@@ -110,7 +111,8 @@
       <DataTable
         :value="report.by_waiter"
         class="list-table nested"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
       >
         <Column field="name" header="Kellner" />
         <Column field="order_count" header="Bestellungen" />
@@ -126,7 +128,8 @@
       <DataTable
         :value="report.by_station"
         class="list-table nested"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
       >
         <Column field="name" header="Station" />
         <Column field="qty" header="Menge" />
@@ -139,7 +142,8 @@
       <DataTable
         :value="report.by_article"
         class="list-table nested"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
       >
         <Column field="name" header="Artikel" />
         <Column field="qty" header="Menge" />
@@ -152,7 +156,8 @@
       <DataTable
         :value="report.by_payment_type"
         class="list-table nested"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
       >
         <Column field="label" header="Zahlungsart" />
         <Column header="Betrag" style="text-align: right">

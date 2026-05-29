@@ -80,7 +80,7 @@
             @update:modelValue="onAdditionPick"
           />
         </div>
-        <DataTable :value="additionsLocal" dataKey="addition_article_id" class="list-table nested" responsiveLayout="scroll">
+        <DataTable :value="additionsLocal" dataKey="addition_article_id" class="list-table nested" responsiveLayout="stack" breakpoint="768px">
           <Column field="name" header="Zusatz" />
           <Column header="Preis">
             <template #body="{ data }">{{ formatPrice(data.price) }}</template>
@@ -157,7 +157,8 @@
       <DataTable
         :value="paginatedArticles"
         dataKey="id"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
         class="list-table"
         @row-click="editArticle($event.data)"
       >

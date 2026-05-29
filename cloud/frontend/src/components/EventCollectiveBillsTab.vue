@@ -24,7 +24,8 @@
         :value="data.collective_bills"
         dataKey="uuid"
         class="list-table nested"
-        responsiveLayout="scroll"
+        responsiveLayout="stack"
+        breakpoint="768px"
       >
         <Column expander style="width: 3rem" />
         <Column field="name" header="Name" />

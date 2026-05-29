@@ -22,7 +22,8 @@
               :value="lendings.current"
               dataKey="lending_id"
               class="list-table"
-              responsiveLayout="scroll"
+              responsiveLayout="stack"
+              breakpoint="768px"
             >
               <template #empty>Keine aktiven Ausleihen.</template>
               <Column field="appliance_id" header="ID" />
@@ -44,7 +45,8 @@
               :value="lendings.planned"
               dataKey="lending_id"
               class="list-table"
-              responsiveLayout="scroll"
+              responsiveLayout="stack"
+              breakpoint="768px"
             >
               <template #empty>Keine geplanten Ausleihen.</template>
               <Column field="appliance_id" header="ID" />
@@ -77,7 +79,8 @@
               :value="lendings.past"
               dataKey="lending_id"
               class="list-table"
-              responsiveLayout="scroll"
+              responsiveLayout="stack"
+              breakpoint="768px"
             >
               <template #empty>Keine vergangenen Ausleihen.</template>
               <Column field="appliance_id" header="ID" />

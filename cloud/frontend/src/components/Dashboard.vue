@@ -142,7 +142,8 @@
           :value="summary.sales.by_event"
           dataKey="event_id"
           class="list-table"
-          responsiveLayout="scroll"
+          responsiveLayout="stack"
+          breakpoint="768px"
         >
           <Column field="name" header="Veranstaltung" />
           <Column header="Zeitraum">
