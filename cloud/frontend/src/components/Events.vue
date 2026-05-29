@@ -114,56 +114,24 @@
         @row-click="editEvent($event.data)"
       >
         <template #empty>Keine Veranstaltungen gefunden.</template>
-        <Column header="ID">
-          <template #body="{ data }">
-            <span class="mobile-cell-label">ID</span>
-            <span class="mobile-cell-value">{{ data.id }}</span>
-          </template>
-        </Column>
-        <Column header="Name">
-          <template #body="{ data }">
-            <span class="mobile-cell-label">Name</span>
-            <span class="mobile-cell-value">{{ data.name }}</span>
-          </template>
-        </Column>
+        <Column field="id" header="ID" />
+        <Column field="name" header="Name" />
         <Column header="Status">
           <template #body="{ data }">
-            <span class="mobile-cell-label">Status</span>
-            <span class="mobile-cell-value">
-              <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" />
-            </span>
+            <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" />
           </template>
         </Column>
-        <Column header="Organisation">
-          <template #body="{ data }">
-            <span class="mobile-cell-label">Organisation</span>
-            <span class="mobile-cell-value">{{ data.organisation_name }}</span>
-          </template>
-        </Column>
+        <Column field="organisation_name" header="Organisation" />
         <Column header="Start">
-          <template #body="{ data }">
-            <span class="mobile-cell-label">Start</span>
-            <span class="mobile-cell-value">{{ formatDateTime(data.start) }}</span>
-          </template>
+          <template #body="{ data }">{{ formatDateTime(data.start) }}</template>
         </Column>
         <Column header="Ende">
-          <template #body="{ data }">
-            <span class="mobile-cell-label">Ende</span>
-            <span class="mobile-cell-value">{{ formatDateTime(data.end) }}</span>
-          </template>
+          <template #body="{ data }">{{ formatDateTime(data.end) }}</template>
         </Column>
-        <Column header="Währung">
-          <template #body="{ data }">
-            <span class="mobile-cell-label">Währung</span>
-            <span class="mobile-cell-value">{{ data.currency }}</span>
-          </template>
-        </Column>
+        <Column field="currency" header="Währung" />
         <Column v-if="isAdmin" header="Aktionen">
           <template #body="{ data }">
-            <span class="mobile-cell-label">Aktionen</span>
-            <span class="mobile-cell-value">
-              <Button label="Löschen" class="danger" @click.stop="deleteEvent(data.id)" />
-            </span>
+            <Button label="Löschen" class="danger" @click.stop="deleteEvent(data.id)" />
           </template>
         </Column>
       </DataTable>

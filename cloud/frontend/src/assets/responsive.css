@@ -5,14 +5,6 @@
   --vq-mobile-control-min-height: 2.75rem;
 }
 
-.mobile-cell-label {
-  display: none;
-}
-
-.mobile-cell-value {
-  display: contents;
-}
-
 @media (max-width: 768px) {
   .p-card .p-card-body,
   .p-card .p-card-content {
@@ -133,7 +125,7 @@
     border-radius: var(--p-border-radius-lg);
     display: block;
     margin-bottom: 0.75rem;
-    overflow: hidden;
+    overflow: visible;
     width: 100%;
   }
 
@@ -141,19 +133,19 @@
     align-items: flex-start;
     display: flex;
     gap: 1rem;
+    height: auto !important;
     justify-content: space-between;
+    line-height: 1.35;
     min-width: 0;
+    overflow: visible !important;
+    white-space: normal !important;
     width: 100%;
     word-break: break-word;
   }
 
-  .p-datatable .p-datatable-tbody > tr > td + td {
-    border-top: 1px solid var(--p-content-border-color);
-  }
-
-  .mobile-cell-label {
+  .p-datatable .p-datatable-tbody > tr > td[data-mobile-label]::before {
     color: var(--p-text-muted-color);
-    display: inline-flex;
+    content: attr(data-mobile-label);
     flex: 0 0 auto;
     font-size: 0.8rem;
     font-weight: 700;
@@ -162,14 +154,12 @@
     white-space: nowrap;
   }
 
-  .mobile-cell-value {
-    display: block;
-    flex: 1 1 auto;
-    min-width: 0;
-    text-align: right;
+  .p-datatable .p-datatable-tbody > tr > td + td {
+    border-top: 1px solid var(--p-content-border-color);
   }
 
-  .mobile-cell-value .p-button {
+  .p-datatable .p-datatable-tbody > tr > td > .p-button,
+  .p-datatable .p-datatable-tbody > tr > td > span > .p-button {
     width: 100%;
   }
 }

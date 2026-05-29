@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { computed, provide, ref, unref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, unref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Drawer from 'primevue/drawer'
 import Header from './components/Header.vue'
@@ -65,6 +65,7 @@ import AppNavMenu from './components/AppNavMenu.vue'
 import { useAuthSession } from './composables/useAuthSession'
 import { useBreakpoint } from './composables/useBreakpoint'
 import { SESSION_CONTEXT_KEY } from './sessionContext'
+import { applyMobileTableLabels } from './utils/mobileTableLabels'
 import { normalizeOrganisationId } from './utils/orgId'
 
 const MOBILE_BREAKPOINT = 992
@@ -72,11 +73,17 @@ const MOBILE_BREAKPOINT = 992
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const mobileNavOpen = ref(false)
 const route = useRoute()
+let tableLabelObserver = null
+
+function refreshMobileTableLabels() {
+  nextTick(() => applyMobileTableLabels(document))
+}
 
 watch(
   () => route.fullPath,
   () => {
     mobileNavOpen.value = false
+    refreshMobileTableLabels()
   },
 )
 
@@ -84,6 +91,19 @@ watch(isMobile, (mobile) => {
   if (!mobile) {
     mobileNavOpen.value = false
   }
+})
+
+onMounted(() => {
+  refreshMobileTableLabels()
+  tableLabelObserver = new MutationObserver(refreshMobileTableLabels)
+  tableLabelObserver.observe(document.getElementById('app'), {
+    childList: true,
+    subtree: true,
+  })
+})
+
+onUnmounted(() => {
+  tableLabelObserver?.disconnect()
 })
 
 const {
