@@ -37,7 +37,7 @@ cd /workspace/pi && docker compose up -d --build
 
 ### Running tests
 
-- **Pi backend** (all pass): `cd pi/backend && python3 -m pytest tests/ -v`
+- **Pi backend** (all pass): `cd pi/backend && pip install -r requirements.txt && python3 -m pytest tests/ -v` (receipt rendering uses `python-escpos` + Pillow)
 - **Cloud backend**: `cd cloud/backend && python3 -m pytest tests/ -v`
   - Known issue: the `test_security.py` rate-limit test exhausts the in-memory rate limiter quota, causing subsequent tests that call `/auth/token` to fail with 429. Run `test_security.py` separately or last.
   - Some event-status tests have pre-existing `hire_company_id NOT NULL` schema fixture issues.

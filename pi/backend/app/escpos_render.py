@@ -5,10 +5,10 @@ Transport (TCP, Bluetooth) stays in print_worker; callers only need the byte pay
 
 from __future__ import annotations
 
+import base64
 import logging
 from collections.abc import Callable
 from io import BytesIO
-from typing import Any
 
 from escpos.printer import Dummy
 from PIL import Image
@@ -84,8 +84,6 @@ def write_logo_from_event(printer: Dummy, ev: dict | None) -> None:
     logo_b64 = printing.get("logo_base64") or printing.get("receipt_logo_base64")
     if not logo_b64 or not isinstance(logo_b64, str):
         return
-    import base64
-
     try:
         raw = base64.b64decode(logo_b64, validate=True)
     except Exception:
