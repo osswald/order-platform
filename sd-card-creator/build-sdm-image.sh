@@ -137,12 +137,14 @@ else
 fi
 
 NMCONN="$DEPLOY_DIR/networkmanager-vendiqo-eth0.nmconnection"
+TAILSCALE_INSTALL="$DEPLOY_DIR/install-tailscale.sh"
 for required in \
   "$PI_DIR/docker-compose.prod.yml" \
   "$DEPLOY_DIR/vendiqo-pi.service" \
   "$DEPLOY_DIR/vendiqo-pi-update.service" \
   "$DEPLOY_DIR/vendiqo-pi-update.timer" \
-  "$NMCONN"
+  "$NMCONN" \
+  "$TAILSCALE_INSTALL"
 do
   if [ ! -f "$required" ]; then
     echo "Missing deploy asset: $required" >&2
@@ -168,13 +170,14 @@ SDM_PLUGIN_ARGS=(
   --plugin "L10n:keymap=${PI_KEYMAP}|locale=${PI_LOCALE}|timezone=${PI_TIMEZONE}|wificountry=${PI_WIFI_COUNTRY}"
   --plugin "disables:piwiz"
   --plugin "apps:apps=ca-certificates,curl,network-manager,xz-utils"
+  --plugin "runscript:script=${TAILSCALE_INSTALL}|stdout=/dev/stdout|stderr=/dev/stderr"
   --plugin docker-install
   --plugin "network:nmconn=${NMCONN}"
   --plugin "copyfile:from=${PI_DIR}/docker-compose.prod.yml|to=/opt/vendiqo/pi|mkdirif|chmod=644"
   --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi.service|to=/etc/systemd/system|chmod=644"
   --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi-update.service|to=/etc/systemd/system|chmod=644"
   --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi-update.timer|to=/etc/systemd/system|chmod=644"
-  --plugin "system:name=vendiqo|service-enable=NetworkManager.service,docker.service,vendiqo-pi.service,vendiqo-pi-update.timer"
+  --plugin "system:name=vendiqo|service-enable=NetworkManager.service,tailscaled.service,docker.service,vendiqo-pi.service,vendiqo-pi-update.timer"
 )
 
 "$SDM" "${SDM_ARGS[@]}" --customize "$WORK_IMG" \
