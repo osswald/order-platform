@@ -31,9 +31,32 @@ def bundle() -> dict:
 
 
 @pytest.fixture
-def print_to_file(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("PRINT_TO_FILE", "1")
-    monkeypatch.setenv("PRINT_OUTPUT_DIR", str(tmp_path))
+def mock_printer_tcp(monkeypatch):
+    """Mock TCP ESC/POS sends so tests do not need a physical or emulated printer."""
+    calls: list[tuple[str, int]] = []
+
+    class MockWriter:
+        def write(self, data: bytes) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+        async def drain(self) -> None:
+            return None
+
+        async def wait_closed(self) -> None:
+            return None
+
+    class MockReader:
+        pass
+
+    async def fake_open_connection(host, port):
+        calls.append((str(host), int(port)))
+        return MockReader(), MockWriter()
+
+    monkeypatch.setattr("app.print_worker.asyncio.open_connection", fake_open_connection)
+    return calls
 
 
 @pytest.fixture

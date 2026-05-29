@@ -38,6 +38,17 @@
 
       <div v-if="opsEvent" class="ops-actions">
         <button
+          type="button"
+          class="btn hub-btn"
+          :disabled="busy || testPrintBusy"
+          @click="doTestPrint"
+        >
+          Testdruck
+        </button>
+        <p class="muted small test-print-hint">
+          Druckt je Station einen Probebons — auch wenn dieselbe Drucker-IP mehrfach vorkommt.
+        </p>
+        <button
           v-if="hasKitchenMonitor"
           type="button"
           class="btn hub-btn"
@@ -93,7 +104,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getApiBase, isAndroidApp } from '../api'
+import { api, getApiBase, isAndroidApp } from '../api'
 import { useAdminSession } from '../composables/useAdminSession'
 import { useBundle } from '../composables/useBundle'
 import { useSyncOperations } from '../composables/useSyncOperations'
@@ -111,6 +122,7 @@ const events = computed(() => bundle.value?.events || [])
 const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
+const testPrintBusy = ref(false)
 const androidApp = computed(() => isAndroidApp())
 
 const formatCycle = formatDateTime
@@ -184,6 +196,34 @@ async function doPull() {
   }
 }
 
+async function doTestPrint() {
+  if (opsEventId.value == null) return
+  testPrintBusy.value = true
+  try {
+    const data = await api('/v1/printers/test-station-prints', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_id: opsEventId.value }),
+    })
+    const printed = data.printed ?? 0
+    const failed = data.failed ?? 0
+    const total = (data.results || []).length
+    if (failed === 0) {
+      showToast(`Testdruck: ${printed}/${total} Stationen OK.`, 'ok')
+    } else {
+      const firstErr = (data.results || []).find((r) => !r.ok)?.error
+      showToast(
+        `Testdruck: ${printed}/${total} OK, ${failed} Fehler.${firstErr ? ` ${firstErr}` : ''}`,
+        'err',
+      )
+    }
+  } catch (error) {
+    showToast(error.message || 'Testdruck fehlgeschlagen.', 'err')
+  } finally {
+    testPrintBusy.value = false
+  }
+}
+
 async function doPush() {
   pushing.value = true
   pushMsg.value = ''
@@ -253,6 +293,9 @@ function endAdmin() {
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1rem;
+}
+.test-print-hint {
+  margin: 0;
 }
 .hub-btn {
   width: 100%;

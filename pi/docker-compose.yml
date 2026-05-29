@@ -5,6 +5,8 @@ services:
     build: ./backend
     image: ${PI_BACKEND_IMAGE:-order-platform-pi-backend:local}
     env_file: .env
+    depends_on:
+      - escpos-netprinter
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/pi.db}
       # From inside the container, "localhost" is this container — use the host to reach cloud on :8000.
@@ -13,8 +15,7 @@ services:
       EDGE_CLIENT_ID: ${EDGE_CLIENT_ID:-}
       EDGE_SECRET: ${EDGE_SECRET:-}
       APP_NAME: pi-backend
-      PRINT_TO_FILE: ${PRINT_TO_FILE:-}
-      PRINT_OUTPUT_DIR: ${PRINT_OUTPUT_DIR:-/data/print-vouchers}
+      # Override comes from env_file only (no compose default): empty/unset = bundle printer IPs.
       SYNC_ENABLED: ${SYNC_ENABLED:-1}
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-60}
     extra_hosts:
@@ -37,6 +38,16 @@ services:
     ports:
       # Must match Vite dev port inside the image (see pi/frontend/vite.config.js).
       - "5174:5174"
+    networks:
+      - app-net
+
+  escpos-netprinter:
+    # Hub image is amd64-only; run under emulation on Apple Silicon / ARM64 hosts.
+    image: gilbertfl/escpos-netprinter:3.2
+    platform: linux/amd64
+    ports:
+      - "9100:9100"
+      - "8090:80"
     networks:
       - app-net
 

@@ -84,6 +84,10 @@ class PrinterTestReceiptBody(BaseModel):
     event_id: int | None = None
 
 
+class PrinterTestStationPrintsBody(BaseModel):
+    event_id: int
+
+
 class AdminVerifyBody(BaseModel):
     pin: str = Field(..., min_length=6, max_length=6)
 
@@ -198,6 +202,22 @@ class RegisterDisplayResponse(BaseModel):
 
 class EscposPayloadResponse(BaseModel):
     escpos_payload: str
+
+
+class StationTestPrintResult(BaseModel):
+    station_uuid: str
+    station_name: str
+    printer_host: str
+    printer_port: int
+    ok: bool
+    error: str | None = None
+
+
+class PrinterTestStationPrintsResponse(BaseModel):
+    event_id: int
+    printed: int
+    failed: int
+    results: list[StationTestPrintResult] = Field(default_factory=list)
 
 
 class PaymentReceiptEscposResponse(BaseModel):

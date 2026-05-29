@@ -55,7 +55,10 @@ from ..schemas.edge import (
     PickupOrdersResponse,
     PickupPickedUpResponse,
     PrinterTestReceiptBody,
+    PrinterTestStationPrintsBody,
+    PrinterTestStationPrintsResponse,
     PrintJobSummary,
+    StationTestPrintResult,
     RegisterDisplayBody,
     RegisterDisplayResponse,
     SyncMetaResponse,
@@ -101,6 +104,7 @@ from ..print_worker import (
     resolve_station_uuid_for_line,
     station_name_from_event,
     _article_map as _print_article_map,
+    _send_to_printer,
 )
 from ..pricing import line_total_cents, line_unit_cents
 from ..stock import apply_stock_to_bundle, save_bundle, validate_stock
@@ -2478,6 +2482,130 @@ def printer_test_receipt(
         generated_at=payload["paid_at"],
     )
     return EscposPayloadResponse(escpos_payload=base64.b64encode(esc).decode("ascii"))
+
+
+def _first_article_id_for_station_test(st: dict, ev: dict) -> int | None:
+    ids = st.get("article_ids") or []
+    if ids:
+        return int(ids[0])
+    arts = ev.get("articles") or {}
+    for key in sorted(arts.keys(), key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k))):
+        entry = arts[key]
+        if isinstance(entry, dict) and entry.get("id") is not None:
+            return int(entry["id"])
+        if str(key).isdigit():
+            return int(key)
+    return None
+
+
+def _sample_test_lines_for_station(st: dict, ev: dict) -> list[dict]:
+    aid = _first_article_id_for_station_test(st, ev)
+    if aid is None:
+        return []
+    arts = _print_article_map(ev)
+    art = arts.get(str(aid)) or arts.get(aid) or {}
+    name = art.get("name") or "Testdruck"
+    return [
+        {
+            "article_id": aid,
+            "qty": 1,
+            "article_name": name,
+            "note": "Testdruck",
+            "additions": [],
+        }
+    ]
+
+
+def _sorted_event_stations(ev: dict) -> list[dict]:
+    stations = list((ev.get("configuration") or {}).get("stations") or [])
+    return sorted(
+        stations,
+        key=lambda st: (int(st.get("sort_order") or 0), str(st.get("name") or "").lower()),
+    )
+
+
+@router.post("/v1/printers/test-station-prints", response_model=PrinterTestStationPrintsResponse)
+async def printer_test_station_prints(
+    body: PrinterTestStationPrintsBody, db: Session = Depends(get_db)
+) -> PrinterTestStationPrintsResponse:
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    stations = _sorted_event_stations(ev)
+    if not stations:
+        raise HTTPException(status_code=422, detail="Keine Stationen in der Event-Konfiguration")
+
+    event_name = ev.get("name", "Event")
+    arts = _print_article_map(ev)
+    now = datetime.now(timezone.utc).isoformat()
+    results: list[StationTestPrintResult] = []
+    printed = 0
+    failed = 0
+
+    for st in stations:
+        station_uuid = str(st.get("uuid") or "").strip()
+        if not station_uuid:
+            failed += 1
+            results.append(
+                StationTestPrintResult(
+                    station_uuid="",
+                    station_name=str(st.get("name") or "Unbenannt"),
+                    printer_host="",
+                    printer_port=9100,
+                    ok=False,
+                    error="Station ohne UUID",
+                )
+            )
+            continue
+
+        station_name = station_name_from_event(ev, station_uuid)
+        host, port = _resolve_printer(ev, station_uuid)
+        payload = {
+            "event_id": body.event_id,
+            "table_number": 1,
+            "waiter_name": "Testdruck",
+            "ordered_at": now,
+            "lines": _sample_test_lines_for_station(st, ev),
+        }
+        esc = build_escpos_receipt_text(
+            payload,
+            event_name,
+            station_name=station_name,
+            articles=arts,
+        )
+        try:
+            await _send_to_printer(host, port, esc)
+            printed += 1
+            results.append(
+                StationTestPrintResult(
+                    station_uuid=station_uuid,
+                    station_name=station_name,
+                    printer_host=host,
+                    printer_port=port,
+                    ok=True,
+                    error=None,
+                )
+            )
+        except Exception as e:
+            failed += 1
+            results.append(
+                StationTestPrintResult(
+                    station_uuid=station_uuid,
+                    station_name=station_name,
+                    printer_host=host,
+                    printer_port=port,
+                    ok=False,
+                    error=str(e)[:500],
+                )
+            )
+
+    return PrinterTestStationPrintsResponse(
+        event_id=body.event_id,
+        printed=printed,
+        failed=failed,
+        results=results,
+    )
 
 
 @router.get("/v1/print-jobs", response_model=list[PrintJobSummary])

@@ -9,8 +9,6 @@ services:
       EDGE_CONFIG_FILE: ${EDGE_CONFIG_FILE:-/data/edge.env}
       DEFAULT_CLOUD_BASE_URL: ${DEFAULT_CLOUD_BASE_URL:-https://api.vendiqo.ch}
       APP_NAME: pi-backend
-      PRINT_TO_FILE: ${PRINT_TO_FILE:-}
-      PRINT_OUTPUT_DIR: ${PRINT_OUTPUT_DIR:-/data/print-vouchers}
       SYNC_ENABLED: ${SYNC_ENABLED:-1}
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-60}
     volumes:

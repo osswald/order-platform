@@ -1,13 +1,11 @@
-"""ESC/POS builder, plain-text vouchers, print worker (network or file)."""
+"""ESC/POS builder, plain-text vouchers, print worker (network ESC/POS)."""
 
 import asyncio
 import base64
 import json
 import logging
 import os
-import re
 from datetime import datetime, timezone
-from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -296,6 +294,11 @@ def build_customer_pickup_text(
     return b"".join(lines_out)
 
 
+def _effective_printer_host(host: str) -> str:
+    override = os.getenv("ESCPOS_PRINTER_HOST_OVERRIDE", "").strip()
+    return override if override else host
+
+
 def _parse_host_port(host_port: str, default_port: int = 9100) -> tuple[str, int]:
     if ":" in host_port:
         host, _, port_s = host_port.rpartition(":")
@@ -307,15 +310,8 @@ def _parse_host_port(host_port: str, default_port: int = 9100) -> tuple[str, int
 
 
 async def _send_to_printer(host: str, port: int, data: bytes) -> None:
-    print_to_file = os.getenv("PRINT_TO_FILE", "").strip()
-    if print_to_file:
-        out_dir = Path(os.getenv("PRINT_OUTPUT_DIR", "/data/print-vouchers"))
-        out_dir.mkdir(parents=True, exist_ok=True)
-        safe = re.sub(r"[^\w\-.]", "_", f"{host}_{port}")
-        path = out_dir / f"{safe}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.bin"
-        path.write_bytes(data)
-        return
-    reader, writer = await asyncio.open_connection(host, port)
+    target_host = _effective_printer_host(host)
+    reader, writer = await asyncio.open_connection(target_host, port)
     try:
         writer.write(data)
         await writer.drain()

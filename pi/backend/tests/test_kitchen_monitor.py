@@ -7,7 +7,7 @@ import pytest
 from app.models import KitchenTicket, KitchenTicketLine, PrintJob
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle
 
-pytestmark = pytest.mark.usefixtures("print_to_file")
+pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
 
 
 @pytest.fixture

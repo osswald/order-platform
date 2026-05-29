@@ -108,8 +108,7 @@ For local Docker development, copy `pi/.env.example` to `pi/.env` and fill value
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
 | `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
-| `PRINT_TO_FILE` | `1` writes vouchers to files instead of network printers. |
-| `PRINT_OUTPUT_DIR` | Default: `/data/print-vouchers`. |
+| `ESCPOS_PRINTER_HOST_OVERRIDE` | Optional. Set to `escpos-netprinter` in `.env` for the local emulator (`pi/.env.example` default). Omit or comment out to print to cloud bundle printer IPs. |
 
 ## Production Docker stack
 
@@ -217,6 +216,8 @@ Admin/printing/registers:
 - `GET /v1/admin/status` - bundle/admin PIN status.
 - `POST /v1/admin/verify` - verify 6-digit Pi admin code.
 - `GET /v1/print-jobs` - print queue.
+- `POST /v1/printers/test-station-prints` - admin test: one station ESC/POS slip per configured station (Pi Admin → **Testdruck**).
+- `POST /v1/printers/test-receipt` - sample payment receipt payload (Android Bluetooth setup).
 - register, kitchen, pickup, collective bill, voucher, and receipt endpoints are served from the same backend and consumed only by the Pi PWA.
 
 ## Automatic cloud sync
@@ -235,18 +236,25 @@ Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud recei
 
 Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
 
-To test without network printers, set:
+## Local ESC/POS emulator
 
-```env
-PRINT_TO_FILE=1
-PRINT_OUTPUT_DIR=/data/print-vouchers
+`pi/docker-compose.yml` includes [escpos-netprinter](https://github.com/gilbertfl/escpos-netprinter) (`gilbertfl/escpos-netprinter:3.2`). The Pi backend sends ESC/POS over TCP to `escpos-netprinter:9100` on the Docker network (JetDirect). View rendered receipts in the browser:
+
+```text
+http://localhost:8090
 ```
 
-Then inspect files:
+`pi/.env.example` sets `ESCPOS_PRINTER_HOST_OVERRIDE=escpos-netprinter` so cloud bundle printer IPs are redirected to the emulator during local dev. Sync cloud config, place an order or use Pi Admin → **Testdruck**; slips appear in the emulator UI.
 
-```bash
-docker compose exec pi-backend ls -la /data/print-vouchers
-```
+To use a **real** printer on your LAN, **comment out or remove** that line in `pi/.env` and restart `pi-backend` (`docker compose up -d --force-recreate pi-backend`). Do not set it to `escpos-netprinter` while testing hardware.
+
+Cloud appliance entries must use IPv4 addresses reachable from the `pi-backend` container.
+
+If host port `9100` conflicts with a physical printer, remap the published port (e.g. `9101:9100`); the backend still uses `escpos-netprinter:9100` inside Docker.
+
+On **Apple Silicon / ARM64** hosts, compose sets `platform: linux/amd64` for the emulator (the Hub image has no `arm64` manifest). Docker Desktop runs it via emulation; the first pull may take longer.
+
+The emulator image is AGPL-3.0; use only for local development, not production appliances.
 
 ## Kellner PWA
 
@@ -257,7 +265,7 @@ Roles:
 | Role | Access | Features |
 |------|--------|----------|
 | Kellner | Event wählen -> Kellner/PIN -> Hub | New orders, table settlement, open tables, stock. |
-| Admin | Events -> Admin | Pi API URL, manual sync, auto-sync status. |
+| Admin | Events -> Admin | Pi API URL, manual sync, auto-sync status, **Testdruck** (probe slip per station). |
 
 The **Pi Admin-Code** is configured in cloud under user/organisation assignment. Hashed admin PINs sync in the bundle as `admin_pin_hashes`; the Pi verifies them locally.
 
