@@ -103,7 +103,6 @@ from ..print_worker import (
     group_lines_by_station,
     resolve_station_uuid_for_line,
     station_name_from_event,
-    _article_map as _print_article_map,
     _send_to_printer,
 )
 from ..pricing import line_total_cents, line_unit_cents
@@ -364,6 +363,7 @@ def _create_voucher_print_job(
         currency=ev.get("currency", "EUR"),
         copy_index=copy_index,
         copy_total=copy_total,
+        event=ev,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -450,6 +450,7 @@ def _create_print_job_for_lines(
         ev.get("name", "Event"),
         station_name=station_label,
         articles=articles,
+        event=ev,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -483,6 +484,7 @@ def _create_customer_pickup_print_job_for_lines(
         ev.get("name", "Event"),
         station_name=station_label,
         articles=articles,
+        event=ev,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -2442,6 +2444,7 @@ def payment_receipt(
         currency=ev.get("currency", "EUR"),
         reprint=bool(body and body.reprint),
         generated_at=datetime.now(timezone.utc).isoformat(),
+        event=ev,
     )
     return PaymentReceiptEscposResponse(
         payment_id=row.id,
@@ -2456,6 +2459,7 @@ def printer_test_receipt(
     event_name = "Test"
     currency = "EUR"
     articles = {"1": {"id": 1, "name": "Testartikel", "price": 1.0, "additions": []}}
+    ev: dict | None = None
     event_id = body.event_id if body else None
     if event_id:
         bundle = _get_bundle_dict(db)
@@ -2480,6 +2484,7 @@ def printer_test_receipt(
         articles=articles,
         currency=currency,
         generated_at=payload["paid_at"],
+        event=ev,
     )
     return EscposPayloadResponse(escpos_payload=base64.b64encode(esc).decode("ascii"))
 
@@ -2502,7 +2507,7 @@ def _sample_test_lines_for_station(st: dict, ev: dict) -> list[dict]:
     aid = _first_article_id_for_station_test(st, ev)
     if aid is None:
         return []
-    arts = _print_article_map(ev)
+    arts = _article_map(ev)
     art = arts.get(str(aid)) or arts.get(aid) or {}
     name = art.get("name") or "Testdruck"
     return [
@@ -2537,7 +2542,7 @@ async def printer_test_station_prints(
         raise HTTPException(status_code=422, detail="Keine Stationen in der Event-Konfiguration")
 
     event_name = ev.get("name", "Event")
-    arts = _print_article_map(ev)
+    arts = _article_map(ev)
     now = datetime.now(timezone.utc).isoformat()
     results: list[StationTestPrintResult] = []
     printed = 0
@@ -2573,6 +2578,7 @@ async def printer_test_station_prints(
             event_name,
             station_name=station_name,
             articles=arts,
+            event=ev,
         )
         try:
             await _send_to_printer(host, port, esc)
