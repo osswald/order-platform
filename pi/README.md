@@ -236,6 +236,14 @@ Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud recei
 
 Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
 
+Station slips include: event name and localized order time (header), station name with `Best #` / `Bon #` ids, a **large table number** or **pickup code**, line items with right-aligned prices, a quantity/total row, and a centered thank-you with waiter name.
+
+Optional in `pi/.env`:
+
+- `ESCPOS_LINE_WIDTH` — characters per line (default `48`, 80mm Font A)
+- `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
+- `ESCPOS_HERO_SCALE` — table/pickup magnification 2–8 via `GS !` (default `8`, plus bold double-size)
+
 ## Local ESC/POS emulator
 
 `pi/docker-compose.yml` includes [escpos-netprinter](https://github.com/gilbertfl/escpos-netprinter) (`gilbertfl/escpos-netprinter:3.2`). The Pi backend sends ESC/POS over TCP to `escpos-netprinter:9100` on the Docker network (JetDirect). View rendered receipts in the browser:
@@ -253,6 +261,13 @@ Cloud appliance entries must use IPv4 addresses reachable from the `pi-backend` 
 If host port `9100` conflicts with a physical printer, remap the published port (e.g. `9101:9100`); the backend still uses `escpos-netprinter:9100` inside Docker.
 
 On **Apple Silicon / ARM64** hosts, compose sets `platform: linux/amd64` for the emulator (the Hub image has no `arm64` manifest). Docker Desktop runs it via emulation; the first pull may take longer.
+
+**Special characters** (German `äöüß`, French `éèîç`, etc.) are encoded as **PC858** with `ESC t 19` by default. If glyphs are wrong on a specific printer, set in `pi/.env`:
+
+- `ESCPOS_ENCODING` — Python codec (default `cp858`)
+- `ESCPOS_CODEPAGE` — `ESC t` value matching that encoding (default `19`)
+
+Then recreate `pi-backend`. Admin **Testdruck** prints a centered accent demo line and several font sizes.
 
 The emulator image is AGPL-3.0; use only for local development, not production appliances.
 

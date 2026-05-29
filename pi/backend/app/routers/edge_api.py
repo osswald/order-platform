@@ -98,6 +98,7 @@ from ..security import verify_password
 from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
+    build_escpos_station_test_slip,
     build_payment_receipt_text,
     build_voucher_slip_text,
     group_lines_by_station,
@@ -450,6 +451,8 @@ def _create_print_job_for_lines(
         ev.get("name", "Event"),
         station_name=station_label,
         articles=articles,
+        local_order_id=order_id,
+        currency=ev.get("currency", "EUR"),
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -2510,7 +2513,7 @@ def _sample_test_lines_for_station(st: dict, ev: dict) -> list[dict]:
             "article_id": aid,
             "qty": 1,
             "article_name": name,
-            "note": "Testdruck",
+            "note": "Größe / Crème brûlée",
             "additions": [],
         }
     ]
@@ -2568,7 +2571,7 @@ async def printer_test_station_prints(
             "ordered_at": now,
             "lines": _sample_test_lines_for_station(st, ev),
         }
-        esc = build_escpos_receipt_text(
+        esc = build_escpos_station_test_slip(
             payload,
             event_name,
             station_name=station_name,

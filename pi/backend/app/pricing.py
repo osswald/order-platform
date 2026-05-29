@@ -7,6 +7,45 @@ def _article_entry(articles: dict, article_id) -> dict | None:
     return articles.get(str(article_id)) or articles.get(article_id)
 
 
+def addition_display_name(
+    addition: dict,
+    articles: dict,
+    base_article: dict | None = None,
+) -> str:
+    """Kitchen-slip label for a Zusatz (prefer bundle `label` over internal `name`)."""
+    aid = addition.get("article_id")
+    if aid is None:
+        return "Zusatz"
+    aid_n = int(aid)
+    label = str(addition.get("label") or "").strip()
+    if label:
+        return label
+    name = str(addition.get("name") or "").strip()
+    if name:
+        return name
+    if base_article:
+        for entry in base_article.get("additions") or []:
+            if not isinstance(entry, dict):
+                continue
+            if int(entry.get("article_id") or 0) != aid_n:
+                continue
+            entry_label = str(entry.get("label") or "").strip()
+            if entry_label:
+                return entry_label
+            entry_name = str(entry.get("name") or "").strip()
+            if entry_name:
+                return entry_name
+    add_art = _article_entry(articles, aid_n)
+    if add_art:
+        art_label = str(add_art.get("label") or "").strip()
+        if art_label:
+            return art_label
+        art_name = str(add_art.get("name") or "").strip()
+        if art_name:
+            return art_name
+    return f"Zusatz #{aid_n}"
+
+
 def _addition_price_cents(articles: dict, base_article: dict | None, addition_id: int) -> int:
     if base_article:
         for add in base_article.get("additions") or []:

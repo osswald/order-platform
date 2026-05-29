@@ -8,7 +8,12 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .order_line_utils import normalize_additions
-from .pricing import _addition_price_cents, _article_entry, line_unit_cents
+from .pricing import (
+    _addition_price_cents,
+    _article_entry,
+    addition_display_name,
+    line_unit_cents,
+)
 
 
 def is_ferdig_client_order_id(client_order_id: str) -> bool:
@@ -45,9 +50,7 @@ def _snapshot_additions(additions: list | None, articles: dict, base_article: di
     for add in normalize_additions(additions):
         entry = dict(add)
         aid = add["article_id"]
-        add_art = _article_entry(articles, aid)
-        if add_art and add_art.get("name"):
-            entry["name"] = add_art["name"]
+        entry["name"] = addition_display_name(add, articles, base_article)
         entry["unit_cents"] = _addition_price_cents(articles, base_article, aid)
         out.append(entry)
     return out

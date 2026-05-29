@@ -7,6 +7,7 @@ import uuid
 import pytest
 
 from app.models import PaymentReceipt
+from app.print_worker import _escpos_text
 from tests.fixtures_bundles import bundle_copy, payment_receipts_bundle
 
 
@@ -56,7 +57,7 @@ def test_order_payment_creates_receipt_payload(client):
     assert esc.status_code == 200, esc.text
     raw = base64.b64decode(esc.json()["escpos_payload"])
     assert b"Beleg" in raw
-    assert "Receipt Test".encode() in raw
+    assert _escpos_text("Receipt Test") in raw
     assert b"Kopie" in raw
 
     listing = c.get("/v1/payments", params={"event_id": 1, "waiter_uuid": "w-1"})
