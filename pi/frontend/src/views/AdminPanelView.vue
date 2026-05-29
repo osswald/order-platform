@@ -98,6 +98,8 @@
     </div>
 
     <button type="button" class="btn" style="width: 100%; margin-top: 1.5rem" @click="endAdmin">Admin beenden</button>
+
+    <p class="muted small version-line">Vendiqo Pi {{ label }}</p>
   </div>
 </template>
 
@@ -109,6 +111,9 @@ import { useAdminSession } from '../composables/useAdminSession'
 import { useBundle } from '../composables/useBundle'
 import { useSyncOperations } from '../composables/useSyncOperations'
 import { formatDateTime } from '../utils/dateFormat'
+import { useAppVersion } from '../composables/useAppVersion'
+
+const { label } = useAppVersion()
 
 const router = useRouter()
 const { clearAdminSession } = useAdminSession()
@@ -309,5 +314,9 @@ function endAdmin() {
   word-break: break-all;
   font-size: 0.8rem;
   margin-bottom: 0.75rem;
+}
+.version-line {
+  margin: 1.5rem 0 0;
+  text-align: center;
 }
 </style>

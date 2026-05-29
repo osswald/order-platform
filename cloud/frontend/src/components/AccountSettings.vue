@@ -1,5 +1,13 @@
 <template>
   <section class="settings-panel">
+    <Card class="settings-card version-card">
+      <template #title>System</template>
+      <template #subtitle>Installierte Version dieser Anwendung.</template>
+      <template #content>
+        <p class="version-line">Vendiqo ERP {{ label }}</p>
+      </template>
+    </Card>
+
     <Card class="settings-card">
       <template #title>Passwort ändern</template>
       <template #subtitle>Aktualisieren Sie Ihr eigenes Passwort.</template>
@@ -31,6 +39,9 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Password from 'primevue/password'
 import { apiFetch } from '../api'
+import { useAppVersion } from '../composables/useAppVersion'
+
+const { label } = useAppVersion()
 
 const form = ref({
   currentPassword: '',
@@ -89,6 +100,16 @@ async function changePassword() {
 
 .settings-card {
   max-width: 42rem;
+}
+
+.version-card {
+  margin-bottom: 1.5rem;
+}
+
+.version-line {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.95rem;
 }
 
 .form-field {

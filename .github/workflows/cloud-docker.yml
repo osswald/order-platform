@@ -10,6 +10,8 @@ on:
       - "cloud/frontend/**"
       - "cloud/docker-compose.prod.yml"
       - "cloud/Caddyfile"
+      - "VERSION"
+      - "scripts/vite-version-env.mjs"
       - ".github/workflows/cloud-docker.yml"
 
 env:
@@ -45,6 +47,12 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-backend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-backend-${{ github.sha }}
 
+      - name: Read app version
+        id: version
+        run: |
+          echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:
@@ -54,6 +62,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           build-args: |
             VITE_API_BASE_URL=https://api.vendiqo.ch
+            VITE_APP_VERSION=${{ steps.version.outputs.value }}
+            VITE_BUILD_SHA=${{ steps.version.outputs.short_sha }}
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-${{ github.sha }}
