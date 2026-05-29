@@ -125,7 +125,7 @@
     border-radius: var(--p-border-radius-lg);
     display: block;
     margin-bottom: 0.75rem;
-    overflow: hidden;
+    overflow: visible;
     width: 100%;
   }
 
@@ -133,8 +133,12 @@
     align-items: flex-start;
     display: flex;
     gap: 1rem;
+    height: auto !important;
     justify-content: space-between;
+    line-height: 1.35;
     min-width: 0;
+    overflow: visible !important;
+    white-space: normal !important;
     width: 100%;
     word-break: break-word;
   }
