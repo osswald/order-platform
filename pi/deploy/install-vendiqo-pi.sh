@@ -25,6 +25,10 @@ if [ -f "$SCRIPT_DIR/networkmanager-vendiqo-eth0.nmconnection" ]; then
     /etc/NetworkManager/system-connections/vendiqo-eth0.nmconnection
 fi
 
+if [ -f "$SCRIPT_DIR/install-tailscale.sh" ]; then
+  bash "$SCRIPT_DIR/install-tailscale.sh"
+fi
+
 systemctl daemon-reload
 systemctl enable vendiqo-pi.service vendiqo-pi-update.timer
 

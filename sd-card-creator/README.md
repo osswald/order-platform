@@ -87,10 +87,11 @@ Flashable files appear under **`output/`**:
 | `L10n` | Apply locale, Swiss German keyboard, timezone, and WiFi country |
 | `disables` | Disable `piwiz` so first boot does not ask for setup values |
 | `apps` | `ca-certificates`, `curl`, `network-manager`, `xz-utils` |
+| `runscript` | [`pi/deploy/install-tailscale.sh`](../pi/deploy/install-tailscale.sh) — Tailscale client via official install script |
 | `docker-install` | Docker Engine per upstream install guide |
 | `network` | Static `eth0` via `nmconn` from `pi/deploy/` |
 | `copyfile` | `docker-compose.prod.yml`, systemd units under `/etc/systemd/system` |
-| `system` | Enable `NetworkManager`, `docker`, `vendiqo-pi`, `vendiqo-pi-update.timer` |
+| `system` | Enable `NetworkManager`, `tailscaled`, `docker`, `vendiqo-pi`, `vendiqo-pi-update.timer` |
 
 Deploy assets live under [`pi/`](../pi/) (`deploy/`, `docker-compose.prod.yml`).
 
@@ -104,6 +105,16 @@ After flashing:
 4. Enter the cloud pairing code (see [`pi/README.md`](../pi/README.md) — Cloud pairing)
 
 Credentials are stored in `/data/edge.env` inside the persistent Docker volume.
+
+## Tailscale
+
+The image includes the [Tailscale](https://tailscale.com/) client (`tailscaled` enabled on boot). Each Pi must still join your tailnet once (generic images do not embed auth keys):
+
+```bash
+sudo tailscale up
+```
+
+Follow the printed URL to authenticate. For unattended servers, use a reusable auth key from the Tailscale admin console (`sudo tailscale up --auth-key=tskey-auth-...`) and disable key expiry for that device if it should stay connected.
 
 ## Advanced: manual build
 
