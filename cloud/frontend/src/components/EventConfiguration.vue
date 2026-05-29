@@ -5,14 +5,15 @@
     <template v-else>
       <p v-if="configMessage" :class="configMessageType">{{ configMessage }}</p>
 
-      <component
-        :is="isMobile ? 'div' : TabView"
-        :class="{ 'event-config-accordion': isMobile }"
+      <EventConfigLayout
+        :mobile="isMobile"
+        v-model:active-tab="activeConfigTab"
+        :sections="configSections"
       >
-        <EventConfigSection v-if="$slots.stammdaten" title="Stammdaten" :mobile="isMobile" open>
+        <template v-if="$slots.stammdaten" #stammdaten>
           <slot name="stammdaten" />
-        </EventConfigSection>
-        <EventConfigSection title="Stationen" :mobile="isMobile" :open="!$slots.stammdaten">
+        </template>
+        <template #stationen>
           <div class="section-toolbar">
             <Button label="Station hinzufügen" type="button" class="primary-button" @click="addStation" />
           </div>
@@ -67,9 +68,9 @@
             </div>
           </div>
           <p v-if="!stationsLocal.length" class="muted">Noch keine Stationen.</p>
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection title="Event-Kellner" :mobile="isMobile">
+        <template #kellner>
           <div class="section-toolbar">
             <Button label="Kellner hinzufügen" type="button" class="primary-button" @click="addWaiterRow" />
             <Button label="Aus Organisation übernehmen" type="button" class="secondary-button" @click="openWaiterPick" />
@@ -98,9 +99,9 @@
               </template>
             </Column>
           </DataTable>
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection v-if="cashRegistersEnabled" title="Kassen" :mobile="isMobile">
+        <template v-if="cashRegistersEnabled" #kassen>
           <div class="section-toolbar">
             <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
           </div>
@@ -155,9 +156,9 @@
             </div>
           </div>
           <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection v-if="vouchersEnabled" title="Gutscheine" :mobile="isMobile">
+        <template v-if="vouchersEnabled" #gutscheine>
           <div class="section-toolbar">
             <Button label="Gutschein hinzufügen" type="button" class="primary-button" @click="addVoucher" />
           </div>
@@ -203,9 +204,9 @@
               </div>
             </template>
           </div>
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection title="App-Layouts" :mobile="isMobile">
+        <template #layouts>
           <div class="section-toolbar">
             <Button label="Layout hinzufügen" type="button" class="primary-button" @click="addLayout" />
           </div>
@@ -262,20 +263,20 @@
               </div>
             </div>
           </div>
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection title="Lagerartikel" :mobile="isMobile">
+        <template #lager>
           <EventStockTab :event-id="eventId" :stations="stationsLocal" />
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection v-if="showOperationalTabs" title="Umsatz" :mobile="isMobile">
+        <template v-if="showOperationalTabs" #umsatz>
           <EventSalesTab :event-id="eventId" />
-        </EventConfigSection>
+        </template>
 
-        <EventConfigSection v-if="showOperationalTabs" title="Sammelrechnungen" :mobile="isMobile">
+        <template v-if="showOperationalTabs" #sammelrechnungen>
           <EventCollectiveBillsTab :event-id="eventId" />
-        </EventConfigSection>
-      </component>
+        </template>
+      </EventConfigLayout>
 
       <div class="config-save">
         <Button label="Konfiguration speichern" class="primary-button" type="button" :disabled="saving" @click="saveConfiguration" />
@@ -352,7 +353,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, defineComponent, h } from 'vue'
+import { ref, computed, watch, useSlots } from 'vue'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import ColorPicker from 'primevue/colorpicker'
@@ -363,11 +364,10 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import MultiSelect from 'primevue/multiselect'
 import Select from 'primevue/select'
-import TabPanel from 'primevue/tabpanel'
-import TabView from 'primevue/tabview'
 import TreeSelect from 'primevue/treeselect'
 import { apiFetch } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import EventConfigLayout from './EventConfigLayout.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
@@ -395,49 +395,47 @@ const props = defineProps({
   },
 })
 
+const slots = useSlots()
 const { matches: isMobile } = useBreakpoint(768)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 
-const EventConfigSection = defineComponent({
-  name: 'EventConfigSection',
-  props: {
-    title: {
-      type: String,
-      required: true,
-    },
-    mobile: {
-      type: Boolean,
-      default: false,
-    },
-    open: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  setup(sectionProps, { slots }) {
-    return () => {
-      if (!sectionProps.mobile) {
-        return h(TabPanel, { header: sectionProps.title }, slots)
-      }
-
-      return h(
-        'details',
-        {
-          class: 'event-config-accordion-panel',
-          open: sectionProps.open || undefined,
-        },
-        [
-          h('summary', { class: 'event-config-accordion-header' }, [
-            h('span', sectionProps.title),
-            h('i', { class: 'pi pi-chevron-down', 'aria-hidden': 'true' }),
-          ]),
-          h('div', { class: 'event-config-accordion-content' }, slots.default?.()),
-        ],
-      )
-    }
-  },
+const configSections = computed(() => {
+  const list = []
+  if (slots.stammdaten) {
+    list.push({ id: 'stammdaten', title: 'Stammdaten', defaultOpen: true })
+  }
+  list.push({
+    id: 'stationen',
+    title: 'Stationen',
+    defaultOpen: !slots.stammdaten,
+  })
+  list.push({ id: 'kellner', title: 'Event-Kellner' })
+  if (props.cashRegistersEnabled) {
+    list.push({ id: 'kassen', title: 'Kassen' })
+  }
+  if (props.vouchersEnabled) {
+    list.push({ id: 'gutscheine', title: 'Gutscheine' })
+  }
+  list.push({ id: 'layouts', title: 'App-Layouts' })
+  list.push({ id: 'lager', title: 'Lagerartikel' })
+  if (showOperationalTabs.value) {
+    list.push({ id: 'umsatz', title: 'Umsatz' })
+    list.push({ id: 'sammelrechnungen', title: 'Sammelrechnungen' })
+  }
+  return list
 })
 
+const activeConfigTab = ref('stammdaten')
+
+watch(
+  configSections,
+  (sections) => {
+    if (!sections.some((s) => s.id === activeConfigTab.value)) {
+      activeConfigTab.value = sections[0]?.id ?? 'stationen'
+    }
+  },
+  { immediate: true },
+)
 
 const loading = ref(true)
 const loadError = ref('')
@@ -1003,51 +1001,6 @@ watch(
   border-top: none;
 }
 
-.event-config-accordion {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.event-config-accordion-panel {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
-  background: var(--p-surface-card);
-  overflow: hidden;
-}
-
-.event-config-accordion-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
-  color: var(--p-text-color);
-  cursor: pointer;
-  font-weight: 700;
-  list-style: none;
-}
-
-.event-config-accordion-header::-webkit-details-marker {
-  display: none;
-}
-
-.event-config-accordion-panel[open] .event-config-accordion-header {
-  border-bottom: 1px solid var(--p-content-border-color);
-}
-
-.event-config-accordion-panel[open] .event-config-accordion-header i {
-  transform: rotate(180deg);
-}
-
-.event-config-accordion-header i {
-  transition: transform 0.2s ease;
-}
-
-.event-config-accordion-content {
-  padding: 1rem;
-}
-
 .muted {
   color: var(--p-text-muted-color);
 }
@@ -1066,9 +1019,10 @@ watch(
 
 .config-card {
   border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border-radius: var(--p-border-radius-md);
   padding: 1rem;
   margin-bottom: 1rem;
+  background: var(--p-surface-ground);
 }
 
 .config-card-header {
@@ -1154,7 +1108,11 @@ label {
 }
 
 .config-save {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--p-content-border-color);
+  display: flex;
+  justify-content: flex-end;
 }
 
 .list-table.nested {
@@ -1206,10 +1164,6 @@ label {
 
   .config-save :deep(.p-button) {
     width: 100%;
-  }
-
-  .event-config-accordion-content {
-    padding: 0.75rem;
   }
 }
 </style>
