@@ -168,6 +168,9 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
     if source.twint_qr_mime and source.twint_qr_data:
         new_event.twint_qr_mime = source.twint_qr_mime
         new_event.twint_qr_data = source.twint_qr_data
+    from .receipt_printing_config import copy_receipt_printing
+
+    copy_receipt_printing(source, new_event, include_event_label=True)
 
     db.add(new_event)
     db.flush()

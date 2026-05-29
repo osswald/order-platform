@@ -37,13 +37,33 @@ def render_slip(render_fn: Callable[[Dummy], None], *, feed_lines: int = 2) -> b
 
 
 def write_heading(printer: Dummy, text: str) -> None:
-    printer.set(bold=True, double_height=True, double_width=False)
+    write_sized_line(printer, text, "large")
+
+
+def write_line(printer: Dummy, text: str) -> None:
+    write_sized_line(printer, text, "normal")
+
+
+def write_sized_line(printer: Dummy, text: str, size: str = "normal") -> None:
+    key = (size or "normal").lower()
+    if key == "xlarge":
+        printer.set(bold=True, double_height=True, double_width=True)
+    elif key == "large":
+        printer.set(bold=True, double_height=True, double_width=False)
+    else:
+        printer.set(bold=False, double_height=False, double_width=False)
     printer.text(f"{text}\n")
     printer.set(bold=False, double_height=False, double_width=False)
 
 
-def write_line(printer: Dummy, text: str) -> None:
-    printer.text(f"{text}\n")
+def write_centered_block(printer: Dummy, text: str) -> None:
+    block = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not block:
+        return
+    printer.set(align="center")
+    for line in block.split("\n"):
+        printer.text(f"{line}\n")
+    printer.set(align="left")
 
 
 def write_separator(printer: Dummy, char: str = "-", width: int = 32) -> None:
@@ -76,9 +96,9 @@ def write_logo_bytes(
         log.warning("ESC/POS logo render failed", exc_info=True)
 
 
-def write_logo_from_event(printer: Dummy, ev: dict | None) -> None:
+def write_logo_from_event(printer: Dummy, ev: dict | None, *, logo_enabled: bool = True) -> None:
     """Print event logo when bundle provides base64 or raw bytes under printing config."""
-    if not ev:
+    if not ev or not logo_enabled:
         return
     printing = (ev.get("configuration") or {}).get("printing") or {}
     logo_b64 = printing.get("logo_base64") or printing.get("receipt_logo_base64")

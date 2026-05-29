@@ -265,6 +265,16 @@
           </div>
         </template>
 
+        <template #belege>
+          <ReceiptPrintingSection
+            :api-base-path="`/events/${eventId}`"
+            :entity-id="eventId"
+            is-event
+            title="Beleg-Druck"
+            hint="Gilt für Station- und Kundenbelege dieser Veranstaltung (Pi-Sync)."
+          />
+        </template>
+
         <template #lager>
           <EventStockTab :event-id="eventId" :stations="stationsLocal" />
         </template>
@@ -371,6 +381,7 @@ import EventConfigLayout from './EventConfigLayout.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
+import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 
 const props = defineProps({
   eventId: {
@@ -417,6 +428,7 @@ const configSections = computed(() => {
     list.push({ id: 'gutscheine', title: 'Gutscheine' })
   }
   list.push({ id: 'layouts', title: 'App-Layouts' })
+  list.push({ id: 'belege', title: 'Belege' })
   list.push({ id: 'lager', title: 'Lagerartikel' })
   if (showOperationalTabs.value) {
     list.push({ id: 'umsatz', title: 'Umsatz' })

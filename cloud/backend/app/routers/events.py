@@ -784,6 +784,10 @@ def create_event(
         vouchers_enabled=bool(event_in.vouchers_enabled),
     )
     db.add(event)
+    db.flush()
+    from ..receipt_printing_config import copy_receipt_printing_from_organisation
+
+    copy_receipt_printing_from_organisation(organisation, event)
     db.commit()
     db.refresh(event)
     return event_response(event)

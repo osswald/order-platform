@@ -104,6 +104,25 @@ def apply_schema_patches() -> None:
         "ALTER TABLE events ADD COLUMN vouchers_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE events ADD COLUMN IF NOT EXISTS vouchers_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    for table in ("hire_companies", "organisations", "events"):
+        _add_column_if_missing(
+            table,
+            "receipt_printing_config",
+            f"ALTER TABLE {table} ADD COLUMN receipt_printing_config TEXT",
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS receipt_printing_config JSON",
+        )
+        _add_column_if_missing(
+            table,
+            "receipt_logo_mime",
+            f"ALTER TABLE {table} ADD COLUMN receipt_logo_mime VARCHAR(64)",
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS receipt_logo_mime VARCHAR(64)",
+        )
+        _add_column_if_missing(
+            table,
+            "receipt_logo_data",
+            f"ALTER TABLE {table} ADD COLUMN receipt_logo_data TEXT",
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS receipt_logo_data TEXT",
+        )
     _add_column_if_missing(
         "articles",
         "is_addition",
