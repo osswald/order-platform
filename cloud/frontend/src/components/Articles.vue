@@ -21,6 +21,27 @@
         <small>{{ form.label.length }}/22 Zeichen</small>
       </div>
 
+      <div class="form-field">
+        <label>Import-Artikelnummer</label>
+        <InputText v-model="form.importArticleNumber" placeholder="z. B. 4711" />
+      </div>
+
+      <div class="form-field">
+        <label>Beschreibung</label>
+        <Textarea v-model="form.description" rows="4" autoResize placeholder="Optionale Beschreibung" />
+      </div>
+
+      <div class="field-row">
+        <div class="form-field">
+          <label>Einheit</label>
+          <InputText v-model="form.unit" placeholder="z. B. Stk., l, kg" />
+        </div>
+        <div class="form-field">
+          <label>Erlöskonto</label>
+          <InputNumber v-model="form.incomeAccount" :useGrouping="false" placeholder="Optional" />
+        </div>
+      </div>
+
       <div class="stock-field">
         <Checkbox v-model="form.isAddition" inputId="isAddition" binary />
         <label for="isAddition">Ist Zusatz</label>
@@ -170,7 +191,9 @@
           </template>
         </Column>
         <Column field="name" header="Name" />
+        <Column field="import_article_number" header="Import-Nr." />
         <Column field="label" header="Label" />
+        <Column field="unit" header="Einheit" />
         <Column header="Preis">
           <template #body="{ data }">{{ formatPrice(data.price) }}</template>
         </Column>
@@ -217,6 +240,7 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
 import Paginator from 'primevue/paginator'
 import MultiSelect from 'primevue/multiselect'
 import Select from 'primevue/select'
@@ -262,6 +286,10 @@ const pageSize = 20
 const emptyForm = () => ({
   name: '',
   label: '',
+  importArticleNumber: '',
+  description: '',
+  unit: '',
+  incomeAccount: null,
   price: 0,
   isAddition: false,
   monitorStock: false,
@@ -347,7 +375,11 @@ function matchesSearch(article, term) {
   return [
     article.id,
     article.name,
+    article.import_article_number,
     article.label,
+    article.description,
+    article.unit,
+    article.income_account,
     article.price,
     article.article_category_name,
     article.organisation_name,
@@ -441,6 +473,10 @@ async function applyArticleToForm(article) {
   form.value = {
     name: article.name || '',
     label: article.label || '',
+    importArticleNumber: article.import_article_number || '',
+    description: article.description || '',
+    unit: article.unit || '',
+    incomeAccount: article.income_account ?? null,
     price: article.price ?? 0,
     isAddition: !!article.is_addition,
     monitorStock: !!article.monitor_stock,
@@ -568,7 +604,10 @@ async function saveArticle() {
   const payload = {
     name: form.value.name,
     label: form.value.label,
-    price: form.value.price,
+    import_article_number: form.value.importArticleNumber || null,
+    description: form.value.description || null,
+    unit: form.value.unit || null,
+    income_account: form.value.incomeAccount,
     is_addition: form.value.isAddition,
     monitor_stock: form.value.monitorStock,
     in_stock: form.value.monitorStock ? form.value.inStock : null,

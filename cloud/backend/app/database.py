@@ -111,6 +111,30 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS is_addition BOOLEAN NOT NULL DEFAULT FALSE",
     )
     _add_column_if_missing(
+        "articles",
+        "import_article_number",
+        "ALTER TABLE articles ADD COLUMN import_article_number VARCHAR",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS import_article_number VARCHAR",
+    )
+    _add_column_if_missing(
+        "articles",
+        "description",
+        "ALTER TABLE articles ADD COLUMN description TEXT",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS description TEXT",
+    )
+    _add_column_if_missing(
+        "articles",
+        "unit",
+        "ALTER TABLE articles ADD COLUMN unit VARCHAR",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS unit VARCHAR",
+    )
+    _add_column_if_missing(
+        "articles",
+        "income_account",
+        "ALTER TABLE articles ADD COLUMN income_account INTEGER",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS income_account INTEGER",
+    )
+    _add_column_if_missing(
         "event_article_stock",
         "baseline_in_stock",
         "ALTER TABLE event_article_stock ADD COLUMN baseline_in_stock INTEGER",

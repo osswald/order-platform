@@ -18,6 +18,10 @@ class ArticleBase(BaseModel):
     name: str = Field(..., min_length=1)
     label: str = Field(..., min_length=1, max_length=22)
     price: float
+    import_article_number: str | None = None
+    description: str | None = None
+    unit: str | None = None
+    income_account: int | None = None
     is_addition: bool = False
     monitor_stock: bool = False
     in_stock: int | None = Field(None, ge=0)
@@ -40,6 +44,10 @@ class ArticleUpdate(BaseModel):
     name: str | None = Field(None, min_length=1)
     label: str | None = Field(None, min_length=1, max_length=22)
     price: float | None = None
+    import_article_number: str | None = None
+    description: str | None = None
+    unit: str | None = None
+    income_account: int | None = None
     is_addition: bool | None = None
     monitor_stock: bool | None = None
     in_stock: int | None = Field(None, ge=0)
@@ -76,6 +84,10 @@ def article_response(article: Article) -> dict:
         "name": article.name,
         "label": article.label,
         "price": article.price,
+        "import_article_number": article.import_article_number,
+        "description": article.description,
+        "unit": article.unit,
+        "income_account": article.income_account,
         "is_addition": bool(article.is_addition),
         "monitor_stock": article.monitor_stock,
         "in_stock": article.in_stock,
@@ -215,6 +227,10 @@ def create_article(
         name=article_in.name,
         label=article_in.label,
         price=article_in.price,
+        import_article_number=article_in.import_article_number,
+        description=article_in.description,
+        unit=article_in.unit,
+        income_account=article_in.income_account,
         is_addition=article_in.is_addition,
         monitor_stock=article_in.monitor_stock,
         in_stock=article_in.in_stock,
@@ -247,6 +263,12 @@ def update_article(
         article.label = article_in.label
     if article_in.price is not None:
         article.price = article_in.price
+    update_fields = article_in.model_dump(exclude_unset=True)
+    for field in ("import_article_number", "description", "unit"):
+        if field in update_fields:
+            setattr(article, field, update_fields[field])
+    if "income_account" in update_fields:
+        article.income_account = update_fields["income_account"]
     if article_in.is_addition is not None:
         article.is_addition = article_in.is_addition
     if article_in.monitor_stock is not None:

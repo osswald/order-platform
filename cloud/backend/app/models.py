@@ -1,6 +1,6 @@
 import uuid as uuid_lib
 
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, Table, ForeignKey, UniqueConstraint, JSON
+from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, Table, ForeignKey, UniqueConstraint, JSON, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -213,6 +213,10 @@ class Article(Base):
     name = Column(String, nullable=False)
     label = Column(String(22), nullable=False)
     price = Column(Float, nullable=False)
+    import_article_number = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    unit = Column(String, nullable=True)
+    income_account = Column(Integer, nullable=True)
     is_addition = Column(Boolean, nullable=False, default=False)
     monitor_stock = Column(Boolean, nullable=False, default=False)
     in_stock = Column(Integer, nullable=True)
