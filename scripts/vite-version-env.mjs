@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const COMMIT_TIME_FORMAT = '%Y%m%d%H%M'
 
 function readVersionFile() {
   const versionPath = resolve(repoRoot, 'VERSION')
@@ -11,10 +12,10 @@ function readVersionFile() {
   return readFileSync(versionPath, 'utf8').trim()
 }
 
-function readGitSha() {
-  if (process.env.VITE_BUILD_SHA) return process.env.VITE_BUILD_SHA
+function readCommitTime() {
+  if (process.env.VITE_BUILD_TIME) return process.env.VITE_BUILD_TIME
   try {
-    return execSync('git rev-parse --short HEAD', {
+    return execSync(`git log -1 --format=%cd --date=format:${COMMIT_TIME_FORMAT}`, {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -27,7 +28,7 @@ function readGitSha() {
 export function getAppVersionEnv() {
   return {
     VITE_APP_VERSION: process.env.VITE_APP_VERSION || readVersionFile(),
-    VITE_BUILD_SHA: readGitSha(),
+    VITE_BUILD_TIME: readCommitTime(),
   }
 }
 

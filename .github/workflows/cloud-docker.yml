@@ -51,7 +51,7 @@ jobs:
         id: version
         run: |
           echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push frontend
         uses: docker/build-push-action@v6
@@ -63,7 +63,7 @@ jobs:
           build-args: |
             VITE_API_BASE_URL=https://api.vendiqo.ch
             VITE_APP_VERSION=${{ steps.version.outputs.value }}
-            VITE_BUILD_SHA=${{ steps.version.outputs.short_sha }}
+            VITE_BUILD_TIME=${{ steps.version.outputs.build_time }}
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-${{ github.sha }}
