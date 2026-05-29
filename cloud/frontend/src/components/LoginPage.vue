@@ -46,7 +46,7 @@
         </div>
 
         <div class="login-footer">
-          <p class="version">Vendiqo ERP v1.0</p>
+          <p class="version">Vendiqo ERP {{ label }}</p>
         </div>
       </div>
 
@@ -82,6 +82,9 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { apiUrl } from '../api'
+import { useAppVersion } from '../composables/useAppVersion'
+
+const { label } = useAppVersion()
 
 const route = useRoute()
 const email = ref('')

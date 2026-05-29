@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { applyAppVersionEnv } from '../../scripts/vite-version-env.mjs'
+
+applyAppVersionEnv()
 
 export default defineConfig(({ mode }) => ({
   base: mode === 'android' ? './' : '/',

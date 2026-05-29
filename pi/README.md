@@ -162,13 +162,14 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 | `pi.prod.env` | GHCR image tags for `/opt/vendiqo/pi/.env` (optional; defaults are in `docker-compose.prod.yml`). |
 | `apply-ghcr-images.sh` | Updates `/opt/vendiqo/pi` on a running Pi and restarts the stack. |
 | `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/23`. |
+| `install-tailscale.sh` | Installs Tailscale and enables `tailscaled` (SD card image build and manual use). |
 | `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
 | `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
 | `vendiqo-pi-update.timer` | Runs container update periodically. |
 
 ## SD card image build
 
-Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`.
+Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`. SD card images include the Tailscale client; join each Pi to your tailnet with `sudo tailscale up` after first boot (see [`sd-card-creator/README.md`](../sd-card-creator/README.md#tailscale)).
 
 ## Cloud API used by Pi
 
@@ -236,13 +237,14 @@ Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud recei
 
 Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
 
-Station slips include: event name and localized order time (header), station name with `Best #` / `Bon #` ids, a **large table number** or **pickup code**, line items with right-aligned prices, a quantity/total row, and a centered thank-you with waiter name.
+Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG).
+
+Station slips include: event name and localized order time (header), station name with `Best #` / `Bon #` ids, a **large centered table number** or **pickup code**, line items with right-aligned prices, a quantity/total row, and a centered thank-you with waiter name (or a custom `configuration.printing.station_receipt.bottom_line`).
 
 Optional in `pi/.env`:
 
 - `ESCPOS_LINE_WIDTH` — characters per line (default `48`, 80mm Font A)
 - `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
-- `ESCPOS_HERO_SCALE` — table/pickup magnification 2–8 via `GS !` (default `8`, plus bold double-size)
 
 ## Local ESC/POS emulator
 

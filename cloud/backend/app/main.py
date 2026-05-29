@@ -18,6 +18,7 @@ from .routers import (
     events,
     health,
     hire_companies,
+    receipt_printing,
     items,
     organisations,
     stripe_connect,
@@ -99,6 +100,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
+app.include_router(receipt_printing.router, tags=["receipt-printing"])
 app.include_router(items.router, prefix="/items", tags=["items"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])

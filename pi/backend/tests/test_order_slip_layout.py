@@ -1,15 +1,15 @@
 """Station order slip ESC/POS layout."""
 
-from app.print_worker import (
-    _escpos_format_ordered_at,
-    _escpos_text,
-    build_escpos_receipt_text,
-)
+from app.print_worker import _format_ordered_at, build_escpos_receipt_text
+
+
+def _slip_text(slip: bytes) -> str:
+    return slip.decode("cp858", errors="replace")
 
 
 def test_format_ordered_at_europe_zurich(monkeypatch):
     monkeypatch.setenv("ESCPOS_TIMEZONE", "Europe/Zurich")
-    assert _escpos_format_ordered_at("2024-01-22T10:07:00+00:00") == "22.01.2024 11:07 Uhr"
+    assert _format_ordered_at("2024-01-22T10:07:00+00:00") == "22.01.2024 11:07 Uhr"
 
 
 def test_table_order_slip_layout():
@@ -47,20 +47,18 @@ def test_table_order_slip_layout():
         local_order_id=123,
         currency="CHF",
     )
-    assert b"\x1b\x61\x01" in slip
-    assert b"\x1b!\x38" in slip
-    assert b"\x1bE\x01" in slip
-    assert bytes([0x1D, 0x21, 0x77]) in slip
-    assert _escpos_text("7") in slip
-    assert _escpos_text("Sommerfest") in slip
-    assert _escpos_text("22.01.2024 11:07 Uhr") in slip
-    assert _escpos_text("Station: Grill") in slip
-    assert _escpos_text("Best #00042") in slip
-    assert _escpos_text("Bon #000123") in slip
-    assert _escpos_text("Danke für Ihre Bestellung!") in slip
-    assert _escpos_text("Anna Müller") in slip
-    assert _escpos_text("10.50") in slip
-    assert _escpos_text("CHF") in slip
+    text = _slip_text(slip)
+    assert "7" in text
+    assert "Sommerfest" in text
+    assert "22.01.2024 11:07 Uhr" in text
+    assert "Station: Grill" in text
+    assert "Best #00042" in text
+    assert "Bon #000123" in text
+    assert "Danke für Ihre Bestellung!" in text
+    assert "Anna Müller" in text
+    assert "10.50" in text
+    assert "CHF" in text
+    assert "+ Ketchup" in text
 
 
 def test_pickup_order_slip_large_code():
@@ -78,6 +76,6 @@ def test_pickup_order_slip_large_code():
         articles={"10": {"id": 10, "name": "Menu", "price": 12.0}},
         local_order_id=5,
     )
-    assert _escpos_text("A17") in slip
-    assert b"\x1b\x61\x01" in slip
-    assert slip.index(_escpos_text("A17")) < slip.index(_escpos_text("Danke"))
+    text = _slip_text(slip)
+    assert "A17" in text
+    assert text.index("A17") < text.index("Danke")

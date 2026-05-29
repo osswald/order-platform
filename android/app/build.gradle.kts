@@ -7,6 +7,19 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val repoRoot = rootProject.projectDir.parentFile
+val appVersionFile = repoRoot.resolve("VERSION")
+val appVersion = if (appVersionFile.isFile) {
+    appVersionFile.readText().trim()
+} else {
+    "0.0.0-dev"
+}
+val appVersionCode = appVersion.split(".").let { parts ->
+    (parts.getOrNull(0)?.toIntOrNull() ?: 0) * 10000 +
+        (parts.getOrNull(1)?.toIntOrNull() ?: 0) * 100 +
+        (parts.getOrNull(2)?.replace(Regex("[^0-9].*"), "")?.toIntOrNull() ?: 0)
+}
+
 android {
     namespace = "ch.vendiqo.app"
     compileSdk = 35
@@ -15,8 +28,8 @@ android {
         applicationId = "ch.vendiqo.app"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersion
     }
 
     buildFeatures {

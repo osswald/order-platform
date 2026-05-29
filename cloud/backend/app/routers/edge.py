@@ -290,6 +290,9 @@ def read_edge_bundle(
     for ev in events:
         cfg = serialize_event_configuration(db, ev)
         cfg_dict = cfg.model_dump() if hasattr(cfg, "model_dump") else cfg.dict()
+        from ..receipt_printing_config import printing_bundle_dict
+
+        cfg_dict["printing"] = printing_bundle_dict(ev)
         bundles.append(
             EdgeEventBundle(
                 id=ev.id,

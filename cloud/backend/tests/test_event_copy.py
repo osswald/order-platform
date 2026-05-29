@@ -13,6 +13,7 @@ from app.models import (
     ArticleCategory,
     EdgeSubmittedOrder,
     Event,
+    HireCompany,
     EventAppLayout,
     EventAppLayoutCell,
     EventArticleStock,
@@ -29,7 +30,9 @@ def db():
     session = Session()
     now = datetime.now(timezone.utc)
 
-    org = Organisation(id=1, name="Org", country="CH")
+    hire = HireCompany(id=1, name="Vendor")
+    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1)
+    session.add(hire)
     cat = ArticleCategory(id=1, name="Drinks", organisation_id=1)
     art = Article(
         id=10,
@@ -52,6 +55,12 @@ def db():
         payment_types=["cash", "twint"],
         twint_qr_mime="image/png",
         twint_qr_data="abc123",
+        receipt_printing_config={
+            "label_event_title": "Copied Fest",
+            "station_receipt": {"bottom_line": "Kitchen"},
+        },
+        receipt_logo_mime="image/png",
+        receipt_logo_data="logo123",
     )
     session.add_all([org, cat, art, event])
     session.flush()
@@ -122,6 +131,10 @@ def test_copy_event_clones_config_not_sales(db):
     assert new_event.status == "config"
     assert new_event.twint_qr_mime == "image/png"
     assert new_event.twint_qr_data == "abc123"
+    assert new_event.receipt_logo_mime == "image/png"
+    assert new_event.receipt_logo_data == "logo123"
+    assert new_event.receipt_printing_config["label_event_title"] == "Copied Fest"
+    assert new_event.receipt_printing_config["station_receipt"]["bottom_line"] == "Kitchen"
 
     new_stations = db.query(EventStation).filter(EventStation.event_id == new_event.id).all()
     new_waiters = db.query(EventWaiter).filter(EventWaiter.event_id == new_event.id).all()
