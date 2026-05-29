@@ -9,6 +9,8 @@ on:
     paths:
       - "pi/backend/**"
       - "pi/frontend/**"
+      - "VERSION"
+      - "scripts/vite-version-env.mjs"
       - ".github/workflows/pi-docker.yml"
 
 env:
@@ -47,6 +49,12 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-${{ github.sha }}
 
+      - name: Read app version
+        id: version
+        run: |
+          echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:
@@ -54,6 +62,9 @@ jobs:
           file: ./pi/frontend/Dockerfile.prod
           platforms: linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            VITE_APP_VERSION=${{ steps.version.outputs.value }}
+            VITE_BUILD_TIME=${{ steps.version.outputs.build_time }}
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-${{ github.sha }}

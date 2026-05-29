@@ -37,6 +37,7 @@
       <p class="hint">
         Nach erfolgreicher Kopplung speichert der Pi die Edge-Zugangsdaten lokal und beginnt mit der Cloud-Synchronisation.
       </p>
+      <p class="version-line">Vendiqo Pi {{ label }}</p>
     </div>
   </section>
 </template>
@@ -45,6 +46,9 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
+import { useAppVersion } from '../composables/useAppVersion'
+
+const { label } = useAppVersion()
 
 const router = useRouter()
 const status = ref(null)
@@ -187,5 +191,12 @@ button:disabled {
 .message.error {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.version-line {
+  margin: 1.5rem 0 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  text-align: center;
 }
 </style>
