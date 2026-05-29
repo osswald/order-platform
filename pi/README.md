@@ -236,6 +236,8 @@ Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud recei
 
 Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
 
+Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG).
+
 ## Local ESC/POS emulator
 
 `pi/docker-compose.yml` includes [escpos-netprinter](https://github.com/gilbertfl/escpos-netprinter) (`gilbertfl/escpos-netprinter:3.2`). The Pi backend sends ESC/POS over TCP to `escpos-netprinter:9100` on the Docker network (JetDirect). View rendered receipts in the browser:
