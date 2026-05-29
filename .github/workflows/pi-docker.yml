@@ -58,7 +58,7 @@ jobs:
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:
-          context: ./pi/frontend
+          context: .
           file: ./pi/frontend/Dockerfile.prod
           platforms: linux/arm64
           push: ${{ github.event_name != 'pull_request' }}

@@ -1,17 +1,20 @@
+# Build context must be the repository root (see .github/workflows/pi-docker.yml).
 FROM node:20-alpine AS build
-WORKDIR /app
+WORKDIR /app/pi/frontend
 
 ARG VITE_APP_VERSION=dev
 ARG VITE_BUILD_TIME=dev
 ENV VITE_APP_VERSION=$VITE_APP_VERSION
 ENV VITE_BUILD_TIME=$VITE_BUILD_TIME
 
-COPY package.json package-lock.json* ./
+COPY pi/frontend/package.json pi/frontend/package-lock.json* ./
 RUN npm ci
-COPY . .
+COPY pi/frontend/ .
+COPY scripts /app/scripts
+COPY VERSION /app/VERSION
 RUN npm run build
 
 FROM nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY pi/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/pi/frontend/dist /usr/share/nginx/html
 EXPOSE 80
