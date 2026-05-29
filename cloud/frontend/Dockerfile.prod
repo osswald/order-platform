@@ -1,5 +1,6 @@
+# Build context must be the repository root (see cloud/docker-compose.prod.yml and CI workflows).
 FROM node:20-alpine AS build
-WORKDIR /app
+WORKDIR /app/cloud/frontend
 
 ARG VITE_API_BASE_URL=https://api.vendiqo.ch
 ARG VITE_APP_VERSION=dev
@@ -8,12 +9,14 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_APP_VERSION=$VITE_APP_VERSION
 ENV VITE_BUILD_TIME=$VITE_BUILD_TIME
 
-COPY package*.json ./
+COPY cloud/frontend/package*.json ./
 RUN npm ci
-COPY . .
+COPY cloud/frontend/ .
+COPY scripts /app/scripts
+COPY VERSION /app/VERSION
 RUN npm run build
 
 FROM nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY cloud/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/cloud/frontend/dist /usr/share/nginx/html
 EXPOSE 80
