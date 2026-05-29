@@ -30,6 +30,13 @@
         <label>Land</label>
         <InputText v-model="form.country" placeholder="Schweiz" />
       </div>
+      <ReceiptPrintingSection
+        v-if="editMode && routeEntityId"
+        :api-base-path="`/hire-companies/${routeEntityId}`"
+        :entity-id="routeEntityId"
+        title="Beleg-Vorlagen (Verleiher)"
+        hint="Standard für neue Organisationen. Wird bei Organisationserstellung übernommen."
+      />
       <div class="actions">
         <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
         <Button label="Speichern" class="primary-button" :disabled="!form.name" @click="saveCompany" />
@@ -77,6 +84,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import ListDetailLayout from './ListDetailLayout.vue'
+import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'

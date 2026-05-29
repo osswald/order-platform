@@ -102,6 +102,13 @@
         </div>
       </template>
 
+      <ReceiptPrintingSection
+        v-if="editMode && activeId"
+        :api-base-path="`/organisations/${activeId}`"
+        :entity-id="activeId"
+        title="Beleg-Vorlagen (Organisation)"
+        hint="Standard für neue Veranstaltungen dieser Organisation."
+      />
       <div class="actions">
         <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
         <Button label="Speichern" class="primary-button" :disabled="!form.name || !form.country" @click="saveOrganisation" />
@@ -118,6 +125,13 @@
     </template>
 
     <template #table>
+      <ReceiptPrintingSection
+        v-if="tenantHireCompanyId && canManageTenant"
+        :api-base-path="`/hire-companies/${tenantHireCompanyId}`"
+        :entity-id="tenantHireCompanyId"
+        title="Beleg-Vorlagen (Verleiher)"
+        hint="Gilt als Vorlage für neu angelegte Organisationen."
+      />
       <div class="table-header">
         <h2>Alle Organisationen</h2>
         <span>{{ filteredOrganisations.length }} von {{ organisations.length }} Einträgen</span>
@@ -191,6 +205,7 @@ import Paginator from 'primevue/paginator'
 import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
+import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'
 import { cancelPlannedLending } from '../utils/applianceLending'
@@ -198,6 +213,8 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
+const tenantHireCompanyId = computed(() => sessionContext?.activeHireCompanyId?.value ?? null)
+const canManageTenant = computed(() => Boolean(sessionContext?.canAccessTenantAdmin?.value))
 
 const route = useRoute()
 const {

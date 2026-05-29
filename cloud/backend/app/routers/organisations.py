@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..dashboard_summary import build_organisation_dashboard_summary
-from ..models import ApplianceLending, Event, Organisation, User
+from ..models import ApplianceLending, Event, HireCompany, Organisation, User
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import (
@@ -231,6 +231,12 @@ def create_organisation(
                 )
         db_org.users = users
     db.add(db_org)
+    db.flush()
+    hire_company = db.query(HireCompany).filter(HireCompany.id == tenant.hire_company_id).first()
+    if hire_company:
+        from ..receipt_printing_config import copy_receipt_printing_from_hire_company
+
+        copy_receipt_printing_from_hire_company(hire_company, db_org)
     db.commit()
     db.refresh(db_org)
     return organisation_response(db_org)

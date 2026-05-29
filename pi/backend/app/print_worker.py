@@ -13,10 +13,12 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .escpos_render import (
     render_slip,
+    write_centered_block,
     write_heading,
     write_line,
     write_logo_from_event,
     write_separator,
+    write_sized_line,
 )
 from .models import LocalOrder, PrintJob, SyncedBundle
 
@@ -71,6 +73,43 @@ def _money(cents: int, currency: str) -> str:
     return f"{cents / 100:.2f} {currency}"
 
 
+def _printing_block(ev: dict | None) -> dict:
+    if not ev:
+        return {}
+    return (ev.get("configuration") or {}).get("printing") or {}
+
+
+def _profile_cfg(ev: dict | None, profile_key: str) -> dict:
+    block = _printing_block(ev)
+    raw = block.get(profile_key) or {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _event_title_for_print(ev: dict | None, event_name: str) -> str:
+    block = _printing_block(ev)
+    label = (block.get("label_event_title") or "").strip()
+    return label or event_name
+
+
+def _write_event_title(printer: Dummy, ev: dict | None, event_name: str, profile: dict) -> None:
+    if not profile.get("show_event_title", True):
+        return
+    title = _event_title_for_print(ev, event_name)
+    size = profile.get("size_table_or_pickup") or "large"
+    if size in ("large", "xlarge"):
+        write_sized_line(printer, title, size)
+    else:
+        write_line(printer, title)
+
+
+def _write_bottom_line(printer: Dummy, profile: dict, *, legacy_fallback: str = "") -> None:
+    bottom = (profile.get("bottom_line") or "").strip()
+    if bottom:
+        write_centered_block(printer, bottom)
+    elif legacy_fallback:
+        write_line(printer, legacy_fallback)
+
+
 def _payment_type_label(payment_type: str) -> str:
     labels = {
         "cash": "Bar",
@@ -90,6 +129,7 @@ def _write_order_lines(
     *,
     show_prices: bool = True,
     currency: str = "EUR",
+    line_size: str = "normal",
 ) -> None:
     from .pricing import line_total_cents
 
@@ -104,7 +144,7 @@ def _write_order_lines(
         name = line.get("article_name") or art.get("name") or f"#{aid}"
         cents = line_total_cents(line, arts)
         price = _money(cents, currency) if show_prices else _price_hint_eur(cents)
-        write_line(printer, f"{qty}x {name}{price}")
+        write_sized_line(printer, f"{qty}x {name}{price}", line_size)
         for add in line.get("additions") or []:
             if not isinstance(add, dict):
                 continue
@@ -115,10 +155,10 @@ def _write_order_lines(
                 add_price = f" {_money(add_cents, currency)}"
             else:
                 add_price = _price_hint_eur(add_cents)
-            write_line(printer, f"  + {add_qty}x {add_name}{add_price}")
+            write_sized_line(printer, f"  + {add_qty}x {add_name}{add_price}", line_size)
         note = (line.get("note") or "").strip()
         if note:
-            write_line(printer, f"  {note}")
+            write_sized_line(printer, f"  {note}", line_size)
 
 
 def build_payment_receipt_text(
@@ -220,18 +260,22 @@ def build_escpos_receipt_text(
     event: dict | None = None,
 ) -> bytes:
     arts = articles or {}
+    profile = _profile_cfg(event, "station_receipt")
+    show_prices = bool(profile.get("show_price", False))
+    line_size = profile.get("size_order_lines") or "normal"
 
     def render(printer: Dummy) -> None:
-        write_logo_from_event(printer, event)
-        write_line(printer, event_name)
+        write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+        _write_event_title(printer, event, event_name, profile)
         if station_name:
             write_line(printer, f"Station: {station_name}")
         table = payload.get("table_number")
         pickup_code = payload.get("pickup_code")
+        table_size = profile.get("size_table_or_pickup") or "large"
         if pickup_code:
-            write_line(printer, f"Pickup: {pickup_code}")
+            write_sized_line(printer, f"Pickup: {pickup_code}", table_size)
         elif table is not None and int(table or 0) > 0:
-            write_line(printer, f"Tisch: {table}")
+            write_sized_line(printer, f"Tisch: {table}", table_size)
         wn = payload.get("waiter_name")
         if wn:
             write_line(printer, f"Kellner: {wn}")
@@ -242,7 +286,14 @@ def build_escpos_receipt_text(
         if ordered_at:
             write_line(printer, f"Zeit: {ordered_at}")
         write_separator(printer)
-        _write_order_lines(printer, payload, arts, show_prices=False)
+        _write_order_lines(
+            printer,
+            payload,
+            arts,
+            show_prices=show_prices,
+            line_size=line_size,
+        )
+        _write_bottom_line(printer, profile)
 
     return render_slip(render)
 
@@ -256,11 +307,16 @@ def build_customer_pickup_text(
     event: dict | None = None,
 ) -> bytes:
     arts = articles or {}
+    profile = _profile_cfg(event, "customer_receipt")
+    show_prices = bool(profile.get("show_price", False))
+    line_size = profile.get("size_order_lines") or "normal"
+    table_size = profile.get("size_table_or_pickup") or "xlarge"
 
     def render(printer: Dummy) -> None:
-        write_logo_from_event(printer, event)
-        write_heading(printer, f"Pickup {payload.get('pickup_code') or '?'}")
-        write_line(printer, event_name)
+        write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+        pickup = payload.get("pickup_code") or "?"
+        write_sized_line(printer, f"Pickup {pickup}", table_size)
+        _write_event_title(printer, event, event_name, profile)
         if station_name:
             write_line(printer, f"Station: {station_name}")
         ordered_at = payload.get("ordered_at")
@@ -268,8 +324,18 @@ def build_customer_pickup_text(
             write_line(printer, f"Zeit: {ordered_at}")
         write_line(printer, "Bezahlt")
         write_separator(printer)
-        _write_order_lines(printer, payload, arts, show_prices=False)
-        write_line(printer, "Bitte an der Ausgabe abholen.")
+        _write_order_lines(
+            printer,
+            payload,
+            arts,
+            show_prices=show_prices,
+            line_size=line_size,
+        )
+        _write_bottom_line(
+            printer,
+            profile,
+            legacy_fallback="Bitte an der Ausgabe abholen.",
+        )
 
     return render_slip(render)
 
