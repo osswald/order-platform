@@ -10,4 +10,5 @@ limiter = Limiter(
 )
 
 LOGIN_RATE_LIMIT = os.getenv("LOGIN_RATE_LIMIT", "10/minute")
+REFRESH_RATE_LIMIT = os.getenv("REFRESH_RATE_LIMIT", "30/minute")
 EDGE_PAIR_RATE_LIMIT = os.getenv("EDGE_PAIR_RATE_LIMIT", "20/minute")
