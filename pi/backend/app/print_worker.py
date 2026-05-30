@@ -430,17 +430,21 @@ def build_escpos_station_test_slip(
     *,
     station_name: str | None = None,
     articles: dict | None = None,
+    event: dict | None = None,
 ) -> bytes:
     """Admin Testdruck: font sizes, center alignment, and accent character demo."""
     arts = articles or {}
+    profile = _profile_cfg(event, "station_receipt")
+    title = _event_title_for_print(event, event_name)
     accent_demo = "Ää Öö Üü ß  Éé Èè Îî Çç"
 
     def render(printer: Dummy) -> None:
+        write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
         printer.set(align="center")
         write_sized_line(printer, "Testdruck", "xlarge")
         printer._raw(encode_escpos_text(f"{accent_demo}\n"))
         printer.set(align="left")
-        write_line(printer, event_name)
+        write_line(printer, title)
         if station_name:
             write_line(printer, f"Station: {station_name}")
         wn = payload.get("waiter_name")
