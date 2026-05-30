@@ -17,6 +17,18 @@ const vuetify = createVuetify({
   theme: {
     defaultTheme: 'light',
   },
+  defaults: {
+    VBtn: { variant: 'outlined' },
+    VTextField: { variant: 'outlined' },
+    VSelect: { variant: 'outlined' },
+    VTextarea: { variant: 'outlined' },
+    VAutocomplete: { variant: 'outlined' },
+    VCombobox: { variant: 'outlined' },
+    VFileInput: { variant: 'outlined' },
+    VNumberInput: { variant: 'outlined' },
+    VCheckbox: { variant: 'outlined' },
+    VSwitch: { variant: 'outlined' },
+  },
 })
 
 createApp(App).use(vuetify).use(router).mount('#app')
