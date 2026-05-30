@@ -13,13 +13,6 @@ organisation_users = Table(
 )
 
 
-class Item(Base):
-    __tablename__ = "items"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True, nullable=False)
-    description = Column(String, nullable=True)
-
-
 class HireCompany(Base):
     __tablename__ = "hire_companies"
     id = Column(Integer, primary_key=True, index=True)
