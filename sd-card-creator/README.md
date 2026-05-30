@@ -39,7 +39,7 @@ Use UTM Ubuntu or any other Linux machine with native SDM. Building inside Docke
 The image installs a NetworkManager connection for the wired Ethernet port:
 
 ```text
-address: 192.168.192.10/23
+address: 192.168.192.10/24
 gateway: 192.168.192.1
 dns:     192.168.192.1, 1.1.1.1
 ```
@@ -126,7 +126,7 @@ Run from the **repository root** (paths above are relative to repo root).
 - **`Failed to open system bus` / nspawn errors** — You are not on a real Linux host with systemd (e.g. Docker on Mac). Use UTM Ubuntu and `./build-on-ubuntu.sh`.
 - **Incomplete `vendiqo-pi-*.img` after a failed run** — Do not flash; delete the partial file and rebuild.
 - **amd64 Ubuntu VM on Apple Silicon** — SDM uses `qemu-user-static` for arm64 images; the first build may be slower than on an arm64 VM.
-- **No network on the Pi after boot** — The static profile only applies on the Verleiher router (`192.168.192.0/23`). Confirm Ethernet is plugged in and run `nmcli device status` / `ip -4 addr`. The connection matches the first wired port (`match-device=type:ethernet`), not a fixed interface name.
+- **No network on the Pi after boot** — The static profile only applies on the Verleiher router (`192.168.192.0/24`). Confirm Ethernet is plugged in and run `nmcli device status` / `ip -4 addr`. The connection matches the first wired port (`match-device=type:ethernet`), not a fixed interface name.
 - **Older image with Tailscale** — If an earlier build installed Tailscale, `tailscaled` can interfere with local routing until removed: `sudo systemctl disable --now tailscaled && sudo apt-get remove -y tailscale`.
 
 ## Files in this directory
