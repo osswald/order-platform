@@ -237,14 +237,18 @@ Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud recei
 
 Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
 
-Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG).
+Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG). Logos are flattened onto a white background (including transparent PNGs), converted to black-on-white for thermal print, scaled to fit the paper width, and centered.
 
 Station slips include: event name and localized order time (header), station name with `Best #` / `Bon #` ids, a **large centered table number** or **pickup code**, line items with right-aligned prices, a quantity/total row, and a centered thank-you with waiter name (or a custom `configuration.printing.station_receipt.bottom_line`).
+
+Font sizes for station slips come from cloud **`configuration.printing.station_receipt`** (`size_table_or_pickup`, `size_order_lines`; defaults **xlarge** / **large**). On the Pi, when the table/pickup size is **xlarge**, `ESCPOS_HERO_SCALE` (Epson `GS !`, default **6**, range 1–8) magnifies the hero digit further.
 
 Optional in `pi/.env`:
 
 - `ESCPOS_LINE_WIDTH` — characters per line (default `48`, 80mm Font A)
 - `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
+- `ESCPOS_HERO_SCALE` — table/pickup magnification when profile uses **xlarge** (default `6`)
+- `ESCPOS_LOGO_MAX_WIDTH` — logo raster width in dots (default `384`, 80mm)
 
 ## Local ESC/POS emulator
 

@@ -71,8 +71,8 @@ def default_station_profile() -> dict[str, Any]:
     return ReceiptProfileConfig(
         logo_enabled=True,
         show_event_title=True,
-        size_table_or_pickup="large",
-        size_order_lines="normal",
+        size_table_or_pickup="xlarge",
+        size_order_lines="large",
         show_price=False,
         bottom_line="",
     ).model_dump()

@@ -18,9 +18,11 @@ def test_escpos_init_selects_code_page():
     assert buf[4] == 19
 
 
-def test_station_test_slip_has_center_align_and_accent_demo():
+def test_station_test_slip_mirrors_production_sizes(monkeypatch):
+    monkeypatch.setenv("ESCPOS_HERO_SCALE", "6")
     slip = build_escpos_station_test_slip(
         {
+            "table_number": 1,
             "waiter_name": "Testdruck",
             "ordered_at": "2026-01-01T12:00:00Z",
             "lines": [
@@ -35,10 +37,24 @@ def test_station_test_slip_has_center_align_and_accent_demo():
         },
         "Event Demo",
         station_name="Grill",
-        articles={},
+        articles={"1": {"id": 1, "name": "Bier", "price": 4.0}},
+        event={
+            "configuration": {
+                "printing": {
+                    "station_receipt": {
+                        "logo_enabled": False,
+                        "size_table_or_pickup": "xlarge",
+                        "size_order_lines": "large",
+                    }
+                }
+            }
+        },
     )
     text = slip.decode("cp858", errors="replace")
     assert b"\x1b\x61\x01" in slip
+    assert bytes([0x1D, 0x21, 0x55]) in slip
+    assert b"\x1b!\x10" in slip
     assert "Ää Öö Üü ß  Éé Èè Îî Çç" in text
-    assert "Größe / Crème brûlée" in text
+    assert "Station: Grill" in text
+    assert "Danke für Ihre Bestellung!" in text
     assert "Testdruck" in text

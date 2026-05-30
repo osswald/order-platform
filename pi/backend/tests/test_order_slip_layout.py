@@ -7,12 +7,29 @@ def _slip_text(slip: bytes) -> str:
     return slip.decode("cp858", errors="replace")
 
 
+def _event_with_printing(**profile_overrides):
+    station = {
+        "logo_enabled": False,
+        "size_table_or_pickup": "xlarge",
+        "size_order_lines": "large",
+    }
+    station.update(profile_overrides.get("station_receipt") or {})
+    return {
+        "configuration": {
+            "printing": {
+                "station_receipt": station,
+            }
+        }
+    }
+
+
 def test_format_ordered_at_europe_zurich(monkeypatch):
     monkeypatch.setenv("ESCPOS_TIMEZONE", "Europe/Zurich")
     assert _format_ordered_at("2024-01-22T10:07:00+00:00") == "22.01.2024 11:07 Uhr"
 
 
-def test_table_order_slip_layout():
+def test_table_order_slip_layout(monkeypatch):
+    monkeypatch.setenv("ESCPOS_HERO_SCALE", "6")
     slip = build_escpos_receipt_text(
         {
             "table_number": 7,
@@ -46,7 +63,10 @@ def test_table_order_slip_layout():
         },
         local_order_id=123,
         currency="CHF",
+        event=_event_with_printing(),
     )
+    # GS ! scale 6 → n = 0x55
+    assert bytes([0x1D, 0x21, 0x55]) in slip
     text = _slip_text(slip)
     assert "7" in text
     assert "Sommerfest" in text
@@ -59,6 +79,46 @@ def test_table_order_slip_layout():
     assert "10.50" in text
     assert "CHF" in text
     assert "+ Ketchup" in text
+
+
+def test_station_slip_large_order_lines_use_double_height():
+    slip = build_escpos_receipt_text(
+        {
+            "table_number": 8,
+            "order_number": 46,
+            "ordered_at": "2026-05-29T18:26:00+00:00",
+            "waiter_name": "Test",
+            "lines": [{"article_id": 10, "qty": 1, "article_name": "Raclette", "additions": []}],
+        },
+        "Event",
+        station_name="Küche",
+        articles={"10": {"id": 10, "name": "Raclette", "price": 13.5}},
+        local_order_id=82,
+        event=_event_with_printing(station_receipt={"size_order_lines": "large"}),
+    )
+    assert b"\x1b!\x10" in slip
+    assert _slip_text(slip).count("Raclette") >= 1
+
+
+def test_station_slip_normal_order_lines_skip_double_height():
+    slip = build_escpos_receipt_text(
+        {
+            "table_number": 1,
+            "lines": [{"article_id": 10, "qty": 1, "article_name": "Bier", "additions": []}],
+        },
+        "Event",
+        articles={"10": {"id": 10, "name": "Bier", "price": 3.0}},
+        event=_event_with_printing(
+            station_receipt={
+                "size_order_lines": "normal",
+                "size_table_or_pickup": "normal",
+            }
+        ),
+    )
+    idx = slip.find(b"Bier")
+    assert idx >= 0
+    window = slip[idx : idx + 40]
+    assert b"\x1b!\x10" not in window
 
 
 def test_pickup_order_slip_large_code():
@@ -75,6 +135,7 @@ def test_pickup_order_slip_large_code():
         station_name="Theke",
         articles={"10": {"id": 10, "name": "Menu", "price": 12.0}},
         local_order_id=5,
+        event=_event_with_printing(),
     )
     text = _slip_text(slip)
     assert "A17" in text

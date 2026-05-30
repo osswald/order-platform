@@ -12,16 +12,29 @@ from collections.abc import Callable
 from io import BytesIO
 
 from escpos.printer import Dummy
-from PIL import Image
+from PIL import Image, ImageOps
 
 log = logging.getLogger(__name__)
 
 # Typical 80 mm thermal printer printable width in dots.
 DEFAULT_MAX_IMAGE_WIDTH = 384
+# Epson TM family profile so python-escpos can center raster images.
+DEFAULT_PRINTER_PROFILE = "TM-T88IV"
+
+
+def escpos_logo_max_width() -> int:
+    raw = os.getenv("ESCPOS_LOGO_MAX_WIDTH", str(DEFAULT_MAX_IMAGE_WIDTH)).strip()
+    try:
+        return max(128, int(raw))
+    except ValueError:
+        return DEFAULT_MAX_IMAGE_WIDTH
 
 
 def new_slip() -> Dummy:
-    return Dummy()
+    try:
+        return Dummy(profile=DEFAULT_PRINTER_PROFILE)
+    except Exception:
+        return Dummy()
 
 
 def escpos_encoding() -> str:
@@ -112,6 +125,29 @@ def write_two_column(
     printer.set(bold=False, double_height=False, double_width=False)
 
 
+def _effective_line_width(width: int, size: str) -> int:
+    if (size or "normal").lower() == "large":
+        return max(12, width // 2)
+    return width
+
+
+def _format_item_line(
+    qty: int,
+    name: str,
+    cents: int,
+    width: int,
+    *,
+    indent: int = 0,
+) -> str:
+    price = f"{cents / 100:.2f}"
+    left = f"{' ' * indent}{qty} {name}".strip() if qty > 0 else f"{' ' * indent}{name}".strip()
+    max_left = max(0, width - len(price) - 1)
+    if len(left) > max_left:
+        left = (left[: max_left - 1] + "…") if max_left > 1 else left[:max_left]
+    pad = max(1, width - len(left) - len(price))
+    return (left + (" " * pad) + price)[:width]
+
+
 def write_item_row(
     printer: Dummy,
     qty: int,
@@ -120,49 +156,102 @@ def write_item_row(
     width: int = 48,
     *,
     indent: int = 0,
+    size: str = "normal",
 ) -> None:
-    price = f"{cents / 100:.2f}"
-    left = f"{' ' * indent}{qty} {name}".strip() if qty > 0 else f"{' ' * indent}{name}".strip()
-    max_left = max(0, width - len(price) - 1)
-    if len(left) > max_left:
-        left = (left[: max_left - 1] + "…") if max_left > 1 else left[:max_left]
-    pad = max(1, width - len(left) - len(price))
-    line = (left + (" " * pad) + price)[:width]
-    printer.text(f"{line}\n")
+    eff_width = _effective_line_width(width, size)
+    line = _format_item_line(qty, name, cents, eff_width, indent=indent)
+    if (size or "normal").lower() == "large":
+        write_sized_line(printer, line, "large")
+    else:
+        printer.text(f"{line}\n")
 
 
-def write_subline(printer: Dummy, text: str, *, indent: int = 2) -> None:
-    printer.text(f"{' ' * indent}{text}\n")
+def write_subline(printer: Dummy, text: str, *, indent: int = 2, size: str = "normal") -> None:
+    line = f"{' ' * indent}{text}"
+    if (size or "normal").lower() == "large":
+        write_sized_line(printer, line, "large")
+    else:
+        printer.text(f"{line}\n")
 
 
-def write_hero(printer: Dummy, text: str) -> None:
+def escpos_hero_scale() -> int:
+    raw = os.getenv("ESCPOS_HERO_SCALE", "6").strip()
+    try:
+        return max(1, min(8, int(raw)))
+    except ValueError:
+        return 6
+
+
+def _gs_char_size(width_mult: int, height_mult: int) -> bytes:
+    w = max(1, min(8, width_mult))
+    h = max(1, min(8, height_mult))
+    n = (w - 1) | ((h - 1) << 4)
+    return bytes([0x1D, 0x21, n])
+
+
+def write_hero(printer: Dummy, text: str, size: str = "xlarge") -> None:
+    key = (size or "xlarge").lower()
     printer.set(align="center")
-    write_sized_line(printer, text, "xlarge")
+    if key == "xlarge":
+        scale = escpos_hero_scale()
+        printer._raw(_gs_char_size(scale, scale))
+        printer.set(bold=True, double_height=True, double_width=True)
+        printer.text(f"{text}\n")
+        printer._raw(_gs_char_size(1, 1))
+        printer.set(bold=False, double_height=False, double_width=False)
+    elif key == "large":
+        write_sized_line(printer, text, "large")
+    else:
+        write_sized_line(printer, text, "normal")
     printer.text("\n")
     printer.set(align="left")
+
+
+def _prepare_receipt_logo(image_bytes: bytes, *, max_width: int) -> Image.Image:
+    """Convert uploaded logo to centered 1-bit raster for thermal printing."""
+    img = Image.open(BytesIO(image_bytes))
+    img = ImageOps.exif_transpose(img)
+
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        background.paste(rgba, mask=rgba.split()[-1])
+        gray = background.convert("L")
+    elif img.mode == "1":
+        gray = img.convert("L")
+    else:
+        gray = img.convert("L")
+
+    if gray.width > max_width:
+        ratio = max_width / gray.width
+        new_h = max(1, int(gray.height * ratio))
+        gray = gray.resize((max_width, new_h), Image.Resampling.LANCZOS)
+
+    # Dark pixels print; tune above mid-gray so light logo colors stay visible.
+    mono = gray.point(lambda p: 0 if p < 175 else 255, mode="1")
+
+    canvas = Image.new("1", (max_width, mono.height), 1)
+    x_offset = max(0, (max_width - mono.width) // 2)
+    canvas.paste(mono, (x_offset, 0))
+    return canvas
 
 
 def write_logo_bytes(
     printer: Dummy,
     image_bytes: bytes,
     *,
-    max_width: int = DEFAULT_MAX_IMAGE_WIDTH,
+    max_width: int | None = None,
     center: bool = True,
 ) -> None:
     """Rasterize image bytes for ESC/POS (PNG/JPEG/etc.). Skips on failure."""
     if not image_bytes:
         return
+    width = max_width if max_width is not None else escpos_logo_max_width()
     try:
-        img = Image.open(BytesIO(image_bytes))
-        if img.mode not in ("1", "L"):
-            img = img.convert("L")
-        if max_width and img.width > max_width:
-            ratio = max_width / img.width
-            new_h = max(1, int(img.height * ratio))
-            img = img.resize((max_width, new_h), Image.Resampling.LANCZOS)
-        if img.mode != "1":
-            img = img.point(lambda p: 0 if p < 128 else 255, mode="1")
-        printer.image(img, center=center)
+        img = _prepare_receipt_logo(image_bytes, max_width=width)
+        printer.set(align="center")
+        printer.image(img, center=center, impl="bitImageRaster")
+        printer.set(align="left")
         printer.text("\n")
     except Exception:
         log.warning("ESC/POS logo render failed", exc_info=True)
