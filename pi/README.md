@@ -48,6 +48,14 @@ Pairing is the normal production credential flow.
 
 The cloud only returns `EDGE_SECRET` once during pairing. The Pi backend reads credentials from environment variables first and then from `/data/edge.env`.
 
+**Setup lockdown (production):**
+
+- `POST /v1/setup/pair` is rejected with **403** if the Pi is already paired (`/data/edge.env` exists).
+- The cloud URL sent in the pairing request is **ignored** unless `ALLOW_CLOUD_URL_OVERRIDE=true`; production uses `DEFAULT_CLOUD_BASE_URL` (default `https://api.vendiqo.ch`).
+- `POST /v1/setup/unpair` clears local credentials when `PI_SETUP_UNPAIR_SECRET` is set on the Pi and the request body includes the matching `unpair_secret`.
+
+Local Docker dev enables `ALLOW_CLOUD_URL_OVERRIDE=true` in `docker-compose.yml` so you can point pairing at `http://host.docker.internal:8000`.
+
 ## Multiple SD cards per server
 
 A server appliance can have multiple paired SD cards, for example:
@@ -105,6 +113,9 @@ For local Docker development, copy `pi/.env.example` to `pi/.env` and fill value
 | `EDGE_CLIENT_ID` | Legacy/manual edge client id, or value written by pairing into `/data/edge.env`. |
 | `EDGE_SECRET` | Legacy/manual edge secret, or value written by pairing into `/data/edge.env`. |
 | `EDGE_CONFIG_FILE` | Credential file path. Production default: `/data/edge.env`. |
+| `DEFAULT_CLOUD_BASE_URL` | Cloud API used during pairing when URL override is disabled. |
+| `ALLOW_CLOUD_URL_OVERRIDE` | `true` only in dev; allows the setup UI to choose the cloud URL. |
+| `PI_SETUP_UNPAIR_SECRET` | Enables `POST /v1/setup/unpair` with matching `unpair_secret` (factory reset). |
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
 | `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
@@ -194,8 +205,9 @@ Cloud edge auth also requires an active appliance lending for today UTC. If sync
 
 Setup/sync:
 
-- `GET /v1/setup/status` - pairing/setup status.
-- `POST /v1/setup/pair` - submit cloud URL and pairing code; writes `/data/edge.env`.
+- `GET /v1/setup/status` - pairing/setup status (`allow_cloud_url_override`, `can_unpair`).
+- `POST /v1/setup/pair` - pairing code; writes `/data/edge.env` (403 if already paired).
+- `POST /v1/setup/unpair` - clear `/data/edge.env` when `PI_SETUP_UNPAIR_SECRET` matches.
 - `POST /v1/sync/pull` - download bundle from cloud into SQLite.
 - `POST /v1/sync/push` - flush pending outbox to cloud.
 - `GET /v1/sync/status` - auto-sync state.

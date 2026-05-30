@@ -34,6 +34,12 @@ def is_edge_configured() -> bool:
     return all(values.get(key) for key in EDGE_CONFIG_KEYS)
 
 
+def clear_edge_config() -> None:
+    """Remove stored edge credentials so the Pi can be paired again."""
+    if EDGE_CONFIG_FILE.exists():
+        EDGE_CONFIG_FILE.unlink()
+
+
 def write_edge_config(*, cloud_base_url: str, edge_client_id: str, edge_secret: str) -> None:
     EDGE_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     body = "\n".join(
