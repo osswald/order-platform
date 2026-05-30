@@ -13,18 +13,26 @@ def _isolate_edge_config(monkeypatch, tmp_path: Path) -> Path:
     return path
 
 
+def _status_defaults(**overrides):
+    base = {
+        "configured": False,
+        "setup_url": "http://192.168.192.10",
+        "cloud_base_url": "https://api.vendiqo.ch",
+        "edge_client_id": None,
+        "allow_cloud_url_override": False,
+        "can_unpair": False,
+    }
+    base.update(overrides)
+    return base
+
+
 def test_setup_status_reports_unpaired(client, monkeypatch, tmp_path):
     _isolate_edge_config(monkeypatch, tmp_path)
 
     response = client.get("/v1/setup/status")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "configured": False,
-        "setup_url": "http://192.168.192.10",
-        "cloud_base_url": "https://api.vendiqo.ch",
-        "edge_client_id": None,
-    }
+    assert response.json() == _status_defaults()
 
 
 def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
@@ -108,8 +116,11 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
     assert bundle.json()["organisation_id"] == 7
 
 
-def test_setup_pair_rejects_invalid_cloud_url(client, monkeypatch, tmp_path):
+def test_setup_pair_rejects_invalid_cloud_url_when_override_enabled(
+    client, monkeypatch, tmp_path,
+):
     _isolate_edge_config(monkeypatch, tmp_path)
+    monkeypatch.setenv("ALLOW_CLOUD_URL_OVERRIDE", "true")
 
     response = client.post(
         "/v1/setup/pair",
@@ -121,3 +132,100 @@ def test_setup_pair_rejects_invalid_cloud_url(client, monkeypatch, tmp_path):
 
     assert response.status_code == 422
 
+
+def test_setup_pair_ignores_cloud_url_without_override(client, monkeypatch, tmp_path):
+    _isolate_edge_config(monkeypatch, tmp_path)
+    monkeypatch.delenv("ALLOW_CLOUD_URL_OVERRIDE", raising=False)
+
+    seen_urls: list[str] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "appliance_id": 1,
+                "edge_client_id": "c1",
+                "edge_secret": "s1",
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url: str, json: dict):
+            seen_urls.append(url)
+            return FakeResponse()
+
+    import app.routers.setup as setup_router
+
+    monkeypatch.setattr(setup_router.httpx, "AsyncClient", FakeAsyncClient)
+
+    response = client.post(
+        "/v1/setup/pair",
+        json={
+            "cloud_base_url": "https://evil.example/",
+            "pairing_code": "123-456",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert seen_urls == ["https://api.vendiqo.ch/edge/v1/pair"]
+
+
+def test_setup_pair_blocked_when_already_configured(client, monkeypatch, tmp_path):
+    config_path = _isolate_edge_config(monkeypatch, tmp_path)
+    config_path.write_text(
+        "CLOUD_BASE_URL=https://api.vendiqo.ch\n"
+        "EDGE_CLIENT_ID=existing\n"
+        "EDGE_SECRET=secret\n",
+        encoding="utf-8",
+    )
+
+    response = client.post(
+        "/v1/setup/pair",
+        json={"pairing_code": "123-456"},
+    )
+
+    assert response.status_code == 403
+    assert "already paired" in response.json()["detail"].lower()
+
+
+def test_setup_unpair_requires_secret(client, monkeypatch, tmp_path):
+    config_path = _isolate_edge_config(monkeypatch, tmp_path)
+    config_path.write_text(
+        "CLOUD_BASE_URL=https://api.vendiqo.ch\n"
+        "EDGE_CLIENT_ID=existing\n"
+        "EDGE_SECRET=secret\n",
+        encoding="utf-8",
+    )
+
+    response = client.post("/v1/setup/unpair", json={"unpair_secret": "nope"})
+    assert response.status_code == 403
+
+
+def test_setup_unpair_clears_config(client, monkeypatch, tmp_path):
+    config_path = _isolate_edge_config(monkeypatch, tmp_path)
+    config_path.write_text(
+        "CLOUD_BASE_URL=https://api.vendiqo.ch\n"
+        "EDGE_CLIENT_ID=existing\n"
+        "EDGE_SECRET=secret\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PI_SETUP_UNPAIR_SECRET", "factory-reset")
+
+    response = client.post(
+        "/v1/setup/unpair",
+        json={"unpair_secret": "factory-reset"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["configured"] is False
+    assert not config_path.exists()

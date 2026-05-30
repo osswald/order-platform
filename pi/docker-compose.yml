@@ -9,6 +9,9 @@ services:
       - escpos-netprinter
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/pi.db}
+      # Pairing uses DEFAULT_CLOUD_BASE_URL unless ALLOW_CLOUD_URL_OVERRIDE=true (dev only).
+      DEFAULT_CLOUD_BASE_URL: ${DEFAULT_CLOUD_BASE_URL:-http://host.docker.internal:8000}
+      ALLOW_CLOUD_URL_OVERRIDE: ${ALLOW_CLOUD_URL_OVERRIDE:-true}
       # From inside the container, "localhost" is this container — use the host to reach cloud on :8000.
       # Override in .env for production (https://your-api…).
       CLOUD_BASE_URL: ${CLOUD_BASE_URL:-http://host.docker.internal:8000}
