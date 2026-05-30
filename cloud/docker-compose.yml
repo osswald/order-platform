@@ -29,7 +29,9 @@ services:
       - app-net
 
   cloud-frontend:
-    build: ./frontend
+    build:
+      context: ..
+      dockerfile: cloud/frontend/Dockerfile
     depends_on:
       - cloud-backend
     ports:
