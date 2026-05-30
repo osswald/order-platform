@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard">
+  <div class="dashboard vq-page">
     <div class="dashboard-header">
       <h1>Dashboard</h1>
       <p v-if="summary" class="subtitle">Übersicht für {{ summary.organisation_name }}</p>
@@ -16,19 +16,20 @@
 
     <template v-else-if="summary">
       <div class="toolbar">
-        <Button
-          label="Aktualisieren"
+        <v-btn
+          variant="outlined"
           type="button"
-          class="secondary-button"
-          icon="pi pi-refresh"
+          prepend-icon="mdi-refresh"
           :disabled="loading"
           @click="reload"
-        />
+        >
+          Aktualisieren
+        </v-btn>
       </div>
 
       <div class="cards-grid">
         <div class="stat-card">
-          <div class="card-icon"><i class="pi pi-calendar" aria-hidden="true"></i></div>
+          <div class="card-icon"><v-icon icon="mdi-calendar" /></div>
           <div class="card-content">
             <h3>Veranstaltungen</h3>
             <p class="card-value">{{ summary.events_total }}</p>
@@ -37,7 +38,7 @@
         </div>
 
         <div class="stat-card">
-          <div class="card-icon"><i class="pi pi-id-card" aria-hidden="true"></i></div>
+          <div class="card-icon"><v-icon icon="mdi-card-account-details" /></div>
           <div class="card-content">
             <h3>Kellner</h3>
             <p class="card-value">{{ summary.catalog.waiters }}</p>
@@ -46,7 +47,7 @@
         </div>
 
         <div class="stat-card">
-          <div class="card-icon"><i class="pi pi-tags" aria-hidden="true"></i></div>
+          <div class="card-icon"><v-icon icon="mdi-tag-multiple" /></div>
           <div class="card-content">
             <h3>Artikel</h3>
             <p class="card-value">{{ summary.catalog.articles }}</p>
@@ -55,7 +56,7 @@
         </div>
 
         <div class="stat-card">
-          <div class="card-icon"><i class="pi pi-calendar-plus" aria-hidden="true"></i></div>
+          <div class="card-icon"><v-icon icon="mdi-calendar-plus" /></div>
           <div class="card-content">
             <h3>Geräteausleihen</h3>
             <p class="card-value">{{ summary.lendings.current }}</p>
@@ -75,15 +76,18 @@
         <div class="section-card">
           <h2>Veranstaltungen nach Status</h2>
           <div class="status-chips">
-            <Tag
+            <v-chip
               v-for="status in statusOrder"
               :key="status"
-              :value="`${statusLabel(status)}: ${summary.events_by_status[status] || 0}`"
-              :severity="statusSeverity(status)"
-            />
+              :color="statusChipColor(status)"
+              variant="tonal"
+              size="small"
+            >
+              {{ statusLabel(status) }}: {{ summary.events_by_status[status] || 0 }}
+            </v-chip>
           </div>
           <p v-if="summary.running_events_count > 0" class="running-hint">
-            <i class="pi pi-play-circle" aria-hidden="true"></i>
+            <v-icon icon="mdi-play-circle" size="small" />
             {{ summary.running_events_count }} Veranstaltung(en) laufen gerade (Test oder Produktiv).
           </p>
         </div>
@@ -98,7 +102,11 @@
               class="activity-item"
             >
               <span class="activity-badge" :class="attentionClass(item.type)">
-                <i :class="attentionIcon(item.type)" aria-hidden="true"></i>
+                <v-icon
+                  :icon="attentionIcon(item.type)"
+                  size="small"
+                  color="white"
+                />
               </span>
               <div class="activity-text">
                 <p class="activity-title">{{ item.message }}</p>
@@ -137,28 +145,19 @@
 
         <h3 class="subsection-title">Veranstaltungen mit Umsatz</h3>
         <p v-if="!summary.sales.by_event.length" class="muted">Noch keine Produktiv-Veranstaltungen oder keine synchronisierten Bestellungen.</p>
-        <DataTable
+        <VqDataTable
           v-else
-          :value="summary.sales.by_event"
-          dataKey="event_id"
-          class="list-table"
-          responsiveLayout="stack"
-          breakpoint="768px"
+          :headers="salesEventHeaders"
+          :items="summary.sales.by_event"
+          item-value="event_id"
+          hide-default-footer
+          class="vq-data-table list-table"
         >
-          <Column field="name" header="Veranstaltung" />
-          <Column header="Zeitraum">
-            <template #body="{ data }">{{ formatEventDateRange(data.start, data.end) }}</template>
-          </Column>
-          <Column header="Bestellungen" style="text-align: right">
-            <template #body="{ data }">{{ data.distinct_orders_count }}</template>
-          </Column>
-          <Column header="Positionen" style="text-align: right">
-            <template #body="{ data }">{{ formatAmount(data.line_cents) }}</template>
-          </Column>
-          <Column header="Offen" style="text-align: right">
-            <template #body="{ data }">{{ formatAmount(data.open_cents) }}</template>
-          </Column>
-        </DataTable>
+          <template #item.period="{ item }">{{ formatEventDateRange(item.start, item.end) }}</template>
+          <template #item.distinct_orders_count="{ item }">{{ item.distinct_orders_count }}</template>
+          <template #item.line_cents="{ item }">{{ formatAmount(item.line_cents) }}</template>
+          <template #item.open_cents="{ item }">{{ formatAmount(item.open_cents) }}</template>
+        </VqDataTable>
       </div>
     </template>
   </div>
@@ -167,13 +166,10 @@
 <script setup>
 import { computed, toRef } from 'vue'
 import { RouterLink } from 'vue-router'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import Tag from 'primevue/tag'
 import { useDashboardSummary } from '../composables/useDashboardSummary'
 import { eventsStatDetail, formatEventDateRange, statusLabel } from '../utils/dashboardMetrics'
 import { formatAmount } from '../utils/money'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   activeOrganisationId: {
@@ -181,6 +177,14 @@ const props = defineProps({
     default: null,
   },
 })
+
+const salesEventHeaders = [
+  { title: 'Veranstaltung', key: 'name' },
+  { title: 'Zeitraum', key: 'period', sortable: false },
+  { title: 'Bestellungen', key: 'distinct_orders_count', align: 'end' },
+  { title: 'Positionen', key: 'line_cents', align: 'end' },
+  { title: 'Offen', key: 'open_cents', align: 'end' },
+]
 
 const orgIdRef = toRef(props, 'activeOrganisationId')
 const { summary, loading, loadError, reload } = useDashboardSummary(orgIdRef)
@@ -205,9 +209,9 @@ function routeTo(name) {
   return { name, query }
 }
 
-function statusSeverity(status) {
-  const map = { prod: 'success', test: 'warn', config: 'info', archive: 'secondary' }
-  return map[status] || 'secondary'
+function statusChipColor(status) {
+  const map = { prod: 'success', test: 'warning', config: 'info', archive: undefined }
+  return map[status]
 }
 
 function attentionClass(type) {
@@ -216,18 +220,12 @@ function attentionClass(type) {
 }
 
 function attentionIcon(type) {
-  if (type === 'missing_twint_qr') return 'pi pi-exclamation-triangle'
-  return 'pi pi-info-circle'
+  if (type === 'missing_twint_qr') return 'mdi-alert'
+  return 'mdi-information'
 }
 </script>
 
 <style scoped>
-.dashboard {
-  padding: 2rem;
-  background: var(--p-surface-ground);
-  min-height: 100%;
-}
-
 .dashboard-header {
   margin-bottom: 1.5rem;
 }
@@ -235,20 +233,20 @@ function attentionIcon(type) {
 .dashboard-header h1 {
   margin: 0;
   font-size: 2.2rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 700;
 }
 
 .subtitle {
   margin: 0.5rem 0 0;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   font-size: 1rem;
   font-weight: 500;
 }
 
 .empty-hint,
 .muted {
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
 }
 
 .toolbar {
@@ -266,10 +264,9 @@ function attentionIcon(type) {
   display: flex;
   gap: 1.5rem;
   padding: 1.5rem;
-  background: var(--p-surface-card);
-  border: 1px solid var(--p-content-border-color);
+  background: rgb(var(--v-theme-surface));
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 1rem;
-  box-shadow: var(--p-card-shadow);
   transition: transform 0.2s ease;
 }
 
@@ -283,10 +280,9 @@ function attentionIcon(type) {
   justify-content: center;
   width: 3rem;
   height: 3rem;
-  background: var(--p-primary-50);
-  color: var(--p-primary-color);
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
   border-radius: 0.85rem;
-  font-size: 1.35rem;
   flex-shrink: 0;
 }
 
@@ -296,25 +292,24 @@ function attentionIcon(type) {
 
 .card-content h3 {
   margin: 0 0 0.5rem;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   font-size: 0.95rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  opacity: 0.8;
 }
 
 .card-value {
   margin: 0.5rem 0 0.25rem;
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .card-detail {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
 }
 
 .quick-links {
@@ -326,17 +321,17 @@ function attentionIcon(type) {
 
 .quick-link {
   padding: 0.5rem 1rem;
-  border-radius: var(--p-border-radius-md);
-  border: 1px solid var(--p-content-border-color);
-  background: var(--p-surface-card);
-  color: var(--p-primary-color);
+  border-radius: 8px;
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-primary));
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
 }
 
 .quick-link:hover {
-  background: var(--p-surface-hover);
+  background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
 .content-section {
@@ -347,16 +342,15 @@ function attentionIcon(type) {
 }
 
 .section-card {
-  background: var(--p-surface-card);
-  border: 1px solid var(--p-content-border-color);
+  background: rgb(var(--v-theme-surface));
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 1rem;
   padding: 1.5rem;
-  box-shadow: var(--p-card-shadow);
 }
 
 .section-card h2 {
   margin: 0 0 1rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 1.2rem;
   font-weight: 700;
 }
@@ -375,7 +369,7 @@ function attentionIcon(type) {
 
 .running-hint {
   margin: 1rem 0 0;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   font-size: 0.9rem;
   display: flex;
   align-items: center;
@@ -392,16 +386,16 @@ function attentionIcon(type) {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-md);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   text-decoration: none;
   color: inherit;
   transition: background 0.2s ease;
 }
 
 .activity-item:hover {
-  background: var(--p-surface-hover);
+  background: rgba(var(--v-theme-on-surface), 0.08);
 }
 
 .activity-badge {
@@ -412,15 +406,14 @@ function attentionIcon(type) {
   height: 2rem;
   border-radius: 50%;
   flex-shrink: 0;
-  color: #fff;
 }
 
 .activity-badge.info {
-  background: var(--p-primary-color);
+  background: rgb(var(--v-theme-primary));
 }
 
 .activity-badge.warn {
-  background: var(--p-orange-500);
+  background: rgb(var(--v-theme-warning));
 }
 
 .activity-text {
@@ -429,14 +422,14 @@ function attentionIcon(type) {
 
 .activity-title {
   margin: 0;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 600;
   font-size: 0.95rem;
 }
 
 .activity-time {
   margin: 0.25rem 0 0;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   font-size: 0.85rem;
 }
 
@@ -457,9 +450,9 @@ function attentionIcon(type) {
 
 .summary-card {
   padding: 0.75rem 1rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-md);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -467,7 +460,7 @@ function attentionIcon(type) {
 
 .summary-label {
   font-size: 0.8rem;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -475,30 +468,20 @@ function attentionIcon(type) {
 .summary-value {
   font-size: 1.15rem;
   font-weight: 700;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.small {
+  font-size: 0.8rem;
 }
 
 @media (max-width: 768px) {
-  .dashboard {
-    padding: 1rem;
-  }
-
   .dashboard-header {
     margin-bottom: 1rem;
   }
 
   .dashboard-header h1 {
     font-size: 1.8rem;
-  }
-
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .toolbar :deep(.p-button) {
-    width: 100%;
   }
 
   .cards-grid {

@@ -101,6 +101,12 @@ def write_centered_block(printer: Dummy, text: str) -> None:
     printer.set(align="left")
 
 
+def write_centered_sized(printer: Dummy, text: str, size: str = "large") -> None:
+    printer.set(align="center")
+    write_sized_line(printer, text, size)
+    printer.set(align="left")
+
+
 def write_separator(printer: Dummy, char: str = "-", width: int = 32) -> None:
     write_line(printer, char * width)
 
@@ -175,11 +181,11 @@ def write_subline(printer: Dummy, text: str, *, indent: int = 2, size: str = "no
 
 
 def escpos_hero_scale() -> int:
-    raw = os.getenv("ESCPOS_HERO_SCALE", "6").strip()
+    raw = os.getenv("ESCPOS_HERO_SCALE", "8").strip()
     try:
         return max(1, min(8, int(raw)))
     except ValueError:
-        return 6
+        return 8
 
 
 def _gs_char_size(width_mult: int, height_mult: int) -> bytes:
@@ -189,16 +195,23 @@ def _gs_char_size(width_mult: int, height_mult: int) -> bytes:
     return bytes([0x1D, 0x21, n])
 
 
-def write_hero(printer: Dummy, text: str, size: str = "xlarge") -> None:
+def write_hero(
+    printer: Dummy,
+    text: str,
+    size: str = "xlarge",
+    *,
+    magnification: int | None = None,
+) -> None:
     key = (size or "xlarge").lower()
     printer.set(align="center")
     if key == "xlarge":
-        scale = escpos_hero_scale()
+        scale = magnification if magnification is not None else escpos_hero_scale()
+        scale = max(1, min(8, scale))
         printer._raw(_gs_char_size(scale, scale))
-        printer.set(bold=True, double_height=True, double_width=True)
+        printer.set(bold=True, double_height=False, double_width=False)
         printer.text(f"{text}\n")
         printer._raw(_gs_char_size(1, 1))
-        printer.set(bold=False, double_height=False, double_width=False)
+        printer.set(bold=False)
     elif key == "large":
         write_sized_line(printer, text, "large")
     else:

@@ -1,13 +1,14 @@
 <template>
   <div class="event-collective-tab">
     <div class="section-toolbar">
-      <Button
-        label="Aktualisieren"
+      <v-btn
+        variant="outlined"
         type="button"
-        class="secondary-button"
         :disabled="loading"
         @click="load"
-      />
+      >
+        Aktualisieren
+      </v-btn>
     </div>
 
     <p v-if="loadError" class="error">{{ loadError }}</p>
@@ -18,101 +19,101 @@
       </p>
 
       <p v-if="!data.collective_bills.length" class="muted">Noch keine Sammelrechnungen synchronisiert.</p>
-      <DataTable
+      <VqDataTable
         v-else
-        v-model:expandedRows="expandedBillRows"
-        :value="data.collective_bills"
-        dataKey="uuid"
-        class="list-table nested"
-        responsiveLayout="stack"
-        breakpoint="768px"
+        v-model:expanded="expandedBillRows"
+        :headers="billHeaders"
+        :items="data.collective_bills"
+        item-value="uuid"
+        show-expand
+        hide-default-footer
+        class="vq-data-table list-table nested"
       >
-        <Column expander style="width: 3rem" />
-        <Column field="name" header="Name" />
-        <Column header="Status">
-          <template #body="{ data }">{{ statusLabel(data.status) }}</template>
-        </Column>
-        <Column header="Bestellungen" style="text-align: right">
-          <template #body="{ data }">{{ data.order_count }}</template>
-        </Column>
-        <Column header="Offen" style="text-align: right">
-          <template #body="{ data }">{{ formatAmount(data.open_cents) }}</template>
-        </Column>
-        <Column header="Bezahlt" style="text-align: right">
-          <template #body="{ data }">{{ formatAmount(data.paid_cents) }}</template>
-        </Column>
-        <Column header="Erstellt">
-          <template #body="{ data }">{{ formatTime(data.created_at) }}</template>
-        </Column>
-        <template #expansion="{ data: bill }">
-          <div class="expansion-panel">
-            <p v-if="!bill.orders.length" class="muted">Keine Bestellungen.</p>
-            <div v-for="order in bill.orders" :key="order.id" class="order-block">
-              <div class="order-header">
-                <span class="order-title">
-                  {{ order.order_number != null ? `Bestellung #${order.order_number}` : 'Bestellung' }}
-                </span>
-                <span class="order-meta muted small">
-                  {{ formatTime(order.ordered_at || order.created_at) }}
-                  · {{ statusLabel(order.payment_status) }}
-                  · {{ formatAmount(order.line_cents) }}
-                </span>
+        <template #item.status="{ item }">{{ statusLabel(item.status) }}</template>
+        <template #item.order_count="{ item }">{{ item.order_count }}</template>
+        <template #item.open_cents="{ item }">{{ formatAmount(item.open_cents) }}</template>
+        <template #item.paid_cents="{ item }">{{ formatAmount(item.paid_cents) }}</template>
+        <template #item.created_at="{ item }">{{ formatTime(item.created_at) }}</template>
+        <template #expanded-row="{ columns, item: bill }">
+          <tr>
+            <td :colspan="columns.length">
+              <div class="expansion-panel">
+                <p v-if="!bill.orders.length" class="muted">Keine Bestellungen.</p>
+                <div v-for="order in bill.orders" :key="order.id" class="order-block">
+                  <div class="order-header">
+                    <span class="order-title">
+                      {{ order.order_number != null ? `Bestellung #${order.order_number}` : 'Bestellung' }}
+                    </span>
+                    <span class="order-meta muted small">
+                      {{ formatTime(order.ordered_at || order.created_at) }}
+                      · {{ statusLabel(order.payment_status) }}
+                      · {{ formatAmount(order.line_cents) }}
+                    </span>
+                  </div>
+                  <p v-if="!order.lines?.length" class="muted small">Keine Positionen.</p>
+                  <table v-else class="lines-table">
+                    <thead>
+                      <tr>
+                        <th>Artikel</th>
+                        <th>Menge</th>
+                        <th class="num">Betrag</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template v-for="(line, idx) in order.lines" :key="idx">
+                        <tr>
+                          <td>
+                            {{ line.name }}
+                            <span v-if="line.note" class="line-note"> — {{ line.note }}</span>
+                          </td>
+                          <td>{{ line.qty }}</td>
+                          <td class="num">{{ formatAmount(line.line_cents) }}</td>
+                        </tr>
+                        <tr
+                          v-for="add in line.additions"
+                          :key="'add-' + idx + '-' + add.article_id"
+                          class="addition-row"
+                        >
+                          <td colspan="2">+ {{ add.name }} ({{ add.qty }})</td>
+                          <td class="num">{{ formatAmount(add.line_cents) }}</td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                  <p v-if="order.payments?.length" class="payments-line muted small">
+                    Zahlungen:
+                    <span v-for="(p, pi) in order.payments" :key="pi">
+                      {{ paymentLabel(p) }} {{ formatAmount(p.amount_cents) }}<span v-if="pi < order.payments.length - 1"> · </span>
+                    </span>
+                  </p>
+                  <p class="sync-id muted small">Sync-ID: {{ order.client_order_id }}</p>
+                </div>
               </div>
-              <p v-if="!order.lines?.length" class="muted small">Keine Positionen.</p>
-              <table v-else class="lines-table">
-                <thead>
-                  <tr>
-                    <th>Artikel</th>
-                    <th>Menge</th>
-                    <th class="num">Betrag</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="(line, idx) in order.lines" :key="idx">
-                    <tr>
-                      <td>
-                        {{ line.name }}
-                        <span v-if="line.note" class="line-note"> — {{ line.note }}</span>
-                      </td>
-                      <td>{{ line.qty }}</td>
-                      <td class="num">{{ formatAmount(line.line_cents) }}</td>
-                    </tr>
-                    <tr
-                      v-for="add in line.additions"
-                      :key="'add-' + idx + '-' + add.article_id"
-                      class="addition-row"
-                    >
-                      <td colspan="2">+ {{ add.name }} ({{ add.qty }})</td>
-                      <td class="num">{{ formatAmount(add.line_cents) }}</td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-              <p v-if="order.payments?.length" class="payments-line muted small">
-                Zahlungen:
-                <span v-for="(p, pi) in order.payments" :key="pi">
-                  {{ paymentLabel(p) }} {{ formatAmount(p.amount_cents) }}<span v-if="pi < order.payments.length - 1"> · </span>
-                </span>
-              </p>
-              <p class="sync-id muted small">Sync-ID: {{ order.client_order_id }}</p>
-            </div>
-          </div>
+            </td>
+          </tr>
         </template>
-      </DataTable>
+      </VqDataTable>
     </template>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
 import { apiFetch } from '../api'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   eventId: { type: Number, required: true },
 })
+
+const billHeaders = [
+  { title: 'Name', key: 'name' },
+  { title: 'Status', key: 'status', sortable: false },
+  { title: 'Bestellungen', key: 'order_count', align: 'end' },
+  { title: 'Offen', key: 'open_cents', align: 'end' },
+  { title: 'Bezahlt', key: 'paid_cents', align: 'end' },
+  { title: 'Erstellt', key: 'created_at', sortable: false },
+]
 
 const loading = ref(false)
 const loadError = ref('')
@@ -184,12 +185,15 @@ watch(() => props.eventId, load)
 .footnote {
   margin-bottom: 1rem;
 }
+.muted {
+  opacity: 0.7;
+}
 .expansion-panel {
   padding: 0.5rem 0.75rem 0.75rem;
 }
 .order-block {
   padding: 0.75rem 0;
-  border-bottom: 1px solid var(--surface-200, #e2e8f0);
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .order-block:last-child {
   border-bottom: none;
@@ -213,7 +217,7 @@ watch(() => props.eventId, load)
 .lines-table td {
   padding: 0.35rem 0.5rem;
   text-align: left;
-  border-bottom: 1px solid var(--surface-200, #e2e8f0);
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .lines-table .num {
   text-align: right;
@@ -221,10 +225,10 @@ watch(() => props.eventId, load)
 }
 .addition-row td {
   font-size: 0.85rem;
-  color: var(--text-color-secondary, #64748b);
+  opacity: 0.7;
 }
 .line-note {
-  color: var(--text-color-secondary, #64748b);
+  opacity: 0.7;
   font-size: 0.85rem;
 }
 .payments-line,
@@ -234,20 +238,8 @@ watch(() => props.eventId, load)
 .small {
   font-size: 0.8rem;
 }
-.error {
-  color: var(--red-500, #ef4444);
-}
 
 @media (max-width: 992px) {
-  .section-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .section-toolbar :deep(.p-button) {
-    width: 100%;
-  }
-
   .order-header {
     flex-direction: column;
     align-items: flex-start;

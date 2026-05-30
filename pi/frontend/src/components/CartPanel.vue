@@ -7,7 +7,7 @@
           {{ l.qty }}
         </button>
         <button type="button" class="cart-cell cart-name" @click="$emit('tap-name', l)">
-          <span class="cart-name-text">{{ label(l) }}</span>
+          <span class="cart-name-text">{{ lineLabel(l) }}</span>
           <span v-for="add in lineAdditions(l)" :key="add.id" class="cart-addition">+ {{ add.name }}</span>
         </button>
         <button type="button" class="cart-cell cart-price" @click="$emit('tap-price', l.lineId)">
@@ -20,24 +20,25 @@
 
 <script setup>
 import { lineTotalCents, formatMoney } from '../utils/money'
+import { cartLineLabelForEvent } from '../utils/bundleHelpers'
 
 const props = defineProps({
   lines: { type: Array, default: () => [] },
   articles: { type: Object, default: () => ({}) },
+  event: { type: Object, default: null },
   currency: { type: String, default: 'EUR' },
   labelFn: { type: Function, default: null },
 })
 
 defineEmits(['tap-qty', 'tap-name', 'tap-price'])
 
-function label(line) {
+function lineLabel(line) {
   if (props.labelFn) return props.labelFn(line)
-  const id = line.article_id
-  const a = props.articles[String(id)] || props.articles[id]
-  return a?.name || `#${id}`
+  return cartLineLabelForEvent(line, props.event)
 }
 
 function lineAdditions(line) {
+  if (line?.kind === 'voucher_sale') return []
   const base = props.articles[String(line.article_id)] || props.articles[line.article_id]
   const out = []
   for (const add of line.additions || []) {
@@ -55,7 +56,7 @@ function lineAdditions(line) {
 }
 
 function formatLine(l) {
-  return formatMoney(lineTotalCents(l, props.articles), props.currency)
+  return formatMoney(lineTotalCents(l, props.articles, props.event), props.currency)
 }
 </script>
 

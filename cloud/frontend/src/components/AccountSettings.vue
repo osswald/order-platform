@@ -1,43 +1,66 @@
 <template>
   <section class="settings-panel">
-    <Card class="settings-card version-card">
-      <template #title>System</template>
-      <template #subtitle>Installierte Version dieser Anwendung.</template>
-      <template #content>
+    <v-card class="settings-card version-card" max-width="42rem">
+      <v-card-title>System</v-card-title>
+      <v-card-subtitle>Installierte Version dieser Anwendung.</v-card-subtitle>
+      <v-card-text>
         <p class="version-line">Vendiqo ERP {{ label }}</p>
-      </template>
-    </Card>
+      </v-card-text>
+    </v-card>
 
-    <Card class="settings-card">
-      <template #title>Passwort ändern</template>
-      <template #subtitle>Aktualisieren Sie Ihr eigenes Passwort.</template>
-      <template #content>
+    <v-card class="settings-card" max-width="42rem">
+      <v-card-title>Passwort ändern</v-card-title>
+      <v-card-subtitle>Aktualisieren Sie Ihr eigenes Passwort.</v-card-subtitle>
+      <v-card-text>
         <div class="form-field">
-          <label>Aktuelles Passwort</label>
-          <Password v-model="form.currentPassword" :feedback="false" toggleMask placeholder="Aktuelles Passwort" />
+          <v-text-field
+            v-model="form.currentPassword"
+            label="Aktuelles Passwort"
+            placeholder="Aktuelles Passwort"
+            :type="showCurrent ? 'text' : 'password'"
+            :append-inner-icon="showCurrent ? 'mdi-eye-off' : 'mdi-eye'"
+            autocomplete="current-password"
+            hide-details="auto"
+            @click:append-inner="showCurrent = !showCurrent"
+          />
         </div>
         <div class="form-field">
-          <label>Neues Passwort</label>
-          <Password v-model="form.newPassword" :feedback="false" toggleMask placeholder="Neues Passwort" />
+          <v-text-field
+            v-model="form.newPassword"
+            label="Neues Passwort"
+            placeholder="Neues Passwort"
+            :type="showNew ? 'text' : 'password'"
+            :append-inner-icon="showNew ? 'mdi-eye-off' : 'mdi-eye'"
+            autocomplete="new-password"
+            hide-details="auto"
+            @click:append-inner="showNew = !showNew"
+          />
         </div>
         <div class="form-field">
-          <label>Neues Passwort bestätigen</label>
-          <Password v-model="form.confirmPassword" :feedback="false" toggleMask placeholder="Neues Passwort bestätigen" />
+          <v-text-field
+            v-model="form.confirmPassword"
+            label="Neues Passwort bestätigen"
+            placeholder="Neues Passwort bestätigen"
+            :type="showConfirm ? 'text' : 'password'"
+            :append-inner-icon="showConfirm ? 'mdi-eye-off' : 'mdi-eye'"
+            autocomplete="new-password"
+            hide-details="auto"
+            @click:append-inner="showConfirm = !showConfirm"
+          />
         </div>
         <div class="actions">
-          <Button label="Passwort speichern" :disabled="!canSave" @click="changePassword" />
+          <v-btn color="primary" :disabled="!canSave" @click="changePassword">
+            Passwort speichern
+          </v-btn>
         </div>
         <p v-if="message" :class="messageType">{{ message }}</p>
-      </template>
-    </Card>
+      </v-card-text>
+    </v-card>
   </section>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
-import Button from 'primevue/button'
-import Card from 'primevue/card'
-import Password from 'primevue/password'
 import { apiFetch } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
 
@@ -50,6 +73,9 @@ const form = ref({
 })
 const message = ref('')
 const messageType = ref('')
+const showCurrent = ref(false)
+const showNew = ref(false)
+const showConfirm = ref(false)
 
 const canSave = computed(() => {
   return (
@@ -85,7 +111,7 @@ async function changePassword() {
     }
     message.value = 'Passwort aktualisiert.'
     messageType.value = 'success'
-  } catch (error) {
+  } catch {
     message.value = 'Passwort konnte nicht geändert werden.'
     messageType.value = 'error'
   }
@@ -98,47 +124,14 @@ async function changePassword() {
   padding: 2rem;
 }
 
-.settings-card {
-  max-width: 42rem;
-}
-
 .version-card {
   margin-bottom: 1.5rem;
 }
 
 .version-line {
   margin: 0;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   font-size: 0.95rem;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
-}
-
-label {
-  color: var(--p-text-color);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-:deep(.p-password),
-:deep(.p-inputtext) {
-  width: 100%;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1.25rem;
-}
-
-.success,
-.error {
-  margin-top: 1rem;
 }
 
 @media (max-width: 700px) {

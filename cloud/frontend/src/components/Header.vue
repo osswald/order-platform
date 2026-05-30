@@ -1,13 +1,10 @@
 <template>
   <header class="header" :class="{ 'header--compact': isMobile }">
     <div class="header-left">
-      <Button
+      <v-btn
         v-if="isMobile"
-        type="button"
-        icon="pi pi-bars"
-        severity="secondary"
-        text
-        rounded
+        icon="mdi-menu"
+        variant="text"
         aria-label="Menü"
         class="menu-toggle"
         @click="toggleNav"
@@ -19,26 +16,22 @@
     </div>
     <div class="header-right">
       <div class="user-info">
-        <Avatar icon="pi pi-user" shape="circle" />
+        <v-avatar icon="mdi-account" size="36" />
         <span class="user-email">{{ userEmail }}</span>
-        <Button
-          :label="logoutLabel"
-          icon="pi pi-sign-out"
-          severity="secondary"
-          outlined
-          class="logout-button"
+        <v-btn
+          :prepend-icon="isMobile ? 'mdi-logout' : undefined"
+          :icon="isMobile ? 'mdi-logout' : undefined"
+          variant="outlined"
           @click="logout"
-        />
+        >
+          <span v-if="!isMobile">Logout</span>
+        </v-btn>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import Avatar from 'primevue/avatar'
-import Button from 'primevue/button'
-
 const props = defineProps({
   userEmail: {
     type: String,
@@ -51,8 +44,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['logout', 'toggle-nav'])
-
-const logoutLabel = computed(() => (props.isMobile ? undefined : 'Logout'))
 
 function logout() {
   emit('logout')
@@ -69,9 +60,8 @@ function toggleNav() {
   justify-content: space-between;
   align-items: center;
   padding: 0.85rem 1.5rem;
-  background: var(--p-surface-card);
-  color: var(--p-text-color);
-  border-bottom: 1px solid var(--p-content-border-color);
+  background: rgb(var(--v-theme-surface));
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   position: sticky;
   top: 0;
   z-index: 100;
@@ -84,10 +74,6 @@ function toggleNav() {
   align-items: center;
   gap: 0.25rem;
   min-width: 0;
-}
-
-.menu-toggle {
-  flex-shrink: 0;
 }
 
 .logo {
@@ -108,15 +94,8 @@ function toggleNav() {
   flex-shrink: 0;
 }
 
-.logo-text {
-  color: var(--p-text-color);
-}
-
 .header-right {
   flex-shrink: 0;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
 }
 
 .user-info {
@@ -127,7 +106,7 @@ function toggleNav() {
 
 .user-email {
   font-size: 0.95rem;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -138,10 +117,6 @@ function toggleNav() {
   display: none;
 }
 
-.header--compact .logout-button :deep(.p-button-label) {
-  display: none;
-}
-
 @media (max-width: 768px) {
   .header {
     padding: 0.75rem 1rem;
@@ -149,18 +124,6 @@ function toggleNav() {
 
   .logo {
     font-size: 1.25rem;
-  }
-
-  .user-email {
-    display: none;
-  }
-
-  .logout-button :deep(.p-button-label) {
-    display: none;
-  }
-
-  .user-info {
-    gap: 0.5rem;
   }
 }
 </style>

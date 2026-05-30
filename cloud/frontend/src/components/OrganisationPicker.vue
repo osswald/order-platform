@@ -208,11 +208,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem 0.65rem;
-  border-radius: var(--p-border-radius-md);
-  background: var(--p-surface-100);
-  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   font-size: 0.92rem;
-  color: var(--p-text-color);
 }
 
 .chip .remove {
@@ -225,7 +224,7 @@ onUnmounted(() => {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--p-text-muted-color);
+  opacity: 0.65;
   font-weight: 700;
   font-size: 1.1rem;
   line-height: 1;
@@ -233,8 +232,8 @@ onUnmounted(() => {
 }
 
 .chip .remove:hover {
-  background: var(--p-red-50);
-  color: var(--p-red-600);
+  background: rgba(var(--v-theme-error), 0.12);
+  color: rgb(var(--v-theme-error));
 }
 
 .input-wrap {
@@ -246,23 +245,21 @@ onUnmounted(() => {
 .picker-input {
   flex: 1;
   width: 100%;
-  border: 1px solid var(--p-form-field-border-color);
-  border-radius: var(--p-form-field-border-radius);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 4px;
   padding: 0.95rem 1rem;
-  background: var(--p-form-field-background);
-  color: var(--p-form-field-color);
+  background: rgb(var(--v-theme-surface));
   font-size: 0.95rem;
   font-family: inherit;
 }
 
 .picker-input::placeholder {
-  color: var(--p-form-field-placeholder-color);
+  opacity: 0.55;
 }
 
 .picker-input:focus {
-  outline: none;
-  border-color: var(--p-form-field-focus-border-color);
-  box-shadow: var(--p-form-field-focus-ring-shadow);
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 1px;
 }
 
 .loader {
@@ -285,15 +282,15 @@ onUnmounted(() => {
   max-height: 14rem;
   overflow-y: auto;
   border-radius: 10px;
-  border: 1px solid var(--p-content-border-color);
-  background: var(--p-overlay-popover-background);
-  box-shadow: var(--p-overlay-popover-shadow);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .result-hint {
   padding: 0.65rem 1rem;
   font-size: 0.88rem;
-  color: var(--p-text-muted-color);
+  opacity: 0.65;
 }
 
 .result-item button {
@@ -302,18 +299,17 @@ onUnmounted(() => {
   padding: 0.65rem 1rem;
   border: none;
   background: transparent;
-  color: var(--p-text-color);
   font-size: 0.95rem;
   font-family: inherit;
   cursor: pointer;
 }
 
 .result-item button:hover {
-  background: var(--p-surface-hover);
+  background: rgba(var(--v-theme-on-surface), 0.06);
 }
 
 .result-item button:focus-visible {
-  outline: 2px solid var(--p-primary-color);
+  outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: -2px;
 }
 </style>

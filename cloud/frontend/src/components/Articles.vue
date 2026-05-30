@@ -11,40 +11,57 @@
       <h2>{{ editMode ? 'Artikel bearbeiten' : 'Neuer Artikel' }}</h2>
 
       <div class="form-field">
-        <label>Name</label>
-        <InputText v-model="form.name" placeholder="Espresso" />
+        <v-text-field v-model="form.name" label="Name" placeholder="Espresso" hide-details="auto" />
       </div>
 
       <div class="form-field">
-        <label>Label</label>
-        <InputText v-model="form.label" maxlength="22" placeholder="Espresso" />
+        <v-text-field
+          v-model="form.label"
+          label="Label"
+          maxlength="22"
+          placeholder="Espresso"
+          hide-details="auto"
+        />
         <small>{{ form.label.length }}/22 Zeichen</small>
       </div>
 
       <div class="form-field">
-        <label>Import-Artikelnummer</label>
-        <InputText v-model="form.importArticleNumber" placeholder="z. B. 4711" />
+        <v-text-field
+          v-model="form.importArticleNumber"
+          label="Import-Artikelnummer"
+          placeholder="z. B. 4711"
+          hide-details="auto"
+        />
       </div>
 
       <div class="form-field">
-        <label>Beschreibung</label>
-        <Textarea v-model="form.description" rows="4" autoResize placeholder="Optionale Beschreibung" />
+        <v-textarea
+          v-model="form.description"
+          label="Beschreibung"
+          rows="4"
+          auto-grow
+          placeholder="Optionale Beschreibung"
+          hide-details="auto"
+        />
       </div>
 
       <div class="field-row">
         <div class="form-field">
-          <label>Einheit</label>
-          <InputText v-model="form.unit" placeholder="z. B. Stk., l, kg" />
+          <v-text-field v-model="form.unit" label="Einheit" placeholder="z. B. Stk., l, kg" hide-details="auto" />
         </div>
         <div class="form-field">
-          <label>Erlöskonto</label>
-          <InputNumber v-model="form.incomeAccount" :useGrouping="false" placeholder="Optional" />
+          <v-text-field
+            v-model.number="form.incomeAccount"
+            type="number"
+            label="Erlöskonto"
+            placeholder="Optional"
+            hide-details="auto"
+          />
         </div>
       </div>
 
       <div class="stock-field">
-        <Checkbox v-model="form.isAddition" inputId="isAddition" binary />
-        <label for="isAddition">Ist Zusatz</label>
+        <v-checkbox v-model="form.isAddition" label="Ist Zusatz" hide-details density="compact" />
       </div>
       <small v-if="form.isAddition" class="muted block-hint">
         Preis: 0 = kostenlos, positiv = Aufpreis, negativ = Abzug (vom Artikelpreis).
@@ -52,87 +69,95 @@
 
       <div class="field-row">
         <div class="form-field">
-          <label>Preis</label>
-          <InputNumber
-            v-model="form.price"
-            mode="decimal"
+          <v-text-field
+            v-model.number="form.price"
+            type="number"
+            step="0.01"
             :min="form.isAddition ? undefined : 0"
-            :minFractionDigits="2"
-            :maxFractionDigits="2"
+            label="Preis"
+            hide-details="auto"
           />
         </div>
         <div class="form-field">
-          <label>Kategorie</label>
-          <Select
+          <v-select
             v-model="form.articleCategoryId"
-            :options="categoryOptions"
-            optionLabel="label"
-            optionValue="value"
+            :items="categoryOptions"
+            item-title="label"
+            item-value="value"
+            label="Kategorie"
             placeholder="Kategorie wählen"
-            filter
+            hide-details="auto"
           />
         </div>
       </div>
 
       <div class="stock-field">
-        <Checkbox v-model="form.monitorStock" inputId="monitorStock" binary />
-        <label for="monitorStock">Lagerbestand überwachen</label>
+        <v-checkbox v-model="form.monitorStock" label="Lagerbestand überwachen" hide-details density="compact" />
       </div>
 
       <div v-if="form.monitorStock" class="form-field">
-        <label>Lagerbestand</label>
-        <InputNumber v-model="form.inStock" :min="0" showButtons />
+        <v-text-field
+          v-model.number="form.inStock"
+          type="number"
+          :min="0"
+          label="Lagerbestand"
+          hide-details="auto"
+        />
       </div>
 
       <div v-if="editMode && activeId && !form.isAddition" class="additions-section">
         <h3>Zusätze</h3>
         <p class="muted small">Preise der Zusätze unter Artikel → Zusätze pflegen. Hier nur verknüpfen.</p>
         <div class="form-field">
-          <label>Zusatz hinzufügen</label>
-          <MultiSelect
+          <v-select
             v-model="additionPickIds"
-            :options="additionOptions"
-            optionLabel="label"
-            optionValue="value"
+            :items="additionOptions"
+            item-title="label"
+            item-value="value"
+            label="Zusatz hinzufügen"
             placeholder="Zusätze wählen"
-            display="chip"
-            filter
-            class="w-full"
-            @update:modelValue="onAdditionPick"
+            multiple
+            chips
+            closable-chips
+            hide-details="auto"
+            @update:model-value="onAdditionPick"
           />
         </div>
-        <DataTable :value="additionsLocal" dataKey="addition_article_id" class="list-table nested" responsiveLayout="stack" breakpoint="768px">
-          <Column field="name" header="Zusatz" />
-          <Column header="Preis">
-            <template #body="{ data }">{{ formatPrice(data.price) }}</template>
-          </Column>
-          <Column header="">
-            <template #body="slotProps">
-              <Button
-                icon="pi pi-trash"
-                text
-                rounded
-                type="button"
-                severity="danger"
-                @click="removeAdditionLink(slotProps.data)"
-              />
-            </template>
-          </Column>
-        </DataTable>
-        <Button
-          label="Zusätze speichern"
-          class="primary-button"
+        <VqDataTable
+          :headers="additionsHeaders"
+          :items="additionsLocal"
+          item-value="addition_article_id"
+          class="vq-data-table list-table nested"
+          hide-default-footer
+        >
+          <template #item.price="{ item }">{{ formatPrice(item.price) }}</template>
+          <template #item.actions="{ item }">
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              color="error"
+              size="small"
+              type="button"
+              @click="removeAdditionLink(item)"
+            />
+          </template>
+          <template #no-data>Keine Zusätze verknüpft.</template>
+        </VqDataTable>
+        <v-btn
+          color="primary"
           type="button"
           style="margin-top: 0.75rem"
           :disabled="!activeId"
           @click="saveAdditions"
-        />
+        >
+          Zusätze speichern
+        </v-btn>
         <p v-if="additionsMessage" :class="additionsMessageType">{{ additionsMessage }}</p>
       </div>
 
       <div class="actions">
-        <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-        <Button label="Speichern" class="primary-button" :disabled="!canSave" @click="saveArticle" />
+        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+        <v-btn color="primary" :disabled="!canSave" @click="saveArticle">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
     </template>
@@ -147,83 +172,72 @@
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
-          <IconField>
-            <InputIcon class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Name, Label oder Kategorie suchen..." />
-          </IconField>
-        </div>
-        <div class="filter-field">
-          <label>Typ</label>
-          <Select
-            v-model="typeFilter"
-            :options="typeFilterOptions"
-            optionLabel="label"
-            optionValue="value"
+          <v-text-field
+            v-model="searchQuery"
+            label="Suche"
+            prepend-inner-icon="mdi-magnify"
+            placeholder="Name, Label oder Kategorie suchen..."
+            hide-details
+            density="compact"
           />
         </div>
         <div class="filter-field">
-          <label>Kategorie</label>
-          <Select
+          <v-select
+            v-model="typeFilter"
+            :items="typeFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Typ"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <div class="filter-field">
+          <v-select
             v-model="categoryFilter"
-            :options="categoryFilterOptions"
-            optionLabel="label"
-            optionValue="value"
+            :items="categoryFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Kategorie"
             placeholder="Alle Kategorien"
-            filter
+            hide-details
+            density="compact"
           />
         </div>
       </div>
 
-      <DataTable
-        :value="paginatedArticles"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editArticle($event.data)"
+      <VqDataTable
+        :headers="tableHeaders"
+        :items="paginatedArticles"
+        item-value="id"
+        class="vq-data-table list-table"
+        hide-default-footer
+        hover
+        @click:row="(_, { item }) => editArticle(item)"
       >
-        <template #empty>Keine Artikel gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column header="Typ">
-          <template #body="{ data }">
-            <Tag :value="data.is_addition ? 'Zusatz' : 'Artikel'" :severity="data.is_addition ? 'warn' : 'secondary'" />
-          </template>
-        </Column>
-        <Column field="name" header="Name" />
-        <Column field="import_article_number" header="Import-Nr." />
-        <Column field="label" header="Label" />
-        <Column field="unit" header="Einheit" />
-        <Column header="Preis">
-          <template #body="{ data }">{{ formatPrice(data.price) }}</template>
-        </Column>
-        <Column field="article_category_name" header="Kategorie" />
-        <Column field="organisation_name" header="Organisation" />
-        <Column header="Lager">
-          <template #body="{ data }">
-            <Tag
-              v-if="data.monitor_stock"
-              :value="`${data.in_stock ?? 0} Stk.`"
-              severity="info"
-            />
-            <Tag v-else value="Aus" severity="secondary" />
-          </template>
-        </Column>
-        <Column header="Aktionen">
-          <template #body="{ data }">
-            <Button label="Löschen" class="danger" @click.stop="deleteArticle(data.id)" />
-          </template>
-        </Column>
-      </DataTable>
+        <template #item.is_addition="{ item }">
+          <v-chip :color="item.is_addition ? 'warning' : undefined" size="small" variant="tonal">
+            {{ item.is_addition ? 'Zusatz' : 'Artikel' }}
+          </v-chip>
+        </template>
+        <template #item.price="{ item }">{{ formatPrice(item.price) }}</template>
+        <template #item.stock="{ item }">
+          <v-chip v-if="item.monitor_stock" color="info" size="small" variant="tonal">
+            {{ item.in_stock ?? 0 }} Stk.
+          </v-chip>
+          <v-chip v-else size="small" variant="tonal">Aus</v-chip>
+        </template>
+        <template #item.actions="{ item }">
+          <v-btn color="error" variant="outlined" size="small" @click.stop="deleteArticle(item.id)">
+            Löschen
+          </v-btn>
+        </template>
+        <template #no-data>Keine Artikel gefunden.</template>
+      </VqDataTable>
 
       <div v-if="filteredArticles.length" class="pagination">
         <span>{{ paginationLabel }}</span>
-        <Paginator
-          :first="(currentPage - 1) * pageSize"
-          :rows="pageSize"
-          :totalRecords="filteredArticles.length"
-          @page="currentPage = $event.page + 1"
-        />
+        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
       </div>
     </template>
   </ListDetailLayout>
@@ -232,23 +246,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import InputNumber from 'primevue/inputnumber'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Paginator from 'primevue/paginator'
-import MultiSelect from 'primevue/multiselect'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   activeOrganisationId: {
@@ -282,6 +284,26 @@ const additionPickIds = ref([])
 const additionsMessage = ref('')
 const additionsMessageType = ref('')
 const pageSize = 20
+
+const tableHeaders = [
+  { title: 'ID', key: 'id' },
+  { title: 'Typ', key: 'is_addition', sortable: false },
+  { title: 'Name', key: 'name' },
+  { title: 'Import-Nr.', key: 'import_article_number' },
+  { title: 'Label', key: 'label' },
+  { title: 'Einheit', key: 'unit' },
+  { title: 'Preis', key: 'price', sortable: false },
+  { title: 'Kategorie', key: 'article_category_name' },
+  { title: 'Organisation', key: 'organisation_name' },
+  { title: 'Lager', key: 'stock', sortable: false },
+  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
+]
+
+const additionsHeaders = [
+  { title: 'Zusatz', key: 'name' },
+  { title: 'Preis', key: 'price', sortable: false },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
+]
 
 const emptyForm = () => ({
   name: '',
@@ -663,13 +685,13 @@ onMounted(async () => {
 
 <style scoped>
 .empty-hint {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 1rem;
 }
 
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .form-field {
@@ -692,7 +714,7 @@ h2 {
 .additions-section {
   margin: 1.5rem 0;
   padding-top: 1rem;
-  border-top: 1px solid var(--p-content-border-color, #e2e8f0);
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .additions-section h3 {
   margin: 0 0 0.5rem;
@@ -705,7 +727,7 @@ h2 {
 }
 
 label {
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -713,14 +735,8 @@ label {
 small,
 .table-header span,
 .pagination {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
-}
-
-:deep(.p-inputtext),
-:deep(.p-inputnumber),
-:deep(.p-select) {
-  width: 100%;
 }
 
 .actions {
@@ -757,8 +773,8 @@ small,
 }
 
 .list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   overflow: hidden;
 }
 

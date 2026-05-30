@@ -28,7 +28,7 @@ defineProps({
 .placeholder-panel {
   padding: 2rem;
   min-height: 100%;
-  background: var(--p-surface-ground);
+  background: rgb(var(--v-theme-background));
 }
 
 .placeholder-card {
@@ -37,9 +37,8 @@ defineProps({
   gap: 1.5rem;
   padding: 2rem;
   border-radius: 1rem;
-  background: var(--p-surface-card);
-  border: 1px solid var(--p-content-border-color);
-  box-shadow: var(--p-card-shadow);
+  background: rgb(var(--v-theme-surface));
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .placeholder-icon {
@@ -49,16 +48,15 @@ defineProps({
   height: 4rem;
   font-size: 2rem;
   border-radius: 1rem;
-  background: var(--p-primary-50);
-  color: var(--p-primary-color);
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
 }
 
 h2 {
   margin: 0 0 0.5rem;
-  color: var(--p-text-color);
 }
 p {
   margin: 0;
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
 }
 </style>

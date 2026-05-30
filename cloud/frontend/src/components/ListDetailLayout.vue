@@ -1,34 +1,33 @@
 <template>
-  <section class="panel">
-    <div class="panel-header">
+  <section class="vq-page panel">
+    <div class="vq-page-header panel-header">
       <div>
         <h1>{{ title }}</h1>
         <p>{{ subtitle }}</p>
       </div>
-      <Button v-if="showCreate" :label="createLabel" class="primary-button" @click="$emit('open-create')" />
+      <v-btn v-if="showCreate" color="primary" @click="$emit('open-create')">
+        {{ createLabel }}
+      </v-btn>
     </div>
 
     <div class="form-grid" :class="{ 'detail-open': showDetail }">
-      <Card v-if="showDetail" class="content-card">
-        <template #content>
+      <v-card v-if="showDetail" class="content-card" variant="flat" border>
+        <v-card-text class="content-card-body">
           <slot name="detail" />
-        </template>
-      </Card>
+        </v-card-text>
+      </v-card>
 
-      <Card v-if="!showDetail" class="content-card">
-        <template #content>
+      <v-card v-if="!showDetail" class="content-card" variant="flat" border>
+        <v-card-text class="content-card-body">
           <slot name="table" />
-        </template>
-      </Card>
+        </v-card-text>
+      </v-card>
     </div>
   </section>
 </template>
 
 <script setup>
-import Button from 'primevue/button'
-import Card from 'primevue/card'
-
-const props = defineProps({
+defineProps({
   title: String,
   subtitle: String,
   createLabel: {
@@ -45,82 +44,17 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['open-create'])
+defineEmits(['open-create'])
 </script>
 
 <style scoped>
-.panel {
-  padding: 2rem;
-  min-height: 100%;
-  background: var(--p-surface-ground);
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.panel-header h1 {
-  margin: 0;
-  font-size: 2rem;
-  color: var(--p-text-color);
-}
-
-.panel-header p {
-  margin: 0.5rem 0 0;
-  color: var(--p-text-muted-color);
-}
-
 .form-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.25rem;
 }
 
-.form-grid.detail-open {
-  grid-template-columns: 1fr;
-}
-
 .content-card {
-  border: 1px solid var(--p-content-border-color);
-  box-shadow: var(--p-card-shadow);
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.85rem;
-}
-
-.table-scroll {
-  overflow-x: auto;
-}
-
-.primary-button {
-  font-weight: 700;
-}
-
-@media (max-width: 768px) {
-  .panel {
-    padding: 1rem;
-  }
-
-  .panel-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .panel-header h1 {
-    font-size: 1.5rem;
-  }
-
-  .panel-header :deep(.p-button) {
-    width: 100%;
-  }
+  overflow: visible;
 }
 </style>

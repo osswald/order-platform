@@ -10,25 +10,25 @@
       <h2>{{ editMode ? 'Verleiher bearbeiten' : 'Neuer Verleiher' }}</h2>
       <div class="form-field">
         <label>Name</label>
-        <InputText v-model="form.name" placeholder="Vendiqo" />
+        <v-text-field v-model="form.name" placeholder="Vendiqo" hide-details="auto" />
       </div>
       <div class="form-field">
         <label>Adresse</label>
-        <InputText v-model="form.address" placeholder="Musterstraße 12" />
+        <v-text-field v-model="form.address" placeholder="Musterstraße 12" hide-details="auto" />
       </div>
       <div class="field-row">
         <div class="form-field">
           <label>PLZ</label>
-          <InputText v-model="form.zip" placeholder="8000" />
+          <v-text-field v-model="form.zip" placeholder="8000" hide-details="auto" />
         </div>
         <div class="form-field">
           <label>Stadt</label>
-          <InputText v-model="form.city" placeholder="Zürich" />
+          <v-text-field v-model="form.city" placeholder="Zürich" hide-details="auto" />
         </div>
       </div>
       <div class="form-field">
         <label>Land</label>
-        <InputText v-model="form.country" placeholder="Schweiz" />
+        <v-text-field v-model="form.country" placeholder="Schweiz" hide-details="auto" />
       </div>
       <ReceiptPrintingSection
         v-if="editMode && routeEntityId"
@@ -38,8 +38,8 @@
         hint="Standard für neue Organisationen. Wird bei Organisationserstellung übernommen."
       />
       <div class="actions">
-        <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-        <Button label="Speichern" class="primary-button" :disabled="!form.name" @click="saveCompany" />
+        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+        <v-btn color="primary" :disabled="!form.name" @click="saveCompany">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
     </template>
@@ -49,29 +49,23 @@
         <h2>Alle Verleiher</h2>
         <span>{{ companies.length }} Einträge</span>
       </div>
-      <DataTable
-        :value="companies"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editCompany($event.data)"
+      <VqDataTable
+        :headers="tableHeaders"
+        :items="companies"
+        item-value="id"
+        hover
+        hide-default-footer
+        no-data-text="Keine Verleiher gefunden."
+        class="vq-data-table list-table"
+        @click:row="(_e, { item }) => editCompany(item)"
       >
-        <template #empty>Keine Verleiher gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column field="name" header="Name" />
-        <Column header="Standort">
-          <template #body="{ data }">
-            {{ data.address || '—' }}<span v-if="data.city"> · {{ data.city }}</span>
-          </template>
-        </Column>
-        <Column field="country" header="Land" />
-        <Column header="Aktionen">
-          <template #body="{ data }">
-            <Button label="Löschen" class="danger" @click.stop="deleteCompany(data.id)" />
-          </template>
-        </Column>
-      </DataTable>
+        <template #item.standort="{ item }">
+          {{ item.address || '—' }}<span v-if="item.city"> · {{ item.city }}</span>
+        </template>
+        <template #item.actions="{ item }">
+          <v-btn color="error" variant="text" @click.stop="deleteCompany(item.id)">Löschen</v-btn>
+        </template>
+      </VqDataTable>
     </template>
   </ListDetailLayout>
 </template>
@@ -79,15 +73,12 @@
 <script setup>
 import { inject, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import InputText from 'primevue/inputtext'
 import ListDetailLayout from './ListDetailLayout.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
+import VqDataTable from './VqDataTable.vue'
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
@@ -101,6 +92,14 @@ const {
   goToCreate,
   goToDetail,
 } = useListDetailRouting('hire-companies')
+
+const tableHeaders = [
+  { title: 'ID', key: 'id' },
+  { title: 'Name', key: 'name' },
+  { title: 'Standort', key: 'standort', sortable: false },
+  { title: 'Land', key: 'country' },
+  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
+]
 
 const companies = ref([])
 const message = ref('')
@@ -251,54 +250,17 @@ onMounted(fetchCompanies)
 <style scoped>
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 label {
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.875rem;
   font-weight: 600;
 }
 
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.85rem;
-}
-
-.success {
-  color: var(--p-green-700);
-  margin-top: 1rem;
-}
-
-.error {
-  color: var(--p-red-700);
-  margin-top: 1rem;
-}
-
-@media (max-width: 768px) {
-  .field-row {
-    grid-template-columns: 1fr;
-  }
+.table-header span {
+  opacity: 0.7;
+  font-size: 0.9rem;
 }
 </style>

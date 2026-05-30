@@ -15,16 +15,15 @@
         </template>
         <template #stationen>
           <div class="section-toolbar">
-            <Button label="Station hinzufügen" type="button" class="primary-button" @click="addStation" />
+            <v-btn color="primary" type="button" @click="addStation">Station hinzufügen</v-btn>
           </div>
           <div v-for="(st, idx) in stationsLocal" :key="'st-' + idx" class="config-card">
             <div class="config-card-header">
               <span>{{ st.name || 'Unbenannte Station' }}</span>
-              <Button
-                icon="pi pi-trash"
-                severity="danger"
-                text
-                rounded
+              <v-btn
+                icon="mdi-delete"
+                variant="text"
+                color="error"
                 type="button"
                 aria-label="Entfernen"
                 @click="removeStation(idx)"
@@ -32,38 +31,40 @@
             </div>
             <div class="form-field">
               <label>Name</label>
-              <InputText v-model="st.name" placeholder="z. B. Bar" />
+              <v-text-field v-model="st.name" placeholder="z. B. Bar" density="compact" hide-details />
             </div>
             <div class="form-field">
               <label>Drucker</label>
-              <Select
+              <v-select
                 v-model="st.printer_appliance_id"
-                :options="printerOptions"
-                optionLabel="name"
-                optionValue="id"
+                :items="printerOptions"
+                item-title="name"
+                item-value="id"
                 placeholder="Kein Drucker"
-                showClear
+                clearable
+                density="compact"
+                hide-details
               />
             </div>
-            <div class="check-row">
-              <Checkbox
-                :inputId="'kitchen-monitor-' + idx"
-                v-model="st.kitchen_monitor_enabled"
-                :binary="true"
-              />
-              <label :for="'kitchen-monitor-' + idx">Kitchen Monitor aktiv</label>
-            </div>
+            <v-checkbox
+              v-model="st.kitchen_monitor_enabled"
+              label="Kitchen Monitor aktiv"
+              hide-details
+              density="compact"
+            />
             <div class="form-field">
               <label>Artikel</label>
-              <MultiSelect
+              <v-select
                 v-model="st.article_ids"
-                :options="articleOptions"
-                optionLabel="name"
-                optionValue="value"
+                :items="articleOptions"
+                item-title="name"
+                item-value="value"
                 placeholder="Artikel wählen"
-                display="chip"
-                filter
-                class="w-full"
+                multiple
+                chips
+                closable-chips
+                density="compact"
+                hide-details
               />
             </div>
           </div>
@@ -72,85 +73,90 @@
 
         <template #kellner>
           <div class="section-toolbar">
-            <Button label="Kellner hinzufügen" type="button" class="primary-button" @click="addWaiterRow" />
-            <Button label="Aus Organisation übernehmen" type="button" class="secondary-button" @click="openWaiterPick" />
+            <v-btn color="primary" type="button" @click="addWaiterRow">Kellner hinzufügen</v-btn>
+            <v-btn variant="outlined" type="button" @click="openWaiterPick">Aus Organisation übernehmen</v-btn>
           </div>
-          <DataTable :value="waitersLocal" dataKey="_key" class="list-table nested" responsiveLayout="stack" breakpoint="768px">
-            <Column field="name" header="Name">
-              <template #body="{ data }">
-                <InputText v-model="data.name" class="w-full" />
-              </template>
-            </Column>
-            <Column field="pin" header="PIN">
-              <template #body="{ data }">
-                <InputText v-model="data.pin" class="w-full" />
-              </template>
-            </Column>
-            <Column header="">
-              <template #body="slotProps">
-                <Button
-                  icon="pi pi-trash"
-                  text
-                  rounded
-                  type="button"
-                  severity="danger"
-                  @click="removeWaiter(slotProps.data)"
-                />
-              </template>
-            </Column>
-          </DataTable>
+          <VqDataTable
+            :items="waitersLocal"
+            item-value="_key"
+            :headers="waiterHeaders"
+            class="vq-data-table nested"
+            hide-default-footer
+          >
+            <template #item.name="{ item }">
+              <v-text-field v-model="item.name" density="compact" hide-details />
+            </template>
+            <template #item.pin="{ item }">
+              <v-text-field v-model="item.pin" density="compact" hide-details />
+            </template>
+            <template #item.actions="{ item }">
+              <v-btn
+                icon="mdi-delete"
+                variant="text"
+                color="error"
+                type="button"
+                @click="removeWaiter(item)"
+              />
+            </template>
+          </VqDataTable>
         </template>
 
         <template v-if="cashRegistersEnabled" #kassen>
           <div class="section-toolbar">
-            <Button label="Kasse hinzufügen" type="button" class="primary-button" @click="addCashRegister" />
+            <v-btn color="primary" type="button" @click="addCashRegister">Kasse hinzufügen</v-btn>
           </div>
           <div v-for="(reg, ri) in cashRegistersLocal" :key="'reg-' + ri" class="config-card">
             <div class="config-card-header">
               <span>{{ reg.name || 'Unbenannte Kasse' }}</span>
-              <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeCashRegister(ri)" />
+              <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeCashRegister(ri)" />
             </div>
             <div class="field-row">
               <div class="form-field">
                 <label>Name</label>
-                <InputText v-model="reg.name" placeholder="z. B. Hauptkasse" />
+                <v-text-field v-model="reg.name" placeholder="z. B. Hauptkasse" density="compact" hide-details />
               </div>
               <div class="form-field">
                 <label>Pickup-Code Buchstaben</label>
-                <InputText
-                  :modelValue="reg.pickup_code_prefix"
+                <v-text-field
+                  :model-value="reg.pickup_code_prefix"
                   maxlength="3"
                   placeholder="A"
-                  @update:modelValue="(v) => { reg.pickup_code_prefix = normalizePickupPrefix(v) }"
+                  density="compact"
+                  hide-details
+                  @update:model-value="(v) => { reg.pickup_code_prefix = normalizePickupPrefix(v) }"
                 />
               </div>
             </div>
             <div class="field-row">
               <div class="form-field">
                 <label>PIN</label>
-                <InputText v-model="reg.pin" maxlength="4" placeholder="0000" />
+                <v-text-field v-model="reg.pin" maxlength="4" placeholder="0000" density="compact" hide-details />
               </div>
             </div>
             <div class="field-row">
               <div class="form-field">
                 <label>Layout</label>
-                <Select
+                <v-select
                   v-model="reg.layout_uuid"
-                  :options="layoutOptions"
-                  optionLabel="name"
-                  optionValue="value"
+                  :items="layoutOptions"
+                  item-title="name"
+                  item-value="value"
                   placeholder="Layout wählen"
+                  density="compact"
+                  hide-details
                 />
               </div>
               <div class="form-field">
                 <label>Kundendrucker</label>
-                <Select
+                <v-select
                   v-model="reg.receipt_printer_appliance_id"
-                  :options="printerOptions"
-                  optionLabel="name"
-                  optionValue="id"
+                  :items="printerOptions"
+                  item-title="name"
+                  item-value="id"
                   placeholder="Kein Drucker"
-                  showClear
+                  clearable
+                  density="compact"
+                  hide-details
                 />
               </div>
             </div>
@@ -160,82 +166,111 @@
 
         <template v-if="vouchersEnabled" #gutscheine>
           <div class="section-toolbar">
-            <Button label="Gutschein hinzufügen" type="button" class="primary-button" @click="addVoucher" />
+            <v-btn color="primary" type="button" @click="addVoucher">Gutschein hinzufügen</v-btn>
           </div>
           <p v-if="!vouchersLocal.length" class="muted">Noch keine Gutschein-Typen.</p>
           <div v-for="(vd, vi) in vouchersLocal" :key="'vd-' + vi" class="config-card">
             <div class="config-card-header">
               <span>{{ vd.name || 'Unbenannter Gutschein' }}</span>
-              <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeVoucher(vi)" />
+              <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeVoucher(vi)" />
             </div>
             <div class="form-field">
               <label>Name</label>
-              <InputText v-model="vd.name" placeholder="z. B. 20.- Gutschein" />
+              <v-text-field v-model="vd.name" placeholder="z. B. 20.- Gutschein" density="compact" hide-details />
             </div>
             <div class="form-field">
               <label>Art</label>
-              <Select
+              <v-select
                 v-model="vd.kind"
-                :options="voucherKindOptions"
-                optionLabel="label"
-                optionValue="value"
+                :items="voucherKindOptions"
+                item-title="label"
+                item-value="value"
+                density="compact"
+                hide-details
               />
             </div>
             <div v-if="vd.kind === 'fixed_amount'" class="form-field">
               <label>Betrag ({{ currencyLabel }})</label>
-              <InputNumber v-model="vd.value_amount" :min="0.01" :max="9999" :minFractionDigits="2" :maxFractionDigits="2" />
+              <v-number-input
+                v-model="vd.value_amount"
+                :min="0.01"
+                :max="9999"
+                :step="0.01"
+                control-variant="stacked"
+                density="compact"
+                hide-details
+              />
             </div>
             <template v-else>
               <div class="form-field">
                 <label>Berechtigte Artikel</label>
-                <MultiSelect
+                <v-select
                   v-model="vd.allowed_article_ids"
-                  :options="articleOptions"
-                  optionLabel="name"
-                  optionValue="value"
+                  :items="articleOptions"
+                  item-title="name"
+                  item-value="value"
                   placeholder="Artikel wählen"
-                  filter
-                  display="chip"
+                  multiple
+                  chips
+                  closable-chips
+                  density="compact"
+                  hide-details
                 />
               </div>
-              <div class="check-row">
-                <Checkbox :inputId="'vadd-' + vi" v-model="vd.include_additions" :binary="true" />
-                <label :for="'vadd-' + vi">Zusätze inklusive</label>
-              </div>
+              <v-checkbox
+                v-model="vd.include_additions"
+                label="Zusätze inklusive"
+                hide-details
+                density="compact"
+              />
             </template>
           </div>
         </template>
 
         <template #layouts>
           <div class="section-toolbar">
-            <Button label="Layout hinzufügen" type="button" class="primary-button" @click="addLayout" />
+            <v-btn color="primary" type="button" @click="addLayout">Layout hinzufügen</v-btn>
           </div>
           <div v-for="(lo, li) in layoutsLocal" :key="'lo-' + li" class="config-card">
             <div class="config-card-header">
               <span>Layout {{ li + 1 }}</span>
               <div class="layout-header-actions">
-                <Checkbox
-                  :inputId="'def-' + li"
-                  :binary="true"
-                  :modelValue="lo.is_default"
-                  @update:modelValue="(v) => onDefaultLayoutChange(li, v)"
+                <v-checkbox
+                  :model-value="lo.is_default"
+                  label="Standard"
+                  hide-details
+                  density="compact"
+                  @update:model-value="(v) => onDefaultLayoutChange(li, v)"
                 />
-                <label :for="'def-' + li" class="inline-check">Standard</label>
-                <Button icon="pi pi-trash" text rounded type="button" severity="danger" @click="removeLayout(li)" />
+                <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeLayout(li)" />
               </div>
             </div>
             <div class="field-row">
               <div class="form-field">
                 <label>Name</label>
-                <InputText v-model="lo.name" placeholder="optional" />
+                <v-text-field v-model="lo.name" placeholder="optional" density="compact" hide-details />
               </div>
               <div class="form-field">
                 <label>Breite</label>
-                <InputNumber v-model="lo.grid_width" :min="1" :max="64" />
+                <v-number-input
+                  v-model="lo.grid_width"
+                  :min="1"
+                  :max="64"
+                  control-variant="stacked"
+                  density="compact"
+                  hide-details
+                />
               </div>
               <div class="form-field">
                 <label>Höhe</label>
-                <InputNumber v-model="lo.grid_height" :min="1" :max="64" />
+                <v-number-input
+                  v-model="lo.grid_height"
+                  :min="1"
+                  :max="64"
+                  control-variant="stacked"
+                  density="compact"
+                  hide-details
+                />
               </div>
             </div>
             <p class="muted small">Zellen anklicken zum Bearbeiten.</p>
@@ -289,92 +324,112 @@
       </EventConfigLayout>
 
       <div class="config-save">
-        <Button label="Konfiguration speichern" class="primary-button" type="button" :disabled="saving" @click="saveConfiguration" />
+        <v-btn color="primary" type="button" :disabled="saving" @click="saveConfiguration">
+          Konfiguration speichern
+        </v-btn>
       </div>
     </template>
 
-    <Dialog v-model:visible="cellDialogVisible" header="Zelle bearbeiten" modal class="cell-dialog" :style="{ width: '32rem' }">
-      <div class="form-field">
-        <label>Bezeichnung</label>
-        <InputText v-model="cellEdit.label" />
-      </div>
-      <div class="form-field">
-        <label>Farbe</label>
-        <ColorPicker v-model="cellColorHex" format="hex" />
-      </div>
-      <div v-if="vouchersEnabled" class="form-field">
-        <label>Betrags-Gutscheine (Layout-Zelle)</label>
-        <MultiSelect
-          v-model="cellEdit.voucher_definition_uuids"
-          :options="fixedAmountVoucherOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Gutscheine wählen"
-          display="chip"
-          filter
-          class="w-full"
-        />
-      </div>
-      <div class="form-field">
-        <label>Artikel (nur Stationen-Artikel)</label>
-        <TreeSelect
-          v-model="cellTreeSelection"
-          :options="cellTreeNodes"
-          selectionMode="checkbox"
-          display="chip"
-          placeholder="Artikel wählen"
-          class="w-full"
-          :loading="treeLoading"
-          filter
-        />
-      </div>
-      <template #footer>
-        <Button label="Abbrechen" class="secondary-button" type="button" @click="cellDialogVisible = false" />
-        <Button label="Übernehmen" class="primary-button" type="button" @click="applyCellDialog" />
-      </template>
-    </Dialog>
+    <v-dialog v-model="cellDialogVisible" max-width="32rem" class="cell-dialog">
+      <v-card>
+        <v-card-title>Zelle bearbeiten</v-card-title>
+        <v-card-text>
+          <div class="form-field">
+            <label>Bezeichnung</label>
+            <v-text-field v-model="cellEdit.label" density="compact" hide-details />
+          </div>
+          <div class="form-field">
+            <label>Farbe</label>
+            <v-color-picker v-model="cellEdit.color" mode="hex" hide-inputs />
+          </div>
+          <div v-if="vouchersEnabled" class="form-field">
+            <label>Betrags-Gutscheine (Layout-Zelle)</label>
+            <v-select
+              v-model="cellEdit.voucher_definition_uuids"
+              :items="fixedAmountVoucherOptions"
+              item-title="label"
+              item-value="value"
+              placeholder="Gutscheine wählen"
+              multiple
+              chips
+              closable-chips
+              density="compact"
+              hide-details
+            />
+          </div>
+          <div class="form-field">
+            <label>Artikel (nur Stationen-Artikel)</label>
+            <v-text-field
+              v-model="cellTreeFilter"
+              placeholder="Artikel filtern…"
+              prepend-inner-icon="mdi-magnify"
+              density="compact"
+              hide-details
+              clearable
+              class="tree-filter"
+            />
+            <v-progress-linear v-if="treeLoading" indeterminate color="primary" class="tree-loading" />
+            <v-treeview
+              v-else
+              v-model:selected="cellTreeSelection"
+              :items="filteredCellTreeItems"
+              item-value="key"
+              item-title="title"
+              item-children="children"
+              selectable
+              select-strategy="leaf"
+              open-all
+              density="compact"
+            />
+          </div>
+        </v-card-text>
+        <v-card-actions class="dialog-actions">
+          <v-spacer />
+          <v-btn variant="outlined" type="button" @click="cellDialogVisible = false">Abbrechen</v-btn>
+          <v-btn color="primary" type="button" @click="applyCellDialog">Übernehmen</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-    <Dialog v-model:visible="showWaiterPick" header="Kellner übernehmen" modal :style="{ width: '32rem' }">
-      <div class="form-field">
-        <label>Kellner</label>
-        <MultiSelect
-          v-model="pickedWaiterIds"
-          :options="waiterOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Kellner wählen"
-          display="chip"
-          filter
-          class="w-full"
-        />
-      </div>
-      <template #footer>
-        <Button label="Abbrechen" class="secondary-button" type="button" @click="closeWaiterPick" />
-        <Button
-          label="Übernehmen"
-          class="primary-button"
-          type="button"
-          :disabled="!pickedWaiterIds.length"
-          @click="confirmPickWaiter"
-        />
-      </template>
-    </Dialog>
+    <v-dialog v-model="showWaiterPick" max-width="32rem">
+      <v-card>
+        <v-card-title>Kellner übernehmen</v-card-title>
+        <v-card-text>
+          <div class="form-field">
+            <label>Kellner</label>
+            <v-select
+              v-model="pickedWaiterIds"
+              :items="waiterOptions"
+              item-title="label"
+              item-value="value"
+              placeholder="Kellner wählen"
+              multiple
+              chips
+              closable-chips
+              density="compact"
+              hide-details
+            />
+          </div>
+        </v-card-text>
+        <v-card-actions class="dialog-actions">
+          <v-spacer />
+          <v-btn variant="outlined" type="button" @click="closeWaiterPick">Abbrechen</v-btn>
+          <v-btn
+            color="primary"
+            type="button"
+            :disabled="!pickedWaiterIds.length"
+            @click="confirmPickWaiter"
+          >
+            Übernehmen
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, useSlots } from 'vue'
-import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import ColorPicker from 'primevue/colorpicker'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import Dialog from 'primevue/dialog'
-import InputNumber from 'primevue/inputnumber'
-import InputText from 'primevue/inputtext'
-import MultiSelect from 'primevue/multiselect'
-import Select from 'primevue/select'
-import TreeSelect from 'primevue/treeselect'
 import { apiFetch } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import EventConfigLayout from './EventConfigLayout.vue'
@@ -382,6 +437,7 @@ import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   eventId: {
@@ -409,6 +465,12 @@ const props = defineProps({
 const slots = useSlots()
 const { matches: isMobile } = useBreakpoint(768)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
+
+const waiterHeaders = [
+  { title: 'Name', key: 'name', sortable: false },
+  { title: 'PIN', key: 'pin', sortable: false },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: '4rem' },
+]
 
 const configSections = computed(() => {
   const list = []
@@ -481,8 +543,9 @@ const cellEdit = ref({
   voucher_definition_uuid: null,
   voucher_definition_uuids: [],
 })
-const cellTreeNodes = ref([])
-const cellTreeSelection = ref({})
+const cellTreeNodesRaw = ref([])
+const cellTreeSelection = ref([])
+const cellTreeFilter = ref('')
 const treeLoading = ref(false)
 
 const showWaiterPick = ref(false)
@@ -519,6 +582,39 @@ const fixedAmountVoucherOptions = computed(() =>
       value: vd.uuid,
     })),
 )
+
+const cellTreeItems = computed(() => mapTreeNodes(cellTreeNodesRaw.value))
+
+const filteredCellTreeItems = computed(() => {
+  const q = cellTreeFilter.value.trim().toLowerCase()
+  if (!q) return cellTreeItems.value
+  return filterTreeNodes(cellTreeItems.value, q)
+})
+
+function mapTreeNodes(nodes) {
+  return (nodes || []).map((n) => ({
+    key: n.key,
+    title: n.label,
+    children: n.children?.length ? mapTreeNodes(n.children) : undefined,
+  }))
+}
+
+function filterTreeNodes(nodes, query) {
+  const out = []
+  for (const node of nodes) {
+    if (node.children?.length) {
+      const filteredChildren = filterTreeNodes(node.children, query)
+      if (filteredChildren.length) {
+        out.push({ ...node, children: filteredChildren })
+      } else if (node.title.toLowerCase().includes(query)) {
+        out.push({ ...node })
+      }
+    } else if (node.title.toLowerCase().includes(query)) {
+      out.push({ ...node })
+    }
+  }
+  return out
+}
 
 function newUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
@@ -593,24 +689,6 @@ function removeVoucher(idx) {
   }
 }
 
-function hexToPicker(value) {
-  if (!value) return 'eeeeee'
-  return String(value).replace(/^#/, '')
-}
-
-function pickerToHex(value) {
-  if (!value) return '#eeeeee'
-  const v = String(value).replace(/^#/, '').trim()
-  return v.length ? `#${v}` : '#eeeeee'
-}
-
-const cellColorHex = computed({
-  get: () => hexToPicker(cellEdit.value.color),
-  set: (v) => {
-    cellEdit.value.color = pickerToHex(v)
-  },
-})
-
 function ensureCell(lo, row, col) {
   let c = lo.cells.find((x) => x.row === row && x.col === col)
   if (!c) {
@@ -628,19 +706,17 @@ function ensureCell(lo, row, col) {
   return c
 }
 
+/** Map article IDs to v-treeview selected keys (art-{id}). */
 function articleIdsToTreeSelection(ids) {
-  const sel = {}
-  for (const id of ids || []) {
-    sel[`art-${id}`] = { checked: true, partialChecked: false }
-  }
-  return sel
+  return (ids || []).map((id) => `art-${id}`)
 }
 
+/** Extract article IDs from v-treeview selected keys. */
 function treeSelectionToArticleIds(sel) {
-  if (!sel || typeof sel !== 'object') return []
-  return Object.entries(sel)
-    .filter(([k, v]) => k.startsWith('art-') && v && v.checked)
-    .map(([k]) => Number(k.replace(/^art-/, '')))
+  if (!Array.isArray(sel)) return []
+  return sel
+    .filter((k) => typeof k === 'string' && k.startsWith('art-'))
+    .map((k) => Number(k.replace(/^art-/, '')))
     .filter((n) => !Number.isNaN(n))
 }
 
@@ -809,7 +885,7 @@ async function loadConfiguration() {
       layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
       receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
     }))
-  } catch (e) {
+  } catch {
     loadError.value = 'Konfiguration konnte nicht geladen werden.'
   } finally {
     loading.value = false
@@ -820,6 +896,7 @@ async function openCellDialog(layoutIndex, row, col) {
   cellEditLayoutIndex.value = layoutIndex
   cellEditRow.value = row
   cellEditCol.value = col
+  cellTreeFilter.value = ''
   const lo = layoutsLocal.value[layoutIndex]
   const c = ensureCell(lo, row, col)
   const vUuids = cellVoucherUuids(c)
@@ -833,12 +910,12 @@ async function openCellDialog(layoutIndex, row, col) {
   cellTreeSelection.value = articleIdsToTreeSelection(c.article_ids)
   cellDialogVisible.value = true
   treeLoading.value = true
-  cellTreeNodes.value = []
+  cellTreeNodesRaw.value = []
   try {
     const r = await apiFetch(`/events/${props.eventId}/station-article-tree`)
     if (r.ok) {
       const data = await r.json()
-      cellTreeNodes.value = data.nodes || []
+      cellTreeNodesRaw.value = data.nodes || []
     }
   } finally {
     treeLoading.value = false
@@ -1004,7 +1081,7 @@ watch(
 .event-config {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--p-content-border-color);
+  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .event-config.event-config--unified {
@@ -1014,7 +1091,7 @@ watch(
 }
 
 .muted {
-  color: var(--p-text-muted-color);
+  opacity: 0.65;
 }
 
 .muted.small {
@@ -1030,11 +1107,11 @@ watch(
 }
 
 .config-card {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-md);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
-  background: var(--p-surface-ground);
+  background: rgba(var(--v-theme-on-surface), 0.02);
 }
 
 .config-card-header {
@@ -1051,35 +1128,9 @@ watch(
   gap: 0.5rem;
 }
 
-.inline-check {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.75rem;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.75rem;
-}
-
-.check-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.25rem 0 0.9rem;
-}
-
 label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--p-text-color);
 }
 
 .layout-grid-wrap {
@@ -1099,8 +1150,8 @@ label {
   align-items: center;
   justify-content: center;
   gap: 0.15rem;
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-md);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   cursor: pointer;
   padding: 0.35rem;
   min-height: 2.5rem;
@@ -1109,27 +1160,26 @@ label {
 
 .grid-cell-label {
   font-size: 0.75rem;
-  color: var(--p-text-color);
   word-break: break-word;
 }
 
 .grid-cell-count {
   font-size: 0.65rem;
-  color: var(--p-text-muted-color);
+  opacity: 0.65;
   line-height: 1.1;
 }
 
 .config-save {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
-  border-top: 1px solid var(--p-content-border-color);
+  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   display: flex;
   justify-content: flex-end;
 }
 
-.list-table.nested {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+.vq-data-table.nested {
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
 }
 
 .success,
@@ -1137,16 +1187,12 @@ label {
   margin-bottom: 0.75rem;
 }
 
-:deep(.p-multiselect),
-:deep(.p-select),
-:deep(.p-inputtext),
-:deep(.p-inputnumber),
-:deep(.p-treeselect) {
-  width: 100%;
+.tree-filter {
+  margin-bottom: 0.5rem;
 }
 
-.w-full {
-  width: 100%;
+.tree-loading {
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 992px) {
@@ -1162,19 +1208,6 @@ label {
 
   .layout-header-actions {
     flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .section-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .section-toolbar :deep(.p-button) {
-    width: 100%;
-  }
-
-  .config-save :deep(.p-button) {
     width: 100%;
   }
 }

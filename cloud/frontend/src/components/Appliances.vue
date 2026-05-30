@@ -9,48 +9,46 @@
     <template #detail>
       <h2>{{ editMode ? 'Gerät bearbeiten' : 'Neues Gerät' }}</h2>
       <div class="form-field">
-        <label>Typ</label>
-        <Select v-model="form.type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="Typ wählen" />
+        <v-select
+          v-model="form.type"
+          :items="typeOptions"
+          item-title="label"
+          item-value="value"
+          label="Typ"
+          placeholder="Typ wählen"
+          hide-details="auto"
+        />
       </div>
 
       <div v-if="isAutoNamed" class="form-field">
-        <label>Name</label>
-        <InputText
-          :value="form.name || 'Wird beim Speichern automatisch vergeben'"
+        <v-text-field
+          :model-value="form.name || 'Wird beim Speichern automatisch vergeben'"
+          label="Name"
           disabled
-          class="input-readonly"
+          hide-details="auto"
         />
         <small>{{ autoNameHint }}</small>
       </div>
 
       <div v-else-if="form.type" class="form-field">
-        <label>Name <span class="optional">(optional)</span></label>
-        <InputText v-model="form.name" placeholder="Anzeigename" />
+        <v-text-field v-model="form.name" label="Name (optional)" placeholder="Anzeigename" hide-details="auto" />
       </div>
 
       <div v-if="isPrinter" class="form-field">
-        <label>IP-Adresse</label>
-        <InputText v-model="form.ip_address" placeholder="192.168.1.10" />
+        <v-text-field v-model="form.ip_address" label="IP-Adresse" placeholder="192.168.1.10" hide-details="auto" />
       </div>
 
       <div class="form-field">
-        <label>Modell <span class="optional">(optional)</span></label>
-        <InputText v-model="form.model" placeholder="z. B. HP LaserJet Pro" />
+        <v-text-field v-model="form.model" label="Modell (optional)" placeholder="z. B. HP LaserJet Pro" hide-details="auto" />
       </div>
 
       <div class="form-field">
-        <label>Bemerkung <span class="optional">(optional)</span></label>
-        <Textarea v-model="form.comment" rows="3" placeholder="Notizen zum Gerät" />
+        <v-textarea v-model="form.comment" label="Bemerkung (optional)" rows="3" placeholder="Notizen zum Gerät" hide-details="auto" />
       </div>
 
       <div class="actions">
-        <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-        <Button
-          label="Speichern"
-          class="primary-button"
-          :disabled="!form.type"
-          @click="saveAppliance"
-        />
+        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+        <v-btn color="primary" :disabled="!form.type" @click="saveAppliance">Speichern</v-btn>
       </div>
 
       <div v-if="edgeCredentialsRevealed" class="edge-credentials-panel">
@@ -62,28 +60,32 @@
         <div class="form-field">
           <label>Edge-Client-ID</label>
           <div class="edge-copy-row">
-            <InputText :value="edgeCredentialsRevealed.clientId" readonly class="input-readonly edge-secret-input" />
-            <Button
-              type="button"
-              label="Kopieren"
-              class="secondary-button"
-              @click="copyEdgeField('Edge-Client-ID', edgeCredentialsRevealed.clientId)"
+            <v-text-field
+              :model-value="edgeCredentialsRevealed.clientId"
+              readonly
+              hide-details
+              class="edge-secret-input"
             />
+            <v-btn variant="outlined" type="button" @click="copyEdgeField('Edge-Client-ID', edgeCredentialsRevealed.clientId)">
+              Kopieren
+            </v-btn>
           </div>
         </div>
         <div class="form-field">
           <label>Edge-Geheimnis</label>
           <div class="edge-copy-row">
-            <InputText :value="edgeCredentialsRevealed.secret" readonly class="input-readonly edge-secret-input" />
-            <Button
-              type="button"
-              label="Kopieren"
-              class="secondary-button"
-              @click="copyEdgeField('Edge-Geheimnis', edgeCredentialsRevealed.secret)"
+            <v-text-field
+              :model-value="edgeCredentialsRevealed.secret"
+              readonly
+              hide-details
+              class="edge-secret-input"
             />
+            <v-btn variant="outlined" type="button" @click="copyEdgeField('Edge-Geheimnis', edgeCredentialsRevealed.secret)">
+              Kopieren
+            </v-btn>
           </div>
         </div>
-        <Button type="button" label="Anzeige schließen" class="secondary-button" @click="clearEdgeCredentialsReveal" />
+        <v-btn variant="outlined" type="button" @click="clearEdgeCredentialsReveal">Anzeige schließen</v-btn>
       </div>
 
       <template v-if="editMode && applianceDetail">
@@ -95,39 +97,34 @@
           <div class="form-field">
             <label>Edge-Client-ID</label>
             <div class="edge-copy-row">
-              <InputText
-                :value="applianceDetail.edge_client_id || '—'"
+              <v-text-field
+                :model-value="applianceDetail.edge_client_id || '—'"
                 readonly
-                class="input-readonly edge-secret-input"
+                hide-details
+                class="edge-secret-input"
               />
-              <Button
+              <v-btn
                 v-if="applianceDetail.edge_client_id"
+                variant="outlined"
                 type="button"
-                label="Kopieren"
-                class="secondary-button"
                 @click="copyEdgeField('Edge-Client-ID', applianceDetail.edge_client_id)"
-              />
+              >
+                Kopieren
+              </v-btn>
             </div>
           </div>
-          <Button
-            type="button"
-            label="Edge-Zugangsdaten neu ausgeben"
-            class="secondary-button"
-            @click="rotateEdgeCredentials"
-          />
+          <v-btn variant="outlined" type="button" @click="rotateEdgeCredentials">
+            Edge-Zugangsdaten neu ausgeben
+          </v-btn>
 
           <div class="pairing-panel">
             <h4>Raspberry Pi SD-Karten</h4>
             <p class="edge-credentials-hint">
               Jede gekoppelte SD-Karte erhält eigene Zugangsdaten. Es darf immer nur eine Karte pro Server aktiv laufen.
             </p>
-            <Button
-              type="button"
-              label="Kopplungscode für weitere SD-Karte erzeugen"
-              class="primary-button"
-              :disabled="pairingLoading"
-              @click="createPairingSession"
-            />
+            <v-btn color="primary" type="button" :disabled="pairingLoading" @click="createPairingSession">
+              Kopplungscode für weitere SD-Karte erzeugen
+            </v-btn>
             <div v-if="pairingSession" class="pairing-code-card">
               <span class="pairing-code-label">Kopplungscode</span>
               <strong>{{ pairingSession.pairing_code_display }}</strong>
@@ -138,43 +135,41 @@
             </div>
             <p v-if="pairingMessage" :class="pairingMessageType">{{ pairingMessage }}</p>
 
-            <DataTable
-              :value="applianceDetail.edge_credentials || []"
-              dataKey="id"
-              class="edge-installations-table"
-              responsiveLayout="stack"
-              breakpoint="768px"
+            <VqDataTable
+              :headers="edgeCredentialsHeaders"
+              :items="applianceDetail.edge_credentials || []"
+              item-value="id"
+              class="vq-data-table edge-installations-table"
+              hide-default-footer
             >
-              <template #empty>Keine gekoppelten SD-Karten.</template>
-              <Column field="label" header="SD-Karte">
-                <template #body="{ data }">{{ data.label || `SD-Karte ${data.id}` }}</template>
-              </Column>
-              <Column field="edge_client_id" header="Client-ID">
-                <template #body="{ data }">
-                  <span class="cell-truncate" :title="data.edge_client_id">{{ data.edge_client_id }}</span>
-                </template>
-              </Column>
-              <Column field="status" header="Status">
-                <template #body="{ data }">
-                  <Tag :value="data.status === 'active' ? 'Aktiv' : 'Gesperrt'" :severity="data.status === 'active' ? 'success' : 'danger'" />
-                </template>
-              </Column>
-              <Column header="Zuletzt online">
-                <template #body="{ data }">{{ formatDeDateTime(data.last_seen_at) }}</template>
-              </Column>
-              <Column header="Aktion">
-                <template #body="{ data }">
-                  <Button
-                    v-if="data.status === 'active'"
-                    label="Sperren"
-                    class="secondary-button"
-                    type="button"
-                    @click="revokeEdgeCredential(data.id)"
-                  />
-                  <span v-else>—</span>
-                </template>
-              </Column>
-            </DataTable>
+              <template #item.label="{ item }">{{ item.label || `SD-Karte ${item.id}` }}</template>
+              <template #item.edge_client_id="{ item }">
+                <span class="cell-truncate" :title="item.edge_client_id">{{ item.edge_client_id }}</span>
+              </template>
+              <template #item.status="{ item }">
+                <v-chip
+                  :color="item.status === 'active' ? 'success' : 'error'"
+                  size="small"
+                  variant="tonal"
+                >
+                  {{ item.status === 'active' ? 'Aktiv' : 'Gesperrt' }}
+                </v-chip>
+              </template>
+              <template #item.last_seen_at="{ item }">{{ formatDeDateTime(item.last_seen_at) }}</template>
+              <template #item.actions="{ item }">
+                <v-btn
+                  v-if="item.status === 'active'"
+                  variant="outlined"
+                  size="small"
+                  type="button"
+                  @click="revokeEdgeCredential(item.id)"
+                >
+                  Sperren
+                </v-btn>
+                <span v-else>—</span>
+              </template>
+              <template #no-data>Keine gekoppelten SD-Karten.</template>
+            </VqDataTable>
           </div>
         </div>
 
@@ -185,75 +180,89 @@
           </p>
           <div class="lending-form">
             <div class="form-field">
-              <label>Organisation</label>
-              <Select
+              <v-select
                 v-model="lendForm.organisationId"
-                :options="organisationOptions"
-                optionLabel="label"
-                optionValue="value"
+                :items="organisationOptions"
+                item-title="label"
+                item-value="value"
+                label="Organisation"
                 placeholder="Organisation wählen"
                 :disabled="!organisationOptions.length"
+                hide-details="auto"
               />
             </div>
             <div class="form-field">
-              <label>Startdatum</label>
-              <DatePicker
-                v-model="lendForm.startDate"
-                showIcon
-                dateFormat="dd.mm.yy"
-                placeholder="Startdatum"
-              />
+              <v-menu v-model="lendStartMenuOpen" :close-on-content-click="false">
+                <template #activator="{ props: menuProps }">
+                  <v-text-field
+                    :model-value="lendForm.startDate ? formatDeDate(toIsoDate(lendForm.startDate)) : ''"
+                    label="Startdatum"
+                    placeholder="Startdatum"
+                    prepend-inner-icon="mdi-calendar"
+                    readonly
+                    hide-details="auto"
+                    v-bind="menuProps"
+                  />
+                </template>
+                <v-date-picker
+                  v-model="lendForm.startDate"
+                  @update:model-value="lendStartMenuOpen = false"
+                />
+              </v-menu>
             </div>
             <div class="form-field">
-              <label>Tage</label>
-              <InputNumber v-model="lendForm.durationDays" :min="1" :max="3650" showButtons />
+              <v-text-field
+                v-model.number="lendForm.durationDays"
+                type="number"
+                :min="1"
+                :max="3650"
+                label="Tage"
+                hide-details="auto"
+              />
             </div>
-            <Button
-              label="Ausleihen"
-              class="primary-button"
-              type="button"
-              :disabled="!canSubmitLend"
-              @click="submitLend"
-            />
+            <v-btn color="primary" type="button" :disabled="!canSubmitLend" @click="submitLend">
+              Ausleihen
+            </v-btn>
           </div>
           <p v-if="lendingMessage" :class="lendingMessageType">{{ lendingMessage }}</p>
         </div>
 
         <div class="lending-section">
           <h3>Historie</h3>
-          <DataTable :value="applianceDetail.lendings || []" dataKey="id" class="lendings-table" responsiveLayout="stack" breakpoint="768px">
-            <template #empty>Keine Ausleihen.</template>
-            <Column field="organisation_name" header="Organisation" />
-            <Column field="start_date" header="Von">
-              <template #body="{ data }">{{ formatDeDate(data.start_date) }}</template>
-            </Column>
-            <Column field="end_date" header="Bis">
-              <template #body="{ data }">{{ formatDeDate(data.end_date) }}</template>
-            </Column>
-            <Column header="Status">
-              <template #body="{ data }">{{ lendingHistoryStatusLabel(data) }}</template>
-            </Column>
-            <Column header="Aktion">
-              <template #body="{ data }">
-                <Button
-                  v-if="data.segment === 'current' && !data.returned_at"
-                  label="Zurückgeben"
-                  class="secondary-button"
-                  type="button"
-                  @click="returnLending(data.id)"
-                />
-                <Button
-                  v-else-if="data.segment === 'future'"
-                  label="Stornieren"
-                  class="secondary-button"
-                  type="button"
-                  :disabled="cancellingLendingId === data.id"
-                  @click="cancelPlannedLendingRow(data.id)"
-                />
-                <span v-else>—</span>
-              </template>
-            </Column>
-          </DataTable>
+          <VqDataTable
+            :headers="lendingHistoryHeaders"
+            :items="applianceDetail.lendings || []"
+            item-value="id"
+            class="vq-data-table lendings-table"
+            hide-default-footer
+          >
+            <template #item.start_date="{ item }">{{ formatDeDate(item.start_date) }}</template>
+            <template #item.end_date="{ item }">{{ formatDeDate(item.end_date) }}</template>
+            <template #item.status="{ item }">{{ lendingHistoryStatusLabel(item) }}</template>
+            <template #item.actions="{ item }">
+              <v-btn
+                v-if="item.segment === 'current' && !item.returned_at"
+                variant="outlined"
+                size="small"
+                type="button"
+                @click="returnLending(item.id)"
+              >
+                Zurückgeben
+              </v-btn>
+              <v-btn
+                v-else-if="item.segment === 'future'"
+                variant="outlined"
+                size="small"
+                type="button"
+                :disabled="cancellingLendingId === item.id"
+                @click="cancelPlannedLendingRow(item.id)"
+              >
+                Stornieren
+              </v-btn>
+              <span v-else>—</span>
+            </template>
+            <template #no-data>Keine Ausleihen.</template>
+          </VqDataTable>
         </div>
       </template>
 
@@ -267,72 +276,78 @@
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
-          <IconField>
-            <InputIcon class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Name, Typ, IP, Modell oder Bemerkung suchen..." />
-          </IconField>
+          <v-text-field
+            v-model="searchQuery"
+            label="Suche"
+            prepend-inner-icon="mdi-magnify"
+            placeholder="Name, Typ, IP, Modell oder Bemerkung suchen..."
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>Typ</label>
-          <Select v-model="typeFilter" :options="typeFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle Typen" />
+          <v-select
+            v-model="typeFilter"
+            :items="typeFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Typ"
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>IP-Adresse</label>
-          <Select v-model="ipFilter" :options="ipFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle" />
+          <v-select
+            v-model="ipFilter"
+            :items="ipFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="IP-Adresse"
+            hide-details
+            density="compact"
+          />
         </div>
       </div>
-      <DataTable
-        :value="paginatedAppliances"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editAppliance($event.data)"
+      <VqDataTable
+        :headers="tableHeaders"
+        :items="paginatedAppliances"
+        item-value="id"
+        class="vq-data-table list-table"
+        hide-default-footer
+        hover
+        @click:row="(_, { item }) => editAppliance(item)"
       >
-        <template #empty>Keine Geräte gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column field="name" header="Name">
-          <template #body="{ data }">{{ data.name || '—' }}</template>
-        </Column>
-        <Column field="type" header="Typ">
-          <template #body="{ data }">{{ typeLabel(data.type) }}</template>
-        </Column>
-        <Column header="Status">
-          <template #body="{ data }">
-            <Tag :value="lendingStatusLabel(data.lending_status)" :severity="data.lending_status === 'lent' ? 'warn' : 'success'" />
-          </template>
-        </Column>
-        <Column header="Organisation">
-          <template #body="{ data }">{{ data.current_lending?.organisation_name || '—' }}</template>
-        </Column>
-        <Column header="Bis">
-          <template #body="{ data }">{{
-            data.current_lending?.end_date ? formatDeDate(data.current_lending.end_date) : '—'
-          }}</template>
-        </Column>
-        <Column field="ip_address" header="IP">
-          <template #body="{ data }">{{ data.type === 'printer' ? data.ip_address || '—' : '—' }}</template>
-        </Column>
-        <Column field="model" header="Modell">
-          <template #body="{ data }">
-            <span class="cell-truncate" :title="data.model || ''">{{ data.model || '—' }}</span>
-          </template>
-        </Column>
-        <Column header="Aktionen">
-          <template #body="{ data }">
-            <Button label="Löschen" class="danger" @click.stop="deleteAppliance(data.id)" />
-          </template>
-        </Column>
-      </DataTable>
+        <template #item.name="{ item }">{{ item.name || '—' }}</template>
+        <template #item.type="{ item }">{{ typeLabel(item.type) }}</template>
+        <template #item.lending_status="{ item }">
+          <v-chip
+            :color="item.lending_status === 'lent' ? 'warning' : 'success'"
+            size="small"
+            variant="tonal"
+          >
+            {{ lendingStatusLabel(item.lending_status) }}
+          </v-chip>
+        </template>
+        <template #item.organisation="{ item }">{{ item.current_lending?.organisation_name || '—' }}</template>
+        <template #item.end_date="{ item }">
+          {{ item.current_lending?.end_date ? formatDeDate(item.current_lending.end_date) : '—' }}
+        </template>
+        <template #item.ip_address="{ item }">
+          {{ item.type === 'printer' ? item.ip_address || '—' : '—' }}
+        </template>
+        <template #item.model="{ item }">
+          <span class="cell-truncate" :title="item.model || ''">{{ item.model || '—' }}</span>
+        </template>
+        <template #item.actions="{ item }">
+          <v-btn color="error" variant="outlined" size="small" @click.stop="deleteAppliance(item.id)">
+            Löschen
+          </v-btn>
+        </template>
+        <template #no-data>Keine Geräte gefunden.</template>
+      </VqDataTable>
       <div v-if="filteredAppliances.length" class="pagination">
         <span>{{ paginationLabel }}</span>
-        <Paginator
-          :first="(currentPage - 1) * pageSize"
-          :rows="pageSize"
-          :totalRecords="filteredAppliances.length"
-          @page="currentPage = $event.page + 1"
-        />
+        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
       </div>
     </template>
   </ListDetailLayout>
@@ -341,23 +356,12 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import DatePicker from 'primevue/datepicker'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import InputNumber from 'primevue/inputnumber'
-import InputText from 'primevue/inputtext'
-import Paginator from 'primevue/paginator'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import Textarea from 'primevue/textarea'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { cancelPlannedLendingForAppliance } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import VqDataTable from './VqDataTable.vue'
 
 const route = useRoute()
 const {
@@ -379,6 +383,35 @@ const typeFilter = ref('')
 const ipFilter = ref('')
 const currentPage = ref(1)
 const pageSize = 20
+const lendStartMenuOpen = ref(false)
+
+const tableHeaders = [
+  { title: 'ID', key: 'id' },
+  { title: 'Name', key: 'name', sortable: false },
+  { title: 'Typ', key: 'type', sortable: false },
+  { title: 'Status', key: 'lending_status', sortable: false },
+  { title: 'Organisation', key: 'organisation', sortable: false },
+  { title: 'Bis', key: 'end_date', sortable: false },
+  { title: 'IP', key: 'ip_address', sortable: false },
+  { title: 'Modell', key: 'model', sortable: false },
+  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
+]
+
+const edgeCredentialsHeaders = [
+  { title: 'SD-Karte', key: 'label', sortable: false },
+  { title: 'Client-ID', key: 'edge_client_id', sortable: false },
+  { title: 'Status', key: 'status', sortable: false },
+  { title: 'Zuletzt online', key: 'last_seen_at', sortable: false },
+  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
+]
+
+const lendingHistoryHeaders = [
+  { title: 'Organisation', key: 'organisation_name' },
+  { title: 'Von', key: 'start_date', sortable: false },
+  { title: 'Bis', key: 'end_date', sortable: false },
+  { title: 'Status', key: 'status', sortable: false },
+  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
+]
 
 const organisations = ref([])
 const applianceDetail = ref(null)
@@ -912,7 +945,7 @@ onMounted(() => {
 <style scoped>
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .form-field {
@@ -923,24 +956,15 @@ h2 {
 }
 
 label {
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 .optional,
 small {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-weight: 400;
-}
-
-:deep(.p-inputtext),
-:deep(.p-select),
-:deep(.p-password),
-:deep(.p-textarea),
-:deep(.p-inputnumber),
-:deep(.p-datepicker) {
-  width: 100%;
 }
 
 textarea {
@@ -961,26 +985,26 @@ textarea {
 .lending-section {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--p-content-border-color);
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .edge-credentials-panel {
   margin-top: 1.5rem;
   padding: 1.25rem;
-  border: 1px solid var(--p-primary-color);
-  border-radius: var(--p-border-radius-lg);
-  background: var(--p-primary-50, color-mix(in srgb, var(--p-primary-color) 8%, transparent));
+  border: 1px solid rgb(var(--v-theme-primary));
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.08);
 }
 
 .edge-credentials-panel h3 {
   margin: 0 0 0.75rem;
   font-size: 1.05rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .edge-credentials-warning {
   margin: 0 0 1rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.9rem;
   line-height: 1.45;
 }
@@ -990,7 +1014,7 @@ textarea {
 }
 
 .edge-credentials-hint {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 0.75rem;
   font-size: 0.875rem;
   line-height: 1.4;
@@ -1016,8 +1040,8 @@ textarea {
 .pairing-panel {
   margin-top: 1.25rem;
   padding: 1rem;
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
 }
 
 .pairing-panel h4 {
@@ -1027,13 +1051,13 @@ textarea {
 .pairing-code-card {
   margin-top: 1rem;
   padding: 1rem;
-  border-radius: var(--p-border-radius-lg);
-  background: var(--p-surface-100);
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
 .pairing-code-label {
   display: block;
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.8rem;
   margin-bottom: 0.25rem;
 }
@@ -1048,18 +1072,18 @@ textarea {
 
 .pairing-code-card p {
   margin: 0;
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   line-height: 1.4;
 }
 
 .lending-section h3 {
   margin: 0 0 1rem;
   font-size: 1.05rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .lending-hint {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 0.75rem;
 }
 
@@ -1070,8 +1094,8 @@ textarea {
 }
 
 .lendings-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -1089,7 +1113,7 @@ textarea {
 
 .table-header span,
 .pagination {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
 
@@ -1108,8 +1132,8 @@ textarea {
 }
 
 .list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   overflow: hidden;
 }
 

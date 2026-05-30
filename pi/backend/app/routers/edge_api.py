@@ -488,6 +488,8 @@ def _create_customer_pickup_print_job_for_lines(
         station_name=station_label,
         articles=articles,
         event=ev,
+        local_order_id=order_id,
+        currency=ev.get("currency", "EUR"),
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -920,7 +922,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         order_number = allocate_order_number(db, body.event_id)
         ordered_at = datetime.now(timezone.utc).isoformat()
         waiter_name = waiter_name_from_event(ev, body.waiter_uuid)
-        order_lines = snapshot_lines(order_lines, arts, order_number=order_number)
+        order_lines = snapshot_lines(order_lines, arts, order_number=order_number, event=ev)
         payload["order_number"] = order_number
         payload["ordered_at"] = ordered_at
         payload["lines"] = order_lines
@@ -973,6 +975,8 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             )
 
     for station_uuid, station_lines in groups.items():
+        if not station_lines:
+            continue
         if _station_has_kitchen_monitor(ev, station_uuid) and station_uuid is not None:
             kitchen_ticket_ids.append(
                 _create_kitchen_ticket(

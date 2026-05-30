@@ -29,7 +29,7 @@ def test_format_ordered_at_europe_zurich(monkeypatch):
 
 
 def test_table_order_slip_layout(monkeypatch):
-    monkeypatch.setenv("ESCPOS_HERO_SCALE", "6")
+    monkeypatch.setenv("ESCPOS_HERO_SCALE", "8")
     slip = build_escpos_receipt_text(
         {
             "table_number": 7,
@@ -65,8 +65,8 @@ def test_table_order_slip_layout(monkeypatch):
         currency="CHF",
         event=_event_with_printing(),
     )
-    # GS ! scale 6 → n = 0x55
-    assert bytes([0x1D, 0x21, 0x55]) in slip
+    # GS ! scale 8 → n = 0x77
+    assert bytes([0x1D, 0x21, 0x77]) in slip
     text = _slip_text(slip)
     assert "7" in text
     assert "Sommerfest" in text
@@ -76,12 +76,13 @@ def test_table_order_slip_layout(monkeypatch):
     assert "Bon #000123" in text
     assert "Danke für Ihre Bestellung!" in text
     assert "Anna Müller" in text
-    assert "10.50" in text
-    assert "CHF" in text
+    assert "10.50" not in text
+    assert "CHF" not in text
+    assert "3 Bier 0.5" in text or "3x Bier 0.5" in text
     assert "+ Ketchup" in text
 
 
-def test_station_slip_large_order_lines_use_double_height():
+def test_station_slip_order_lines_use_double_size():
     slip = build_escpos_receipt_text(
         {
             "table_number": 8,
@@ -94,13 +95,13 @@ def test_station_slip_large_order_lines_use_double_height():
         station_name="Küche",
         articles={"10": {"id": 10, "name": "Raclette", "price": 13.5}},
         local_order_id=82,
-        event=_event_with_printing(station_receipt={"size_order_lines": "large"}),
+        event=_event_with_printing(station_receipt={"size_order_lines": "normal"}),
     )
-    assert b"\x1b!\x10" in slip
+    assert b"\x1b!\x30" in slip
     assert _slip_text(slip).count("Raclette") >= 1
 
 
-def test_station_slip_normal_order_lines_skip_double_height():
+def test_station_slip_always_double_size_even_when_config_normal():
     slip = build_escpos_receipt_text(
         {
             "table_number": 1,
@@ -115,10 +116,8 @@ def test_station_slip_normal_order_lines_skip_double_height():
             }
         ),
     )
-    idx = slip.find(b"Bier")
-    assert idx >= 0
-    window = slip[idx : idx + 40]
-    assert b"\x1b!\x10" not in window
+    assert b"\x1b!\x30" in slip
+    assert "Bier" in _slip_text(slip)
 
 
 def test_pickup_order_slip_large_code():

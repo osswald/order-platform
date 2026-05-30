@@ -17,6 +17,7 @@ from .escpos_render import (
     escpos_init_preamble,
     render_slip,
     write_centered_block,
+    write_centered_sized,
     write_heading,
     write_hero,
     write_item_row,
@@ -97,25 +98,6 @@ def _event_title_for_print(ev: dict | None, event_name: str) -> str:
     block = _printing_block(ev)
     label = (block.get("label_event_title") or "").strip()
     return label or event_name
-
-
-def _write_event_title(printer: Dummy, ev: dict | None, event_name: str, profile: dict) -> None:
-    if not profile.get("show_event_title", True):
-        return
-    title = _event_title_for_print(ev, event_name)
-    size = profile.get("size_table_or_pickup") or "large"
-    if size in ("large", "xlarge"):
-        write_sized_line(printer, title, size)
-    else:
-        write_line(printer, title)
-
-
-def _write_bottom_line(printer: Dummy, profile: dict, *, legacy_fallback: str = "") -> None:
-    bottom = (profile.get("bottom_line") or "").strip()
-    if bottom:
-        write_centered_block(printer, bottom)
-    elif legacy_fallback:
-        write_line(printer, legacy_fallback)
 
 
 def _escpos_line_width() -> int:
@@ -310,16 +292,18 @@ def build_voucher_slip_text(
     """Customer-facing amount voucher slip (one per purchased unit)."""
 
     def render(printer: Dummy) -> None:
-        write_logo_from_event(printer, event)
-        write_heading(printer, "GUTSCHEIN")
-        write_line(printer, event_name)
-        write_line(printer, voucher_name)
-        write_line(printer, f"Wert: {_money(value_cents, currency)}")
-        if copy_index is not None and copy_total is not None and copy_total > 1:
-            write_line(printer, f"Kopie {copy_index}/{copy_total}")
-        ts = generated_at or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
-        write_line(printer, ts)
-        write_line(printer, "Einloesung bei Zahlung.")
+        _render_receipt_slip(
+            printer,
+            event_name=event_name,
+            event=event,
+            profile_key="station_receipt",
+            currency=currency,
+            voucher_name=voucher_name,
+            value_cents=value_cents,
+            copy_index=copy_index,
+            copy_total=copy_total,
+            generated_at=generated_at,
+        )
 
     return render_slip(render)
 
@@ -331,6 +315,7 @@ def _write_station_order_lines_formatted(
     width: int,
     *,
     line_size: str = "large",
+    show_prices: bool = True,
 ) -> tuple[int, int]:
     from .pricing import line_total_cents
 
@@ -340,15 +325,26 @@ def _write_station_order_lines_formatted(
         if not isinstance(line, dict):
             continue
         aid = line.get("article_id")
-        if aid is None:
+        if aid is None and not line.get("article_name"):
             continue
         qty = max(1, int(line.get("qty") or 1))
-        art = arts.get(str(aid)) or arts.get(int(aid)) or {}
-        name = line.get("article_name") or art.get("name") or f"#{aid}"
-        base_cents = _line_base_total_cents(line, arts)
+        art = arts.get(str(aid)) or arts.get(int(aid)) or {} if aid is not None else {}
+        name = line.get("article_name") or art.get("name") or (f"#{aid}" if aid is not None else "—")
+        if aid is not None:
+            line_cents = line_total_cents(line, arts)
+            row_cents = _line_base_total_cents(line, arts)
+        else:
+            from .pricing import line_unit_cents
+
+            unit = line_unit_cents(line, arts)
+            line_cents = unit * qty
+            row_cents = line_cents
         total_qty += qty
-        total_cents += line_total_cents(line, arts)
-        write_item_row(printer, qty, name, base_cents, width, size=line_size)
+        total_cents += line_cents
+        if show_prices:
+            write_item_row(printer, qty, name, row_cents, width, size=line_size)
+        else:
+            write_sized_line(printer, f"{qty}x {name}", line_size)
         for add in line.get("additions") or []:
             if not isinstance(add, dict):
                 continue
@@ -360,6 +356,124 @@ def _write_station_order_lines_formatted(
         if note:
             write_subline(printer, note, size=line_size)
     return total_qty, total_cents
+
+
+def _render_receipt_slip(
+    printer: Dummy,
+    *,
+    event_name: str,
+    event: dict | None,
+    profile_key: str,
+    currency: str = "EUR",
+    payload: dict | None = None,
+    station_name: str | None = None,
+    articles: dict | None = None,
+    local_order_id: int | None = None,
+    test_charset_banner: bool = False,
+    voucher_name: str | None = None,
+    value_cents: int | None = None,
+    copy_index: int | None = None,
+    copy_total: int | None = None,
+    generated_at: str | None = None,
+    customer_footer_fallback: str | None = None,
+) -> None:
+    """Unified receipt layout for station, pickup, and voucher slips."""
+    arts = articles or {}
+    profile = _profile_cfg(event, profile_key)
+    width = _escpos_line_width()
+    title = _event_title_for_print(event, event_name)
+    hero_size = profile.get("size_table_or_pickup") or "xlarge"
+    line_size = profile.get("size_order_lines") or "large"
+    order_line_size = "xlarge" if profile_key == "station_receipt" else line_size
+    is_voucher = voucher_name is not None and value_cents is not None
+    show_prices = bool(profile.get("show_price", False))
+
+    write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+    if test_charset_banner:
+        printer.set(align="center")
+        write_line(printer, "Testdruck")
+        printer._raw(encode_escpos_text("Ää Öö Üü ß  Éé Èè Îî Çç\n"))
+        printer.set(align="left")
+    body = payload or {}
+
+    if is_voucher:
+        ts = generated_at
+        if ts and "T" in str(ts):
+            time_label = _format_ordered_at(str(ts))
+        elif ts:
+            time_label = str(ts)
+        else:
+            time_label = _format_ordered_at(None)
+        write_two_column(printer, title, time_label, width, left_bold=True)
+        ids_right = ""
+        if copy_index is not None and copy_total is not None and copy_total > 1:
+            ids_right = f"Kopie {copy_index}/{copy_total}"
+        write_two_column(printer, "GUTSCHEIN", ids_right, width)
+        write_separator(printer, width=width)
+        # Between order-line "large" and full pickup/table hero (scale 8).
+        write_hero(printer, voucher_name, size="xlarge", magnification=3)
+        write_separator(printer, width=width)
+    else:
+        write_two_column(
+            printer,
+            title,
+            _format_ordered_at(body.get("ordered_at")),
+            width,
+            left_bold=True,
+        )
+        station_label = f"Station: {station_name}" if station_name else "Station:"
+        order_number = body.get("order_number")
+        ids_right = _format_order_ids(
+            int(order_number) if order_number is not None else None,
+            local_order_id,
+        )
+        write_two_column(printer, station_label, ids_right, width)
+        write_separator(printer, width=width)
+
+        table = body.get("table_number")
+        pickup_code = body.get("pickup_code")
+        hero: str | None = None
+        is_pickup_code = False
+        if table is not None and int(table or 0) > 0:
+            hero = str(int(table))
+        elif pickup_code:
+            hero = str(pickup_code)
+            is_pickup_code = True
+        if hero:
+            if profile_key == "customer_receipt" and is_pickup_code:
+                write_centered_sized(printer, "Abholcode", "normal")
+            write_hero(printer, hero, size=hero_size, magnification=8)
+
+        write_separator(printer, width=width)
+        total_qty, total_cents = _write_station_order_lines_formatted(
+            printer,
+            body,
+            arts,
+            width,
+            line_size=order_line_size,
+            show_prices=show_prices,
+        )
+
+    if not is_voucher and show_prices:
+        write_separator(printer, width=width)
+        total_price = f"{total_cents / 100:.2f}"
+        write_two_column(printer, str(total_qty), f"{currency} {total_price}", width)
+
+    bottom = (profile.get("bottom_line") or "").strip()
+    if is_voucher:
+        if bottom:
+            write_centered_block(printer, bottom)
+        else:
+            write_centered_block(printer, "Einloesung bei Zahlung.")
+    elif bottom:
+        write_centered_block(printer, bottom)
+    elif customer_footer_fallback and profile_key == "customer_receipt":
+        write_centered_block(printer, customer_footer_fallback)
+    else:
+        write_centered_block(printer, "Danke für Ihre Bestellung!")
+        wn = (body.get("waiter_name") or "").strip()
+        if wn:
+            write_centered_block(printer, wn)
 
 
 def _render_station_order_slip(
@@ -374,63 +488,19 @@ def _render_station_order_slip(
     currency: str = "EUR",
     test_charset_banner: bool = False,
 ) -> None:
-    """Shared station slip body (production layout + profile font sizes)."""
-    arts = articles or {}
-    profile = _profile_cfg(event, "station_receipt")
-    width = _escpos_line_width()
-    title = _event_title_for_print(event, event_name)
-    hero_size = profile.get("size_table_or_pickup") or "xlarge"
-    line_size = profile.get("size_order_lines") or "large"
-
-    write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
-    if test_charset_banner:
-        printer.set(align="center")
-        write_line(printer, "Testdruck")
-        printer._raw(encode_escpos_text("Ää Öö Üü ß  Éé Èè Îî Çç\n"))
-        printer.set(align="left")
-
-    write_two_column(
+    """Station kitchen/order slip (uses unified layout + station_receipt profile)."""
+    _render_receipt_slip(
         printer,
-        title,
-        _format_ordered_at(payload.get("ordered_at")),
-        width,
-        left_bold=True,
+        payload=payload,
+        event_name=event_name,
+        station_name=station_name,
+        articles=articles,
+        event=event,
+        profile_key="station_receipt",
+        local_order_id=local_order_id,
+        currency=currency,
+        test_charset_banner=test_charset_banner,
     )
-    station_label = f"Station: {station_name}" if station_name else "Station:"
-    order_number = payload.get("order_number")
-    ids_right = _format_order_ids(
-        int(order_number) if order_number is not None else None,
-        local_order_id,
-    )
-    write_two_column(printer, station_label, ids_right, width)
-    write_separator(printer, width=width)
-
-    table = payload.get("table_number")
-    pickup_code = payload.get("pickup_code")
-    hero: str | None = None
-    if table is not None and int(table or 0) > 0:
-        hero = str(int(table))
-    elif pickup_code:
-        hero = str(pickup_code)
-    if hero:
-        write_hero(printer, hero, size=hero_size)
-
-    write_separator(printer, width=width)
-    total_qty, total_cents = _write_station_order_lines_formatted(
-        printer, payload, arts, width, line_size=line_size
-    )
-    write_separator(printer, width=width)
-    total_price = f"{total_cents / 100:.2f}"
-    write_two_column(printer, str(total_qty), f"{currency} {total_price}", width)
-
-    bottom = (profile.get("bottom_line") or "").strip()
-    wn = (payload.get("waiter_name") or "").strip()
-    if bottom:
-        write_centered_block(printer, bottom)
-    else:
-        write_centered_block(printer, "Danke für Ihre Bestellung!")
-        if wn:
-            write_centered_block(printer, wn)
 
 
 def build_escpos_receipt_text(
@@ -495,36 +565,23 @@ def build_customer_pickup_text(
     station_name: str | None = None,
     articles: dict | None = None,
     event: dict | None = None,
+    local_order_id: int | None = None,
+    currency: str = "EUR",
 ) -> bytes:
     arts = articles or {}
-    profile = _profile_cfg(event, "customer_receipt")
-    show_prices = bool(profile.get("show_price", False))
-    line_size = profile.get("size_order_lines") or "normal"
-    table_size = profile.get("size_table_or_pickup") or "xlarge"
 
     def render(printer: Dummy) -> None:
-        write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
-        pickup = payload.get("pickup_code") or "?"
-        write_sized_line(printer, f"Pickup {pickup}", table_size)
-        _write_event_title(printer, event, event_name, profile)
-        if station_name:
-            write_line(printer, f"Station: {station_name}")
-        ordered_at = payload.get("ordered_at")
-        if ordered_at:
-            write_line(printer, f"Zeit: {ordered_at}")
-        write_line(printer, "Bezahlt")
-        write_separator(printer)
-        _write_order_lines(
+        _render_receipt_slip(
             printer,
-            payload,
-            arts,
-            show_prices=show_prices,
-            line_size=line_size,
-        )
-        _write_bottom_line(
-            printer,
-            profile,
-            legacy_fallback="Bitte an der Ausgabe abholen.",
+            payload=payload,
+            event_name=event_name,
+            station_name=station_name,
+            articles=arts,
+            event=event,
+            profile_key="customer_receipt",
+            local_order_id=local_order_id,
+            currency=currency,
+            customer_footer_fallback="Bitte an der Ausgabe abholen.",
         )
 
     return render_slip(render)

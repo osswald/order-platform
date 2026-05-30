@@ -4,45 +4,49 @@
       <h3 class="field-group-title">Basis</h3>
       <div class="form-field">
         <label>Name</label>
-        <InputText v-model="form.name" placeholder="Sommerfest 2026" />
+        <v-text-field v-model="form.name" placeholder="Sommerfest 2026" hide-details="auto" />
       </div>
       <div class="field-row">
         <div class="form-field">
           <label>Status</label>
-          <Select
+          <v-select
             v-model="form.status"
-            :options="selectableStatusOptions"
-            optionLabel="label"
-            optionValue="value"
+            :items="selectableStatusOptions"
+            item-title="label"
+            item-value="value"
             placeholder="Status wählen"
+            hide-details="auto"
           />
         </div>
         <div class="form-field">
           <label>Währung</label>
-          <Select v-model="form.currency" :options="currencyOptions" placeholder="Währung wählen" />
+          <v-select
+            v-model="form.currency"
+            :items="currencyOptions"
+            placeholder="Währung wählen"
+            hide-details="auto"
+          />
         </div>
       </div>
       <div class="field-row">
         <div class="form-field">
           <label>Start</label>
-          <DatePicker
-            v-model="form.start"
-            showIcon
-            showTime
-            hourFormat="24"
-            dateFormat="dd.mm.yy"
+          <v-text-field
+            :model-value="formatLocalDatetime(form.start)"
+            type="datetime-local"
             placeholder="Startdatum wählen"
+            hide-details="auto"
+            @update:model-value="form.start = parseLocalDatetime($event)"
           />
         </div>
         <div class="form-field">
           <label>Ende</label>
-          <DatePicker
-            v-model="form.end"
-            showIcon
-            showTime
-            hourFormat="24"
-            dateFormat="dd.mm.yy"
+          <v-text-field
+            :model-value="formatLocalDatetime(form.end)"
+            type="datetime-local"
             placeholder="Enddatum wählen"
+            hide-details="auto"
+            @update:model-value="form.end = parseLocalDatetime($event)"
           />
         </div>
       </div>
@@ -52,25 +56,28 @@
       <h3 class="field-group-title">Zahlung</h3>
       <div class="form-field">
         <label>Zahlungsmodus (Pi / Kellner)</label>
-        <Select
+        <v-select
           v-model="form.paymentMode"
-          :options="paymentModeOptions"
-          optionLabel="label"
-          optionValue="value"
+          :items="paymentModeOptions"
+          item-title="label"
+          item-value="value"
           placeholder="Modus wählen"
+          hide-details="auto"
         />
         <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = vor Abschluss; Später = nach Absenden.</small>
       </div>
       <div class="form-field">
         <label>Zahlungsarten (Pi)</label>
-        <MultiSelect
+        <v-select
           v-model="form.paymentTypes"
-          :options="paymentTypeOptions"
-          optionLabel="label"
-          optionValue="value"
+          :items="paymentTypeOptions"
+          item-title="label"
+          item-value="value"
           placeholder="Zahlungsarten wählen"
-          display="chip"
-          class="w-full"
+          multiple
+          chips
+          closable-chips
+          hide-details="auto"
         />
         <small>Bei Abrechnung wählt der Kellner eine Art (Popup nur bei mehreren).</small>
       </div>
@@ -90,22 +97,27 @@
       <h3 class="field-group-title">Config</h3>
       <div class="toggle-row">
         <label for="cash-registers-enabled">Kassen</label>
-        <ToggleSwitch v-model="form.cashRegistersEnabled" inputId="cash-registers-enabled" />
+        <v-switch
+          id="cash-registers-enabled"
+          v-model="form.cashRegistersEnabled"
+          hide-details
+          density="compact"
+        />
       </div>
       <div class="toggle-row">
         <label for="vouchers-enabled">Gutscheine</label>
-        <ToggleSwitch v-model="form.vouchersEnabled" inputId="vouchers-enabled" />
+        <v-switch
+          id="vouchers-enabled"
+          v-model="form.vouchersEnabled"
+          hide-details
+          density="compact"
+        />
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import DatePicker from 'primevue/datepicker'
-import InputText from 'primevue/inputtext'
-import MultiSelect from 'primevue/multiselect'
-import Select from 'primevue/select'
-import ToggleSwitch from 'primevue/toggleswitch'
 import TwintQrField from './TwintQrField.vue'
 
 defineProps({
@@ -156,12 +168,29 @@ defineProps({
 })
 
 defineEmits(['upload', 'remove'])
+
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
+function formatLocalDatetime(value) {
+  if (!value || !(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return ''
+  }
+  return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}T${pad2(value.getHours())}:${pad2(value.getMinutes())}`
+}
+
+function parseLocalDatetime(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
 </script>
 
 <style scoped>
 .field-group {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   padding: 0.75rem;
   margin-bottom: 0.75rem;
 }
@@ -170,7 +199,6 @@ defineEmits(['upload', 'remove'])
   margin: 0 0 0.65rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--p-text-color);
 }
 
 .field-row {
@@ -194,18 +222,10 @@ defineEmits(['upload', 'remove'])
 .toggle-row label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--p-text-color);
 }
 
 small {
-  color: var(--p-text-muted-color);
-}
-
-:deep(.p-inputtext),
-:deep(.p-select),
-:deep(.p-datepicker),
-:deep(.p-multiselect) {
-  width: 100%;
+  opacity: 0.7;
 }
 
 @media (max-width: 1000px) {

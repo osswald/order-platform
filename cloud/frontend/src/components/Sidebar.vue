@@ -34,28 +34,10 @@ defineEmits(['change-organisation', 'change-hire-company'])
 .sidebar {
   width: 280px;
   flex-shrink: 0;
-  background: var(--p-surface-card);
-  color: var(--p-text-color);
-  padding: 1.25rem 0;
-  height: calc(100vh - 64px);
+  background: rgb(var(--v-theme-surface));
+  padding: 1rem 1rem 1rem 1.25rem;
+  height: 100%;
   overflow-y: auto;
-  border-right: 1px solid var(--p-content-border-color);
-}
-
-.sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: var(--p-content-border-color);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: var(--p-text-muted-color);
+  border-right: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 </style>

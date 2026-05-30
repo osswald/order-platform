@@ -35,20 +35,11 @@
             @remove="removeTwintQr"
           />
           <div class="actions">
-            <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-            <Button
-              label="Event kopieren"
-              class="secondary-button"
-              type="button"
-              :disabled="copyBusy"
-              @click="copyEvent"
-            />
-            <Button
-              label="Speichern"
-              class="primary-button"
-              :disabled="!canSave"
-              @click="saveEvent"
-            />
+            <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+            <v-btn variant="outlined" type="button" :disabled="copyBusy" @click="copyEvent">
+              Event kopieren
+            </v-btn>
+            <v-btn color="primary" :disabled="!canSave" @click="saveEvent">Speichern</v-btn>
           </div>
           <p v-if="message" :class="messageType">{{ message }}</p>
         </template>
@@ -71,13 +62,8 @@
           @remove="removeTwintQr"
         />
         <div class="actions">
-          <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-          <Button
-            label="Speichern"
-            class="primary-button"
-            :disabled="!canSave"
-            @click="saveEvent"
-          />
+          <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+          <v-btn color="primary" :disabled="!canSave" @click="saveEvent">Speichern</v-btn>
         </div>
         <p v-if="message" :class="messageType">{{ message }}</p>
       </template>
@@ -93,57 +79,55 @@
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
-          <IconField>
-            <InputIcon class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Name, Organisation oder Währung suchen..." />
-          </IconField>
+          <v-text-field
+            v-model="searchQuery"
+            label="Suche"
+            prepend-inner-icon="mdi-magnify"
+            placeholder="Name, Organisation oder Währung suchen..."
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>Status</label>
-          <Select v-model="statusFilter" :options="statusFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle Status" />
+          <v-select
+            v-model="statusFilter"
+            :items="statusFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Status"
+            hide-details
+            density="compact"
+          />
         </div>
       </div>
 
-      <DataTable
-        :value="paginatedEvents"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editEvent($event.data)"
+      <VqDataTable
+        :headers="tableHeaders"
+        :items="paginatedEvents"
+        item-value="id"
+        class="vq-data-table list-table"
+        hide-default-footer
+        hover
+        @click:row="(_, { item }) => editEvent(item)"
       >
-        <template #empty>Keine Veranstaltungen gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column field="name" header="Name" />
-        <Column header="Status">
-          <template #body="{ data }">
-            <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" />
-          </template>
-        </Column>
-        <Column field="organisation_name" header="Organisation" />
-        <Column header="Start">
-          <template #body="{ data }">{{ formatDateTime(data.start) }}</template>
-        </Column>
-        <Column header="Ende">
-          <template #body="{ data }">{{ formatDateTime(data.end) }}</template>
-        </Column>
-        <Column field="currency" header="Währung" />
-        <Column v-if="isAdmin" header="Aktionen">
-          <template #body="{ data }">
-            <Button label="Löschen" class="danger" @click.stop="deleteEvent(data.id)" />
-          </template>
-        </Column>
-      </DataTable>
+        <template #item.status="{ item }">
+          <v-chip :color="statusChipColor(item.status)" size="small" variant="tonal">
+            {{ statusLabel(item.status) }}
+          </v-chip>
+        </template>
+        <template #item.start="{ item }">{{ formatDateTime(item.start) }}</template>
+        <template #item.end="{ item }">{{ formatDateTime(item.end) }}</template>
+        <template v-if="isAdmin" #item.actions="{ item }">
+          <v-btn color="error" variant="outlined" size="small" @click.stop="deleteEvent(item.id)">
+            Löschen
+          </v-btn>
+        </template>
+        <template #no-data>Keine Veranstaltungen gefunden.</template>
+      </VqDataTable>
 
       <div v-if="filteredEvents.length" class="pagination">
         <span>{{ paginationLabel }}</span>
-        <Paginator
-          :first="(currentPage - 1) * pageSize"
-          :rows="pageSize"
-          :totalRecords="filteredEvents.length"
-          @page="currentPage = $event.page + 1"
-        />
+        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
       </div>
     </template>
   </ListDetailLayout>
@@ -152,21 +136,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import InputText from 'primevue/inputtext'
-import Paginator from 'primevue/paginator'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
 import ListDetailLayout from './ListDetailLayout.vue'
 import EventConfiguration from './EventConfiguration.vue'
 import EventStammdatenFields from './EventStammdatenFields.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   isAdmin: {
@@ -272,14 +248,30 @@ function statusLabel(status) {
   return statusOptions.find((item) => item.value === status)?.label || status
 }
 
-function statusSeverity(status) {
+function statusChipColor(status) {
   return {
-    config: 'secondary',
+    config: undefined,
     test: 'info',
     prod: 'success',
-    archive: 'warn',
-  }[status] || 'secondary'
+    archive: 'warning',
+  }[status]
 }
+
+const tableHeaders = computed(() => {
+  const headers = [
+    { title: 'ID', key: 'id' },
+    { title: 'Name', key: 'name' },
+    { title: 'Status', key: 'status', sortable: false },
+    { title: 'Organisation', key: 'organisation_name' },
+    { title: 'Start', key: 'start', sortable: false },
+    { title: 'Ende', key: 'end', sortable: false },
+    { title: 'Währung', key: 'currency' },
+  ]
+  if (props.isAdmin) {
+    headers.push({ title: 'Aktionen', key: 'actions', sortable: false, align: 'end' })
+  }
+  return headers
+})
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -625,13 +617,13 @@ onUnmounted(() => {
 
 <style scoped>
 .empty-hint {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 1rem;
 }
 
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .form-field {
@@ -662,7 +654,7 @@ h2 {
 
 .table-header span,
 .pagination {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
 
@@ -681,8 +673,8 @@ h2 {
 }
 
 .list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   overflow: hidden;
 }
 

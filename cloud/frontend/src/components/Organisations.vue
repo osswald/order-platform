@@ -9,26 +9,21 @@
     <template #detail>
       <h2>{{ editMode ? 'Organisation bearbeiten' : 'Neue Organisation' }}</h2>
       <div class="form-field">
-        <label>Name</label>
-        <InputText v-model="form.name" placeholder="Vendiqo GmbH" />
+        <v-text-field v-model="form.name" label="Name" placeholder="Vendiqo GmbH" hide-details="auto" />
       </div>
       <div class="form-field">
-        <label>Adresse</label>
-        <InputText v-model="form.address" placeholder="Musterstraße 12" />
+        <v-text-field v-model="form.address" label="Adresse" placeholder="Musterstraße 12" hide-details="auto" />
       </div>
       <div class="field-row">
         <div class="form-field">
-          <label>PLZ</label>
-          <InputText v-model="form.zip" placeholder="12345" />
+          <v-text-field v-model="form.zip" label="PLZ" placeholder="12345" hide-details="auto" />
         </div>
         <div class="form-field">
-          <label>Stadt</label>
-          <InputText v-model="form.city" placeholder="Berlin" />
+          <v-text-field v-model="form.city" label="Stadt" placeholder="Berlin" hide-details="auto" />
         </div>
       </div>
       <div class="form-field">
-        <label>Land</label>
-        <Select v-model="form.country" :options="countryOptions" placeholder="Land wählen" />
+        <v-select v-model="form.country" :items="countryOptions" label="Land" placeholder="Land wählen" hide-details="auto" />
       </div>
       <div class="form-field">
         <label>Benutzer</label>
@@ -38,67 +33,54 @@
 
       <template v-if="editMode && orgApplianceLendings">
         <div class="org-lendings-toolbar">
-          <Button
-            label="Geräte ausleihen"
-            class="primary-button"
-            type="button"
-            @click="lendingDialogVisible = true"
-          />
+          <v-btn color="primary" type="button" @click="lendingDialogVisible = true">
+            Geräte ausleihen
+          </v-btn>
         </div>
         <div class="org-lendings-block">
           <h3>Aktuell ausgeliehene Geräte</h3>
-          <DataTable
-            :value="orgApplianceLendings.current"
-            dataKey="lending_id"
-            class="list-table nested-table"
-            responsiveLayout="stack"
-            breakpoint="768px"
+          <VqDataTable
+            :headers="lendingHeaders"
+            :items="orgApplianceLendings.current"
+            item-value="lending_id"
+            class="vq-data-table list-table nested-table"
+            hide-default-footer
           >
-            <template #empty>Keine aktiven Ausleihen.</template>
-            <Column field="appliance_id" header="ID" />
-            <Column header="Gerät">
-              <template #body="{ data }">{{ data.appliance_name || '—' }}</template>
-            </Column>
-            <Column header="Typ">
-              <template #body="{ data }">{{ applianceTypeLabel(data.appliance_type) }}</template>
-            </Column>
-            <Column header="Zeitraum">
-              <template #body="{ data }">{{ formatDeDate(data.start_date) }} – {{ formatDeDate(data.end_date) }}</template>
-            </Column>
-          </DataTable>
+            <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+            <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+            <template #item.period="{ item }">
+              {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+            </template>
+            <template #no-data>Keine aktiven Ausleihen.</template>
+          </VqDataTable>
         </div>
         <div class="org-lendings-block">
           <h3>Geplante Ausleihen</h3>
-          <DataTable
-            :value="orgApplianceLendings.planned"
-            dataKey="lending_id"
-            class="list-table nested-table"
-            responsiveLayout="stack"
-            breakpoint="768px"
+          <VqDataTable
+            :headers="plannedLendingHeaders"
+            :items="orgApplianceLendings.planned"
+            item-value="lending_id"
+            class="vq-data-table list-table nested-table"
+            hide-default-footer
           >
-            <template #empty>Keine geplanten Ausleihen.</template>
-            <Column field="appliance_id" header="ID" />
-            <Column header="Gerät">
-              <template #body="{ data }">{{ data.appliance_name || '—' }}</template>
-            </Column>
-            <Column header="Typ">
-              <template #body="{ data }">{{ applianceTypeLabel(data.appliance_type) }}</template>
-            </Column>
-            <Column header="Zeitraum">
-              <template #body="{ data }">{{ formatDeDate(data.start_date) }} – {{ formatDeDate(data.end_date) }}</template>
-            </Column>
-            <Column header="Aktion">
-              <template #body="{ data }">
-                <Button
-                  label="Stornieren"
-                  class="secondary-button"
-                  type="button"
-                  :disabled="cancellingLendingId === data.lending_id"
-                  @click="cancelPlannedLendingRow(data)"
-                />
-              </template>
-            </Column>
-          </DataTable>
+            <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+            <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+            <template #item.period="{ item }">
+              {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+            </template>
+            <template #item.actions="{ item }">
+              <v-btn
+                variant="outlined"
+                size="small"
+                type="button"
+                :disabled="cancellingLendingId === item.lending_id"
+                @click="cancelPlannedLendingRow(item)"
+              >
+                Stornieren
+              </v-btn>
+            </template>
+            <template #no-data>Keine geplanten Ausleihen.</template>
+          </VqDataTable>
         </div>
       </template>
 
@@ -110,8 +92,10 @@
         hint="Standard für neue Veranstaltungen dieser Organisation."
       />
       <div class="actions">
-        <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-        <Button label="Speichern" class="primary-button" :disabled="!form.name || !form.country" @click="saveOrganisation" />
+        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+        <v-btn color="primary" :disabled="!form.name || !form.country" @click="saveOrganisation">
+          Speichern
+        </v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
 
@@ -138,55 +122,61 @@
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
-          <IconField>
-            <InputIcon class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Name, Adresse, Stadt oder Land suchen..." />
-          </IconField>
+          <v-text-field
+            v-model="searchQuery"
+            label="Suche"
+            prepend-inner-icon="mdi-magnify"
+            placeholder="Name, Adresse, Stadt oder Land suchen..."
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>Land</label>
-          <Select v-model="countryFilter" :options="countryFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle Länder" />
+          <v-select
+            v-model="countryFilter"
+            :items="countryFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Land"
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>Benutzer</label>
-          <Select v-model="userFilter" :options="userFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle" />
+          <v-select
+            v-model="userFilter"
+            :items="userFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Benutzer"
+            hide-details
+            density="compact"
+          />
         </div>
       </div>
-      <DataTable
-        :value="paginatedOrganisations"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editOrganisation($event.data)"
+      <VqDataTable
+        :headers="tableHeaders"
+        :items="paginatedOrganisations"
+        item-value="id"
+        class="vq-data-table list-table"
+        hide-default-footer
+        hover
+        @click:row="(_, { item }) => editOrganisation(item)"
       >
-        <template #empty>Keine Organisationen gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column field="name" header="Name" />
-        <Column header="Standort">
-          <template #body="{ data }">
-            {{ data.address || '—' }}<span v-if="data.city"> · {{ data.city }}</span>
-          </template>
-        </Column>
-        <Column field="country" header="Land" />
-        <Column header="Benutzer">
-          <template #body="{ data }">{{ data.user_ids.length }}</template>
-        </Column>
-        <Column header="Aktionen">
-          <template #body="{ data }">
-            <Button label="Löschen" class="danger" @click.stop="deleteOrganisation(data.id)" />
-          </template>
-        </Column>
-      </DataTable>
+        <template #item.location="{ item }">
+          {{ item.address || '—' }}<span v-if="item.city"> · {{ item.city }}</span>
+        </template>
+        <template #item.user_ids="{ item }">{{ item.user_ids.length }}</template>
+        <template #item.actions="{ item }">
+          <v-btn color="error" variant="outlined" size="small" @click.stop="deleteOrganisation(item.id)">
+            Löschen
+          </v-btn>
+        </template>
+        <template #no-data>Keine Organisationen gefunden.</template>
+      </VqDataTable>
       <div v-if="filteredOrganisations.length" class="pagination">
         <span>{{ paginationLabel }}</span>
-        <Paginator
-          :first="(currentPage - 1) * pageSize"
-          :rows="pageSize"
-          :totalRecords="filteredOrganisations.length"
-          @page="currentPage = $event.page + 1"
-        />
+        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
       </div>
     </template>
   </ListDetailLayout>
@@ -195,14 +185,6 @@
 <script setup>
 import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import InputText from 'primevue/inputtext'
-import Paginator from 'primevue/paginator'
-import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
@@ -211,6 +193,7 @@ import { apiFetch } from '../api'
 import { cancelPlannedLending } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
+import VqDataTable from './VqDataTable.vue'
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 const tenantHireCompanyId = computed(() => sessionContext?.activeHireCompanyId?.value ?? null)
@@ -244,6 +227,27 @@ const userFilterOptions = [
   { value: '', label: 'Alle' },
   { value: 'with-users', label: 'Mit Benutzern' },
   { value: 'without-users', label: 'Ohne Benutzer' },
+]
+
+const tableHeaders = [
+  { title: 'ID', key: 'id' },
+  { title: 'Name', key: 'name' },
+  { title: 'Standort', key: 'location', sortable: false },
+  { title: 'Land', key: 'country' },
+  { title: 'Benutzer', key: 'user_ids', sortable: false },
+  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
+]
+
+const lendingHeaders = [
+  { title: 'ID', key: 'appliance_id' },
+  { title: 'Gerät', key: 'appliance_name', sortable: false },
+  { title: 'Typ', key: 'appliance_type', sortable: false },
+  { title: 'Zeitraum', key: 'period', sortable: false },
+]
+
+const plannedLendingHeaders = [
+  ...lendingHeaders,
+  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
 ]
 
 const APPLIANCE_TYPE_LABELS = {
@@ -523,7 +527,7 @@ onMounted(fetchOrganisations)
 <style scoped>
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .form-field {
@@ -540,18 +544,13 @@ h2 {
 }
 
 label {
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 small {
-  color: var(--p-text-muted-color);
-}
-
-:deep(.p-inputtext),
-:deep(.p-select) {
-  width: 100%;
+  color: rgba(var(--v-theme-on-surface), 0.65);
 }
 
 .actions {
@@ -575,7 +574,7 @@ small {
 
 .table-header span,
 .pagination {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
 
@@ -594,8 +593,8 @@ small {
 }
 
 .list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -618,7 +617,7 @@ small {
 .org-lendings-block h3 {
   margin: 0 0 0.75rem;
   font-size: 1rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .nested-table {

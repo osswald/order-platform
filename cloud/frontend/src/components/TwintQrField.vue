@@ -13,21 +13,24 @@
         @change="onFileChange"
       />
       <div class="twint-qr-actions">
-        <Button
+        <v-btn
           type="button"
-          label="QR hochladen"
-          class="secondary-button"
+          variant="outlined"
           :disabled="busy"
           @click="fileInput?.click()"
-        />
-        <Button
+        >
+          QR hochladen
+        </v-btn>
+        <v-btn
           v-if="hasTwintQr || previewUrl"
           type="button"
-          label="Entfernen"
-          class="danger"
+          color="error"
+          variant="outlined"
           :disabled="busy"
           @click="$emit('remove')"
-        />
+        >
+          Entfernen
+        </v-btn>
       </div>
       <small>PNG oder SVG, max. 500 KB. Wird sofort gespeichert (nicht über «Speichern»).</small>
     </template>
@@ -37,7 +40,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import Button from 'primevue/button'
 
 defineProps({
   editMode: Boolean,
@@ -63,7 +65,7 @@ function onFileChange(event) {
   display: flex;
   justify-content: center;
   padding: 0.75rem;
-  background: var(--p-surface-100);
+  background: rgba(var(--v-theme-on-surface), 0.04);
   border-radius: 0.5rem;
   margin-bottom: 0.5rem;
 }

@@ -1,81 +1,89 @@
 <template>
-  <Dialog
-    :visible="visible"
-    header="Geräte ausleihen"
-    modal
-    class="org-lending-dialog"
-    :style="{ width: '36rem' }"
-    @update:visible="$emit('update:visible', $event)"
+  <v-dialog
+    :model-value="visible"
+    max-width="36rem"
+    @update:model-value="$emit('update:visible', $event)"
   >
-    <div class="form-field">
-      <label>Organisation</label>
-      <p class="org-readonly">{{ organisationName || '—' }}</p>
-    </div>
-    <div class="field-row">
-      <div class="form-field">
-        <label>Startdatum</label>
-        <DatePicker
-          v-model="startDate"
-          showIcon
-          dateFormat="dd.mm.yy"
-          placeholder="Startdatum"
-        />
-      </div>
-      <div class="form-field">
-        <label>Dauer (Tage)</label>
-        <InputNumber v-model="durationDays" :min="1" :max="3650" showButtons />
-      </div>
-    </div>
-    <div class="form-field">
-      <label>Geräte</label>
-      <MultiSelect
-        v-model="selectedIds"
-        :options="applianceOptionGroups"
-        optionLabel="label"
-        optionValue="value"
-        optionGroupLabel="label"
-        optionGroupChildren="items"
-        optionDisabled="disabled"
-        placeholder="Geräte wählen"
-        display="chip"
-        filter
-        class="w-full"
-        :loading="loadingAppliances"
-        :disabled="!canPickAppliances"
-      />
-      <small v-if="loadingAppliances">Geräte werden geladen…</small>
-      <small v-else-if="!canPickAppliances">Bitte Startdatum und Dauer angeben.</small>
-      <small v-else-if="blockedCount" class="blocked-hint">
-        {{ blockedCount }} Gerät{{ blockedCount === 1 ? '' : 'e' }} im gewählten Zeitraum nicht verfügbar.
-      </small>
-    </div>
-    <p v-if="submitMessage" :class="submitMessageType">{{ submitMessage }}</p>
-    <ul v-if="submitFailures.length" class="failure-list">
-      <li v-for="(f, i) in submitFailures" :key="i">
-        {{ f.name }}: {{ f.detail }}
-      </li>
-    </ul>
-    <template #footer>
-      <Button label="Abbrechen" class="secondary-button" type="button" :disabled="submitting" @click="close" />
-      <Button
-        label="Ausleihen"
-        class="primary-button"
-        type="button"
-        :disabled="!canSubmit || submitting"
-        :loading="submitting"
-        @click="submit"
-      />
-    </template>
-  </Dialog>
+    <v-card class="org-lending-dialog">
+      <v-card-title>Geräte ausleihen</v-card-title>
+      <v-card-text>
+        <div class="form-field">
+          <label>Organisation</label>
+          <p class="org-readonly">{{ organisationName || '—' }}</p>
+        </div>
+        <div class="field-row">
+          <div class="form-field">
+            <label>Startdatum</label>
+            <v-date-input
+              v-model="startDate"
+              placeholder="Startdatum"
+              density="compact"
+              hide-details
+              prepend-icon=""
+              prepend-inner-icon="mdi-calendar"
+            />
+          </div>
+          <div class="form-field">
+            <label>Dauer (Tage)</label>
+            <v-number-input
+              v-model="durationDays"
+              :min="1"
+              :max="3650"
+              control-variant="stacked"
+              density="compact"
+              hide-details
+            />
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Geräte</label>
+          <v-select
+            v-model="selectedIds"
+            :items="applianceSelectItems"
+            item-title="title"
+            item-value="value"
+            placeholder="Geräte wählen"
+            multiple
+            chips
+            closable-chips
+            density="compact"
+            hide-details="auto"
+            :loading="loadingAppliances"
+            :disabled="!canPickAppliances"
+          />
+          <small v-if="loadingAppliances">Geräte werden geladen…</small>
+          <small v-else-if="!canPickAppliances">Bitte Startdatum und Dauer angeben.</small>
+          <small v-else-if="blockedCount" class="blocked-hint">
+            {{ blockedCount }} Gerät{{ blockedCount === 1 ? '' : 'e' }} im gewählten Zeitraum nicht verfügbar.
+          </small>
+        </div>
+        <p v-if="submitMessage" :class="submitMessageType">{{ submitMessage }}</p>
+        <ul v-if="submitFailures.length" class="failure-list">
+          <li v-for="(f, i) in submitFailures" :key="i">
+            {{ f.name }}: {{ f.detail }}
+          </li>
+        </ul>
+      </v-card-text>
+      <v-card-actions class="dialog-actions">
+        <v-spacer />
+        <v-btn variant="outlined" :disabled="submitting" @click="close">
+          Abbrechen
+        </v-btn>
+        <v-btn
+          color="primary"
+          :disabled="!canSubmit || submitting"
+          :loading="submitting"
+          @click="submit"
+        >
+          Ausleihen
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import Button from 'primevue/button'
-import DatePicker from 'primevue/datepicker'
-import Dialog from 'primevue/dialog'
-import InputNumber from 'primevue/inputnumber'
-import MultiSelect from 'primevue/multiselect'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import {
@@ -143,6 +151,21 @@ const applianceOptionGroups = computed(() => {
       label: applianceTypeLabel(type),
       items: items.sort((x, y) => x.label.localeCompare(y.label, 'de')),
     }))
+})
+
+const applianceSelectItems = computed(() => {
+  const items = []
+  for (const group of applianceOptionGroups.value) {
+    items.push({ type: 'subheader', title: group.label })
+    for (const item of group.items) {
+      items.push({
+        title: item.label,
+        value: item.value,
+        disabled: item.disabled,
+      })
+    }
+  }
+  return items
 })
 
 const blockedCount = computed(() => appliances.value.filter((a) => a.lendable === false).length)
@@ -277,19 +300,6 @@ watch([startDate, durationDays], () => {
 </script>
 
 <style scoped>
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.75rem;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
 label {
   font-size: 0.875rem;
   font-weight: 600;
@@ -301,35 +311,13 @@ label {
 }
 
 .blocked-hint {
-  color: var(--p-text-muted-color);
+  opacity: 0.65;
 }
 
 .failure-list {
   margin: 0.5rem 0 0;
   padding-left: 1.25rem;
   font-size: 0.875rem;
-  color: var(--p-red-500);
-}
-
-.success {
-  color: var(--p-green-600);
-}
-
-.warn {
-  color: var(--p-orange-600);
-}
-
-.error {
-  color: var(--p-red-500);
-}
-
-.w-full {
-  width: 100%;
-}
-
-:deep(.p-datepicker),
-:deep(.p-inputnumber),
-:deep(.p-multiselect) {
-  width: 100%;
+  color: rgb(var(--v-theme-error));
 }
 </style>

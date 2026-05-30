@@ -10,40 +10,39 @@
       <template v-else>
         <section v-for="group in stockGroups" :key="group.key" class="stock-group">
           <h3>{{ group.name }}</h3>
-          <DataTable
-            :value="group.items"
-            dataKey="id"
-            class="list-table nested"
-            responsiveLayout="stack"
-            breakpoint="768px"
+          <VqDataTable
+            :headers="stockHeaders"
+            :items="group.items"
+            item-value="id"
+            hide-default-footer
+            class="vq-data-table list-table nested"
           >
-            <Column field="name" header="Artikel" />
-            <Column header="Bestand führen">
-              <template #body="{ data }">
-                <Checkbox v-model="data.monitor_stock" :binary="true" />
-              </template>
-            </Column>
-            <Column header="Bestand">
-              <template #body="{ data }">
-                <InputNumber
-                  v-model="data.in_stock"
-                  :min="0"
-                  :disabled="!data.monitor_stock"
-                  class="stock-qty-input"
-                />
-              </template>
-            </Column>
-          </DataTable>
+            <template #item.monitor_stock="{ item }">
+              <v-checkbox v-model="item.monitor_stock" hide-details density="compact" />
+            </template>
+            <template #item.in_stock="{ item }">
+              <v-text-field
+                v-model.number="item.in_stock"
+                type="number"
+                min="0"
+                :disabled="!item.monitor_stock"
+                hide-details
+                density="compact"
+                class="stock-qty-input"
+              />
+            </template>
+          </VqDataTable>
         </section>
       </template>
       <div class="section-toolbar" style="margin-top: 1rem">
-        <Button
-          label="Lager speichern"
-          class="primary-button"
+        <v-btn
+          color="primary"
           type="button"
           :disabled="saving || loading"
           @click="saveStock"
-        />
+        >
+          Lager speichern
+        </v-btn>
       </div>
     </template>
   </div>
@@ -51,13 +50,9 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import InputNumber from 'primevue/inputnumber'
 import { apiFetch } from '../api'
 import { stockGroupsForItems } from '../utils/stockByStation'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   eventId: {
@@ -69,6 +64,12 @@ const props = defineProps({
     default: () => [],
   },
 })
+
+const stockHeaders = [
+  { title: 'Artikel', key: 'name' },
+  { title: 'Bestand führen', key: 'monitor_stock', sortable: false },
+  { title: 'Bestand', key: 'in_stock', sortable: false },
+]
 
 const loading = ref(true)
 const loadError = ref('')
@@ -160,23 +161,11 @@ watch(
   font-size: 1rem;
   font-weight: 600;
 }
-
-.section-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.muted {
+  opacity: 0.7;
 }
 
 @media (max-width: 992px) {
-  .section-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .section-toolbar :deep(.p-button) {
-    width: 100%;
-  }
-
   .stock-qty-input {
     max-width: 100%;
   }

@@ -54,6 +54,43 @@ def test_register_voucher_sale_creates_print_jobs_per_unit(client):
     assert len(voucher_jobs) == 2
 
 
+def test_register_voucher_only_single_print_job_no_pickup_slip(client):
+    """Voucher-only cash register order: one receipt slip per unit, no station/pickup 0.00 slips."""
+    c, Session = client
+    cid = f"reg-vo-{uuid.uuid4().hex[:10]}"
+    r = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": cid,
+            "event_id": 1,
+            "order_source": "cash_register",
+            "cash_register_uuid": "reg-1",
+            "lines": [
+                {
+                    "kind": "voucher_sale",
+                    "voucher_definition_uuid": "vd-20",
+                    "qty": 1,
+                    "unit_cents": 2000,
+                }
+            ],
+            "payments": [{"type": "cash", "amount_cents": 2000}],
+        },
+    )
+    assert r.status_code == 200, r.text
+    db = Session()
+    order = db.query(LocalOrder).filter(LocalOrder.client_order_id == cid).first()
+    jobs = db.query(PrintJob).filter(PrintJob.local_order_id == order.id).all()
+    db.close()
+    assert len(jobs) == 1
+    slip = base64.b64decode(jobs[0].escpos_payload or "")
+    text = slip.decode("cp858", errors="replace")
+    assert b"GUTSCHEIN" in slip
+    assert "20 CHF Gutschein" in text or "Gutschein" in text
+    assert "20.00" not in text
+    assert " 0.00" not in text
+    assert "Abholcode" not in text
+
+
 def test_settle_partial_with_amount_voucher_credit(client):
     c, Session = client
     db = Session()

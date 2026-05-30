@@ -18,82 +18,66 @@
         <div v-else class="lend-sections">
           <div class="lend-section">
             <h3>Aktuell ausgeliehene Geräte</h3>
-            <DataTable
-              :value="lendings.current"
-              dataKey="lending_id"
-              class="list-table"
-              responsiveLayout="stack"
-              breakpoint="768px"
+            <VqDataTable
+              :headers="lendingHeaders"
+              :items="lendings.current"
+              item-value="lending_id"
+              hide-default-footer
+              no-data-text="Keine aktiven Ausleihen."
+              class="vq-data-table list-table"
             >
-              <template #empty>Keine aktiven Ausleihen.</template>
-              <Column field="appliance_id" header="ID" />
-              <Column header="Gerät">
-                <template #body="{ data }">{{ data.appliance_name || '—' }}</template>
-              </Column>
-              <Column header="Typ">
-                <template #body="{ data }">{{ applianceTypeLabel(data.appliance_type) }}</template>
-              </Column>
-              <Column header="Zeitraum">
-                <template #body="{ data }">{{ formatDeDate(data.start_date) }} – {{ formatDeDate(data.end_date) }}</template>
-              </Column>
-            </DataTable>
+              <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+              <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+              <template #item.period="{ item }">
+                {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+              </template>
+            </VqDataTable>
           </div>
 
           <div class="lend-section">
             <h3>Geplante Ausleihen</h3>
-            <DataTable
-              :value="lendings.planned"
-              dataKey="lending_id"
-              class="list-table"
-              responsiveLayout="stack"
-              breakpoint="768px"
+            <VqDataTable
+              :headers="plannedLendingHeaders"
+              :items="lendings.planned"
+              item-value="lending_id"
+              hide-default-footer
+              no-data-text="Keine geplanten Ausleihen."
+              class="vq-data-table list-table"
             >
-              <template #empty>Keine geplanten Ausleihen.</template>
-              <Column field="appliance_id" header="ID" />
-              <Column header="Gerät">
-                <template #body="{ data }">{{ data.appliance_name || '—' }}</template>
-              </Column>
-              <Column header="Typ">
-                <template #body="{ data }">{{ applianceTypeLabel(data.appliance_type) }}</template>
-              </Column>
-              <Column header="Zeitraum">
-                <template #body="{ data }">{{ formatDeDate(data.start_date) }} – {{ formatDeDate(data.end_date) }}</template>
-              </Column>
-              <Column header="Aktion">
-                <template #body="{ data }">
-                  <Button
-                    label="Stornieren"
-                    class="secondary-button"
-                    type="button"
-                    :disabled="cancellingLendingId === data.lending_id"
-                    @click="cancelPlannedLendingRow(data)"
-                  />
-                </template>
-              </Column>
-            </DataTable>
+              <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+              <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+              <template #item.period="{ item }">
+                {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+              </template>
+              <template #item.actions="{ item }">
+                <v-btn
+                  variant="outlined"
+                  type="button"
+                  :disabled="cancellingLendingId === item.lending_id"
+                  @click="cancelPlannedLendingRow(item)"
+                >
+                  Stornieren
+                </v-btn>
+              </template>
+            </VqDataTable>
           </div>
 
           <div class="lend-section">
             <h3>Vergangene Ausleihen</h3>
-            <DataTable
-              :value="lendings.past"
-              dataKey="lending_id"
-              class="list-table"
-              responsiveLayout="stack"
-              breakpoint="768px"
+            <VqDataTable
+              :headers="lendingHeaders"
+              :items="lendings.past"
+              item-value="lending_id"
+              hide-default-footer
+              no-data-text="Keine vergangenen Ausleihen."
+              class="vq-data-table list-table"
             >
-              <template #empty>Keine vergangenen Ausleihen.</template>
-              <Column field="appliance_id" header="ID" />
-              <Column header="Gerät">
-                <template #body="{ data }">{{ data.appliance_name || '—' }}</template>
-              </Column>
-              <Column header="Typ">
-                <template #body="{ data }">{{ applianceTypeLabel(data.appliance_type) }}</template>
-              </Column>
-              <Column header="Zeitraum">
-                <template #body="{ data }">{{ formatDeDate(data.start_date) }} – {{ formatDeDate(data.end_date) }}</template>
-              </Column>
-            </DataTable>
+              <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+              <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+              <template #item.period="{ item }">
+                {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+              </template>
+            </VqDataTable>
           </div>
         </div>
       </template>
@@ -103,12 +87,10 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { cancelPlannedLending } from '../utils/applianceLending'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   activeOrganisationId: {
@@ -116,6 +98,18 @@ const props = defineProps({
     default: null,
   },
 })
+
+const lendingHeaders = [
+  { title: 'ID', key: 'appliance_id' },
+  { title: 'Gerät', key: 'appliance_name', sortable: false },
+  { title: 'Typ', key: 'appliance_type', sortable: false },
+  { title: 'Zeitraum', key: 'period', sortable: false },
+]
+
+const plannedLendingHeaders = [
+  ...lendingHeaders,
+  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
+]
 
 const lendings = ref(null)
 const message = ref('')
@@ -197,7 +191,7 @@ onMounted(() => {
 <style scoped>
 .empty-hint,
 .muted-hint {
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   margin: 0 0 1rem;
 }
 
@@ -211,18 +205,7 @@ onMounted(() => {
   margin: 0 0 0.75rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--p-text-color);
-}
-
-.list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
-  overflow: hidden;
-}
-
-.success,
-.error {
-  margin: 0 0 1rem;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 @media (max-width: 1000px) {
@@ -234,10 +217,6 @@ onMounted(() => {
 @media (max-width: 700px) {
   .lend-sections {
     gap: 1rem;
-  }
-
-  .lend-section :deep(.p-button) {
-    width: 100%;
   }
 }
 </style>

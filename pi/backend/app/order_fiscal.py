@@ -56,7 +56,31 @@ def _snapshot_additions(additions: list | None, articles: dict, base_article: di
     return out
 
 
-def snapshot_line(line: dict, articles: dict, *, order_number: int | None = None) -> dict:
+def snapshot_line(
+    line: dict,
+    articles: dict,
+    *,
+    order_number: int | None = None,
+    event: dict | None = None,
+) -> dict:
+    from .vouchers import is_voucher_sale_line, voucher_sale_unit_cents
+
+    if is_voucher_sale_line(line):
+        snap = dict(line)
+        snap.pop("article_name", None)
+        if event is not None:
+            snap["unit_cents"] = voucher_sale_unit_cents(event, line)
+        elif line.get("unit_cents") is not None:
+            snap["unit_cents"] = int(line["unit_cents"])
+        else:
+            snap["unit_cents"] = 0
+        snap["qty"] = max(1, int(snap.get("qty") or 1))
+        if order_number is not None:
+            snap["order_number"] = order_number
+        elif line.get("order_number") is not None:
+            snap["order_number"] = int(line["order_number"])
+        return snap
+
     aid = line.get("article_id")
     base = _article_entry(articles, aid)
     raw = {
@@ -76,12 +100,18 @@ def snapshot_line(line: dict, articles: dict, *, order_number: int | None = None
     return snap
 
 
-def snapshot_lines(lines: list, articles: dict, *, order_number: int | None = None) -> list[dict]:
+def snapshot_lines(
+    lines: list,
+    articles: dict,
+    *,
+    order_number: int | None = None,
+    event: dict | None = None,
+) -> list[dict]:
     out: list[dict] = []
     for line in lines or []:
         if not isinstance(line, dict):
             continue
-        out.append(snapshot_line(line, articles, order_number=order_number))
+        out.append(snapshot_line(line, articles, order_number=order_number, event=event))
     return out
 
 

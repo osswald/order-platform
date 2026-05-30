@@ -12,18 +12,18 @@
 
       <div class="form-field">
         <label>Name</label>
-        <InputText v-model="form.name" placeholder="Max Mustermann" />
+        <v-text-field v-model="form.name" placeholder="Max Mustermann" hide-details="auto" />
       </div>
 
       <div class="form-field">
         <label>PIN</label>
-        <InputText v-model="form.pin" placeholder="0000" />
+        <v-text-field v-model="form.pin" placeholder="0000" hide-details="auto" />
         <small>Standard-PIN ist 0000.</small>
       </div>
 
       <div class="actions">
-        <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-        <Button label="Speichern" class="primary-button" :disabled="!canSave" @click="saveWaiter" />
+        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+        <v-btn color="primary" :disabled="!canSave" @click="saveWaiter">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
     </template>
@@ -34,47 +34,35 @@
       </p>
       <div class="table-header">
         <h2>Alle Kellner</h2>
-        <span>{{ filteredWaiters.length }} von {{ waitersInActiveOrganisation.length }} Einträgen</span>
+        <span>{{ filteredWaiters.length }} von {{ waitersInActiveOrganisation.length }} Einträge</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
           <label>Suche</label>
-          <IconField>
-            <InputIcon class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Name, PIN oder Organisation suchen..." />
-          </IconField>
+          <v-text-field
+            v-model="searchQuery"
+            placeholder="Name, PIN oder Organisation suchen..."
+            prepend-inner-icon="mdi-magnify"
+            hide-details="auto"
+          />
         </div>
       </div>
 
-      <DataTable
-        :value="paginatedWaiters"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editWaiter($event.data)"
+      <VqDataTable
+        v-model:page="currentPage"
+        :headers="tableHeaders"
+        :items="filteredWaiters"
+        :items-per-page="pageSize"
+        item-value="id"
+        hover
+        no-data-text="Keine Kellner gefunden."
+        class="vq-data-table list-table"
+        @click:row="(_e, { item }) => editWaiter(item)"
       >
-        <template #empty>Keine Kellner gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column field="name" header="Name" />
-        <Column field="pin" header="PIN" />
-        <Column field="organisation_name" header="Organisation" />
-        <Column header="Aktionen">
-          <template #body="{ data }">
-            <Button label="Löschen" class="danger" @click.stop="deleteWaiter(data.id)" />
-          </template>
-        </Column>
-      </DataTable>
-
-      <div v-if="filteredWaiters.length" class="pagination">
-        <span>{{ paginationLabel }}</span>
-        <Paginator
-          :first="(currentPage - 1) * pageSize"
-          :rows="pageSize"
-          :totalRecords="filteredWaiters.length"
-          @page="currentPage = $event.page + 1"
-        />
-      </div>
+        <template #item.actions="{ item }">
+          <v-btn color="error" variant="text" @click.stop="deleteWaiter(item.id)">Löschen</v-btn>
+        </template>
+      </VqDataTable>
     </template>
   </ListDetailLayout>
 </template>
@@ -82,17 +70,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import InputText from 'primevue/inputtext'
-import Paginator from 'primevue/paginator'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   activeOrganisationId: {
@@ -111,6 +93,14 @@ const {
   goToCreate,
   goToDetail,
 } = useListDetailRouting('waiters')
+
+const tableHeaders = [
+  { title: 'ID', key: 'id' },
+  { title: 'Name', key: 'name' },
+  { title: 'PIN', key: 'pin' },
+  { title: 'Organisation', key: 'organisation_name' },
+  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
+]
 
 const waiters = ref([])
 const message = ref('')
@@ -159,20 +149,6 @@ const waitersInActiveOrganisation = computed(() =>
   ),
 )
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredWaiters.value.length / pageSize)))
-
-const paginatedWaiters = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredWaiters.value.slice(start, start + pageSize)
-})
-
-const paginationLabel = computed(() => {
-  if (!filteredWaiters.value.length) return '0 Einträge'
-  const start = (currentPage.value - 1) * pageSize + 1
-  const end = Math.min(currentPage.value * pageSize, filteredWaiters.value.length)
-  return `${start}-${end} von ${filteredWaiters.value.length}`
-})
-
 watch([searchQuery, () => props.activeOrganisationId], () => {
   currentPage.value = 1
 })
@@ -183,10 +159,6 @@ watch(
     if (showDetail.value) goToList()
   },
 )
-
-watch(totalPages, (pages) => {
-  if (currentPage.value > pages) currentPage.value = pages
-})
 
 async function fetchWaiters() {
   try {
@@ -312,95 +284,39 @@ onMounted(fetchWaiters)
 
 <style scoped>
 .empty-hint {
-  color: var(--p-text-muted-color);
+  opacity: 0.7;
   margin: 0 0 1rem;
 }
 
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 label {
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 small,
-.table-header span,
-.pagination {
-  color: var(--p-text-muted-color);
+.table-header span {
+  opacity: 0.7;
   font-size: 0.9rem;
 }
 
-:deep(.p-inputtext),
-:deep(.p-select) {
-  width: 100%;
-}
-
 .actions {
-  display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
   margin-top: 1.25rem;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
 }
 
 .table-header h2 {
   margin: 0;
 }
 
-.list-controls {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr);
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
 .search-field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-}
-
-.list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
-  overflow: hidden;
-}
-
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.success,
-.error {
-  margin-top: 1rem;
-}
-
-@media (max-width: 700px) {
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 </style>

@@ -1,0 +1,115 @@
+/* Shared app layout tokens on top of Vuetify Material theme */
+.vq-page {
+  padding: 2rem 2rem 2rem 2.25rem;
+  min-height: 100%;
+  background: rgb(var(--v-theme-background));
+}
+
+.content-card .v-card-text {
+  padding: 1.25rem 1.5rem !important;
+}
+
+.vq-data-table .v-data-table__td,
+.vq-data-table .v-data-table__th {
+  padding-inline: 1rem !important;
+}
+
+.vq-data-table .v-table__wrapper {
+  border-radius: 8px;
+}
+
+.vq-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.vq-page-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.vq-page-header p {
+  margin: 0.5rem 0 0;
+  opacity: 0.7;
+}
+
+.success,
+.error {
+  border-radius: 4px;
+  padding: 0.875rem 1rem;
+  margin-top: 1rem;
+}
+
+.success {
+  background: rgba(var(--v-theme-success), 0.12);
+  color: rgb(var(--v-theme-success));
+}
+
+.error {
+  background: rgba(var(--v-theme-error), 0.12);
+  color: rgb(var(--v-theme-error));
+}
+
+.warn {
+  background: rgba(var(--v-theme-warning), 0.12);
+  color: rgb(var(--v-theme-warning));
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.list-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: end;
+}
+
+@media (max-width: 768px) {
+  .vq-page {
+    padding: 1rem;
+  }
+
+  .vq-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vq-page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .field-row,
+  .list-controls {
+    grid-template-columns: 1fr;
+  }
+}

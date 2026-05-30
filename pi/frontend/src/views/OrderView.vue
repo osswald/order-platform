@@ -14,6 +14,7 @@
         class="cart-half"
         :lines="lines"
         :articles="articles"
+        :event="event"
         :currency="currency"
         :label-fn="cartLineLabel"
         @tap-name="onTapName"
@@ -60,7 +61,7 @@
 
     <QtyInputModal
       :open="qtyModalOpen"
-      :name="qtyModalLine ? articleName(qtyModalLine.article_id) : ''"
+      :name="qtyModalLine ? cartLineLabel(qtyModalLine) : ''"
       :max="qtyModalMax"
       :model-value="qtyModalLine?.qty || 0"
       @close="qtyModalOpen = false"
@@ -139,6 +140,7 @@ const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').to
 const qtyModalMax = computed(() => {
   const line = qtyModalLine.value
   if (!line) return 999
+  if (line.kind === 'voucher_sale') return 99
   const avail = availableQty(line.article_id, line.lineId)
   if (avail === null) return 999
   return line.qty + avail
@@ -218,6 +220,14 @@ function onAdditionsConfirm(additions) {
 }
 
 function onTapName(line) {
+  if (line.kind === 'voucher_sale') {
+    addVoucherCartLine({
+      voucher_definition_uuid: line.voucher_definition_uuid,
+      qty: 1,
+      unit_cents: line.unit_cents,
+    })
+    return
+  }
   const su = resolveStationUuidForArticle(event.value, line.article_id)
   addCartLine({
     article_id: line.article_id,
@@ -238,10 +248,12 @@ function onQtyConfirm(n) {
   const line = qtyModalLine.value
   if (!line) return
   let qty = Math.max(0, Math.min(qtyModalMax.value, Number(n) || 0))
-  const avail = availableQty(line.article_id, line.lineId)
-  if (avail !== null && qty > line.qty + avail) {
-    showToast(`Nur noch ${avail} verfügbar`, 'err')
-    qty = line.qty + avail
+  if (line.kind !== 'voucher_sale') {
+    const avail = availableQty(line.article_id, line.lineId)
+    if (avail !== null && qty > line.qty + avail) {
+      showToast(`Nur noch ${avail} verfügbar`, 'err')
+      qty = line.qty + avail
+    }
   }
   if (qty <= 0) removeCartLine(line.lineId)
   else updateCartLine(line.lineId, { qty })

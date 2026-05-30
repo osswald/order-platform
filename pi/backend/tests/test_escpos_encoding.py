@@ -19,7 +19,7 @@ def test_escpos_init_selects_code_page():
 
 
 def test_station_test_slip_mirrors_production_sizes(monkeypatch):
-    monkeypatch.setenv("ESCPOS_HERO_SCALE", "6")
+    monkeypatch.setenv("ESCPOS_HERO_SCALE", "8")
     slip = build_escpos_station_test_slip(
         {
             "table_number": 1,
@@ -52,8 +52,8 @@ def test_station_test_slip_mirrors_production_sizes(monkeypatch):
     )
     text = slip.decode("cp858", errors="replace")
     assert b"\x1b\x61\x01" in slip
-    assert bytes([0x1D, 0x21, 0x55]) in slip
-    assert b"\x1b!\x10" in slip
+    assert bytes([0x1D, 0x21, 0x77]) in slip
+    assert b"\x1b!\x30" in slip
     assert "Ää Öö Üü ß  Éé Èè Îî Çç" in text
     assert "Station: Grill" in text
     assert "Danke für Ihre Bestellung!" in text

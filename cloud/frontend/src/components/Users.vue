@@ -9,20 +9,31 @@
     <template #detail>
       <h2>{{ editMode ? 'Benutzer bearbeiten' : 'Neuen Benutzer' }}</h2>
       <div class="form-field">
-        <label>Name</label>
-        <InputText v-model="form.name" placeholder="Max Mustermann" />
+        <v-text-field v-model="form.name" label="Name" placeholder="Max Mustermann" hide-details="auto" />
       </div>
       <div class="form-field">
-        <label>Email</label>
-        <InputText v-model="form.email" placeholder="max@example.com" />
+        <v-text-field v-model="form.email" label="Email" placeholder="max@example.com" hide-details="auto" />
       </div>
       <div class="form-field">
-        <label>Rolle</label>
-        <Select v-model="form.role" :options="roleOptions" optionLabel="label" optionValue="value" />
+        <v-select
+          v-model="form.role"
+          :items="roleOptions"
+          item-title="label"
+          item-value="value"
+          label="Rolle"
+          hide-details="auto"
+        />
       </div>
       <div class="form-field" v-if="!editMode">
-        <label>Passwort</label>
-        <Password v-model="form.password" placeholder="Passwort setzen" :feedback="false" toggleMask />
+        <v-text-field
+          v-model="form.password"
+          :type="showPassword ? 'text' : 'password'"
+          label="Passwort"
+          placeholder="Passwort setzen"
+          hide-details="auto"
+          :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+          @click:append-inner="showPassword = !showPassword"
+        />
       </div>
       <div class="form-field">
         <label>Organisationen</label>
@@ -30,28 +41,34 @@
         <small>Keine, eine oder mehrere Organisationen zuordnen.</small>
       </div>
       <div v-if="hasOrganisations" class="form-field">
-        <label>Pi Admin-Code (6 Ziffern)</label>
-        <InputMask
+        <v-text-field
           v-model="form.eventAdminPin"
-          mask="999999"
-          slotChar=""
+          label="Pi Admin-Code (6 Ziffern)"
           placeholder="Optional"
+          maxlength="6"
+          inputmode="numeric"
           :disabled="form.clearEventAdminPin"
+          hide-details="auto"
         />
         <small>Freischaltung der Admin-Funktionen auf dem Pi (Sync, Konfiguration).</small>
-        <div v-if="editMode && form.hasEventAdminPin" class="checkbox-field" style="margin-top: 0.5rem">
-          <Checkbox v-model="form.clearEventAdminPin" binary inputId="clear-pin" />
-          <label for="clear-pin">Pi Admin-Code entfernen</label>
-        </div>
+        <v-checkbox
+          v-if="editMode && form.hasEventAdminPin"
+          v-model="form.clearEventAdminPin"
+          label="Pi Admin-Code entfernen"
+          hide-details
+          density="compact"
+          class="mt-2"
+        />
       </div>
       <div class="actions">
-        <Button label="Zurück" class="secondary-button" type="button" @click="resetForm" />
-        <Button
-          label="Speichern"
-          class="primary-button"
+        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+        <v-btn
+          color="primary"
           :disabled="!form.name || !form.email || (!editMode && !form.password)"
           @click="saveUser"
-        />
+        >
+          Speichern
+        </v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
     </template>
@@ -63,63 +80,70 @@
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
-          <IconField>
-            <InputIcon class="pi pi-search" />
-            <InputText v-model="searchQuery" placeholder="Name, E-Mail oder Organisation suchen..." />
-          </IconField>
+          <v-text-field
+            v-model="searchQuery"
+            label="Suche"
+            prepend-inner-icon="mdi-magnify"
+            placeholder="Name, E-Mail oder Organisation suchen..."
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>Rolle</label>
-          <Select v-model="roleFilter" :options="roleFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle Rollen" />
+          <v-select
+            v-model="roleFilter"
+            :items="roleFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Rolle"
+            hide-details
+            density="compact"
+          />
         </div>
         <div class="filter-field">
-          <label>Organisation</label>
-          <Select v-model="organisationFilter" :options="organisationFilterOptions" optionLabel="label" optionValue="value" placeholder="Alle" />
+          <v-select
+            v-model="organisationFilter"
+            :items="organisationFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Organisation"
+            hide-details
+            density="compact"
+          />
         </div>
       </div>
-      <DataTable
-        :value="paginatedUsers"
-        dataKey="id"
-        responsiveLayout="stack"
-        breakpoint="768px"
-        class="list-table"
-        @row-click="editUser($event.data)"
+      <VqDataTable
+        :headers="tableHeaders"
+        :items="paginatedUsers"
+        item-value="id"
+        class="vq-data-table list-table"
+        hide-default-footer
+        hover
+        @click:row="(_, { item }) => editUser(item)"
       >
-        <template #empty>Keine Benutzer gefunden.</template>
-        <Column field="id" header="ID" />
-        <Column field="name" header="Name" />
-        <Column field="email" header="Email" />
-        <Column header="Rolle">
-          <template #body="{ data }">{{ roleLabel(data.role) }}</template>
-        </Column>
-        <Column header="Pi-Code">
-          <template #body="{ data }">{{ data.has_event_admin_pin ? 'Ja' : 'Nein' }}</template>
-        </Column>
-        <Column header="Organisationen">
-          <template #body="{ data }">
-            <span class="cell-orgs" :title="organisationsTitle(data)">{{ formatOrgs(data) }}</span>
-          </template>
-        </Column>
-        <Column header="Aktionen">
-          <template #body="{ data }">
-            <Button
-              v-if="currentUserId === null || data.id !== currentUserId"
-              label="Löschen"
-              class="danger"
-              @click.stop="deleteUser(data.id)"
-            />
-          </template>
-        </Column>
-      </DataTable>
+        <template #item.role="{ item }">{{ roleLabel(item.role) }}</template>
+        <template #item.has_event_admin_pin="{ item }">
+          {{ item.has_event_admin_pin ? 'Ja' : 'Nein' }}
+        </template>
+        <template #item.organisations="{ item }">
+          <span class="cell-orgs" :title="organisationsTitle(item)">{{ formatOrgs(item) }}</span>
+        </template>
+        <template #item.actions="{ item }">
+          <v-btn
+            v-if="currentUserId === null || item.id !== currentUserId"
+            color="error"
+            variant="outlined"
+            size="small"
+            @click.stop="deleteUser(item.id)"
+          >
+            Löschen
+          </v-btn>
+        </template>
+        <template #no-data>Keine Benutzer gefunden.</template>
+      </VqDataTable>
       <div v-if="filteredUsers.length" class="pagination">
         <span>{{ paginationLabel }}</span>
-        <Paginator
-          :first="(currentPage - 1) * pageSize"
-          :rows="pageSize"
-          :totalRecords="filteredUsers.length"
-          @page="currentPage = $event.page + 1"
-        />
+        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
       </div>
     </template>
   </ListDetailLayout>
@@ -128,19 +152,9 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import VqDataTable from './VqDataTable.vue'
 
 // isAdmin prop = platform administrator (from App.vue)
-import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import InputMask from 'primevue/inputmask'
-import InputText from 'primevue/inputtext'
-import Paginator from 'primevue/paginator'
-import Password from 'primevue/password'
-import Select from 'primevue/select'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
 import { apiFetch } from '../api'
@@ -170,6 +184,17 @@ const roleFilter = ref('')
 const organisationFilter = ref('')
 const currentPage = ref(1)
 const pageSize = 20
+const showPassword = ref(false)
+
+const tableHeaders = [
+  { title: 'ID', key: 'id' },
+  { title: 'Name', key: 'name' },
+  { title: 'Email', key: 'email' },
+  { title: 'Rolle', key: 'role', sortable: false },
+  { title: 'Pi-Code', key: 'has_event_admin_pin', sortable: false },
+  { title: 'Organisationen', key: 'organisations', sortable: false },
+  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
+]
 const roleFilterOptions = [
   { value: '', label: 'Alle Rollen' },
   { value: 'org_admin', label: 'Organisations-Admins' },
@@ -434,7 +459,7 @@ onMounted(fetchUsers)
 <style scoped>
 h2 {
   margin: 0 0 1.5rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .form-field {
@@ -449,19 +474,13 @@ h2 {
 }
 
 label {
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 small {
-  color: var(--p-text-muted-color);
-}
-
-:deep(.p-inputtext),
-:deep(.p-select),
-:deep(.p-password) {
-  width: 100%;
+  color: rgba(var(--v-theme-on-surface), 0.65);
 }
 
 .actions {
@@ -485,7 +504,7 @@ small {
 
 .table-header span,
 .pagination {
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
 
@@ -504,8 +523,8 @@ small {
 }
 
 .list-table {
-  border: 1px solid var(--p-content-border-color);
-  border-radius: var(--p-border-radius-lg);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
   overflow: hidden;
 }
 

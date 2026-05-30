@@ -62,6 +62,9 @@ def test_customer_receipt_custom_footer_overrides_legacy():
     text = raw.decode("cp858", errors="replace")
     assert "Abholung Hinten" in text
     assert "Bitte an der Ausgabe abholen." not in text
+    assert "Station:" in text
+    assert "Abholcode" in text
+    assert "B7" in text
 
 
 def test_customer_receipt_legacy_footer_when_empty():

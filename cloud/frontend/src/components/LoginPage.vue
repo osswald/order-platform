@@ -11,34 +11,29 @@
         </div>
 
         <form @submit.prevent="submit" class="login-form">
-          <div class="form-group">
-            <label for="email">E-Mail Adresse</label>
-            <input
-              id="email"
-              v-model="email"
-              type="email"
-              placeholder="admin@example.com"
-              required
-              class="form-input"
-            />
-          </div>
+          <v-text-field
+            id="email"
+            v-model="email"
+            type="email"
+            label="E-Mail Adresse"
+            placeholder="admin@example.com"
+            required
+            hide-details="auto"
+          />
 
-          <div class="form-group">
-            <label for="password">Passwort</label>
-            <input
-              id="password"
-              v-model="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              class="form-input"
-            />
-          </div>
+          <v-text-field
+            id="password"
+            v-model="password"
+            type="password"
+            label="Passwort"
+            placeholder="••••••••"
+            required
+            hide-details="auto"
+          />
 
-          <button type="submit" class="submit-btn">
-            <span v-if="!isLoading">Anmelden</span>
-            <span v-else>Wird geladen...</span>
-          </button>
+          <v-btn type="submit" color="primary" block size="large" :loading="isLoading">
+            Anmelden
+          </v-btn>
         </form>
 
         <div v-if="message" :class="['message', messageType]">
@@ -105,10 +100,10 @@ async function submit() {
     const res = await fetch(apiUrl('/auth/token'), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: body.toString(),
-      credentials: 'include'
+      credentials: 'include',
     })
 
     if (!res.ok) {
@@ -158,7 +153,11 @@ async function submit() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--p-surface-100) 0%, var(--p-surface-ground) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-surface-variant), 0.4) 0%,
+    rgb(var(--v-theme-background)) 100%
+  );
   padding: 1rem;
 }
 
@@ -172,11 +171,11 @@ async function submit() {
 }
 
 .login-card {
-  background: var(--p-surface-card);
-  border: 1px solid var(--p-content-border-color);
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 16px;
   padding: 3rem 2rem;
-  box-shadow: var(--p-card-shadow);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .login-header {
@@ -200,14 +199,14 @@ async function submit() {
 .login-header h1 {
   margin: 1rem 0 0;
   font-size: 2rem;
-  color: var(--p-text-color);
+  color: rgb(var(--v-theme-on-surface));
   font-weight: 700;
   letter-spacing: 1px;
 }
 
 .tagline {
   margin: 0.5rem 0 0;
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -216,64 +215,8 @@ async function submit() {
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.5rem;
   margin-bottom: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 0.5rem;
-  color: var(--p-text-color);
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.form-input {
-  padding: 0.875rem 1rem;
-  border: 1px solid var(--p-form-field-border-color);
-  border-radius: var(--p-form-field-border-radius);
-  font-size: 1rem;
-  font-family: inherit;
-  transition: all 0.3s ease;
-  background: var(--p-form-field-background);
-  color: var(--p-form-field-color);
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--p-form-field-focus-border-color);
-  box-shadow: var(--p-form-field-focus-ring-shadow);
-}
-
-.form-input::placeholder {
-  color: var(--p-form-field-placeholder-color);
-}
-
-.submit-btn {
-  padding: 1rem;
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-}
-
-.submit-btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(0.97);
-}
-
-.submit-btn:active {
-  transform: translateY(0);
 }
 
 .message {
@@ -285,27 +228,27 @@ async function submit() {
 }
 
 .message.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: rgba(var(--v-theme-success), 0.12);
+  color: rgb(var(--v-theme-success));
+  border: 1px solid rgba(var(--v-theme-success), 0.3);
 }
 
 .message.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: rgba(var(--v-theme-error), 0.12);
+  color: rgb(var(--v-theme-error));
+  border: 1px solid rgba(var(--v-theme-error), 0.3);
 }
 
 .login-footer {
   text-align: center;
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--p-content-border-color);
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 .version {
   margin: 0;
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.6);
   font-size: 0.85rem;
   opacity: 0.6;
 }
@@ -323,12 +266,12 @@ async function submit() {
 }
 
 .feature {
-  background: var(--p-surface-card);
+  background: rgb(var(--v-theme-surface));
   padding: 1.5rem;
   border-radius: 12px;
-  border: 1px solid var(--p-content-border-color);
-  color: var(--p-text-color);
-  box-shadow: var(--p-card-shadow);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  color: rgb(var(--v-theme-on-surface));
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .feature-icon {
@@ -346,7 +289,7 @@ async function submit() {
 .feature p {
   margin: 0;
   font-size: 0.95rem;
-  color: var(--p-text-muted-color);
+  color: rgba(var(--v-theme-on-surface), 0.65);
 }
 
 @media (max-width: 768px) {

@@ -1,47 +1,60 @@
 <template>
   <div class="receipt-profile-fields">
-    <div class="check-row">
-      <Checkbox v-model="model.logo_enabled" :binary="true" inputId="logo-enabled" />
-      <label for="logo-enabled">Logo drucken</label>
-    </div>
-    <div class="check-row">
-      <Checkbox v-model="model.show_event_title" :binary="true" inputId="show-title" />
-      <label for="show-title">Event-Titel anzeigen</label>
-    </div>
-    <div class="check-row">
-      <Checkbox v-model="model.show_price" :binary="true" inputId="show-price" />
-      <label for="show-price">Preise anzeigen</label>
-    </div>
+    <v-checkbox
+      v-model="model.logo_enabled"
+      label="Logo drucken"
+      hide-details
+      density="compact"
+    />
+    <v-checkbox
+      v-model="model.show_event_title"
+      label="Event-Titel anzeigen"
+      hide-details
+      density="compact"
+    />
+    <v-checkbox
+      v-model="model.show_price"
+      label="Preise anzeigen"
+      hide-details
+      density="compact"
+    />
     <div class="form-field">
       <label>{{ pickupLabel }} — Schriftgröße</label>
-      <Select
+      <v-select
         v-model="model.size_table_or_pickup"
-        :options="tableSizeOptions"
-        optionLabel="label"
-        optionValue="value"
+        :items="tableSizeOptions"
+        item-title="label"
+        item-value="value"
+        density="compact"
+        hide-details
       />
     </div>
     <div class="form-field">
       <label>Bestellpositionen — Schriftgröße</label>
-      <Select
+      <v-select
         v-model="model.size_order_lines"
-        :options="lineSizeOptions"
-        optionLabel="label"
-        optionValue="value"
+        :items="lineSizeOptions"
+        item-title="label"
+        item-value="value"
+        density="compact"
+        hide-details
       />
     </div>
     <div class="form-field">
       <label>Fußzeile (zentriert, mehrzeilig)</label>
-      <Textarea v-model="model.bottom_line" rows="3" autoResize placeholder="Optional" />
+      <v-textarea
+        v-model="model.bottom_line"
+        rows="3"
+        auto-grow
+        placeholder="Optional"
+        density="compact"
+        hide-details
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import Checkbox from 'primevue/checkbox'
-import Select from 'primevue/select'
-import Textarea from 'primevue/textarea'
-
 const model = defineModel({ type: Object, required: true })
 
 defineProps({
@@ -66,11 +79,5 @@ const lineSizeOptions = [
   flex-direction: column;
   gap: 0.75rem;
   padding-top: 0.5rem;
-}
-
-.check-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 </style>

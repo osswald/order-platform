@@ -119,7 +119,7 @@ For local Docker development, copy `pi/.env.example` to `pi/.env` and fill value
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
 | `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
-| `ESCPOS_PRINTER_HOST_OVERRIDE` | Optional. Set to `escpos-netprinter` in `.env` for the local emulator (`pi/.env.example` default). Omit or comment out to print to cloud bundle printer IPs. |
+| `ESCPOS_PRINTER_HOST_OVERRIDE` | Optional. Redirect all TCP print jobs to one reachable host (e.g. a LAN printer IP). Omit to use printer IPs from the synced cloud bundle. |
 
 ## Production Docker stack
 
@@ -250,34 +250,18 @@ Each order is split by station. The cloud bundle contains `printer_hosts` mappin
 
 Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG). Logos are flattened onto a white background (including transparent PNGs), converted to black-on-white for thermal print, scaled to fit the paper width, and centered.
 
-Station slips include: event name and localized order time (header), station name with `Best #` / `Bon #` ids, a **large centered table number** or **pickup code**, line items with right-aligned prices, a quantity/total row, and a centered thank-you with waiter name (or a custom `configuration.printing.station_receipt.bottom_line`).
+Station, customer pickup, and voucher slips share one ESC/POS layout: event title and localized time (header row), context row (`Station:` + `Best #` / `Bon #`, or `GUTSCHEIN` + copy index), a **large centered hero** (table number, pickup code, or voucher value), line items with right-aligned prices (customer profile may hide prices via `show_price`), quantity/total row, and a centered footer (`station_receipt` / `customer_receipt` `bottom_line`, voucher default «Einloesung bei Zahlung.», or thank-you + waiter name).
 
-Font sizes for station slips come from cloud **`configuration.printing.station_receipt`** (`size_table_or_pickup`, `size_order_lines`; defaults **xlarge** / **large**). On the Pi, when the table/pickup size is **xlarge**, `ESCPOS_HERO_SCALE` (Epson `GS !`, default **6**, range 1–8) magnifies the hero digit further.
+Font sizes for station slips come from cloud **`configuration.printing.station_receipt`** (`size_table_or_pickup`, `size_order_lines`; defaults **xlarge** / **large**). On the Pi, table/pickup codes and voucher values use Epson `GS !` magnification (`ESCPOS_HERO_SCALE`, default **8**, range 1–8).
 
 Optional in `pi/.env`:
 
 - `ESCPOS_LINE_WIDTH` — characters per line (default `48`, 80mm Font A)
 - `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
-- `ESCPOS_HERO_SCALE` — table/pickup magnification when profile uses **xlarge** (default `6`)
+- `ESCPOS_HERO_SCALE` — table/pickup/voucher hero magnification (default `8`)
 - `ESCPOS_LOGO_MAX_WIDTH` — logo raster width in dots (default `384`, 80mm)
 
-## Local ESC/POS emulator
-
-`pi/docker-compose.yml` includes [escpos-netprinter](https://github.com/gilbertfl/escpos-netprinter) (`gilbertfl/escpos-netprinter:3.2`). The Pi backend sends ESC/POS over TCP to `escpos-netprinter:9100` on the Docker network (JetDirect). View rendered receipts in the browser:
-
-```text
-http://localhost:8090
-```
-
-`pi/.env.example` sets `ESCPOS_PRINTER_HOST_OVERRIDE=escpos-netprinter` so cloud bundle printer IPs are redirected to the emulator during local dev. Sync cloud config, place an order or use Pi Admin → **Testdruck**; slips appear in the emulator UI.
-
-To use a **real** printer on your LAN, **comment out or remove** that line in `pi/.env` and restart `pi-backend` (`docker compose up -d --force-recreate pi-backend`). Do not set it to `escpos-netprinter` while testing hardware.
-
-Cloud appliance entries must use IPv4 addresses reachable from the `pi-backend` container.
-
-If host port `9100` conflicts with a physical printer, remap the published port (e.g. `9101:9100`); the backend still uses `escpos-netprinter:9100` inside Docker.
-
-On **Apple Silicon / ARM64** hosts, compose sets `platform: linux/amd64` for the emulator (the Hub image has no `arm64` manifest). Docker Desktop runs it via emulation; the first pull may take longer.
+Local and production printing use **real printer hosts** from the synced cloud bundle (`printer_hosts`). Cloud appliance entries must use IPv4 addresses reachable from the `pi-backend` container. Optionally set `ESCPOS_PRINTER_HOST_OVERRIDE` in `pi/.env` to send all jobs to one host (useful for a single test printer on your LAN), then recreate `pi-backend`.
 
 **Special characters** (German `äöüß`, French `éèîç`, etc.) are encoded as **PC858** with `ESC t 19` by default. If glyphs are wrong on a specific printer, set in `pi/.env`:
 
