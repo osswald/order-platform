@@ -8,6 +8,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/pi.db}
       EDGE_CONFIG_FILE: ${EDGE_CONFIG_FILE:-/data/edge.env}
       DEFAULT_CLOUD_BASE_URL: ${DEFAULT_CLOUD_BASE_URL:-https://api.vendiqo.ch}
+      # Set on the Pi host for factory reset / re-pair (never expose on guest Wi‑Fi).
+      PI_SETUP_UNPAIR_SECRET: ${PI_SETUP_UNPAIR_SECRET:-}
       APP_NAME: pi-backend
       SYNC_ENABLED: ${SYNC_ENABLED:-1}
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-60}

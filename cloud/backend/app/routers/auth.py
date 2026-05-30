@@ -6,12 +6,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..auth_sessions import invalidate_user_sessions, session_claims, token_version_matches
 from ..deps import get_db
-from ..rate_limit import LOGIN_RATE_LIMIT, limiter
+from ..rate_limit import LOGIN_RATE_LIMIT, REFRESH_RATE_LIMIT, limiter
 from ..models import HireCompany, User
 from ..user_access import is_org_admin, is_platform_admin, user_hire_company_id, user_role
 from ..schemas import MessageResponse
-from ..auth_deps import get_current_superuser, get_current_user
+from ..auth_deps import get_current_user
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -59,6 +60,39 @@ def _token_for_user(user: User) -> dict:
     }
 
 
+def _refresh_cookie_params() -> dict:
+    return {
+        "max_age": int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")) * 24 * 3600,
+        "secure": os.getenv("REFRESH_COOKIE_SECURE", "false").lower() == "true",
+        "httponly": True,
+        "samesite": "lax",
+        "path": "/",
+    }
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(key="refresh_token", value=refresh_token, **_refresh_cookie_params())
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    params = _refresh_cookie_params()
+    response.delete_cookie(
+        key="refresh_token",
+        path=params["path"],
+        secure=params["secure"],
+        samesite=params["samesite"],
+    )
+
+
+def _issue_session_tokens(user: User, response: Response) -> tuple[str, str]:
+    claims = session_claims(user)
+    access_token_expires = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")))
+    access_token = create_access_token(data=claims, expires_delta=access_token_expires)
+    refresh_token = create_refresh_token(data=claims)
+    _set_refresh_cookie(response, refresh_token)
+    return access_token, refresh_token
+
+
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=1)
@@ -79,22 +113,7 @@ def login_for_access_token(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")))
-    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
-
-    refresh_token = create_refresh_token(data={"sub": user.email})
-    max_age = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")) * 24 * 3600
-    secure_cookie = os.getenv("REFRESH_COOKIE_SECURE", "false").lower() == "true"
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        samesite="lax",
-        secure=secure_cookie,
-        max_age=max_age,
-        path="/",
-    )
-
+    access_token, _refresh = _issue_session_tokens(user, response)
     flags = _token_for_user(user)
     return Token(
         access_token=access_token,
@@ -124,7 +143,12 @@ def read_me(
 
 
 @router.post("/refresh", response_model=Token)
-def refresh_access_token(request: Request, db: Session = Depends(get_db)) -> Token:
+@limiter.limit(REFRESH_RATE_LIMIT)
+def refresh_access_token(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> Token:
     token = request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
@@ -133,10 +157,13 @@ def refresh_access_token(request: Request, db: Session = Depends(get_db)) -> Tok
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     email = payload.get("sub")
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    access_token = create_access_token(data={"sub": user.email})
+    if not user or not token_version_matches(user, payload):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    invalidate_user_sessions(user, db)
+    access_token, _refresh = _issue_session_tokens(user, response)
     flags = _token_for_user(user)
     return Token(
         access_token=access_token,
@@ -147,14 +174,26 @@ def refresh_access_token(request: Request, db: Session = Depends(get_db)) -> Tok
 
 
 @router.post("/logout", response_model=MessageResponse)
-def logout(response: Response) -> MessageResponse:
-    response.delete_cookie("refresh_token", path="/")
+def logout(request: Request, response: Response, db: Session = Depends(get_db)) -> MessageResponse:
+    token = request.cookies.get("refresh_token")
+    if token:
+        try:
+            payload = decode_refresh_token(token)
+            email = payload.get("sub")
+            if email:
+                user = db.query(User).filter(User.email == email).first()
+                if user:
+                    invalidate_user_sessions(user, db)
+        except Exception:
+            pass
+    _clear_refresh_cookie(response)
     return MessageResponse(msg="logged out")
 
 
 @router.post("/change-password", response_model=MessageResponse)
 def change_password(
     password_in: PasswordChange,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MessageResponse:
@@ -162,5 +201,6 @@ def change_password(
     if not user or not verify_password(password_in.current_password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
     user.hashed_password = get_password_hash(password_in.new_password)
-    db.commit()
+    invalidate_user_sessions(user, db)
+    _clear_refresh_cookie(response)
     return MessageResponse(msg="password changed")

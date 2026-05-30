@@ -14,6 +14,7 @@ from ..deps import get_db
 from ..tenancy import (
     TenantContext,
     ensure_organisation_ids_in_tenant,
+    ensure_user_in_tenant,
     get_current_tenant_admin,
     sync_user_role_fields,
 )
@@ -223,19 +224,11 @@ def update_user(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
-    u = (
-        db.query(User)
-        .options(joinedload(User.organisations))
-        .filter(User.id == user_id)
-        .first()
+    u = ensure_user_in_tenant(
+        db, user_id, tenant.hire_company_id, load_organisations=True
     )
-    if not u:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if u.is_superuser and not is_platform_admin(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot modify platform administrators")
-    if u.hire_company_id and u.hire_company_id != tenant.hire_company_id:
-        if not any(o.hire_company_id == tenant.hire_company_id for o in (u.organisations or [])):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not in this Verleiher")
     if user_in.email is not None and user_in.email != u.email:
         taken = db.query(User).filter(User.email == user_in.email).first()
         if taken:
@@ -273,9 +266,7 @@ def delete_user(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
-    u = db.query(User).filter(User.id == user_id).first()
-    if not u:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    u = ensure_user_in_tenant(db, user_id, tenant.hire_company_id)
     if u.id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
     if u.is_superuser:

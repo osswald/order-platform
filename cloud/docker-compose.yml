@@ -21,6 +21,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cloud-db:5432/${POSTGRES_DB}
       APP_NAME: cloud-backend
+      APP_ENV: development
       # Pi PWA on :5174 when testing both UIs on one machine.
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174}
     ports:

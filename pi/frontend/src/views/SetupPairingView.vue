@@ -11,13 +11,19 @@
       <div v-if="status?.configured" class="success-box">
         <strong>Bereits gekoppelt.</strong>
         <span>Edge-Client-ID: {{ status.edge_client_id }}</span>
+        <span v-if="!status.can_unpair" class="hint-inline">
+          Erneutes Koppeln ist gesperrt. Entkoppeln Sie den Pi nur mit dem Werksschlüssel (Support).
+        </span>
       </div>
 
-      <form class="setup-form" @submit.prevent="pair">
-        <label>
+      <form v-if="!status?.configured" class="setup-form" @submit.prevent="pair">
+        <label v-if="status?.allow_cloud_url_override">
           Cloud API
           <input v-model="cloudBaseUrl" type="url" required placeholder="https://api.vendiqo.ch" />
         </label>
+        <p v-else-if="status" class="cloud-fixed muted">
+          Cloud API: <strong>{{ status.cloud_base_url }}</strong>
+        </p>
         <label>
           Kopplungscode
           <input
@@ -30,6 +36,30 @@
         </label>
         <button type="submit" :disabled="loading">
           {{ loading ? 'Kopple...' : 'Pi koppeln' }}
+        </button>
+      </form>
+
+      <form
+        v-if="status?.configured && status?.can_unpair"
+        class="setup-form unpair-form"
+        @submit.prevent="unpair"
+      >
+        <h2>Entkoppeln</h2>
+        <p class="muted">
+          Entfernt die lokal gespeicherten Edge-Zugangsdaten. Danach kann der Pi erneut gekoppelt werden.
+        </p>
+        <label>
+          Werksschlüssel
+          <input
+            v-model="unpairSecret"
+            type="password"
+            autocomplete="off"
+            required
+            placeholder="PI_SETUP_UNPAIR_SECRET"
+          />
+        </label>
+        <button type="submit" class="danger" :disabled="unpairLoading">
+          {{ unpairLoading ? 'Entkopple...' : 'Pi entkoppeln' }}
         </button>
       </form>
 
@@ -54,7 +84,9 @@ const router = useRouter()
 const status = ref(null)
 const cloudBaseUrl = ref('https://api.vendiqo.ch')
 const pairingCode = ref('')
+const unpairSecret = ref('')
 const loading = ref(false)
+const unpairLoading = ref(false)
 const message = ref('')
 const messageType = ref('')
 
@@ -71,13 +103,16 @@ async function pair() {
   loading.value = true
   message.value = ''
   try {
+    const body = {
+      pairing_code: pairingCode.value,
+      device_name: 'vendiqo-pi',
+    }
+    if (status.value?.allow_cloud_url_override) {
+      body.cloud_base_url = cloudBaseUrl.value
+    }
     const result = await api('/v1/setup/pair', {
       method: 'POST',
-      body: JSON.stringify({
-        cloud_base_url: cloudBaseUrl.value,
-        pairing_code: pairingCode.value,
-        device_name: 'vendiqo-pi',
-      }),
+      body: JSON.stringify(body),
     })
     status.value = result
     message.value = 'Pi wurde erfolgreich gekoppelt. Die Synchronisation startet automatisch.'
@@ -88,6 +123,26 @@ async function pair() {
     messageType.value = 'error'
   } finally {
     loading.value = false
+  }
+}
+
+async function unpair() {
+  unpairLoading.value = true
+  message.value = ''
+  try {
+    status.value = await api('/v1/setup/unpair', {
+      method: 'POST',
+      body: JSON.stringify({ unpair_secret: unpairSecret.value }),
+    })
+    unpairSecret.value = ''
+    pairingCode.value = ''
+    message.value = 'Pi wurde entkoppelt. Sie können jetzt erneut koppeln.'
+    messageType.value = 'success'
+  } catch (err) {
+    message.value = err.message || 'Entkoppeln fehlgeschlagen.'
+    messageType.value = 'error'
+  } finally {
+    unpairLoading.value = false
   }
 }
 
@@ -124,16 +179,36 @@ h1 {
   margin: 0 0 0.75rem;
 }
 
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
 .muted,
 .hint {
   color: #64748b;
   line-height: 1.5;
 }
 
+.hint-inline {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.cloud-fixed {
+  margin: 0;
+}
+
 .setup-form {
   display: grid;
   gap: 1rem;
   margin-top: 1.5rem;
+}
+
+.unpair-form {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 label {
@@ -160,6 +235,10 @@ button {
   font: inherit;
   font-weight: 700;
   padding: 0.95rem 1rem;
+}
+
+button.danger {
+  background: #b91c1c;
 }
 
 button:disabled {

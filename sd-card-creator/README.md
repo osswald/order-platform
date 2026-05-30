@@ -36,15 +36,15 @@ Use UTM Ubuntu or any other Linux machine with native SDM. Building inside Docke
 
 ## Network
 
-The image installs a NetworkManager connection for:
+The image installs a NetworkManager connection for the wired Ethernet port:
 
 ```text
-eth0:    192.168.192.10/23
+address: 192.168.192.10/24
 gateway: 192.168.192.1
 dns:     192.168.192.1, 1.1.1.1
 ```
 
-(Source: [`pi/deploy/networkmanager-vendiqo-eth0.nmconnection`](../pi/deploy/networkmanager-vendiqo-eth0.nmconnection), applied via SDM `network` plugin.)
+The profile uses `match-device=type:ethernet` so it works whether the kernel names the port `eth0`, `end0`, or similar. Source: [`pi/deploy/networkmanager-vendiqo-eth0.nmconnection`](../pi/deploy/networkmanager-vendiqo-eth0.nmconnection), applied via SDM `network` plugin.
 
 ## Build configuration
 
@@ -87,11 +87,10 @@ Flashable files appear under **`output/`**:
 | `L10n` | Apply locale, Swiss German keyboard, timezone, and WiFi country |
 | `disables` | Disable `piwiz` so first boot does not ask for setup values |
 | `apps` | `ca-certificates`, `curl`, `network-manager`, `xz-utils` |
-| `runscript` | [`pi/deploy/install-tailscale.sh`](../pi/deploy/install-tailscale.sh) — Tailscale client via official install script |
 | `docker-install` | Docker Engine per upstream install guide |
-| `network` | Static `eth0` via `nmconn` from `pi/deploy/` |
+| `network` | Static wired Ethernet via `nmconn` from `pi/deploy/` |
 | `copyfile` | `docker-compose.prod.yml`, systemd units under `/etc/systemd/system` |
-| `system` | Enable `NetworkManager`, `tailscaled`, `docker`, `vendiqo-pi`, `vendiqo-pi-update.timer` |
+| `system` | Enable `NetworkManager`, `docker`, `vendiqo-pi`, `vendiqo-pi-update.timer` |
 
 Deploy assets live under [`pi/`](../pi/) (`deploy/`, `docker-compose.prod.yml`).
 
@@ -105,16 +104,6 @@ After flashing:
 4. Enter the cloud pairing code (see [`pi/README.md`](../pi/README.md) — Cloud pairing)
 
 Credentials are stored in `/data/edge.env` inside the persistent Docker volume.
-
-## Tailscale
-
-The image includes the [Tailscale](https://tailscale.com/) client (`tailscaled` enabled on boot). Each Pi must still join your tailnet once (generic images do not embed auth keys):
-
-```bash
-sudo tailscale up
-```
-
-Follow the printed URL to authenticate. For unattended servers, use a reusable auth key from the Tailscale admin console (`sudo tailscale up --auth-key=tskey-auth-...`) and disable key expiry for that device if it should stay connected.
 
 ## Advanced: manual build
 
@@ -137,6 +126,8 @@ Run from the **repository root** (paths above are relative to repo root).
 - **`Failed to open system bus` / nspawn errors** — You are not on a real Linux host with systemd (e.g. Docker on Mac). Use UTM Ubuntu and `./build-on-ubuntu.sh`.
 - **Incomplete `vendiqo-pi-*.img` after a failed run** — Do not flash; delete the partial file and rebuild.
 - **amd64 Ubuntu VM on Apple Silicon** — SDM uses `qemu-user-static` for arm64 images; the first build may be slower than on an arm64 VM.
+- **No network on the Pi after boot** — The static profile only applies on the Verleiher router (`192.168.192.0/24`). Confirm Ethernet is plugged in and run `nmcli device status` / `ip -4 addr`. The connection matches the first wired port (`match-device=type:ethernet`), not a fixed interface name.
+- **Older image with Tailscale** — If an earlier build installed Tailscale, `tailscaled` can interfere with local routing until removed: `sudo systemctl disable --now tailscaled && sudo apt-get remove -y tailscale`.
 
 ## Files in this directory
 

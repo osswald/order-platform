@@ -15,7 +15,7 @@ Production Pis are intended to run headlessly on the Verleiher-supplied router.
 
 ```text
 Pi URL:  http://192.168.192.10
-eth0:    192.168.192.10/23
+eth0:    192.168.192.10/24
 gateway: 192.168.192.1
 dns:     192.168.192.1, 1.1.1.1
 ```
@@ -47,6 +47,14 @@ Pairing is the normal production credential flow.
 7. The Pi stores the returned credentials in `/data/edge.env`.
 
 The cloud only returns `EDGE_SECRET` once during pairing. The Pi backend reads credentials from environment variables first and then from `/data/edge.env`.
+
+**Setup lockdown (production):**
+
+- `POST /v1/setup/pair` is rejected with **403** if the Pi is already paired (`/data/edge.env` exists).
+- The cloud URL sent in the pairing request is **ignored** unless `ALLOW_CLOUD_URL_OVERRIDE=true`; production uses `DEFAULT_CLOUD_BASE_URL` (default `https://api.vendiqo.ch`).
+- `POST /v1/setup/unpair` clears local credentials when `PI_SETUP_UNPAIR_SECRET` is set on the Pi and the request body includes the matching `unpair_secret`.
+
+Local Docker dev enables `ALLOW_CLOUD_URL_OVERRIDE=true` in `docker-compose.yml` so you can point pairing at `http://host.docker.internal:8000`.
 
 ## Multiple SD cards per server
 
@@ -105,6 +113,9 @@ For local Docker development, copy `pi/.env.example` to `pi/.env` and fill value
 | `EDGE_CLIENT_ID` | Legacy/manual edge client id, or value written by pairing into `/data/edge.env`. |
 | `EDGE_SECRET` | Legacy/manual edge secret, or value written by pairing into `/data/edge.env`. |
 | `EDGE_CONFIG_FILE` | Credential file path. Production default: `/data/edge.env`. |
+| `DEFAULT_CLOUD_BASE_URL` | Cloud API used during pairing when URL override is disabled. |
+| `ALLOW_CLOUD_URL_OVERRIDE` | `true` only in dev; allows the setup UI to choose the cloud URL. |
+| `PI_SETUP_UNPAIR_SECRET` | Enables `POST /v1/setup/unpair` with matching `unpair_secret` (factory reset). |
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
 | `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
@@ -161,15 +172,14 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 | `install-vendiqo-pi.sh` | Copies compose/systemd/network files into a running Pi or image. |
 | `pi.prod.env` | GHCR image tags for `/opt/vendiqo/pi/.env` (optional; defaults are in `docker-compose.prod.yml`). |
 | `apply-ghcr-images.sh` | Updates `/opt/vendiqo/pi` on a running Pi and restarts the stack. |
-| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/23`. |
-| `install-tailscale.sh` | Installs Tailscale and enables `tailscaled` (SD card image build and manual use). |
+| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/24` (any wired port). |
 | `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
 | `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
 | `vendiqo-pi-update.timer` | Runs container update periodically. |
 
 ## SD card image build
 
-Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`. SD card images include the Tailscale client; join each Pi to your tailnet with `sudo tailscale up` after first boot (see [`sd-card-creator/README.md`](../sd-card-creator/README.md#tailscale)).
+Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`.
 
 ## Cloud API used by Pi
 
@@ -195,8 +205,9 @@ Cloud edge auth also requires an active appliance lending for today UTC. If sync
 
 Setup/sync:
 
-- `GET /v1/setup/status` - pairing/setup status.
-- `POST /v1/setup/pair` - submit cloud URL and pairing code; writes `/data/edge.env`.
+- `GET /v1/setup/status` - pairing/setup status (`allow_cloud_url_override`, `can_unpair`).
+- `POST /v1/setup/pair` - pairing code; writes `/data/edge.env` (403 if already paired).
+- `POST /v1/setup/unpair` - clear `/data/edge.env` when `PI_SETUP_UNPAIR_SECRET` matches.
 - `POST /v1/sync/pull` - download bundle from cloud into SQLite.
 - `POST /v1/sync/push` - flush pending outbox to cloud.
 - `GET /v1/sync/status` - auto-sync state.
