@@ -446,6 +446,28 @@ export async function verifyAdminPin(pin) {
   setAdminUnlocked(true)
 }
 
+export async function verifyWaiterPin({ eventId, waiterUuid, pin }) {
+  return api('/v1/auth/waiter/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      event_id: eventId,
+      waiter_uuid: waiterUuid,
+      pin,
+    }),
+  })
+}
+
+export async function verifyRegisterPin({ eventId, registerUuid, pin }) {
+  return api('/v1/auth/register/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      event_id: eventId,
+      register_uuid: registerUuid,
+      pin,
+    }),
+  })
+}
+
 export function stockArticlesForEvent(ev) {
   if (!ev?.articles) return []
   return Object.values(ev.articles)

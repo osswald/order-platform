@@ -200,6 +200,34 @@ def apply_schema_patches() -> None:
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
     _patch_organisation_stripe_connect()
+    _migrate_plaintext_pos_pins()
+
+
+def _migrate_plaintext_pos_pins() -> None:
+    from .pos_pins import hash_pos_pin, is_pin_hash
+
+    for table in ("waiters", "event_waiters", "event_cash_registers"):
+        try:
+            inspector = inspect(engine)
+            if table not in inspector.get_table_names():
+                continue
+        except Exception:
+            continue
+        try:
+            with engine.begin() as conn:
+                rows = conn.execute(text(f"SELECT id, pin FROM {table}")).fetchall()
+                for row_id, pin_val in rows:
+                    if pin_val is None:
+                        continue
+                    raw = str(pin_val).strip()
+                    if not raw or is_pin_hash(raw):
+                        continue
+                    conn.execute(
+                        text(f"UPDATE {table} SET pin = :hashed WHERE id = :id"),
+                        {"hashed": hash_pos_pin(raw), "id": row_id},
+                    )
+        except Exception:
+            continue
 
 
 def _ensure_appliance_pairing_sessions_table() -> None:

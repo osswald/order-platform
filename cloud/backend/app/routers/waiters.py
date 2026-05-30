@@ -12,15 +12,10 @@ from ..tenancy import (
     ensure_user_can_use_organisation,
     get_current_tenant,
 )
+from ..pos_pins import apply_pos_pin_value
 from ..user_access import can_manage_tenant
 
 router = APIRouter()
-
-
-class WaiterBase(BaseModel):
-    name: str = Field(..., min_length=1)
-    pin: str = Field("0000", min_length=1, max_length=32)
-    organisation_id: int
 
 
 class WaiterCreate(BaseModel):
@@ -35,10 +30,13 @@ class WaiterUpdate(BaseModel):
     organisation_id: int | None = None
 
 
-class WaiterRead(WaiterBase):
+class WaiterRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    name: str
+    has_pin: bool
+    organisation_id: int
     organisation_name: str
 
 
@@ -46,7 +44,7 @@ def waiter_response(waiter: Waiter) -> dict:
     return {
         "id": waiter.id,
         "name": waiter.name,
-        "pin": waiter.pin,
+        "has_pin": bool((waiter.pin or "").strip()),
         "organisation_id": waiter.organisation_id,
         "organisation_name": waiter.organisation.name if waiter.organisation else "",
     }
@@ -103,9 +101,10 @@ def create_waiter(
     )
     waiter = Waiter(
         name=waiter_in.name,
-        pin=waiter_in.pin or "0000",
+        pin="",
         organisation_id=organisation.id,
     )
+    apply_pos_pin_value(waiter, waiter_in.pin, default_plain="0000")
     db.add(waiter)
     db.commit()
     db.refresh(waiter)
@@ -136,7 +135,7 @@ def update_waiter(
     if waiter_in.name is not None:
         waiter.name = waiter_in.name
     if waiter_in.pin is not None:
-        waiter.pin = waiter_in.pin or "0000"
+        apply_pos_pin_value(waiter, waiter_in.pin, default_plain="0000")
 
     db.commit()
     db.refresh(waiter)

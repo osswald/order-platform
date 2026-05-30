@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from app.security import get_password_hash
+
 
 def default_bundle() -> dict[str, Any]:
     return {
@@ -126,7 +128,7 @@ def cash_register_bundle() -> dict[str, Any]:
             "name": "Hauptkasse",
             "sort_order": 0,
             "pickup_code_prefix": "A",
-            "pin": "0000",
+            "pin_hash": get_password_hash("0000"),
             "layout_uuid": "layout-1",
         }
     ]

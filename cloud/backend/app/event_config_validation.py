@@ -22,6 +22,7 @@ from .models import (
     EventWaiter,
     Waiter,
 )
+from .pos_pins import apply_pos_pin_value
 from .vouchers import assert_layout_cells_vouchers, normalize_cell_voucher_uuids, replace_event_voucher_definitions
 
 
@@ -263,13 +264,14 @@ def replace_event_configuration(
                 event_id=event.id,
                 uuid=ew_uuid or str(uuid.uuid4()),
                 name=ew_in.name.strip(),
-                pin=str(ew_in.pin),
+                pin="",
                 source_waiter_id=ew_in.source_waiter_id,
             )
+            apply_pos_pin_value(ew, ew_in.pin, default_plain="0000")
             db.add(ew)
         else:
             ew.name = ew_in.name.strip()
-            ew.pin = str(ew_in.pin)
+            apply_pos_pin_value(ew, ew_in.pin, default_plain="0000")
             ew.source_waiter_id = ew_in.source_waiter_id
         kept_waiter_uuids.add(ew.uuid)
 
@@ -323,7 +325,7 @@ def replace_event_configuration(
         reg.name = str(reg_in.name or "").strip()
         reg.sort_order = idx
         reg.pickup_code_prefix = str(reg_in.pickup_code_prefix or "").strip().upper()
-        reg.pin = str(getattr(reg_in, "pin", None) or "0000").strip() or "0000"
+        apply_pos_pin_value(reg, getattr(reg_in, "pin", None), default_plain="0000")
         reg.layout_uuid = str(reg_in.layout_uuid or "").strip()
         reg.receipt_printer_appliance_id = getattr(reg_in, "receipt_printer_appliance_id", None)
         kept_register_uuids.add(reg.uuid)

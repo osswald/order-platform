@@ -17,8 +17,9 @@
 
       <div class="form-field">
         <label>PIN</label>
-        <InputText v-model="form.pin" placeholder="0000" />
-        <small>Standard-PIN ist 0000.</small>
+        <InputText v-model="form.pin" :placeholder="editMode ? 'Leer lassen = unverändert' : '0000'" />
+        <small v-if="editMode">Leer lassen, um die bestehende PIN beizubehalten.</small>
+        <small v-else>Standard-PIN ist 0000.</small>
       </div>
 
       <div class="actions">
@@ -128,16 +129,18 @@ const form = ref(emptyForm())
 
 const canCreateWaiters = computed(() => props.activeOrganisationId != null)
 
-const canSave = computed(
-  () => !!(props.activeOrganisationId != null && form.value.name && form.value.pin),
-)
+const canSave = computed(() => {
+  if (!props.activeOrganisationId || !form.value.name) return false
+  if (!editMode.value) return !!(form.value.pin || '').trim()
+  return true
+})
 
 function matchesSearch(waiter, term) {
   if (!term) return true
   return [
     waiter.id,
     waiter.name,
-    waiter.pin,
+    waiter.has_pin ? 'pin' : '',
     waiter.organisation_name,
   ]
     .filter((value) => value !== null && value !== undefined)
@@ -202,7 +205,7 @@ async function fetchWaiters() {
 function applyWaiterToForm(waiter) {
   form.value = {
     name: waiter.name || '',
-    pin: waiter.pin || '0000',
+    pin: '',
   }
   message.value = ''
 }
@@ -258,10 +261,10 @@ function editWaiter(waiter) {
 }
 
 async function saveWaiter() {
-  const payload = {
-    name: form.value.name,
-    pin: form.value.pin || '0000',
-  }
+  const payload = { name: form.value.name }
+  const pin = (form.value.pin || '').trim()
+  if (pin) payload.pin = pin
+  else if (!editMode.value) payload.pin = '0000'
   if (!editMode.value) {
     payload.organisation_id = props.activeOrganisationId
   }

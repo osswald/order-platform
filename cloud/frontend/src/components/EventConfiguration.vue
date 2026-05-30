@@ -83,7 +83,7 @@
             </Column>
             <Column field="pin" header="PIN">
               <template #body="{ data }">
-                <InputText v-model="data.pin" class="w-full" />
+                <InputText v-model="data.pin" class="w-full" placeholder="Neu setzen (leer = unverändert)" />
               </template>
             </Column>
             <Column header="">
@@ -128,7 +128,7 @@
             <div class="field-row">
               <div class="form-field">
                 <label>PIN</label>
-                <InputText v-model="reg.pin" maxlength="4" placeholder="0000" />
+                <InputText v-model="reg.pin" maxlength="4" placeholder="Neu setzen (leer = unverändert)" />
               </div>
             </div>
             <div class="field-row">
@@ -691,7 +691,7 @@ function removeStation(idx) {
 
 function addWaiterRow() {
   waiterKey += 1
-  waitersLocal.value.push({ _key: `nw-${waiterKey}`, name: '', pin: '0000', source_waiter_id: null })
+  waitersLocal.value.push({ _key: `nw-${waiterKey}`, name: '', pin: '', source_waiter_id: null })
 }
 
 function removeWaiter(row) {
@@ -728,7 +728,7 @@ function addCashRegister() {
   cashRegistersLocal.value.push({
     name: `Kasse ${cashRegistersLocal.value.length + 1}`,
     pickup_code_prefix: String.fromCharCode(65 + (cashRegistersLocal.value.length % 26)),
-    pin: '0000',
+    pin: '',
     layout_uuid: layoutsLocal.value[0]?.uuid || '',
     receipt_printer_appliance_id: null,
   })
@@ -772,7 +772,8 @@ async function loadConfiguration() {
         _key: `ew-${w.uuid}-${waiterKey}`,
         uuid: w.uuid ?? null,
         name: w.name,
-        pin: w.pin,
+        pin: '',
+        has_pin: w.has_pin,
         source_waiter_id: w.source_waiter_id,
       }
     })
@@ -805,7 +806,8 @@ async function loadConfiguration() {
       uuid: reg.uuid ?? null,
       name: reg.name || '',
       pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
-      pin: reg.pin || '0000',
+      pin: '',
+      has_pin: reg.has_pin,
       layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
       receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
     }))
@@ -881,7 +883,7 @@ function confirmPickWaiter() {
     waitersLocal.value.push({
       _key: `pick-${waiterKey}`,
       name: w.name,
-      pin: w.pin,
+      pin: '',
       source_waiter_id: w.id,
     })
     existingSourceIds.add(id)
@@ -905,10 +907,12 @@ function buildPutPayload() {
     event_waiters: waitersLocal.value.map((w) => {
       const row = {
         name: w.name,
-        pin: w.pin,
         source_waiter_id: w.source_waiter_id ?? null,
       }
       if (w.uuid != null) row.uuid = w.uuid
+      const pin = (w.pin || '').trim()
+      if (pin) row.pin = pin
+      else if (!w.uuid) row.pin = '0000'
       return row
     }),
     app_layouts: layoutsLocal.value.map((lo) => ({
@@ -947,11 +951,13 @@ function buildPutPayload() {
       const row = {
         name: reg.name,
         pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
-        pin: reg.pin || '0000',
         layout_uuid: reg.layout_uuid,
         receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
       }
       if (reg.uuid != null) row.uuid = reg.uuid
+      const pin = (reg.pin || '').trim()
+      if (pin) row.pin = pin
+      else if (!reg.uuid) row.pin = '0000'
       return row
     }),
   }

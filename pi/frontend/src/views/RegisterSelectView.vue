@@ -41,7 +41,9 @@
           <label>PIN</label>
           <PinNumberInput v-model="pin" :maxlength="4" @submit="login" />
         </div>
-        <button type="submit" class="btn primary">Anmelden</button>
+        <button type="submit" class="btn primary" :disabled="loggingIn">
+          {{ loggingIn ? 'Prüfen…' : 'Anmelden' }}
+        </button>
         <p v-if="err" class="err-msg">{{ err }}</p>
         </form>
       </div>
@@ -60,12 +62,13 @@ import { useRouter, useRoute } from 'vue-router'
 import PinNumberInput from '../components/PinNumberInput.vue'
 import { useEventContext } from '../composables/useEventContext'
 import { useRegisterSession } from '../composables/useRegisterSession'
-import { setWaiter } from '../store'
+import { selectedEventId, setWaiter, verifyRegisterPin } from '../store'
 
 const router = useRouter()
 const route = useRoute()
 const { event } = useEventContext()
 const { setRegisterSession } = useRegisterSession()
+const loggingIn = ref(false)
 
 const registers = computed(() =>
   (event.value?.configuration?.cash_registers || []).slice().sort((a, b) => {
@@ -98,25 +101,36 @@ function pickRegister(uuid) {
   registerListOpen.value = false
 }
 
-function login() {
+async function login() {
   err.value = ''
   const reg = registers.value.find((x) => x.uuid === registerId.value)
   if (!reg) {
     err.value = 'Kasse wählen.'
     return
   }
-  const expectedPin = reg.pin ?? '0000'
-  if (expectedPin !== pin.value) {
-    err.value = 'PIN ungültig.'
+  if (selectedEventId.value == null) {
+    err.value = 'Kein Event gewählt.'
     return
   }
-  setWaiter(null)
-  setRegisterSession({ uuid: reg.uuid, name: reg.name })
-  const redir = route.query.redirect
-  if (typeof redir === 'string' && redir.startsWith('/')) {
-    router.replace(redir)
-  } else {
-    router.replace({ name: 'register-hub', params: { registerUuid: reg.uuid }, query: { fresh: '1' } })
+  loggingIn.value = true
+  try {
+    const verified = await verifyRegisterPin({
+      eventId: selectedEventId.value,
+      registerUuid: reg.uuid,
+      pin: pin.value,
+    })
+    setWaiter(null)
+    setRegisterSession({ uuid: reg.uuid, name: verified.name || reg.name })
+    const redir = route.query.redirect
+    if (typeof redir === 'string' && redir.startsWith('/')) {
+      router.replace(redir)
+    } else {
+      router.replace({ name: 'register-hub', params: { registerUuid: reg.uuid }, query: { fresh: '1' } })
+    }
+  } catch (e) {
+    err.value = e.message || 'PIN ungültig.'
+  } finally {
+    loggingIn.value = false
   }
 }
 </script>

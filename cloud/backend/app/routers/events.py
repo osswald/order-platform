@@ -11,6 +11,7 @@ from ..event_config_validation import (
     event_printer_candidates,
     replace_event_configuration,
 )
+from ..pos_pins import apply_pos_pin_value
 from ..models import (
     Article,
     Event,
@@ -148,7 +149,7 @@ class StationConfigRead(BaseModel):
 class EventWaiterConfigRead(BaseModel):
     uuid: str
     name: str
-    pin: str
+    has_pin: bool = False
     source_waiter_id: int | None
 
 
@@ -187,7 +188,7 @@ class CashRegisterRead(BaseModel):
     name: str
     sort_order: int
     pickup_code_prefix: str
-    pin: str
+    has_pin: bool = False
     layout_uuid: str
     receipt_printer_appliance_id: int | None
 
@@ -212,7 +213,7 @@ class StationConfigIn(BaseModel):
 class EventWaiterConfigIn(BaseModel):
     uuid: str | None = None
     name: str = Field(..., min_length=1)
-    pin: str = Field(..., min_length=1)
+    pin: str | None = None
     source_waiter_id: int | None = None
 
 
@@ -248,7 +249,7 @@ class CashRegisterIn(BaseModel):
     uuid: str | None = None
     name: str = Field(..., min_length=1)
     pickup_code_prefix: str = Field(..., min_length=1, max_length=3)
-    pin: str = Field("0000", min_length=1, max_length=32)
+    pin: str | None = None
     layout_uuid: str = Field(..., min_length=1)
     receipt_printer_appliance_id: int | None = None
 
@@ -324,7 +325,7 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
         EventWaiterConfigRead(
             uuid=ew.uuid,
             name=ew.name,
-            pin=ew.pin,
+            has_pin=bool((ew.pin or "").strip()),
             source_waiter_id=ew.source_waiter_id,
         )
         for ew in sorted(event.event_waiters, key=lambda w: w.id)
@@ -362,7 +363,7 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
             name=reg.name,
             sort_order=reg.sort_order,
             pickup_code_prefix=reg.pickup_code_prefix,
-            pin=getattr(reg, "pin", None) or "0000",
+            has_pin=bool((getattr(reg, "pin", None) or "").strip()),
             layout_uuid=reg.layout_uuid,
             receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
         )
@@ -388,6 +389,22 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
         voucher_definitions=voucher_definitions,
         printer_options=printer_options,
     )
+
+
+def configuration_dict_for_edge(event: Event, cfg: EventConfigurationRead) -> dict[str, Any]:
+    """Edge bundle: include bcrypt hashes, never plaintext PINs."""
+    data = cfg.model_dump()
+    ew_by_uuid = {ew.uuid: ew for ew in event.event_waiters}
+    for item in data.get("event_waiters") or []:
+        ew = ew_by_uuid.get(item.get("uuid"))
+        item.pop("has_pin", None)
+        item["pin_hash"] = (ew.pin if ew else "") or ""
+    reg_by_uuid = {reg.uuid: reg for reg in event.cash_registers}
+    for item in data.get("cash_registers") or []:
+        reg = reg_by_uuid.get(item.get("uuid"))
+        item.pop("has_pin", None)
+        item["pin_hash"] = (reg.pin if reg else "") or ""
+    return data
 
 
 @router.get("/", response_model=List[EventRead])

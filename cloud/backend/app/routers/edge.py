@@ -31,7 +31,7 @@ from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import get_password_hash, verify_password
 from ..deps import get_db
 from ..rate_limit import EDGE_PAIR_RATE_LIMIT, limiter
-from .events import serialize_event_configuration
+from .events import configuration_dict_for_edge, serialize_event_configuration
 
 router = APIRouter()
 PAIRING_CODE_PATTERN = re.compile(r"\D+")
@@ -289,7 +289,7 @@ def read_edge_bundle(
     bundles: list[EdgeEventBundle] = []
     for ev in events:
         cfg = serialize_event_configuration(db, ev)
-        cfg_dict = cfg.model_dump() if hasattr(cfg, "model_dump") else cfg.dict()
+        cfg_dict = configuration_dict_for_edge(ev, cfg)
         from ..receipt_printing_config import printing_bundle_dict
 
         cfg_dict["printing"] = printing_bundle_dict(ev)
