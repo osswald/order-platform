@@ -29,7 +29,9 @@ services:
       - app-net
 
   pi-frontend:
-    build: ./frontend
+    build:
+      context: ..
+      dockerfile: pi/frontend/Dockerfile
     depends_on:
       - pi-backend
     environment:
