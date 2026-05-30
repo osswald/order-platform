@@ -172,7 +172,7 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 | `install-vendiqo-pi.sh` | Copies compose/systemd/network files into a running Pi or image. |
 | `pi.prod.env` | GHCR image tags for `/opt/vendiqo/pi/.env` (optional; defaults are in `docker-compose.prod.yml`). |
 | `apply-ghcr-images.sh` | Updates `/opt/vendiqo/pi` on a running Pi and restarts the stack. |
-| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/24` (any wired port). |
+| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/24` on `eth0`. |
 | `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
 | `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
 | `vendiqo-pi-update.timer` | Runs container update periodically. |

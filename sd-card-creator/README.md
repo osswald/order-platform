@@ -44,7 +44,7 @@ gateway: 192.168.192.1
 dns:     192.168.192.1, 1.1.1.1
 ```
 
-The profile uses `match-device=type:ethernet` so it works whether the kernel names the port `eth0`, `end0`, or similar. Source: [`pi/deploy/networkmanager-vendiqo-eth0.nmconnection`](../pi/deploy/networkmanager-vendiqo-eth0.nmconnection), applied via SDM `network` plugin.
+The profile pins **`interface-name=eth0`**. Source: [`pi/deploy/networkmanager-vendiqo-eth0.nmconnection`](../pi/deploy/networkmanager-vendiqo-eth0.nmconnection), applied via SDM `network` plugin.
 
 ## Build configuration
 
@@ -57,13 +57,12 @@ The same `.env` file configures Raspberry Pi OS first-boot prompts through SDM:
 | `PI_LOCALE` | `en_GB.UTF-8` | System locale |
 | `PI_KEYMAP` | `ch` | Swiss German keyboard layout |
 | `PI_TIMEZONE` | `Europe/Zurich` | System timezone |
-| `PI_WIFI_COUNTRY` | `CH` | WiFi regulatory country |
 | `PI_USERNAME` | `vendiqo-user` | Local OS user |
 | `PI_PASSWORD` | empty | Plaintext password, kept only in local `.env` |
 | `PI_PASSWORD_HASH` | empty | Hashed password alternative to `PI_PASSWORD` |
 
 Set exactly one of `PI_PASSWORD` or `PI_PASSWORD_HASH`; `.env` is gitignored.
-Use `sudo sdm --info locale`, `sudo sdm --info keymap`, `sudo sdm --info timezone`, and `sudo sdm --info wifi` to list valid values.
+Use `sudo sdm --info locale`, `sudo sdm --info keymap`, and `sudo sdm --info timezone` to list valid values.
 
 ## Output
 
@@ -84,7 +83,7 @@ Flashable files appear under **`output/`**:
 | Plugin | Role |
 |--------|------|
 | `user` | Create `PI_USERNAME` with the configured password |
-| `L10n` | Apply locale, Swiss German keyboard, timezone, and WiFi country |
+| `L10n` | Apply locale, Swiss German keyboard, and timezone |
 | `disables` | Disable `piwiz` so first boot does not ask for setup values |
 | `apps` | `ca-certificates`, `curl`, `network-manager`, `xz-utils` |
 | `docker-install` | Docker Engine per upstream install guide |
@@ -126,7 +125,7 @@ Run from the **repository root** (paths above are relative to repo root).
 - **`Failed to open system bus` / nspawn errors** — You are not on a real Linux host with systemd (e.g. Docker on Mac). Use UTM Ubuntu and `./build-on-ubuntu.sh`.
 - **Incomplete `vendiqo-pi-*.img` after a failed run** — Do not flash; delete the partial file and rebuild.
 - **amd64 Ubuntu VM on Apple Silicon** — SDM uses `qemu-user-static` for arm64 images; the first build may be slower than on an arm64 VM.
-- **No network on the Pi after boot** — The static profile only applies on the Verleiher router (`192.168.192.0/24`). Confirm Ethernet is plugged in and run `nmcli device status` / `ip -4 addr`. The connection matches the first wired port (`match-device=type:ethernet`), not a fixed interface name.
+- **No network on the Pi after boot** — The static profile only applies on the Verleiher router (`192.168.192.0/24`). Confirm Ethernet is plugged in and run `nmcli device status` / `ip -4 addr`. The connection is bound to **`eth0`** (built-in RJ45 on Pi 4; on Pi 5 the kernel may use `end0` — adjust the profile if needed).
 - **Older image with Tailscale** — If an earlier build installed Tailscale, `tailscaled` can interfere with local routing until removed: `sudo systemctl disable --now tailscaled && sudo apt-get remove -y tailscale`.
 
 ## Files in this directory

@@ -78,7 +78,6 @@ WORK_IMG="$OUTPUT_DIR/$IMAGE_NAME"
 PI_LOCALE="${PI_LOCALE:-en_GB.UTF-8}"
 PI_KEYMAP="${PI_KEYMAP:-ch}"
 PI_TIMEZONE="${PI_TIMEZONE:-Europe/Zurich}"
-PI_WIFI_COUNTRY="${PI_WIFI_COUNTRY:-CH}"
 PI_USERNAME="${PI_USERNAME:-vendiqo-user}"
 PI_PASSWORD="${PI_PASSWORD:-}"
 PI_PASSWORD_HASH="${PI_PASSWORD_HASH:-}"
@@ -114,7 +113,6 @@ require_sdm_value() {
 require_sdm_value PI_LOCALE "$PI_LOCALE"
 require_sdm_value PI_KEYMAP "$PI_KEYMAP"
 require_sdm_value PI_TIMEZONE "$PI_TIMEZONE"
-require_sdm_value PI_WIFI_COUNTRY "$PI_WIFI_COUNTRY"
 require_sdm_value PI_USERNAME "$PI_USERNAME"
 
 if [ -n "$PI_PASSWORD" ] && [ -n "$PI_PASSWORD_HASH" ]; then
@@ -165,7 +163,7 @@ fi
 # Vendiqo unit files, enabled services.
 SDM_PLUGIN_ARGS=(
   --plugin "user:${USER_PLUGIN_ARGS}"
-  --plugin "L10n:keymap=${PI_KEYMAP}|locale=${PI_LOCALE}|timezone=${PI_TIMEZONE}|wificountry=${PI_WIFI_COUNTRY}"
+  --plugin "L10n:keymap=${PI_KEYMAP}|locale=${PI_LOCALE}|timezone=${PI_TIMEZONE}"
   --plugin "disables:piwiz"
   --plugin "apps:apps=ca-certificates,curl,network-manager,xz-utils"
   --plugin docker-install
