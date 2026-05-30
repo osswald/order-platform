@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 
 from fastapi import Depends, Header, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
 
 from .deps import get_db
 from .models import Event, HireCompany, Organisation, User
@@ -177,6 +178,71 @@ def ensure_user_can_use_organisation(
     if not any(org.id == organisation.id for org in organisations):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this organisation")
     return organisation
+
+
+def user_belongs_to_tenant(user: User, hire_company_id: int) -> bool:
+    if user.hire_company_id == hire_company_id:
+        return True
+    return any(o.hire_company_id == hire_company_id for o in (user.organisations or []))
+
+
+def get_user_in_tenant(
+    db: Session,
+    user_id: int,
+    hire_company_id: int,
+    *,
+    load_organisations: bool = False,
+) -> User | None:
+    query = db.query(User).filter(User.id == user_id).filter(
+        or_(
+            User.hire_company_id == hire_company_id,
+            User.organisations.any(Organisation.hire_company_id == hire_company_id),
+        )
+    )
+    if load_organisations:
+        query = query.options(joinedload(User.organisations))
+    return query.first()
+
+
+def ensure_user_in_tenant(
+    db: Session,
+    user_id: int,
+    hire_company_id: int,
+    *,
+    load_organisations: bool = False,
+) -> User:
+    user = get_user_in_tenant(
+        db, user_id, hire_company_id, load_organisations=load_organisations
+    )
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
+
+
+def ensure_users_in_tenant(
+    db: Session,
+    user_ids: list[int],
+    hire_company_id: int,
+) -> list[User]:
+    if not user_ids:
+        return []
+    users = (
+        db.query(User)
+        .options(joinedload(User.organisations))
+        .filter(User.id.in_(user_ids))
+        .all()
+    )
+    found = {u.id for u in users}
+    missing = set(user_ids) - found
+    if missing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown user id(s)")
+    for user in users:
+        if not user_belongs_to_tenant(user, hire_company_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User belongs to another Verleiher",
+            )
+    return users
 
 
 def ensure_organisation_ids_in_tenant(
