@@ -47,6 +47,7 @@ class User(Base):
     role = Column(String(32), nullable=False, default="member")
     hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=True, index=True)
     event_admin_pin_hash = Column(String(255), nullable=True)
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     hire_company = relationship("HireCompany", back_populates="users", foreign_keys=[hire_company_id])
     organisations = relationship("Organisation", secondary=organisation_users, back_populates="users")

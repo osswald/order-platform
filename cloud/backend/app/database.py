@@ -43,6 +43,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE users ADD COLUMN event_admin_pin_hash VARCHAR(255)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS event_admin_pin_hash VARCHAR(255)",
     )
+    _add_column_if_missing(
+        "users",
+        "token_version",
+        "ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0",
+    )
     appliance_columns = [
         ("name", "VARCHAR", "VARCHAR"),
         ("ip_address", "VARCHAR", "VARCHAR"),
