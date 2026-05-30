@@ -161,15 +161,14 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 | `install-vendiqo-pi.sh` | Copies compose/systemd/network files into a running Pi or image. |
 | `pi.prod.env` | GHCR image tags for `/opt/vendiqo/pi/.env` (optional; defaults are in `docker-compose.prod.yml`). |
 | `apply-ghcr-images.sh` | Updates `/opt/vendiqo/pi` on a running Pi and restarts the stack. |
-| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/23`. |
-| `install-tailscale.sh` | Installs Tailscale and enables `tailscaled` (SD card image build and manual use). |
+| `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/23` (any wired port). |
 | `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
 | `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
 | `vendiqo-pi-update.timer` | Runs container update periodically. |
 
 ## SD card image build
 
-Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`. SD card images include the Tailscale client; join each Pi to your tailnet with `sudo tailscale up` after first boot (see [`sd-card-creator/README.md`](../sd-card-creator/README.md#tailscale)).
+Generic headless Pi SD images are built with [sdm](https://github.com/gitbls/sdm) from **[`sd-card-creator/`](../sd-card-creator/README.md)** (`./build-on-ubuntu.sh` in a UTM Ubuntu VM or native Linux). Deploy assets used during customization live under `pi/deploy/` and `pi/docker-compose.prod.yml`.
 
 ## Cloud API used by Pi
 

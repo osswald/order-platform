@@ -1,8 +1,9 @@
 [connection]
 id=vendiqo-eth0
 type=ethernet
-interface-name=eth0
+match-device=type:ethernet
 autoconnect=true
+autoconnect-priority=100
 
 [ipv4]
 method=manual
