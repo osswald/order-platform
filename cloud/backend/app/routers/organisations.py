@@ -13,6 +13,7 @@ from ..tenancy import (
     TenantContext,
     ensure_org_in_tenant,
     ensure_user_can_use_organisation,
+    ensure_users_in_tenant,
     get_current_tenant,
     get_current_tenant_admin,
     readable_events_query,
@@ -222,14 +223,7 @@ def create_organisation(
         country=org_in.country,
     )
     if org_in.user_ids:
-        users = db.query(User).filter(User.id.in_(org_in.user_ids)).all()
-        for u in users:
-            if u.hire_company_id and u.hire_company_id != tenant.hire_company_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="User belongs to another Verleiher",
-                )
-        db_org.users = users
+        db_org.users = ensure_users_in_tenant(db, org_in.user_ids, tenant.hire_company_id)
     db.add(db_org)
     db.flush()
     hire_company = db.query(HireCompany).filter(HireCompany.id == tenant.hire_company_id).first()
@@ -261,15 +255,7 @@ def update_organisation(
     if org_in.country is not None:
         org.country = org_in.country
     if org_in.user_ids is not None:
-        users = db.query(User).filter(User.id.in_(org_in.user_ids)).all()
-        db_org_users = users
-        for u in db_org_users:
-            if u.hire_company_id and u.hire_company_id != tenant.hire_company_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="User belongs to another Verleiher",
-                )
-        org.users = db_org_users
+        org.users = ensure_users_in_tenant(db, org_in.user_ids, tenant.hire_company_id)
     db.commit()
     db.refresh(org)
     return organisation_response(org)
