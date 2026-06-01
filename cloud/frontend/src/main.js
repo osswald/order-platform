@@ -28,6 +28,7 @@ const vuetify = createVuetify({
     VNumberInput: { variant: 'outlined' },
     VCheckbox: { variant: 'outlined' },
     VSwitch: { variant: 'outlined' },
+    VDateInput: { variant: 'outlined' },
   },
 })
 

@@ -192,23 +192,14 @@
               />
             </div>
             <div class="form-field">
-              <v-menu v-model="lendStartMenuOpen" :close-on-content-click="false">
-                <template #activator="{ props: menuProps }">
-                  <v-text-field
-                    :model-value="lendForm.startDate ? formatDeDate(toIsoDate(lendForm.startDate)) : ''"
-                    label="Startdatum"
-                    placeholder="Startdatum"
-                    prepend-inner-icon="mdi-calendar"
-                    readonly
-                    hide-details="auto"
-                    v-bind="menuProps"
-                  />
-                </template>
-                <v-date-picker
-                  v-model="lendForm.startDate"
-                  @update:model-value="lendStartMenuOpen = false"
-                />
-              </v-menu>
+              <v-date-input
+                v-model="lendForm.startDate"
+                label="Startdatum"
+                placeholder="Startdatum"
+                prepend-icon=""
+                prepend-inner-icon="mdi-calendar"
+                hide-details="auto"
+              />
             </div>
             <div class="form-field">
               <v-text-field
@@ -359,7 +350,7 @@ import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
-import { cancelPlannedLendingForAppliance } from '../utils/applianceLending'
+import { cancelPlannedLendingForAppliance, toIsoDate } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import VqDataTable from './VqDataTable.vue'
 
@@ -383,8 +374,6 @@ const typeFilter = ref('')
 const ipFilter = ref('')
 const currentPage = ref(1)
 const pageSize = 20
-const lendStartMenuOpen = ref(false)
-
 const tableHeaders = [
   { title: 'ID', key: 'id' },
   { title: 'Name', key: 'name', sortable: false },
@@ -527,15 +516,6 @@ function formatDeDateTime(iso) {
   return d.toLocaleString('de-DE')
 }
 
-function toIsoDate(d) {
-  if (!d) return null
-  const x = d instanceof Date ? d : new Date(d)
-  const y = x.getFullYear()
-  const mo = String(x.getMonth() + 1).padStart(2, '0')
-  const day = String(x.getDate()).padStart(2, '0')
-  return `${y}-${mo}-${day}`
-}
-
 const filteredAppliances = computed(() => {
   const term = searchQuery.value.trim().toLowerCase()
   return appliances.value.filter((device) => {
@@ -605,7 +585,7 @@ async function fetchApplianceDetail(id) {
 function resetLendForm() {
   lendForm.value = {
     organisationId: null,
-    startDate: null,
+    startDate: new Date(),
     durationDays: 7,
   }
 }
