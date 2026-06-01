@@ -263,6 +263,70 @@ h2 {
   min-height: 100dvh;
 }
 
+/* Android WebView: --safe-* set from AndroidInsets bridge; avoid 100dvh (ignores system bars) */
+html.android-app,
+html.android-app body,
+html.android-app #app {
+  height: 100%;
+  overflow: hidden;
+}
+
+html.android-app body {
+  padding-top: 0;
+  min-height: 100%;
+}
+
+html.android-app #app {
+  min-height: 100%;
+}
+
+html.android-app .app-shell {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: var(--safe-bottom);
+}
+
+html.android-app .app-main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html.android-app .app-main:not(.app-main--fullscreen) {
+  padding-top: calc(0.75rem + var(--safe-top));
+}
+
+html.android-app .app-shell--fullscreen {
+  padding-bottom: 0;
+}
+
+html.android-app .app-main--fullscreen {
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Fullscreen POS: safe area on screen root; headers stay compact */
+html.android-app .order-screen,
+html.android-app .split-pay-screen {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+html.android-app .header-bar {
+  padding-top: 0.35rem;
+}
+
+html.android-app .split-pay-screen .split-header {
+  padding-top: 0.65rem;
+}
+
 .order-screen,
 .split-pay-screen {
   display: flex;

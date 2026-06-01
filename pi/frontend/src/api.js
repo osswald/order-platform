@@ -2,7 +2,7 @@ import { parseApiErrorDetail } from './utils/apiError'
 
 const STORAGE_KEY = 'pi_api_base'
 const DEFAULT_API_BASE = 'http://127.0.0.1:8001'
-const ANDROID_API_BASE = 'http://localhost:8001'
+const ANDROID_API_BASE = 'http://192.168.192.10'
 const PI_BACKEND_PORT = '8001'
 
 export function isAndroidApp() {

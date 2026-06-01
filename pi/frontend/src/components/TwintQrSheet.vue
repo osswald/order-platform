@@ -45,7 +45,7 @@ defineEmits(['confirm', 'cancel'])
   display: flex;
   flex-direction: column;
   background: var(--card);
-  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 1rem 1rem calc(1rem + var(--safe-bottom));
 }
 
 .sheet-header h3 {

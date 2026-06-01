@@ -6,7 +6,7 @@
     <div class="card">
       <div class="field">
         <label for="base">Pi-API Basis-URL</label>
-        <input id="base" v-model="baseInput" class="input" type="url" placeholder="http://192.168.1.10:8001" />
+        <input id="base" v-model="baseInput" class="input" type="url" placeholder="http://192.168.192.10" />
         <p class="muted">Wird in diesem Browser gespeichert. Leer = Build-Default (<code>VITE_API_BASE</code>).</p>
       </div>
       <div class="row">

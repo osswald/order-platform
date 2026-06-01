@@ -28,7 +28,8 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
 import TwintQrSheet from './components/TwintQrSheet.vue'
-import { api } from './api'
+import { api, isAndroidApp } from './api'
+import { applyAndroidSafeAreaInsets } from './utils/androidInsets'
 import { useBundle } from './composables/useBundle'
 import { useBundleRefresh } from './composables/useBundleRefresh'
 import { useToast } from './composables/useToast'
@@ -51,7 +52,18 @@ const { bundleReady, refreshBundle } = useBundle()
 
 useBundleRefresh()
 
+if (isAndroidApp()) {
+  router.afterEach(() => {
+    applyAndroidSafeAreaInsets()
+    requestAnimationFrame(applyAndroidSafeAreaInsets)
+  })
+}
+
 onMounted(() => {
+  if (isAndroidApp()) {
+    applyAndroidSafeAreaInsets()
+    requestAnimationFrame(applyAndroidSafeAreaInsets)
+  }
   api('/v1/setup/status')
     .then((status) => {
       if (!status?.configured && route.name !== 'setup') {

@@ -94,7 +94,7 @@ function confirm() {
   z-index: 151;
   background: var(--card);
   border-radius: 1rem 1rem 0 0;
-  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 1rem 1rem calc(1rem + var(--safe-bottom));
   max-height: 70vh;
   overflow: auto;
 }

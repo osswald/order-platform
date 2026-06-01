@@ -4,17 +4,21 @@ Native Android WebView wrapper for [`pi/frontend`](../pi/frontend).
 
 - Requires **Android 12+** (`minSdk 31`).
 - Bundles the Vue frontend into the APK via Gradle (`copyPiFrontendAssets`).
-- Default Pi API URL: `http://localhost:8001` for emulator/debug (override at build or in-app).
+- Default Pi API URL: **`http://192.168.192.10`** (production Pi nginx on port 80; override at build or in Admin).
 - Exposes `window.AndroidPrinter` for paired Bluetooth Classic ESC/POS printers.
+- WebView uses **edge-to-edge** layout with system bar insets so UI is not hidden behind the navigation bar.
+- Bundled UI is served via `WebViewAssetLoader` (`https://appassets.androidplatform.net/public/…`) so Vite ES modules load correctly (plain `file://` shows a white screen).
 
 ## Prerequisites
 
 - **JDK 17** (required by Gradle 9)
 - **Android SDK** with API 35 (Android Studio recommended)
 - **Node.js + npm** (frontend is built during Gradle `preBuild`)
-- Pi backend running and reachable from the device on port **8001**
+- Pi reachable on the LAN at **`http://192.168.192.10`** (same Wi‑Fi/VLAN as the phone)
 
 Set `ANDROID_HOME` if building from the command line outside Android Studio.
+
+Ensure `npm` is on the PATH used by Android Studio/Gradle (or launch Studio from a terminal where `npm` works).
 
 ## Build
 
@@ -50,60 +54,68 @@ Release APK (signed sideload / MDM):
 ### Install on a device
 
 ```sh
-adb install app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## Pi backend URL
 
-Three ways to configure the API base URL:
+The bundled frontend is built with [`pi/frontend/.env.android`](../pi/frontend/.env.android) (`VITE_API_BASE=http://192.168.192.10`). API calls go to `/v1/…` on that host (nginx proxies to `pi-backend`).
 
-1. **Build default (emulator)** — Android mode uses `http://localhost:8001` from [`pi/frontend/.env.android`](../pi/frontend/.env.android) and [`pi/frontend/src/api.js`](../pi/frontend/src/api.js).
-2. **Build override** — pass a Gradle property (required for physical devices on LAN):
+Three ways to change the URL:
+
+1. **Build override** — different Pi IP on your LAN:
 
    ```sh
-   ./gradlew assembleRelease -PVITE_API_BASE=http://192.168.1.50:8001
+   ./gradlew assembleDebug -PVITE_API_BASE=http://192.168.192.20
    ```
 
-3. **After install** — set the URL in the app (Setup / Admin panel); stored in `localStorage` on the device.
+2. **After install** — Admin → **Pi-API Basis-URL** → save (stored in `localStorage` on the device).
 
-### Android emulator (local dev)
+3. **Remote WebView URL** (optional) — load the Pi PWA from nginx instead of bundled assets:
 
-Debug builds load the **Pi frontend dev server** at `http://localhost:5174` (not the bundled APK assets). Start the frontend on your Mac:
+   ```sh
+   adb shell am start -n ch.vendiqo.app/.MainActivity \
+     --es frontend_url "http://192.168.192.10"
+   ```
+
+   Still set **Pi-API** to `http://192.168.192.10` in Admin if the WebView origin does not match your API host.
+
+### Physical device (typical)
+
+1. Install the APK (`adb install` or Android Studio).
+2. Open the app (bundled UI by default).
+3. Pair/setup Pi if needed; in **Admin**, confirm API `http://192.168.192.10` and run **Konfiguration laden**.
+
+Do **not** use `localhost:5174` on a real phone — that only works with `adb reverse` to a Mac dev server.
+
+### Android emulator + Mac dev server (live Vite)
+
+Debug APKs use the **bundled** frontend by default. For hot-reload against Vite on your Mac:
 
 ```sh
 cd ../pi/frontend && npm run dev
 ```
 
-Or use Docker: `docker compose -f pi/docker-compose.yml up pi-frontend pi-backend`
-
-The emulator’s `localhost` is not your Mac. Forward ports once per emulator session:
+Emulator port forwarding:
 
 ```sh
 adb reverse tcp:5174 tcp:5174
 adb reverse tcp:8001 tcp:8001
 ```
 
-The Vite dev server serves the UI; API calls go to `http://localhost:8001` (Pi backend). Start the backend:
+Launch with the dev frontend URL (emulator `10.0.2.2` = host loopback):
 
 ```sh
-docker compose -f pi/docker-compose.yml up pi-backend
+adb shell am start -n ch.vendiqo.app/.MainActivity \
+  --ez use_dev_frontend true \
+  --es frontend_url "http://10.0.2.2:5174"
 ```
 
-Install/relaunch the debug APK from Android Studio or:
+Or only the dev flag if `DEV_FRONTEND_URL` is set in the debug build:
 
 ```sh
-./gradlew installDebug
+adb shell am start -n ch.vendiqo.app/.MainActivity --ez use_dev_frontend true
 ```
-
-To test the **bundled** frontend in debug instead:
-
-```sh
-adb shell am start -n ch.vendiqo.app/.MainActivity --ez use_bundled_frontend true
-```
-
-### Physical device on LAN
-
-The phone and Pi must be on the same network. Build with `-PVITE_API_BASE=http://<pi-lan-ip>:8001` or set the URL in the Admin panel.
 
 ## Bluetooth receipt printer
 
@@ -112,14 +124,6 @@ The phone and Pi must be on the same network. Build with `-PVITE_API_BASE=http:/
 3. Grant Bluetooth permissions, select the paired printer, run **Testbeleg drucken**.
 
 Printer selection is stored only on the device.
-
-## Remote frontend (optional)
-
-Override the debug default (`http://localhost:5174`) with a custom URL:
-
-```sh
-adb shell am start -n ch.vendiqo.app/.MainActivity --es frontend_url "http://192.168.1.10:5174"
-```
 
 ## Frontend-only rebuild
 
@@ -130,14 +134,14 @@ cd ../pi/frontend
 npm run build -- --mode android
 ```
 
-Then copy `dist/` to `android/app/src/main/assets/public/` or run `./gradlew assembleDebug` again.
+Then run `./gradlew assembleDebug` again (copies `dist/` into assets).
 
 ## Project layout
 
 | Path | Purpose |
 |------|---------|
-| `app/src/main/java/ch/vendiqo/app/MainActivity.kt` | WebView shell |
+| `app/src/main/java/ch/vendiqo/app/MainActivity.kt` | WebView shell, insets, load URL |
 | `app/src/main/java/ch/vendiqo/app/BluetoothPrinterBridge.kt` | JS bridge for ESC/POS |
 | `app/src/main/assets/public/` | Bundled frontend (generated, gitignored) |
-| `app/src/main/res/mipmap-*/` | Launcher icons (adaptive icon PNGs + `mipmap-anydpi-v26/ic_launcher.xml`) |
+| `app/src/main/res/mipmap-*/` | Launcher icons |
 | `keystore.properties` | Release signing secrets (gitignored) |

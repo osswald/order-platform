@@ -64,6 +64,7 @@ android {
             isMinifyEnabled = false
             buildConfigField("String", "DEV_FRONTEND_URL", "\"\"")
             val releaseSigning = signingConfigs.getByName("release")
+            versionNameSuffix = "0.1"
             if (releaseSigning.storeFile?.exists() == true) {
                 signingConfig = releaseSigning
             }
@@ -78,6 +79,7 @@ tasks.withType<KotlinCompile>().configureEach {
 dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.webkit:webkit:1.12.1")
 }
 
 val frontendDir = rootProject.projectDir.parentFile.resolve("pi/frontend")
