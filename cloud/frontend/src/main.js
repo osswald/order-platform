@@ -27,7 +27,7 @@ const vuetify = createVuetify({
     VFileInput: { variant: 'outlined' },
     VNumberInput: { variant: 'outlined' },
     VCheckbox: { variant: 'outlined' },
-    VSwitch: { variant: 'outlined' },
+    VSwitch: { color: 'success' },
     VDateInput: { variant: 'outlined' },
   },
 })
