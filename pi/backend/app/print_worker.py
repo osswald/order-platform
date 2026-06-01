@@ -384,7 +384,6 @@ def _render_receipt_slip(
     title = _event_title_for_print(event, event_name)
     hero_size = profile.get("size_table_or_pickup") or "xlarge"
     line_size = profile.get("size_order_lines") or "large"
-    order_line_size = "xlarge" if profile_key == "station_receipt" else line_size
     is_voucher = voucher_name is not None and value_cents is not None
     show_prices = bool(profile.get("show_price", False))
 
@@ -450,7 +449,7 @@ def _render_receipt_slip(
             body,
             arts,
             width,
-            line_size=order_line_size,
+            line_size=line_size,
             show_prices=show_prices,
         )
 

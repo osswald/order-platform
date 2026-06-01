@@ -132,7 +132,8 @@ def write_two_column(
 
 
 def _effective_line_width(width: int, size: str) -> int:
-    if (size or "normal").lower() == "large":
+    key = (size or "normal").lower()
+    if key in ("large", "xlarge"):
         return max(12, width // 2)
     return width
 
@@ -166,16 +167,18 @@ def write_item_row(
 ) -> None:
     eff_width = _effective_line_width(width, size)
     line = _format_item_line(qty, name, cents, eff_width, indent=indent)
-    if (size or "normal").lower() == "large":
-        write_sized_line(printer, line, "large")
+    key = (size or "normal").lower()
+    if key in ("large", "xlarge"):
+        write_sized_line(printer, line, key)
     else:
         printer.text(f"{line}\n")
 
 
 def write_subline(printer: Dummy, text: str, *, indent: int = 2, size: str = "normal") -> None:
     line = f"{' ' * indent}{text}"
-    if (size or "normal").lower() == "large":
-        write_sized_line(printer, line, "large")
+    key = (size or "normal").lower()
+    if key in ("large", "xlarge"):
+        write_sized_line(printer, line, key)
     else:
         printer.text(f"{line}\n")
 

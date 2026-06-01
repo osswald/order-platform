@@ -163,6 +163,8 @@ sudo bash pi/deploy/apply-ghcr-images.sh
 
 (from a git checkout on the Pi, or copy `pi/deploy/pi.prod.env` and `pi/docker-compose.prod.yml` to `/opt/vendiqo/pi/` then `sudo docker compose -f /opt/vendiqo/pi/docker-compose.prod.yml pull && sudo systemctl restart vendiqo-pi`).
 
+New `pi-backend` images are built when `pi/backend/**` changes are pushed to `main` (workflow `pi-docker.yml`). The update timer on the Pi pulls `:pi-backend-latest` about every 15 minutes, or restart `vendiqo-pi.service` immediately after a manual pull.
+
 ## Host deploy assets
 
 Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
@@ -252,7 +254,7 @@ Receipts are rendered with [python-escpos](https://github.com/python-escpos/pyth
 
 Station, customer pickup, and voucher slips share one ESC/POS layout: event title and localized time (header row), context row (`Station:` + `Best #` / `Bon #`, or `GUTSCHEIN` + copy index), a **large centered hero** (table number, pickup code, or voucher value), line items with right-aligned prices (customer profile may hide prices via `show_price`), quantity/total row, and a centered footer (`station_receipt` / `customer_receipt` `bottom_line`, voucher default «Einloesung bei Zahlung.», or thank-you + waiter name).
 
-Font sizes for station slips come from cloud **`configuration.printing.station_receipt`** (`size_table_or_pickup`, `size_order_lines`; defaults **xlarge** / **large**). On the Pi, table/pickup codes and voucher values use Epson `GS !` magnification (`ESCPOS_HERO_SCALE`, default **8**, range 1–8).
+Font sizes for station slips come from cloud **`configuration.printing.station_receipt`**: `size_order_lines` controls article lines (**normal** / **large** / **xlarge**; default **large** = double height), `size_table_or_pickup` controls the table/pickup hero. Table/pickup codes and voucher values use Epson `GS !` magnification (`ESCPOS_HERO_SCALE`, default **8**, range 1–8).
 
 Optional in `pi/.env`:
 

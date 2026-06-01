@@ -82,7 +82,7 @@ def test_table_order_slip_layout(monkeypatch):
     assert "+ Ketchup" in text
 
 
-def test_station_slip_order_lines_use_double_size():
+def test_station_slip_order_lines_use_large_from_profile():
     slip = build_escpos_receipt_text(
         {
             "table_number": 8,
@@ -95,13 +95,14 @@ def test_station_slip_order_lines_use_double_size():
         station_name="Küche",
         articles={"10": {"id": 10, "name": "Raclette", "price": 13.5}},
         local_order_id=82,
-        event=_event_with_printing(station_receipt={"size_order_lines": "normal"}),
+        event=_event_with_printing(station_receipt={"size_order_lines": "large"}),
     )
-    assert b"\x1b!\x30" in slip
+    assert b"\x1b!\x10" in slip
+    assert b"\x1b!\x30" not in slip
     assert _slip_text(slip).count("Raclette") >= 1
 
 
-def test_station_slip_always_double_size_even_when_config_normal():
+def test_station_slip_order_lines_respect_normal_profile():
     slip = build_escpos_receipt_text(
         {
             "table_number": 1,
@@ -116,8 +117,11 @@ def test_station_slip_always_double_size_even_when_config_normal():
             }
         ),
     )
-    assert b"\x1b!\x30" in slip
-    assert "Bier" in _slip_text(slip)
+    idx = slip.find(b"Bier")
+    assert idx >= 0
+    window = slip[max(0, idx - 8) : idx + 20]
+    assert b"\x1b!\x10" not in window
+    assert b"\x1b!\x30" not in window
 
 
 def test_pickup_order_slip_large_code():
