@@ -252,7 +252,7 @@ Each order is split by station. The cloud bundle contains `printer_hosts` mappin
 
 Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG). Logos are flattened onto a white background (including transparent PNGs), converted to black-on-white for thermal print, scaled to fit the paper width, and centered.
 
-Station, customer pickup, and voucher slips share one ESC/POS layout: event title and localized time (header row), context row (`Station:` + `Best #` / `Bon #`, or `GUTSCHEIN` + copy index), a **large centered hero** (table number, pickup code, or voucher value), line items with right-aligned prices (customer profile may hide prices via `show_price`), quantity/total row, and a centered footer (`station_receipt` / `customer_receipt` `bottom_line`, voucher default «Einloesung bei Zahlung.», or thank-you + waiter name).
+Station, customer pickup, and voucher slips share one ESC/POS layout: event title and localized time (header row), context row (`Station:` + `Best #` / `Bon #`, or `GUTSCHEIN` + copy index), a **large centered hero** (table number, pickup code, or voucher value), and line items. **Station kitchen slips** never print prices or totals (quantities and names only) and omit the cloud **Fußzeile**; they end with the **Kellner- or Kassenname**. **Customer pickup** slips (`customer_receipt`) print line prices and a total row when **Preise anzeigen** is enabled in cloud (tab *Kunde / Abholbeleg*), and print the cloud **Fußzeile** (`bottom_line`) or the legacy fallback «Bitte an der Ausgabe abholen.» when empty. **Voucher** slips use the voucher footer («Einloesung bei Zahlung.» or custom `bottom_line`).
 
 Font sizes for station slips come from cloud **`configuration.printing.station_receipt`**: `size_order_lines` controls article lines (**normal** / **large** / **xlarge**; default **large** = double height), `size_table_or_pickup` controls the table/pickup hero. Table/pickup codes and voucher values use Epson `GS !` magnification (`ESCPOS_HERO_SCALE`, default **8**, range 1–8).
 
@@ -262,6 +262,8 @@ Optional in `pi/.env`:
 - `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
 - `ESCPOS_HERO_SCALE` — table/pickup/voucher hero magnification (default `8`)
 - `ESCPOS_LOGO_MAX_WIDTH` — logo raster width in dots (default `384`, 80mm)
+
+**Zeilenvorschub vor Schnitt** is configured per **Drucker** appliance in cloud admin (**Geräte** → Drucker → *Zeilenvorschub vor Schnitt*, 0–10; default 1). The Pi syncs this via `printer_hosts` in the event bundle.
 
 Local and production printing use **real printer hosts** from the synced cloud bundle (`printer_hosts`). Cloud appliance entries must use IPv4 addresses reachable from the `pi-backend` container. Optionally set `ESCPOS_PRINTER_HOST_OVERRIDE` in `pi/.env` to send all jobs to one host (useful for a single test printer on your LAN), then recreate `pi-backend`.
 

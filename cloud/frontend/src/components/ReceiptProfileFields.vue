@@ -13,6 +13,7 @@
       density="compact"
     />
     <v-checkbox
+      v-if="showPriceOption"
       v-model="model.show_price"
       label="Preise anzeigen"
       hide-details
@@ -59,6 +60,8 @@ const model = defineModel({ type: Object, required: true })
 
 defineProps({
   pickupLabel: { type: String, default: 'Tisch / Pickup' },
+  /** Kitchen station slips never print prices; only shown for customer pickup profile. */
+  showPriceOption: { type: Boolean, default: true },
 })
 
 const tableSizeOptions = [

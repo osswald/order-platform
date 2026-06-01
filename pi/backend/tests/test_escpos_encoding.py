@@ -57,5 +57,5 @@ def test_station_test_slip_mirrors_production_sizes(monkeypatch):
     assert b"\x1b!\x30" not in slip
     assert "Ää Öö Üü ß  Éé Èè Îî Çç" in text
     assert "Station: Grill" in text
-    assert "Danke für Ihre Bestellung!" in text
+    assert "Danke für Ihre Bestellung!" not in text
     assert "Testdruck" in text

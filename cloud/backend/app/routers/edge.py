@@ -158,21 +158,32 @@ def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
     return article_snapshot_for_event(db, event)
 
 
-def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, str]:
-    """Map station/register uuid -> host:port for ESC/POS (network printers, port 9100)."""
-    out: dict[str, str] = {}
+def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, dict]:
+    """Map station/register uuid -> ESC/POS endpoint (host, port, feed_lines from printer appliance)."""
+    from ..printer_appliance_config import PrinterHostEndpoint, feed_lines_for_appliance
+
+    out: dict[str, dict] = {}
+
+    def add_endpoint(key: str, ap: Appliance | None) -> None:
+        if not ap or not ap.ip_address:
+            return
+        endpoint = PrinterHostEndpoint(
+            host=ap.ip_address.strip(),
+            port=9100,
+            feed_lines=feed_lines_for_appliance(ap),
+        )
+        out[key] = endpoint.model_dump()
+
     for st in event.stations or []:
         if not st.printer_appliance_id:
             continue
         ap = db.query(Appliance).filter(Appliance.id == st.printer_appliance_id).first()
-        if ap and ap.ip_address:
-            out[str(st.uuid)] = f"{ap.ip_address}:9100"
+        add_endpoint(str(st.uuid), ap)
     for reg in event.cash_registers or []:
         if not reg.receipt_printer_appliance_id:
             continue
         ap = db.query(Appliance).filter(Appliance.id == reg.receipt_printer_appliance_id).first()
-        if ap and ap.ip_address:
-            out[str(reg.uuid)] = f"{ap.ip_address}:9100"
+        add_endpoint(str(reg.uuid), ap)
     return out
 
 
@@ -188,7 +199,7 @@ class EdgeEventBundle(BaseModel):
     end: datetime
     configuration: dict[str, Any]
     articles: dict[str, Any]
-    printer_hosts: dict[str, str] = Field(default_factory=dict)
+    printer_hosts: dict[str, dict] = Field(default_factory=dict)
 
 
 class EdgeBundleRead(BaseModel):

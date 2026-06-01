@@ -3,10 +3,11 @@
 import base64
 from io import BytesIO
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.escpos_render import (
     _prepare_receipt_logo,
+    escpos_init_preamble,
     render_slip,
     write_heading,
     write_line,
@@ -20,6 +21,15 @@ def test_render_slip_contains_text():
     assert b"Line" in raw
 
 
+def test_finish_slip_avoids_default_six_line_cut_feed(monkeypatch):
+    """python-escpos cut() feeds 6 lines by default; we cut tight then optional ESCPOS_FEED_LINES."""
+    monkeypatch.setenv("ESCPOS_FEED_LINES", "0")
+    body = render_slip(lambda p: write_line(p, "Hi"), feed_lines=0)
+    payload = body[len(escpos_init_preamble()) :]
+    assert b"\x1bd\x06" not in payload
+    assert payload.endswith(b"\x1dV\x42\x00")
+
+
 def test_prepare_receipt_logo_rgba_centered_on_canvas():
     img = Image.new("RGBA", (40, 20), (0, 0, 0, 0))
     for x in range(10, 30):
@@ -28,11 +38,11 @@ def test_prepare_receipt_logo_rgba_centered_on_canvas():
     buf = BytesIO()
     img.save(buf, format="PNG")
     prepared = _prepare_receipt_logo(buf.getvalue(), max_width=64)
-    assert prepared.size == (64, 20)
+    assert prepared.size == (64, 10)
     assert prepared.mode == "1"
-    bbox = prepared.getbbox()
-    assert bbox is not None
-    assert bbox[0] >= 8
+    ink_bbox = ImageOps.invert(prepared.convert("L")).getbbox()
+    assert ink_bbox is not None
+    assert ink_bbox[0] >= 8
 
 
 def test_write_logo_bytes_embeds_raster():

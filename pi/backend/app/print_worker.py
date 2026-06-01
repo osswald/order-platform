@@ -139,6 +139,16 @@ def _format_order_ids(order_number: int | None, local_order_id: int | None) -> s
     return " | ".join(parts)
 
 
+def _station_operator_label(body: dict) -> str:
+    """Kellner- oder Kassenname für Stationsbons (ohne Cloud-Fußzeile)."""
+    source = (body.get("order_source") or "waiter").strip().lower()
+    if source == "cash_register":
+        reg = (body.get("cash_register_name") or "").strip()
+        if reg:
+            return reg
+    return (body.get("waiter_name") or "").strip()
+
+
 def _line_base_total_cents(line: dict, arts: dict) -> int:
     from .pricing import _article_entry
 
@@ -226,6 +236,7 @@ def build_payment_receipt_text(
     reprint: bool = False,
     generated_at: str | None = None,
     event: dict | None = None,
+    feed_lines: int = 1,
 ) -> bytes:
     """Build a payment receipt ESC/POS payload (Android Bluetooth or network)."""
     from .pricing import line_total_cents
@@ -275,7 +286,7 @@ def build_payment_receipt_text(
             write_line(printer, f"{label}: {_money(amount, currency)}")
         write_line(printer, "Danke!")
 
-    return render_slip(render)
+    return render_slip(render, feed_lines=feed_lines)
 
 
 def build_voucher_slip_text(
@@ -288,6 +299,7 @@ def build_voucher_slip_text(
     copy_total: int | None = None,
     generated_at: str | None = None,
     event: dict | None = None,
+    feed_lines: int = 1,
 ) -> bytes:
     """Customer-facing amount voucher slip (one per purchased unit)."""
 
@@ -305,7 +317,7 @@ def build_voucher_slip_text(
             generated_at=generated_at,
         )
 
-    return render_slip(render)
+    return render_slip(render, feed_lines=feed_lines)
 
 
 def _write_station_order_lines_formatted(
@@ -385,7 +397,9 @@ def _render_receipt_slip(
     hero_size = profile.get("size_table_or_pickup") or "xlarge"
     line_size = profile.get("size_order_lines") or "large"
     is_voucher = voucher_name is not None and value_cents is not None
-    show_prices = bool(profile.get("show_price", False))
+    is_station_kitchen = profile_key == "station_receipt" and not is_voucher
+    # Kitchen/station slips never print prices; pickup (customer_receipt) uses cloud «Preise anzeigen».
+    show_prices = False if is_station_kitchen else bool(profile.get("show_price", False))
 
     write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
     if test_charset_banner:
@@ -458,21 +472,22 @@ def _render_receipt_slip(
         total_price = f"{total_cents / 100:.2f}"
         write_two_column(printer, str(total_qty), f"{currency} {total_price}", width)
 
-    bottom = (profile.get("bottom_line") or "").strip()
-    if is_voucher:
+    if is_station_kitchen:
+        operator = _station_operator_label(body)
+        if operator:
+            write_two_column(printer, operator, "", width)
+    elif is_voucher:
+        bottom = (profile.get("bottom_line") or "").strip()
         if bottom:
             write_centered_block(printer, bottom)
         else:
             write_centered_block(printer, "Einloesung bei Zahlung.")
-    elif bottom:
-        write_centered_block(printer, bottom)
-    elif customer_footer_fallback and profile_key == "customer_receipt":
-        write_centered_block(printer, customer_footer_fallback)
-    else:
-        write_centered_block(printer, "Danke für Ihre Bestellung!")
-        wn = (body.get("waiter_name") or "").strip()
-        if wn:
-            write_centered_block(printer, wn)
+    elif profile_key == "customer_receipt":
+        bottom = (profile.get("bottom_line") or "").strip()
+        if bottom:
+            write_centered_block(printer, bottom)
+        elif customer_footer_fallback:
+            write_centered_block(printer, customer_footer_fallback)
 
 
 def _render_station_order_slip(
@@ -511,6 +526,7 @@ def build_escpos_receipt_text(
     local_order_id: int | None = None,
     currency: str = "EUR",
     event: dict | None = None,
+    feed_lines: int = 1,
 ) -> bytes:
     """Station kitchen/order slip (reference layout; honours printing profile footer/logo)."""
     arts = articles or {}
@@ -527,7 +543,7 @@ def build_escpos_receipt_text(
             currency=currency,
         )
 
-    return render_slip(render)
+    return render_slip(render, feed_lines=feed_lines)
 
 
 def build_escpos_station_test_slip(
@@ -537,6 +553,7 @@ def build_escpos_station_test_slip(
     station_name: str | None = None,
     articles: dict | None = None,
     event: dict | None = None,
+    feed_lines: int = 1,
 ) -> bytes:
     """Admin Testdruck: production station slip plus charset demo banner."""
     arts = articles or {}
@@ -554,7 +571,7 @@ def build_escpos_station_test_slip(
             test_charset_banner=True,
         )
 
-    return render_slip(render)
+    return render_slip(render, feed_lines=feed_lines)
 
 
 def build_customer_pickup_text(
@@ -566,6 +583,7 @@ def build_customer_pickup_text(
     event: dict | None = None,
     local_order_id: int | None = None,
     currency: str = "EUR",
+    feed_lines: int = 1,
 ) -> bytes:
     arts = articles or {}
 
@@ -583,7 +601,7 @@ def build_customer_pickup_text(
             customer_footer_fallback="Bitte an der Ausgabe abholen.",
         )
 
-    return render_slip(render)
+    return render_slip(render, feed_lines=feed_lines)
 
 
 def _effective_printer_host(host: str) -> str:

@@ -54,6 +54,7 @@ def apply_schema_patches() -> None:
         ("ip_address", "VARCHAR", "VARCHAR"),
         ("model", "VARCHAR", "VARCHAR"),
         ("comment", "VARCHAR", "VARCHAR"),
+        ("escpos_feed_lines", "INTEGER", "INTEGER"),
     ]
     for col, sqlite_type, pg_type in appliance_columns:
         _add_column_if_missing(

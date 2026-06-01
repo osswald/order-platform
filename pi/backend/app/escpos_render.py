@@ -58,14 +58,15 @@ def encode_escpos_text(text: str) -> bytes:
     return str(text).encode(escpos_encoding(), errors="replace")
 
 
-def finish_slip(printer: Dummy, *, feed_lines: int = 2) -> bytes:
+def finish_slip(printer: Dummy, *, feed_lines: int = 1) -> bytes:
+    feed_lines = max(0, min(10, int(feed_lines)))
     if feed_lines > 0:
-        printer.text("\n" * feed_lines)
-    printer.cut()
+        printer.print_and_feed(feed_lines)
+    printer.cut(feed=False)
     return escpos_init_preamble() + printer.output
 
 
-def render_slip(render_fn: Callable[[Dummy], None], *, feed_lines: int = 2) -> bytes:
+def render_slip(render_fn: Callable[[Dummy], None], *, feed_lines: int = 1) -> bytes:
     printer = new_slip()
     render_fn(printer)
     return finish_slip(printer, feed_lines=feed_lines)
@@ -219,7 +220,6 @@ def write_hero(
         write_sized_line(printer, text, "large")
     else:
         write_sized_line(printer, text, "normal")
-    printer.text("\n")
     printer.set(align="left")
 
 
@@ -245,6 +245,10 @@ def _prepare_receipt_logo(image_bytes: bytes, *, max_width: int) -> Image.Image:
 
     # Dark pixels print; tune above mid-gray so light logo colors stay visible.
     mono = gray.point(lambda p: 0 if p < 175 else 255, mode="1")
+    # getbbox() tracks non-zero (white) pixels; invert to bound dark logo ink.
+    bbox = ImageOps.invert(mono.convert("L")).getbbox()
+    if bbox:
+        mono = mono.crop(bbox)
 
     canvas = Image.new("1", (max_width, mono.height), 1)
     x_offset = max(0, (max_width - mono.width) // 2)
@@ -268,7 +272,6 @@ def write_logo_bytes(
         printer.set(align="center")
         printer.image(img, center=center, impl="bitImageRaster")
         printer.set(align="left")
-        printer.text("\n")
     except Exception:
         log.warning("ESC/POS logo render failed", exc_info=True)
 

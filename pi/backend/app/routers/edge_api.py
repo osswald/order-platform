@@ -95,6 +95,7 @@ from ..models import (
     SyncedBundle,
 )
 from ..security import verify_password
+from ..printer_endpoint import resolve_printer_endpoint
 from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
@@ -309,20 +310,6 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
     return sorted(merged.values(), key=lambda g: (g["article_id"], g["note"], _additions_signature(g.get("additions"))))
 
 
-def _resolve_printer(ev: dict, station_uuid: str | None) -> tuple[str, int]:
-    hosts = ev.get("printer_hosts") or {}
-    key = str(station_uuid) if station_uuid is not None else None
-    if key and key in hosts:
-        h, _, p = hosts[key].partition(":")
-        return h, int(p or 9100)
-    if hosts:
-        first = next(iter(hosts.values()))
-        h, _, p = first.partition(":")
-        return h, int(p or 9100)
-    h = os.getenv("DEFAULT_PRINTER_HOST", "192.168.192.11")
-    return h, int(os.getenv("DEFAULT_PRINTER_PORT", "9100"))
-
-
 def _cash_register_from_event(ev: dict, cash_register_uuid: str | None) -> dict | None:
     if not cash_register_uuid:
         return None
@@ -356,7 +343,7 @@ def _create_voucher_print_job(
     copy_total: int | None = None,
 ) -> int:
     reg_uuid = _receipt_register_uuid(ev, cash_register_uuid)
-    host, port = _resolve_printer(ev, reg_uuid)
+    host, port, feed_lines = resolve_printer_endpoint(ev, reg_uuid)
     esc = build_voucher_slip_text(
         event_name=ev.get("name", "Event"),
         voucher_name=voucher_name,
@@ -365,6 +352,7 @@ def _create_voucher_print_job(
         copy_index=copy_index,
         copy_total=copy_total,
         event=ev,
+        feed_lines=feed_lines,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -444,8 +432,9 @@ def _create_print_job_for_lines(
     articles: dict,
 ) -> int:
     station_payload = {**payload, "lines": station_lines}
+    _add_waiter_name(ev, station_payload)
     station_label = station_name_from_event(ev, station_uuid)
-    host, port = _resolve_printer(ev, station_uuid)
+    host, port, feed_lines = resolve_printer_endpoint(ev, station_uuid)
     esc = build_escpos_receipt_text(
         station_payload,
         ev.get("name", "Event"),
@@ -454,6 +443,7 @@ def _create_print_job_for_lines(
         local_order_id=order_id,
         currency=ev.get("currency", "EUR"),
         event=ev,
+        feed_lines=feed_lines,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -481,7 +471,7 @@ def _create_customer_pickup_print_job_for_lines(
 ) -> int:
     station_payload = {**payload, "lines": station_lines}
     station_label = station_name_from_event(ev, station_uuid)
-    host, port = _resolve_printer(ev, cash_register_uuid)
+    host, port, feed_lines = resolve_printer_endpoint(ev, cash_register_uuid)
     esc = build_customer_pickup_text(
         station_payload,
         ev.get("name", "Event"),
@@ -490,6 +480,7 @@ def _create_customer_pickup_print_job_for_lines(
         event=ev,
         local_order_id=order_id,
         currency=ev.get("currency", "EUR"),
+        feed_lines=feed_lines,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -2572,7 +2563,7 @@ async def printer_test_station_prints(
             continue
 
         station_name = station_name_from_event(ev, station_uuid)
-        host, port = _resolve_printer(ev, station_uuid)
+        host, port, feed_lines = resolve_printer_endpoint(ev, station_uuid)
         payload = {
             "event_id": body.event_id,
             "table_number": 1,
@@ -2586,6 +2577,7 @@ async def printer_test_station_prints(
             station_name=station_name,
             articles=arts,
             event=ev,
+            feed_lines=feed_lines,
         )
         try:
             await _send_to_printer(host, port, esc)

@@ -1,5 +1,6 @@
 """Station order slip ESC/POS layout."""
 
+from app.escpos_render import escpos_init_preamble
 from app.print_worker import _format_ordered_at, build_escpos_receipt_text
 
 
@@ -74,7 +75,7 @@ def test_table_order_slip_layout(monkeypatch):
     assert "Station: Grill" in text
     assert "Best #00042" in text
     assert "Bon #000123" in text
-    assert "Danke für Ihre Bestellung!" in text
+    assert "Danke für Ihre Bestellung!" not in text
     assert "Anna Müller" in text
     assert "10.50" not in text
     assert "CHF" not in text
@@ -124,6 +125,26 @@ def test_station_slip_order_lines_respect_normal_profile():
     assert b"\x1b!\x30" not in window
 
 
+def test_station_slip_uses_feed_lines_from_printer_appliance():
+    slip = build_escpos_receipt_text(
+        {
+            "table_number": 2,
+            "lines": [{"article_id": 10, "qty": 1, "article_name": "Wasser"}],
+        },
+        "Event",
+        articles={"10": {"id": 10, "name": "Wasser", "price": 1.0}},
+        event={
+            "printer_hosts": {
+                "st-x": {"host": "127.0.0.1", "port": 9100, "feed_lines": 0},
+            },
+            "configuration": {"printing": {"station_receipt": {"logo_enabled": False}}},
+        },
+        feed_lines=0,
+    )
+    payload = slip[len(escpos_init_preamble()) :]
+    assert b"\x1bd\x06" not in payload
+
+
 def test_pickup_order_slip_large_code():
     slip = build_escpos_receipt_text(
         {
@@ -142,4 +163,5 @@ def test_pickup_order_slip_large_code():
     )
     text = _slip_text(slip)
     assert "A17" in text
-    assert text.index("A17") < text.index("Danke")
+    assert "Danke für Ihre Bestellung!" not in text
+    assert "Kasse" in text

@@ -64,6 +64,12 @@ class ApplianceBase(BaseModel):
     type: str = Field(..., description="Device type")
     name: str | None = None
     ip_address: str | None = None
+    escpos_feed_lines: int | None = Field(
+        None,
+        ge=0,
+        le=10,
+        description="Line feeds before paper cut (printer appliances only)",
+    )
     model: str | None = Field(None, max_length=255)
     comment: str | None = Field(None, max_length=2000)
 
@@ -79,6 +85,7 @@ class ApplianceUpdate(BaseModel):
     type: str | None = Field(None, description="Device type")
     name: str | None = Field(None, max_length=255)
     ip_address: str | None = None
+    escpos_feed_lines: int | None = Field(None, ge=0, le=10)
     model: str | None = Field(None, max_length=255)
     comment: str | None = Field(None, max_length=2000)
 
@@ -272,6 +279,13 @@ def _apply_auto_name(
 def _clear_printer_only_fields(appliance: Appliance) -> None:
     if appliance.type != "printer":
         appliance.ip_address = None
+        appliance.escpos_feed_lines = None
+
+
+def _normalize_printer_feed_lines(value: int | None) -> int | None:
+    if value is None:
+        return None
+    return max(0, min(10, int(value)))
 
 
 def _get_appliance_in_tenant(db: Session, appliance_id: int, hire_company_id: int) -> Appliance:
@@ -388,6 +402,11 @@ def create_appliance(
         model=appliance_in.model,
         comment=appliance_in.comment,
         ip_address=appliance_in.ip_address if appliance_type == "printer" else None,
+        escpos_feed_lines=(
+            _normalize_printer_feed_lines(appliance_in.escpos_feed_lines)
+            if appliance_type == "printer"
+            else None
+        ),
     )
     if appliance_type in AUTO_NAMED_TYPES:
         appliance.name = generate_appliance_name(db, appliance_type)
@@ -433,6 +452,8 @@ def update_appliance(
     if new_type == "printer":
         if appliance_in.ip_address is not None:
             appliance.ip_address = _validate_ip_for_type(appliance_in.ip_address, "printer")
+        if appliance_in.escpos_feed_lines is not None:
+            appliance.escpos_feed_lines = _normalize_printer_feed_lines(appliance_in.escpos_feed_lines)
     else:
         _clear_printer_only_fields(appliance)
 

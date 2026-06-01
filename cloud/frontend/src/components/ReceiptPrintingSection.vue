@@ -58,7 +58,11 @@
       </v-tabs>
       <v-window v-model="receiptTab" class="receipt-tab-panels">
         <v-window-item value="station">
-          <ReceiptProfileFields v-model="config.station_receipt" pickup-label="Tisch / Pickup" />
+          <ReceiptProfileFields
+            v-model="config.station_receipt"
+            pickup-label="Tisch / Pickup"
+            :show-price-option="false"
+          />
         </v-window-item>
         <v-window-item value="customer">
           <ReceiptProfileFields v-model="config.customer_receipt" pickup-label="Pickup-Code" />

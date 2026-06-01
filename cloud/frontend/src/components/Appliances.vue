@@ -37,6 +37,18 @@
       <div v-if="isPrinter" class="form-field">
         <v-text-field v-model="form.ip_address" label="IP-Adresse" placeholder="192.168.1.10" hide-details="auto" />
       </div>
+      <div v-if="isPrinter" class="form-field">
+        <v-text-field
+          v-model.number="form.escpos_feed_lines"
+          type="number"
+          :min="0"
+          :max="10"
+          label="Zeilenvorschub vor Schnitt"
+          hint="0 = direkt am letzten Text schneiden, 1–2 üblich"
+          persistent-hint
+          hide-details="auto"
+        />
+      </div>
 
       <div class="form-field">
         <v-text-field v-model="form.model" label="Modell (optional)" placeholder="z. B. HP LaserJet Pro" hide-details="auto" />
@@ -423,6 +435,7 @@ const emptyForm = () => ({
   type: '',
   name: '',
   ip_address: '',
+  escpos_feed_lines: 1,
   model: '',
   comment: '',
 })
@@ -625,6 +638,7 @@ function applyDeviceToForm(device) {
     type: device.type,
     name: device.name || '',
     ip_address: device.ip_address || '',
+    escpos_feed_lines: device.escpos_feed_lines ?? 1,
     model: device.model || '',
     comment: device.comment || '',
   }
@@ -687,6 +701,8 @@ function buildPayload() {
   }
   if (form.value.type === 'printer') {
     payload.ip_address = form.value.ip_address?.trim() || null
+    const feed = Number(form.value.escpos_feed_lines)
+    payload.escpos_feed_lines = Number.isFinite(feed) ? Math.max(0, Math.min(10, Math.round(feed))) : 1
   }
   if (!isAutoNamed.value && form.value.name?.trim()) {
     payload.name = form.value.name.trim()

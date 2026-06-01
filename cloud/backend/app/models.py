@@ -79,6 +79,7 @@ class Appliance(Base):
     type = Column(String, nullable=False)
     name = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
+    escpos_feed_lines = Column(Integer, nullable=True)
     model = Column(String, nullable=True)
     comment = Column(String, nullable=True)
     # Raspberry Pi / edge: device authenticates to cloud with client id + secret (secret stored hashed).

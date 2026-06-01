@@ -33,7 +33,45 @@ def _event_with_printing(**profile_overrides):
     }
 
 
-def test_station_receipt_custom_title_and_footer():
+def test_station_receipt_never_shows_prices_when_profile_enabled():
+    ev = _event_with_printing(
+        station_receipt={"show_price": True},
+        customer_receipt={"show_price": False},
+    )
+    raw = build_escpos_receipt_text(
+        {
+            "table_number": 5,
+            "lines": [{"article_id": 1, "qty": 2, "article_name": "Bier"}],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Bier", "price": 4.5}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "8.00" not in text
+    assert "CHF" not in text
+    assert "2x Bier" in text or "2 Bier" in text
+
+
+def test_customer_pickup_shows_prices_and_total_when_enabled():
+    ev = _event_with_printing(customer_receipt={"show_price": True})
+    raw = build_customer_pickup_text(
+        {
+            "pickup_code": "C9",
+            "lines": [{"article_id": 1, "qty": 2, "article_name": "Bier"}],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Bier", "price": 4.5}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "9.00" in text
+    assert "CHF" in text
+
+
+def test_station_receipt_custom_title_no_footer():
     ev = _event_with_printing(
         label_event_title="Sommerfest",
         station_receipt={"bottom_line": "Danke!\nGuten Appetit"},
@@ -47,8 +85,45 @@ def test_station_receipt_custom_title_and_footer():
     text = raw.decode("cp858", errors="replace")
     assert "Sommerfest" in text
     assert "Original Name" not in text
-    assert "Danke!" in text
-    assert "Guten Appetit" in text
+    assert "Danke!" not in text
+    assert "Guten Appetit" not in text
+    assert "Danke für Ihre Bestellung!" not in text
+
+
+def test_station_receipt_shows_waiter_name():
+    ev = _event_with_printing()
+    raw = build_escpos_receipt_text(
+        {
+            "table_number": 3,
+            "waiter_name": "Tom Keller",
+            "lines": [{"article_id": 1, "qty": 1, "article_name": "Wasser"}],
+        },
+        "Event",
+        articles={"1": {"name": "Wasser"}},
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Tom Keller" in text
+
+
+def test_station_receipt_prefers_cash_register_name():
+    ev = _event_with_printing()
+    raw = build_escpos_receipt_text(
+        {
+            "table_number": 0,
+            "pickup_code": "B2",
+            "order_source": "cash_register",
+            "cash_register_name": "Hauptkasse",
+            "waiter_name": "Tom Keller",
+            "lines": [{"article_id": 1, "qty": 1, "article_name": "Snack"}],
+        },
+        "Event",
+        articles={"1": {"name": "Snack"}},
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Hauptkasse" in text
+    assert "Tom Keller" not in text
 
 
 def test_customer_receipt_custom_footer_overrides_legacy():
