@@ -1,4 +1,5 @@
 import { api } from '../api'
+import { getReceiptPaperWidth } from './receiptPaperWidth'
 
 function bridge() {
   if (typeof window === 'undefined') return null
@@ -69,7 +70,7 @@ export function printEscposBase64(payload) {
 export async function printPaymentReceipt(paymentId, { reprint = false } = {}) {
   const data = await api(`/v1/payments/${encodeURIComponent(paymentId)}/receipt`, {
     method: 'POST',
-    body: JSON.stringify({ reprint }),
+    body: JSON.stringify({ reprint, paper_width: getReceiptPaperWidth() }),
   })
   const result = printEscposBase64(data.escpos_payload)
   if (!result.ok) {
@@ -81,7 +82,7 @@ export async function printPaymentReceipt(paymentId, { reprint = false } = {}) {
 export async function printTestReceipt(eventId) {
   const data = await api('/v1/printers/test-receipt', {
     method: 'POST',
-    body: JSON.stringify({ event_id: eventId || null }),
+    body: JSON.stringify({ event_id: eventId || null, paper_width: getReceiptPaperWidth() }),
   })
   const result = printEscposBase64(data.escpos_payload)
   if (!result.ok) {

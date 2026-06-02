@@ -86,7 +86,7 @@
     </div>
 
     <div v-if="androidApp" class="card" style="margin-top: 1rem">
-      <p>Android-App: Bluetooth-Drucker für Kellner-Belege konfigurieren.</p>
+      <p>Android-App: Bluetooth-Drucker und Belegbreite (53/58/80 mm) für Kellner-Belege konfigurieren.</p>
       <button type="button" class="btn" @click="router.push({ name: 'android-printer' })">Bluetooth Drucker</button>
     </div>
 

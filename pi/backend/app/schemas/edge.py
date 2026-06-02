@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+ReceiptPaperWidth = Literal["80mm", "58mm", "53mm"]
 
 
 # --- Request bodies ---
@@ -78,6 +80,7 @@ class CollectiveBillCreateBody(BaseModel):
 
 class PaymentReceiptBody(BaseModel):
     reprint: bool = False
+    paper_width: ReceiptPaperWidth | None = None
 
 
 class PaymentReceiptPrintBody(BaseModel):
@@ -86,6 +89,7 @@ class PaymentReceiptPrintBody(BaseModel):
 
 class PrinterTestReceiptBody(BaseModel):
     event_id: int | None = None
+    paper_width: ReceiptPaperWidth | None = None
 
 
 class PrinterTestStationPrintsBody(BaseModel):

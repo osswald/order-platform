@@ -14,8 +14,11 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .escpos_render import (
     encode_escpos_text,
+    escpos_env_line_width,
     escpos_init_preamble,
     render_slip,
+    resolve_line_width,
+    resolve_logo_max_width,
     write_centered_block,
     write_centered_sized,
     write_heading,
@@ -101,11 +104,7 @@ def _event_title_for_print(ev: dict | None, event_name: str) -> str:
 
 
 def _escpos_line_width() -> int:
-    raw = os.getenv("ESCPOS_LINE_WIDTH", "48").strip()
-    try:
-        return max(24, int(raw))
-    except ValueError:
-        return 48
+    return escpos_env_line_width()
 
 
 def _escpos_timezone() -> ZoneInfo:
@@ -248,6 +247,8 @@ def build_payment_receipt_text(
     generated_at: str | None = None,
     event: dict | None = None,
     feed_lines: int = 1,
+    paper_width: str | None = None,
+    line_width: int | None = None,
 ) -> bytes:
     """Build a payment receipt ESC/POS payload (Android Bluetooth or network)."""
     from .pricing import line_total_cents
@@ -261,10 +262,16 @@ def build_payment_receipt_text(
     profile = _profile_cfg(event, "payment_receipt")
     line_size = profile.get("size_order_lines") or "normal"
     title = _event_title_for_print(event, event_name)
-    width = _escpos_line_width()
+    width = line_width if line_width is not None else resolve_line_width(paper_width)
+    logo_width = resolve_logo_max_width(width)
 
     def render(printer: Dummy) -> None:
-        write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+        write_logo_from_event(
+            printer,
+            event,
+            logo_enabled=bool(profile.get("logo_enabled", True)),
+            max_width=logo_width,
+        )
         write_sized_line(printer, "Beleg", line_size)
         if reprint:
             write_sized_line(printer, "Kopie / Nachdruck", line_size)

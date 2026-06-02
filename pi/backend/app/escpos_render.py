@@ -21,6 +21,32 @@ DEFAULT_MAX_IMAGE_WIDTH = 384
 # Epson TM family profile so python-escpos can center raster images.
 DEFAULT_PRINTER_PROFILE = "TM-T88IV"
 
+# Characters per line for payment receipts (Font A, normal size).
+PAPER_WIDTH_PRESETS: dict[str, int] = {
+    "80mm": 48,
+    "58mm": 32,
+    "53mm": 30,
+}
+
+
+def escpos_env_line_width() -> int:
+    raw = os.getenv("ESCPOS_LINE_WIDTH", "48").strip()
+    try:
+        return max(24, int(raw))
+    except ValueError:
+        return 48
+
+
+def resolve_line_width(paper_width: str | None = None) -> int:
+    key = (paper_width or "").strip()
+    if key in PAPER_WIDTH_PRESETS:
+        return PAPER_WIDTH_PRESETS[key]
+    return escpos_env_line_width()
+
+
+def resolve_logo_max_width(line_width: int) -> int:
+    return max(128, int(DEFAULT_MAX_IMAGE_WIDTH * line_width / 48))
+
 
 def escpos_logo_max_width() -> int:
     raw = os.getenv("ESCPOS_LOGO_MAX_WIDTH", str(DEFAULT_MAX_IMAGE_WIDTH)).strip()
@@ -276,7 +302,13 @@ def write_logo_bytes(
         log.warning("ESC/POS logo render failed", exc_info=True)
 
 
-def write_logo_from_event(printer: Dummy, ev: dict | None, *, logo_enabled: bool = True) -> None:
+def write_logo_from_event(
+    printer: Dummy,
+    ev: dict | None,
+    *,
+    logo_enabled: bool = True,
+    max_width: int | None = None,
+) -> None:
     """Print event logo when bundle provides base64 or raw bytes under printing config."""
     if not ev or not logo_enabled:
         return
@@ -289,4 +321,4 @@ def write_logo_from_event(printer: Dummy, ev: dict | None, *, logo_enabled: bool
     except Exception:
         log.warning("Invalid receipt logo base64 on event %s", ev.get("id"))
         return
-    write_logo_bytes(printer, raw)
+    write_logo_bytes(printer, raw, max_width=max_width)

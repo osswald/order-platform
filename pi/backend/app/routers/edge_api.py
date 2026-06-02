@@ -2529,6 +2529,7 @@ def payment_receipt(
         reprint=bool(body and body.reprint),
         generated_at=datetime.now(timezone.utc).isoformat(),
         event=ev,
+        paper_width=body.paper_width if body else None,
     )
     return PaymentReceiptEscposResponse(
         payment_id=row.id,
@@ -2595,6 +2596,7 @@ def printer_test_receipt(
         currency=currency,
         generated_at=payload["paid_at"],
         event=ev,
+        paper_width=body.paper_width if body else None,
     )
     return EscposPayloadResponse(escpos_payload=base64.b64encode(esc).decode("ascii"))
 

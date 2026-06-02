@@ -77,6 +77,13 @@ def test_backend_generates_test_receipt(client):
     assert b"Testartikel" in raw
 
 
+def test_payment_receipt_escpos_accepts_paper_width(client):
+    c, payment_id, _order_id = _pay_order(client)
+    esc = c.post(f"/v1/payments/{payment_id}/receipt", json={"reprint": True, "paper_width": "58mm"})
+    assert esc.status_code == 200, esc.text
+    assert esc.json().get("escpos_payload")
+
+
 def _pay_order(client):
     c, _ = client
     order = c.post(

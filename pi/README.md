@@ -257,7 +257,7 @@ Font sizes for station slips come from cloud **`configuration.printing.station_r
 
 Optional in `pi/.env`:
 
-- `ESCPOS_LINE_WIDTH` — characters per line (default `48`, 80mm Font A)
+- `ESCPOS_LINE_WIDTH` — characters per line for **network** slips and station payment prints when no `paper_width` is sent (default `48`, 80 mm Font A). Bluetooth payment receipts use the device setting instead (`80mm`→48, `58mm`→32, `53mm`→30).
 - `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
 - `ESCPOS_HERO_SCALE` — table/pickup/voucher hero magnification (default `8`)
 - `ESCPOS_LOGO_MAX_WIDTH` — logo raster width in dots (default `384`, 80mm)
@@ -270,8 +270,8 @@ Local and production printing use **real printer hosts** from the synced cloud b
 
 After paying (order, table split-pay, or collective bill), the waiter PWA asks **Zahlungsbeleg drucken?** If yes:
 
-- **Android with a paired Bluetooth printer** — prints on the device (no station list).
-- **Otherwise** — lists stations and cash registers that have an entry in `printer_hosts`; the Pi queues a `PrintJob` to the chosen printer.
+- **Android with a paired Bluetooth printer** — prints on the device (no station list). Paper width is set per device under **Bluetooth Drucker** (80 mm / 58 mm / 53 mm); narrow Bluetooth printers should use **53 mm** so prices align flush right.
+- **Otherwise** — lists stations and cash registers that have an entry in `printer_hosts`; the Pi queues a `PrintJob` to the chosen printer (always 80 mm / `ESCPOS_LINE_WIDTH` default).
 
 Reprints from **Belege** use the same flow. Manual checks:
 

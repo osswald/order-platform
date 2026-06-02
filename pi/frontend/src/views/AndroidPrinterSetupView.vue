@@ -17,6 +17,23 @@
       </div>
 
       <div class="card">
+        <h2 class="card-title">Belegbreite</h2>
+        <p class="muted">Breite für Kellner-Belege auf diesem Gerät (Zahlungsbeleg per Bluetooth).</p>
+        <div class="paper-width-options">
+          <label v-for="opt in paperWidthOptions" :key="opt.value" class="paper-width-option">
+            <input
+              type="radio"
+              name="paper_width"
+              :value="opt.value"
+              :checked="paperWidth === opt.value"
+              @change="onPaperWidthChange(opt.value)"
+            />
+            {{ opt.label }}
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="row">
           <button type="button" class="btn" @click="loadPrinters">Gekoppelte Drucker laden</button>
           <button type="button" class="btn primary" :disabled="busy || !selectedAddress" @click="testPrint">
@@ -60,6 +77,11 @@ import {
   requestPrinterPermissions,
   setSelectedPrinter,
 } from '../utils/androidPrinter'
+import {
+  getReceiptPaperWidth,
+  RECEIPT_PAPER_WIDTH_OPTIONS,
+  setReceiptPaperWidth,
+} from '../utils/receiptPaperWidth'
 
 const { event } = useEventContext()
 const available = computed(() => isAndroidPrinterAvailable())
@@ -69,6 +91,8 @@ const permission = ref(null)
 const busy = ref(false)
 const message = ref('')
 const messageType = ref('ok')
+const paperWidthOptions = RECEIPT_PAPER_WIDTH_OPTIONS
+const paperWidth = ref(getReceiptPaperWidth())
 
 const permissionLabel = computed(() => {
   if (!permission.value) return 'unbekannt'
@@ -106,6 +130,12 @@ function loadPrinters() {
   refreshSelected()
 }
 
+function onPaperWidthChange(value) {
+  setReceiptPaperWidth(value)
+  paperWidth.value = value
+  show('Belegbreite gespeichert.', 'ok')
+}
+
 function selectPrinter(printer) {
   const result = setSelectedPrinter(printer.address)
   if (!result.ok) {
@@ -136,6 +166,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.paper-width-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.paper-width-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 .printer-row {
   padding: 0.75rem 0;
   border-top: 1px solid var(--border);
