@@ -626,6 +626,7 @@ async function saveArticle() {
   const payload = {
     name: form.value.name,
     label: form.value.label,
+    price: Number(form.value.price ?? 0),
     import_article_number: form.value.importArticleNumber || null,
     description: form.value.description || null,
     unit: form.value.unit || null,
