@@ -557,6 +557,7 @@ def read_event_sales_report(
 class CollectiveBillOrderRead(BaseModel):
     id: int
     client_order_id: str
+    order_number: int | None = None
     created_at: str | None = None
     payment_status: str
     line_cents: int
@@ -575,6 +576,7 @@ class CollectiveBillRead(BaseModel):
     line_cents: int
     open_cents: int
     paid_cents: int
+    line_groups: List[dict] = []
     orders: List[CollectiveBillOrderRead] = []
 
 

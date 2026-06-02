@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from typing import Any
 
@@ -50,15 +51,13 @@ def _addition_price_cents(articles: dict, base_article: dict | None, addition_id
 
 
 def line_unit_cents(line: dict, articles: dict) -> int:
+    # Snapshotted lines store unit_cents as the full per-unit price (base + additions).
     if line.get("unit_cents") is not None:
-        unit = int(line["unit_cents"])
-    else:
-        aid = line.get("article_id")
-        base = _article_entry(articles, aid)
-        price = float(base["price"]) if base and base.get("price") is not None else 0.0
-        unit = int(round(price * 100))
+        return max(0, int(line["unit_cents"]))
     aid = line.get("article_id")
     base = _article_entry(articles, aid)
+    price = float(base["price"]) if base and base.get("price") is not None else 0.0
+    unit = int(round(price * 100))
     for add in line.get("additions") or []:
         if not isinstance(add, dict):
             continue
@@ -147,6 +146,83 @@ def _normalize_additions(additions: list | None) -> list[dict]:
     return out
 
 
+def _additions_signature(additions: list | None) -> str:
+    items = _normalize_additions(additions)
+    items.sort(key=lambda x: (x["article_id"], x["qty"]))
+    return json.dumps(items, separators=(",", ":"))
+
+
+def _line_key(article_id, note: str, additions: list | None = None) -> tuple[int, str, str]:
+    return (int(article_id), str(note or ""), _additions_signature(additions))
+
+
+def build_line_groups_from_edge_orders(orders: list[EdgeSubmittedOrder], articles: dict) -> list[dict]:
+    """Merge open-order lines by article+note+additions (same as Pi split-pay)."""
+    merged: dict[tuple[int, str, str], dict] = {}
+    for order in orders:
+        payload = order.payload if isinstance(order.payload, dict) else {}
+        for line in payload.get("lines") or []:
+            if not isinstance(line, dict):
+                continue
+            if str(line.get("kind") or "") == "voucher_sale":
+                continue
+            aid = line.get("article_id")
+            if aid is None:
+                continue
+            note = str(line.get("note") or "")
+            adds = _normalize_additions(line.get("additions"))
+            key = _line_key(aid, note, adds)
+            qty = max(1, int(line.get("qty") or 1))
+            line_cents = line_total_cents(line, articles)
+            unit = line_unit_cents(line, articles)
+            if key not in merged:
+                merged[key] = {
+                    "article_id": int(aid),
+                    "note": note,
+                    "additions": adds,
+                    "total_qty": 0,
+                    "unit_cents": unit,
+                    "line_total_cents": 0,
+                }
+            merged[key]["total_qty"] += qty
+            merged[key]["line_total_cents"] += line_cents
+    return sorted(
+        merged.values(),
+        key=lambda g: (g["article_id"], g["note"], _additions_signature(g.get("additions"))),
+    )
+
+
+def format_line_groups_for_api(groups: list[dict], articles: dict) -> list[dict]:
+    """Add display names for collective-bill UI."""
+    out: list[dict] = []
+    for g in groups:
+        aid = int(g["article_id"])
+        art = articles.get(aid) or {}
+        name = art.get("name") or f"Artikel #{aid}"
+        addition_labels: list[dict] = []
+        for add in g.get("additions") or []:
+            add_id = int(add["article_id"])
+            add_art = articles.get(add_id) or {}
+            add_name = add_art.get("name") or f"Artikel #{add_id}"
+            for linked in art.get("additions") or []:
+                if int(linked.get("article_id") or 0) == add_id and linked.get("name"):
+                    add_name = linked["name"]
+                    break
+            addition_labels.append({"article_id": add_id, "name": add_name, "qty": add.get("qty", 1)})
+        out.append(
+            {
+                "article_id": aid,
+                "name": name,
+                "note": g.get("note") or "",
+                "additions": addition_labels,
+                "total_qty": g["total_qty"],
+                "unit_cents": g["unit_cents"],
+                "line_total_cents": g["line_total_cents"],
+            }
+        )
+    return out
+
+
 def format_payload_lines(lines: list | None, articles: dict) -> list[dict]:
     """Format raw payload lines with names and amounts for API display."""
     out: list[dict] = []
@@ -168,27 +244,31 @@ def format_payload_lines(lines: list | None, articles: dict) -> list[dict]:
         )
         art = articles.get(aid_int) or {}
         raw_adds = [a for a in (line.get("additions") or []) if isinstance(a, dict)]
+        snapshotted_unit = line.get("unit_cents") is not None
         addition_lines = []
         for add in additions:
             add_id = add["article_id"]
             add_qty = add["qty"]
             add_art = articles.get(add_id) or {}
             raw_add = next((a for a in raw_adds if int(a.get("article_id") or 0) == add_id), None)
-            if raw_add and raw_add.get("unit_cents") is not None:
-                add_unit = int(raw_add["unit_cents"])
-            else:
-                add_unit = _addition_price_cents(articles, art, add_id)
             add_display_name = (
                 (raw_add.get("name") if raw_add else None)
                 or add_art.get("name")
                 or f"Artikel #{add_id}"
             )
+            add_line_cents = 0
+            if not snapshotted_unit:
+                if raw_add and raw_add.get("unit_cents") is not None:
+                    add_unit = int(raw_add["unit_cents"])
+                else:
+                    add_unit = _addition_price_cents(articles, art, add_id)
+                add_line_cents = add_unit * qty * add_qty
             addition_lines.append(
                 {
                     "article_id": add_id,
                     "name": add_display_name,
                     "qty": add_qty,
-                    "line_cents": add_unit * qty * add_qty,
+                    "line_cents": add_line_cents,
                 }
             )
         note = str(line.get("note") or "").strip()

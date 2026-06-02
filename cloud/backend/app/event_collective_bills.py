@@ -11,7 +11,9 @@ from .event_sales import (
     _build_articles_pricing_map,
     _collect_article_ids_from_orders,
     _line_for_pricing,
+    build_line_groups_from_edge_orders,
     distinct_order_numbers_for_rows,
+    format_line_groups_for_api,
     format_payload_lines,
     line_total_cents,
 )
@@ -67,6 +69,43 @@ def _maybe_close_collective_bill(db: Session, header: EventCollectiveBill) -> No
         header.closed_at = datetime.now(timezone.utc)
 
 
+def _logical_client_order_id(order: EdgeSubmittedOrder) -> str:
+    payload = order.payload if isinstance(order.payload, dict) else {}
+    return str(payload.get("client_order_id") or order.client_order_id)
+
+
+def _snapshot_has_lines(order: EdgeSubmittedOrder) -> bool:
+    payload = order.payload if isinstance(order.payload, dict) else {}
+    for ln in payload.get("lines") or []:
+        if isinstance(ln, dict) and ln.get("article_id") is not None:
+            return True
+    return False
+
+
+def _deduped_orders_for_bill(raw_orders: list[EdgeSubmittedOrder]) -> list[EdgeSubmittedOrder]:
+    """Latest snapshot per payload client_order_id; prefer newest snapshot that still has lines."""
+    by_key: dict[str, list[EdgeSubmittedOrder]] = defaultdict(list)
+    for order in raw_orders:
+        by_key[_logical_client_order_id(order)].append(order)
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    out: list[EdgeSubmittedOrder] = []
+    for group in by_key.values():
+        sorted_g = sorted(group, key=lambda o: (o.created_at or epoch, o.id))
+        best = sorted_g[-1]
+        if not _snapshot_has_lines(best):
+            for candidate in reversed(sorted_g):
+                if _snapshot_has_lines(candidate):
+                    best = candidate
+                    break
+        out.append(best)
+    return out
+
+
+def _is_open_order(order: EdgeSubmittedOrder) -> bool:
+    payload = order.payload if isinstance(order.payload, dict) else {}
+    return str(payload.get("payment_status") or "open").lower() != "paid"
+
+
 def _order_row_dict(order: EdgeSubmittedOrder, arts: dict) -> dict:
     payload = order.payload or {}
     lines = payload.get("lines") or []
@@ -78,9 +117,10 @@ def _order_row_dict(order: EdgeSubmittedOrder, arts: dict) -> dict:
         for p in (payload.get("payments") or [])
         if isinstance(p, dict)
     )
+    logical_cid = payload.get("client_order_id") or order.client_order_id
     return {
         "id": order.id,
-        "client_order_id": order.client_order_id,
+        "client_order_id": logical_cid,
         "order_number": payload.get("order_number"),
         "ordered_at": payload.get("ordered_at"),
         "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -120,28 +160,45 @@ def build_event_collective_bills_list(db: Session, event: Event) -> dict:
     bills = []
     for u in sorted(all_uuids, key=lambda x: (headers.get(x).created_at if headers.get(x) else None, x)):
         header = headers.get(u)
-        orders = orders_by_uuid.get(u, [])
-        order_rows = [_order_row_dict(o, arts) for o in orders]
-        open_cents = sum(r["line_cents"] for r in order_rows if r["payment_status"] != "paid")
-        paid_cents = sum(r["paid_cents"] for r in order_rows)
-        line_cents = sum(r["line_cents"] for r in order_rows)
-        has_open = any(r["payment_status"] != "paid" for r in order_rows)
-        status = "open" if has_open else ("closed" if orders else "open")
+        raw_orders = orders_by_uuid.get(u, [])
+        display_orders = _deduped_orders_for_bill(raw_orders)
+        open_orders = [o for o in display_orders if _is_open_order(o)]
+        line_groups_raw = build_line_groups_from_edge_orders(display_orders, arts)
+        open_groups_raw = build_line_groups_from_edge_orders(open_orders, arts)
+        line_groups = format_line_groups_for_api(line_groups_raw, arts)
+        line_cents = sum(g["line_total_cents"] for g in line_groups_raw)
+        open_cents = sum(g["line_total_cents"] for g in open_groups_raw)
+        paid_cents = sum(
+            sum(
+                int(p.get("amount_cents") or 0)
+                for p in ((o.payload or {}).get("payments") or [])
+                if isinstance(p, dict)
+            )
+            for o in display_orders
+        )
+        order_rows = [_order_row_dict(o, arts) for o in display_orders]
+        has_open = bool(open_orders)
+        status = "open" if has_open else ("closed" if display_orders else "open")
         if header and header.closed_at and not has_open:
             status = "closed"
         bills.append(
             {
                 "uuid": u,
-                "name": header.name if header else (orders[0].payload or {}).get("collective_bill_name", "Sammelrechnung"),
+                "name": (
+                    header.name
+                    if header
+                    else ((display_orders[0].payload or {}).get("collective_bill_name", "Sammelrechnung") if display_orders else "Sammelrechnung")
+                ),
                 "status": status,
                 "created_at": header.created_at.isoformat() if header and header.created_at else (
-                    orders[0].created_at.isoformat() if orders else None
+                    display_orders[0].created_at.isoformat() if display_orders else None
                 ),
                 "closed_at": header.closed_at.isoformat() if header and header.closed_at else None,
-                "order_count": distinct_order_numbers_for_rows(orders),
+                "order_count": distinct_order_numbers_for_rows(display_orders),
                 "line_cents": line_cents,
                 "open_cents": open_cents,
                 "paid_cents": paid_cents,
+                "line_groups": line_groups,
                 "orders": order_rows,
             }
         )
