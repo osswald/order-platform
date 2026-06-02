@@ -23,7 +23,14 @@ def _save_order_payload(db: Session, order: LocalOrder, payload: dict, sync_outb
         sync_outbox(db, order, payload)
 
 
-def take_from_orders(db: Session, orders: list, selections: list[dict], sync_outbox) -> list[dict]:
+def take_from_orders(
+    db: Session,
+    orders: list,
+    selections: list[dict],
+    sync_outbox,
+    *,
+    transfer_destination: dict | None = None,
+) -> list[dict]:
     def load_payload(order):
         return _load_payload(order)
 
@@ -42,6 +49,7 @@ def take_from_orders(db: Session, orders: list, selections: list[dict], sync_out
         selections,
         load_payload=load_payload,
         save_payload=save_payload,
+        transfer_destination=transfer_destination,
     )
 
 

@@ -56,6 +56,7 @@ def take_selections_from_orders(
     *,
     load_payload,
     save_payload,
+    transfer_destination: dict | None = None,
 ) -> list[dict]:
     """Remove selected qty from open orders; return extracted line dicts."""
     need: dict[tuple[int, str, str], int] = {}
@@ -66,6 +67,7 @@ def take_selections_from_orders(
     moved: list[dict] = []
     for order in orders:
         payload = load_payload(order)
+        removed_from_order: list[dict] = []
         open_lines: list[dict] = []
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
@@ -90,11 +92,16 @@ def take_selections_from_orders(
                     pl["station_uuid"] = su
                 copy_line_fiscal_fields(line, pl)
                 moved.append(pl)
+                removed_from_order.append(pl)
                 need[key] = need.get(key, 0) - take
                 qty -= take
             if qty > 0:
                 open_lines.append({**line, "qty": qty, "additions": adds})
         payload["lines"] = open_lines
+        if transfer_destination and removed_from_order:
+            events = list(payload.get("transfer_events") or [])
+            events.append({**transfer_destination, "lines": removed_from_order})
+            payload["transfer_events"] = events
         save_payload(order, payload)
 
     leftover = sum(v for v in need.values() if v > 0)

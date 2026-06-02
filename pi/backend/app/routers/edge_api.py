@@ -1585,7 +1585,13 @@ def transfer_table_lines(
 
     selections = _selections_from_body(body.selections)
     try:
-        moved = take_from_orders(db, orders, selections, _sync_outbox_payload)
+        moved = take_from_orders(
+            db,
+            orders,
+            selections,
+            _sync_outbox_payload,
+            transfer_destination={"to_table_number": body.target_table_number},
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -1651,7 +1657,16 @@ def assign_table_to_collective(
 
     selections = _selections_from_body(body.selections)
     try:
-        moved = take_from_orders(db, orders, selections, _sync_outbox_payload)
+        moved = take_from_orders(
+            db,
+            orders,
+            selections,
+            _sync_outbox_payload,
+            transfer_destination={
+                "to_collective_bill_uuid": bill.uuid,
+                "to_collective_bill_name": bill.name,
+            },
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

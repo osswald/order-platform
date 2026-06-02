@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
@@ -23,6 +23,7 @@ from ..models import (
     User,
 )
 from ..event_collective_bills import build_event_collective_bills_list
+from ..event_transactions import build_event_transactions_page
 from ..vouchers import cell_voucher_uuids_for_read
 from ..event_copy import copy_event, default_copy_name
 from ..edge_reporting import build_payment_batches_report_v3, build_sales_report_v3
@@ -594,6 +595,58 @@ def read_event_collective_bills(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_event_collective_bills_list(db, event)
+
+
+class TransactionRead(BaseModel):
+    id: int
+    created_at: str | None = None
+    kind: str
+    client_order_id: str
+    table_number: int | None = None
+    collective_bill_name: str | None = None
+    waiter_name: str
+    payment_status: str
+    line_cents: int
+    moved_line_cents: int = 0
+    paid_cents: int
+    payment_methods: str
+    line_count: int
+    lines: List[dict] = []
+    moved_lines: List[dict] = []
+
+
+class EventTransactionsPageRead(BaseModel):
+    currency: str
+    total: int
+    page: int
+    items_per_page: int
+    items: List[TransactionRead]
+
+
+@router.get("/{event_id}/transactions", response_model=EventTransactionsPageRead)
+def read_event_transactions(
+    event_id: int,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(25, ge=1, le=200),
+    sort_by: str = Query("created_at"),
+    sort_desc: bool = Query(True),
+    payment_status: str | None = Query(None),
+    kind: str | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    return build_event_transactions_page(
+        db,
+        event,
+        page=page,
+        items_per_page=items_per_page,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
+        payment_status=payment_status,
+        kind=kind,
+    )
 
 
 class V3SalesTotalsRead(BaseModel):

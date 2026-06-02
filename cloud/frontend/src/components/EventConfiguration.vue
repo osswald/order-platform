@@ -321,6 +321,10 @@
         <template v-if="showOperationalTabs" #sammelrechnungen>
           <EventCollectiveBillsTab :event-id="eventId" />
         </template>
+
+        <template v-if="showTransactionsTab" #transaktionen>
+          <EventTransactionsTab :event-id="eventId" />
+        </template>
       </EventConfigLayout>
 
       <div class="config-save">
@@ -436,6 +440,7 @@ import EventConfigLayout from './EventConfigLayout.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
+import EventTransactionsTab from './EventTransactionsTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import VqDataTable from './VqDataTable.vue'
 
@@ -465,6 +470,9 @@ const props = defineProps({
 const slots = useSlots()
 const { matches: isMobile } = useBreakpoint(768)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
+const showTransactionsTab = computed(() =>
+  ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),
+)
 
 const waiterHeaders = [
   { title: 'Name', key: 'name', sortable: false },
@@ -495,6 +503,9 @@ const configSections = computed(() => {
   if (showOperationalTabs.value) {
     list.push({ id: 'umsatz', title: 'Umsatz (neu)' })
     list.push({ id: 'sammelrechnungen', title: 'Sammelrechnungen' })
+  }
+  if (showTransactionsTab.value) {
+    list.push({ id: 'transaktionen', title: 'Transaktionen' })
   }
   return list
 })
