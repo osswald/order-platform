@@ -198,6 +198,12 @@ def test_setup_unpair_clears_config(client, monkeypatch, tmp_path):
         encoding="utf-8",
     )
     monkeypatch.setenv("PI_SETUP_UNPAIR_SECRET", "factory-reset")
+    import app.routers.setup as setup_router
+
+    async def fake_cloud_unpair():
+        return {"status": "revoked"}
+
+    monkeypatch.setattr(setup_router, "unpair_device", fake_cloud_unpair)
 
     response = client.post(
         "/v1/setup/unpair",
@@ -207,3 +213,30 @@ def test_setup_unpair_clears_config(client, monkeypatch, tmp_path):
     assert response.status_code == 200
     assert response.json()["configured"] is False
     assert not config_path.exists()
+
+
+def test_setup_unpair_keeps_local_config_when_cloud_revoke_fails(client, monkeypatch, tmp_path):
+    config_path = _isolate_edge_config(monkeypatch, tmp_path)
+    config_path.write_text(
+        "CLOUD_BASE_URL=https://api.vendiqo.ch\n"
+        "EDGE_CLIENT_ID=existing\n"
+        "EDGE_SECRET=secret\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PI_SETUP_UNPAIR_SECRET", "factory-reset")
+    import app.routers.setup as setup_router
+    from app.cloud_client import CloudRequestError
+
+    async def fake_cloud_unpair():
+        raise CloudRequestError(502, "upstream down")
+
+    monkeypatch.setattr(setup_router, "unpair_device", fake_cloud_unpair)
+
+    response = client.post(
+        "/v1/setup/unpair",
+        json={"unpair_secret": "factory-reset"},
+    )
+
+    assert response.status_code == 502
+    assert "local unpair cancelled" in response.json()["detail"].lower()
+    assert config_path.exists()

@@ -91,6 +91,28 @@
       <p v-if="pushMsg" :class="pushOk ? 'ok' : 'err'" style="margin-top: 0.5rem">{{ pushMsg }}</p>
     </div>
 
+    <div v-if="setupStatus?.configured && setupStatus?.can_unpair" class="card" style="margin-top: 1rem">
+      <h2>Gerät entkoppeln</h2>
+      <p class="muted small">
+        Entkoppeln sperrt die aktuelle SD-Karte in der Cloud und entfernt danach die lokale Kopplung.
+      </p>
+      <div class="field">
+        <label for="unpair-secret">Werksschlüssel</label>
+        <input
+          id="unpair-secret"
+          v-model="unpairSecret"
+          class="input"
+          type="password"
+          autocomplete="off"
+          placeholder="PI_SETUP_UNPAIR_SECRET"
+        />
+      </div>
+      <button type="button" class="btn" :disabled="unpairLoading" @click="uncoupleDevice">
+        {{ unpairLoading ? 'Entkopple...' : 'Gerät entkoppeln' }}
+      </button>
+      <p v-if="unpairMessage" :class="unpairOk ? 'ok' : 'err'" style="margin-top: 0.5rem">{{ unpairMessage }}</p>
+    </div>
+
     <button type="button" class="btn" style="width: 100%; margin-top: 1.5rem" @click="endAdmin">Admin beenden</button>
 
     <p class="muted small version-line">Vendiqo Pi {{ label }}</p>
@@ -120,6 +142,11 @@ const events = computed(() => bundle.value?.events || [])
 const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
+const setupStatus = ref(null)
+const unpairSecret = ref('')
+const unpairLoading = ref(false)
+const unpairMessage = ref('')
+const unpairOk = ref(true)
 const testPrintBusy = ref(false)
 const androidApp = computed(() => isAndroidApp())
 
@@ -174,6 +201,7 @@ watch(cashRegisters, (regs) => {
 
 onMounted(async () => {
   try {
+    setupStatus.value = await api('/v1/setup/status')
     await refreshBundle()
     await loadSyncStatus()
   } catch {
@@ -230,6 +258,37 @@ async function doPush() {
     showToast(pushMsg.value, 'err')
   } finally {
     pushing.value = false
+  }
+}
+
+async function uncoupleDevice() {
+  if (!setupStatus.value?.configured || !setupStatus.value?.can_unpair) return
+  if (!unpairSecret.value.trim()) {
+    unpairMessage.value = 'Werksschlüssel erforderlich.'
+    unpairOk.value = false
+    return
+  }
+  const confirmed = window.confirm(
+    'Gerät wirklich entkoppeln? Die aktuelle SD-Karte wird in der Cloud gesperrt und lokal entkoppelt.',
+  )
+  if (!confirmed) return
+  unpairLoading.value = true
+  unpairMessage.value = ''
+  try {
+    setupStatus.value = await api('/v1/setup/unpair', {
+      method: 'POST',
+      body: JSON.stringify({ unpair_secret: unpairSecret.value }),
+    })
+    unpairSecret.value = ''
+    unpairOk.value = true
+    unpairMessage.value = 'Gerät erfolgreich entkoppelt.'
+    clearAdminSession()
+    window.setTimeout(() => router.replace({ name: 'setup' }), 600)
+  } catch (error) {
+    unpairOk.value = false
+    unpairMessage.value = error.message || 'Entkoppeln fehlgeschlagen.'
+  } finally {
+    unpairLoading.value = false
   }
 }
 

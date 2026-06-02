@@ -5,6 +5,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from ..cloud_client import CloudConfigError, CloudRequestError, unpair_device
 from ..database import SessionLocal
 from ..edge_config import clear_edge_config, is_edge_configured, read_edge_config, write_edge_config
 from ..event_lifecycle import purge_on_unpair
@@ -65,8 +66,36 @@ def read_setup_status():
 
 
 @router.post("/unpair", response_model=SetupStatusResponse)
-def unpair_device(body: UnpairSetupRequest) -> SetupStatusResponse:
+async def unpair_device_route(body: UnpairSetupRequest) -> SetupStatusResponse:
     _require_unpair_secret(body.unpair_secret)
+    try:
+        await unpair_device()
+    except CloudConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cloud credentials missing on device: {', '.join(exc.missing)}",
+        ) from exc
+    except CloudRequestError as exc:
+        if exc.status_code >= 500:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Cloud unpair failed; local unpair cancelled",
+            ) from exc
+        if exc.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cloud rejected credential revoke; local unpair cancelled",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cloud credential revoke failed; local unpair cancelled",
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Cloud unpair endpoint could not be reached; local unpair cancelled",
+        ) from exc
+
     db = SessionLocal()
     try:
         purge_on_unpair(db)

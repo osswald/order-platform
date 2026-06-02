@@ -352,6 +352,25 @@ class EdgeOperationalChunkAck(BaseModel):
     accepted: int = 1
 
 
+class EdgeUnpairAck(BaseModel):
+    status: str = "revoked"
+
+
+@router.post("/v1/unpair", response_model=EdgeUnpairAck)
+def unpair_edge_device(
+    ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
+    db: Session = Depends(get_db),
+):
+    credential = ctx.edge_credential
+    if credential is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
+    if credential.status != "revoked" or credential.revoked_at is None:
+        credential.status = "revoked"
+        credential.revoked_at = datetime.now(timezone.utc)
+        db.commit()
+    return EdgeUnpairAck(status="revoked")
+
+
 @router.post("/v1/orders", response_model=EdgeOrderAck)
 def submit_edge_order(
     body: EdgeOrderCreate,

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.database import Base, SessionLocal, apply_schema_patches, engine
 from app.main import app
-from app.models import Appliance, ApplianceEdgeCredential, AppliancePairingSession, HireCompany, User
+from app.models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, HireCompany, Organisation, User
 from app.roles import ROLE_ORG_ADMIN
 from app.security import get_password_hash, verify_password
 
@@ -35,6 +35,9 @@ def _server_appliance_fixture(suffix: str) -> tuple[int, str]:
         company = HireCompany(name=f"Pairing Tenant {suffix}")
         db.add(company)
         db.flush()
+        org = Organisation(name=f"Pairing Org {suffix}", country="CH", hire_company_id=company.id)
+        db.add(org)
+        db.flush()
         user = User(
             email=f"pairing-admin-{suffix}@test.local",
             hashed_password=get_password_hash("secret"),
@@ -48,6 +51,17 @@ def _server_appliance_fixture(suffix: str) -> tuple[int, str]:
             name=f"Pairing Server {suffix}",
         )
         db.add_all([user, appliance])
+        db.flush()
+        today = datetime.now(timezone.utc).date()
+        db.add(
+            ApplianceLending(
+                appliance_id=appliance.id,
+                organisation_id=org.id,
+                start_date=today,
+                end_date=today,
+                returned_at=None,
+            )
+        )
         db.commit()
         return appliance.id, user.email
     finally:
@@ -158,7 +172,7 @@ def test_multiple_sd_cards_get_separate_revocable_credentials():
             "X-Edge-Secret": first_credentials["edge_secret"],
         },
     )
-    assert active_auth.status_code == 403
+    assert active_auth.status_code == 200
 
     revoked_auth = client.get(
         "/edge/v1/bundle",
@@ -168,3 +182,35 @@ def test_multiple_sd_cards_get_separate_revocable_credentials():
         },
     )
     assert revoked_auth.status_code == 401
+
+
+def test_edge_device_can_self_revoke_via_unpair_endpoint():
+    appliance_id, email = _server_appliance_fixture("self-revoke")
+    token = _token_for(email, "secret")
+
+    pairing_code = client.post(
+        f"/appliances/{appliance_id}/pairing-sessions",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()["pairing_code"]
+    paired = client.post("/edge/v1/pair", json={"pairing_code": pairing_code, "device_name": "Main SD"})
+    assert paired.status_code == 200, paired.text
+    credentials = paired.json()
+
+    unpair = client.post(
+        "/edge/v1/unpair",
+        headers={
+            "X-Edge-Client-Id": credentials["edge_client_id"],
+            "X-Edge-Secret": credentials["edge_secret"],
+        },
+    )
+    assert unpair.status_code == 200, unpair.text
+    assert unpair.json()["status"] == "revoked"
+
+    rejected = client.get(
+        "/edge/v1/bundle",
+        headers={
+            "X-Edge-Client-Id": credentials["edge_client_id"],
+            "X-Edge-Secret": credentials["edge_secret"],
+        },
+    )
+    assert rejected.status_code == 401

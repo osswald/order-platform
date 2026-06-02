@@ -16,6 +16,15 @@ class CloudConfigError(Exception):
         super().__init__(f"Missing or empty: {', '.join(missing)}")
 
 
+class CloudRequestError(Exception):
+    """Raised when the cloud answered with a non-2xx status."""
+
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(f"Cloud request failed ({status_code}): {detail}")
+
+
 def _resolve_config() -> tuple[str, str, str]:
     values = read_edge_config()
     base = (values.get("CLOUD_BASE_URL") or "").strip().rstrip("/")
@@ -148,3 +157,14 @@ async def retrieve_terminal_payment_intent(*, event_id: int, payment_intent_id: 
         r = await client.get(url, headers=_headers(cid, secret), params={"event_id": event_id})
         r.raise_for_status()
         return r.json()
+
+
+async def unpair_device() -> dict[str, Any]:
+    base, cid, secret = _require_config()
+    url = f"{base}/edge/v1/unpair"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"})
+        if r.status_code >= 400:
+            detail = (r.text or "").strip() or "Cloud unpair failed"
+            raise CloudRequestError(r.status_code, detail)
+        return r.json() if r.content else {"status": "revoked"}
