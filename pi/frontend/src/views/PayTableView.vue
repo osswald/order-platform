@@ -6,13 +6,6 @@
       </template>
     </SplitPayHeader>
 
-    <div v-if="pendingReceiptPaymentId" class="card receipt-card">
-      <p><strong>Teilzahlung bezahlt.</strong></p>
-      <p class="muted">Der Beleg kann jetzt gedruckt werden.</p>
-      <button type="button" class="btn primary" :disabled="printingReceipt" @click="printReceipt">Beleg drucken</button>
-      <button type="button" class="btn" @click="finishReceipt">Weiter</button>
-    </div>
-
     <p v-if="loading" class="muted state-msg">Laden…</p>
     <template v-else-if="!groups.length">
       <div class="state-msg">
@@ -153,17 +146,13 @@ import { voucherDefinitionByUuid } from '../utils/bundleHelpers'
 import QtyInputModal from '../components/QtyInputModal.vue'
 import PayTableActionsSheet from '../components/PayTableActionsSheet.vue'
 import VoucherRedeemSheet from '../components/VoucherRedeemSheet.vue'
-import { isAndroidPrinterAvailable, printPaymentReceipt } from '../utils/androidPrinter'
+import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
 
 const route = useRoute()
 const router = useRouter()
 const actionsOpen = ref(false)
 const voucherSheetOpen = ref(false)
 const voucherRedemptions = ref([])
-const pendingReceiptPaymentId = ref(null)
-const receiptFullySettled = ref(false)
-const printingReceipt = ref(false)
-
 const table = computed(() => parseInt(String(route.query.table), 10))
 const { event, showToast } = useEventContext()
 const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').toLowerCase())
@@ -248,10 +237,12 @@ async function onPay() {
     const res = await onGreenCheck()
     if (!res) return
     const fullySettled = Number(res.remaining_cents || 0) <= 0
-    if (isAndroidPrinterAvailable() && res.payment_id) {
-      pendingReceiptPaymentId.value = res.payment_id
-      receiptFullySettled.value = fullySettled
-      return
+    if (res.payment_id) {
+      await offerPaymentReceipt({
+        paymentId: res.payment_id,
+        event: event.value,
+        showToast,
+      })
     }
     if (fullySettled) {
       showToast('Tisch vollständig abgerechnet.', 'ok')
@@ -259,26 +250,6 @@ async function onPay() {
     }
   } catch (e) {
     if (e?.message) showToast(e.message, 'err')
-  }
-}
-
-async function printReceipt() {
-  if (!pendingReceiptPaymentId.value) return
-  printingReceipt.value = true
-  try {
-    await printPaymentReceipt(pendingReceiptPaymentId.value)
-    showToast('Beleg gedruckt.', 'ok')
-  } catch (e) {
-    showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
-  } finally {
-    printingReceipt.value = false
-  }
-}
-
-function finishReceipt() {
-  pendingReceiptPaymentId.value = null
-  if (receiptFullySettled.value) {
-    router.replace({ name: 'hub' })
   }
 }
 
@@ -296,13 +267,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.receipt-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
 .bar-sub {
   display: block;
   font-size: 0.75rem;

@@ -35,7 +35,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useEventContext } from '../composables/useEventContext'
 import { api } from '../api'
 import { formatAmount } from '../utils/money'
-import { printPaymentReceipt } from '../utils/androidPrinter'
+import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
 
 const { event, waiter, showToast } = useEventContext()
 const payments = ref([])
@@ -77,10 +77,12 @@ async function loadPayments() {
 async function reprint(payment) {
   printingId.value = payment.payment_id
   try {
-    await printPaymentReceipt(payment.payment_id, { reprint: true })
-    showToast('Beleg gedruckt.', 'ok')
-  } catch (e) {
-    showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
+    await offerPaymentReceipt({
+      paymentId: payment.payment_id,
+      event: event.value,
+      showToast,
+      reprint: true,
+    })
   } finally {
     printingId.value = null
   }

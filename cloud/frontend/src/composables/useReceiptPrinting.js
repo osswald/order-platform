@@ -12,10 +12,20 @@ export function defaultReceiptProfile(kind = 'station') {
   }
 }
 
+export function defaultPaymentReceiptProfile() {
+  return {
+    logo_enabled: true,
+    show_event_title: true,
+    size_order_lines: 'normal',
+    bottom_line: '',
+  }
+}
+
 export function defaultReceiptConfig(isEvent = false) {
   const cfg = {
     station_receipt: defaultReceiptProfile('station'),
     customer_receipt: defaultReceiptProfile('customer'),
+    payment_receipt: defaultPaymentReceiptProfile(),
   }
   if (isEvent) {
     cfg.label_event_title = ''
@@ -39,6 +49,7 @@ export function useReceiptPrinting(apiBasePathRef, { isEvent = false } = {}) {
     const merged = { ...base, ...serverConfig }
     merged.station_receipt = { ...base.station_receipt, ...(serverConfig?.station_receipt || {}) }
     merged.customer_receipt = { ...base.customer_receipt, ...(serverConfig?.customer_receipt || {}) }
+    merged.payment_receipt = { ...base.payment_receipt, ...(serverConfig?.payment_receipt || {}) }
     if (isEvent) {
       merged.label_event_title = serverConfig?.label_event_title ?? ''
     }

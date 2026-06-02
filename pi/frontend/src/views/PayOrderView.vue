@@ -4,16 +4,6 @@
     <p class="muted">Tisch {{ table }} · Bestellung #{{ orderId }}</p>
 
     <div v-if="loading" class="muted">Laden…</div>
-    <div v-else-if="paidPaymentId" class="card">
-      <p><strong>Bezahlt.</strong></p>
-      <p class="muted">Der Beleg kann jetzt gedruckt werden.</p>
-      <button type="button" class="btn primary" style="width: 100%" :disabled="printing" @click="printReceipt">
-        Beleg drucken
-      </button>
-      <button type="button" class="btn" style="width: 100%; margin-top: 0.5rem" @click="finish">
-        Fertig
-      </button>
-    </div>
     <template v-else>
       <ul v-if="orderLines.length" class="pay-lines">
         <li v-for="(line, idx) in orderLines" :key="idx" class="pay-line">
@@ -60,7 +50,7 @@ import { formatAmount, lineTotalCents } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
 import { pickPaymentType } from '../utils/pickPaymentType'
-import { isAndroidPrinterAvailable, printPaymentReceipt } from '../utils/androidPrinter'
+import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
 import MoneyKeypad from '../components/MoneyKeypad.vue'
 
 const route = useRoute()
@@ -73,8 +63,6 @@ const totalCents = ref(0)
 const cashCents = ref(0)
 const loading = ref(true)
 const paying = ref(false)
-const printing = ref(false)
-const paidPaymentId = ref(null)
 const orderLines = ref([])
 
 const articles = computed(() => event.value?.articles || {})
@@ -133,34 +121,19 @@ async function pay() {
     })
     activeTableNumber.value = null
     showToast('Bezahlt.', 'ok')
-    if (isAndroidPrinterAvailable() && res.payment_id) {
-      paidPaymentId.value = res.payment_id
-    } else {
-      router.replace({ name: 'hub' })
+    if (res.payment_id) {
+      await offerPaymentReceipt({
+        paymentId: res.payment_id,
+        event: event.value,
+        showToast,
+      })
     }
+    router.replace({ name: 'hub' })
   } catch (e) {
     showToast(e.message || 'Zahlung fehlgeschlagen', 'err')
   } finally {
     paying.value = false
   }
-}
-
-async function printReceipt() {
-  if (!paidPaymentId.value) return
-  printing.value = true
-  try {
-    await printPaymentReceipt(paidPaymentId.value)
-    showToast('Beleg gedruckt.', 'ok')
-  } catch (e) {
-    showToast(e.message || 'Drucken fehlgeschlagen.', 'err')
-  } finally {
-    printing.value = false
-  }
-}
-
-function finish() {
-  paidPaymentId.value = null
-  router.replace({ name: 'hub' })
 }
 
 function goBack() {

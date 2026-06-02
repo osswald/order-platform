@@ -95,4 +95,5 @@ def test_printing_bundle_dict_includes_logo_base64(db):
     bundle = printing_bundle_dict(event)
     assert bundle["label_event_title"] == "My Fest"
     assert bundle["station_receipt"]["show_price"] is True
+    assert bundle["payment_receipt"]["size_order_lines"] == "normal"
     assert bundle["logo_base64"] == base64.b64encode(b"fakepng").decode("ascii")

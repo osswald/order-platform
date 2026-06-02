@@ -125,6 +125,8 @@ adb shell am start -n ch.vendiqo.app/.MainActivity --ez use_dev_frontend true
 
 Printer selection is stored only on the device.
 
+After a payment, the app asks whether to print a **Zahlungsbeleg**. If a Bluetooth printer is paired, printing uses the phone; **station printers are only offered when no Bluetooth printer is selected**. Pair a printer under Kellner hub → **Bluetooth Drucker** before service.
+
 ## Frontend-only rebuild
 
 To iterate on UI without a full Gradle cycle:

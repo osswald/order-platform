@@ -232,6 +232,8 @@ Admin/printing/registers:
 - `GET /v1/print-jobs` - print queue.
 - `POST /v1/printers/test-station-prints` - admin test: one station ESC/POS slip per configured station (Pi Admin → **Testdruck**).
 - `POST /v1/printers/test-receipt` - sample payment receipt payload (Android Bluetooth setup).
+- `POST /v1/payments/{payment_id}/receipt` - ESC/POS payload for a payment receipt (Android Bluetooth or reprint).
+- `POST /v1/payments/{payment_id}/receipt/print` - enqueue payment receipt to a station/register printer (`station_uuid` must exist in synced `printer_hosts`).
 - register, kitchen, pickup, collective bill, voucher, and receipt endpoints are served from the same backend and consumed only by the Pi PWA.
 
 ## Automatic cloud sync
@@ -256,6 +258,8 @@ Station, customer pickup, and voucher slips share one ESC/POS layout: event titl
 
 Font sizes for station slips come from cloud **`configuration.printing.station_receipt`**: `size_order_lines` controls article lines (**normal** / **large** / **xlarge**; default **large** = double height), `size_table_or_pickup` controls the table/pickup hero. Table/pickup codes and voucher values use Epson `GS !` magnification (`ESCPOS_HERO_SCALE`, default **8**, range 1–8).
 
+**Payment receipts** (`configuration.printing.payment_receipt`, cloud tab *Belege*) use compact **normal** line size by default, optional logo and event title (with event label override), and a centered **Fußzeile** (empty = «Danke!»).
+
 Optional in `pi/.env`:
 
 - `ESCPOS_LINE_WIDTH` — characters per line (default `48`, 80mm Font A)
@@ -266,6 +270,22 @@ Optional in `pi/.env`:
 **Zeilenvorschub vor Schnitt** is configured per **Drucker** appliance in cloud admin (**Geräte** → Drucker → *Zeilenvorschub vor Schnitt*, 0–10; default 1). The Pi syncs this via `printer_hosts` in the event bundle.
 
 Local and production printing use **real printer hosts** from the synced cloud bundle (`printer_hosts`). Cloud appliance entries must use IPv4 addresses reachable from the `pi-backend` container. Optionally set `ESCPOS_PRINTER_HOST_OVERRIDE` in `pi/.env` to send all jobs to one host (useful for a single test printer on your LAN), then recreate `pi-backend`.
+
+### Payment receipts (Zahlungsbeleg)
+
+After paying (order, table split-pay, or collective bill), the waiter PWA asks **Zahlungsbeleg drucken?** If yes:
+
+- **Android with a paired Bluetooth printer** — prints on the device (no station list).
+- **Otherwise** — lists stations and cash registers that have an entry in `printer_hosts`; the Pi queues a `PrintJob` to the chosen printer.
+
+Reprints from **Belege** use the same flow. Manual checks:
+
+| Scenario | Expected |
+|----------|----------|
+| Browser + station printer in cloud | Pay → Drucken → pick station → slip prints on network printer |
+| Android + Bluetooth paired | Pay → Drucken → prints on phone printer, no station list |
+| Android + no Bluetooth | Pay → Drucken → station list |
+| Nein | No print job, normal navigation |
 
 **Special characters** (German `äöüß`, French `éèîç`, etc.) are encoded as **PC858** with `ESC t 19` by default. If glyphs are wrong on a specific printer, set in `pi/.env`:
 

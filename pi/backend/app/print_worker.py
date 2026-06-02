@@ -195,8 +195,11 @@ def _write_order_lines(
     show_prices: bool = True,
     currency: str = "EUR",
     line_size: str = "normal",
+    width: int = 48,
 ) -> None:
     from .pricing import line_total_cents
+
+    align_prices = show_prices and (line_size or "normal").lower() == "normal"
 
     for line in payload.get("lines") or []:
         if not isinstance(line, dict):
@@ -208,19 +211,27 @@ def _write_order_lines(
         art = arts.get(str(aid)) or arts.get(int(aid)) or {}
         name = line.get("article_name") or art.get("name") or f"#{aid}"
         cents = line_total_cents(line, arts)
-        price = _money(cents, currency) if show_prices else _price_hint_eur(cents)
-        write_sized_line(printer, f"{qty}x {name}{price}", line_size)
+        if align_prices:
+            write_two_column(printer, f"{qty}x {name}", _money(cents, currency), width)
+        else:
+            price = _money(cents, currency) if show_prices else _price_hint_eur(cents)
+            write_sized_line(printer, f"{qty}x {name}{price}", line_size)
         for add in line.get("additions") or []:
             if not isinstance(add, dict):
                 continue
             add_qty = max(1, int(add.get("qty") or 1))
             add_name = addition_display_name(add, arts, art)
             add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
-            if show_prices and add_cents:
-                add_price = f" {_money(add_cents, currency)}"
+            add_left = f"  + {add_qty}x {add_name}"
+            if align_prices and add_cents:
+                write_two_column(printer, add_left, _money(add_cents, currency), width)
+            elif show_prices and add_cents:
+                write_sized_line(printer, f"{add_left} {_money(add_cents, currency)}", line_size)
+            elif not show_prices:
+                add_price = _price_hint_eur(add_cents)
+                write_sized_line(printer, f"{add_left}{add_price}", line_size)
             else:
-                add_price = _price_hint_eur(add_cents) if not show_prices else ""
-            write_sized_line(printer, f"  + {add_qty}x {add_name}{add_price}", line_size)
+                write_sized_line(printer, add_left, line_size)
         note = (line.get("note") or "").strip()
         if note:
             write_sized_line(printer, f"  {note}", line_size)
@@ -247,44 +258,64 @@ def build_payment_receipt_text(
     item_total = sum(line_total_cents(line, arts) for line in lines if isinstance(line, dict))
     payment_total = sum(int(p.get("amount_cents") or 0) for p in payments if isinstance(p, dict))
     total = payment_total or item_total
+    profile = _profile_cfg(event, "payment_receipt")
+    line_size = profile.get("size_order_lines") or "normal"
+    title = _event_title_for_print(event, event_name)
+    width = _escpos_line_width()
 
     def render(printer: Dummy) -> None:
-        write_logo_from_event(printer, event)
-        write_heading(printer, "Beleg")
+        write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+        write_sized_line(printer, "Beleg", line_size)
         if reprint:
-            write_line(printer, "Kopie / Nachdruck")
-        write_line(printer, event_name)
+            write_sized_line(printer, "Kopie / Nachdruck", line_size)
+        if profile.get("show_event_title", True) and title:
+            write_two_column(printer, title, "", width, left_bold=True)
         if payment_id is not None:
-            write_line(printer, f"Beleg-ID: {payment_id}")
+            write_sized_line(printer, f"Beleg-ID: {payment_id}", line_size)
         table = payload.get("table_number") or payload.get("settlement_table")
         if table:
-            write_line(printer, f"Tisch: {table}")
+            write_sized_line(printer, f"Tisch: {table}", line_size)
         coll_name = payload.get("collective_bill_name")
         if coll_name:
-            write_line(printer, f"Sammelrechnung: {coll_name}")
+            write_sized_line(printer, f"Sammelrechnung: {coll_name}", line_size)
         pickup_code = payload.get("pickup_code")
         if pickup_code:
-            write_line(printer, f"Pickup: {pickup_code}")
+            write_sized_line(printer, f"Pickup: {pickup_code}", line_size)
         waiter_name = payload.get("waiter_name")
         if waiter_name:
-            write_line(printer, f"Kellner: {waiter_name}")
+            write_sized_line(printer, f"Kellner: {waiter_name}", line_size)
         order_no = payload.get("order_number")
         if order_no is not None:
-            write_line(printer, f"Bestellung #{order_no}")
+            write_sized_line(printer, f"Bestellung #{order_no}", line_size)
         paid_at = payload.get("paid_at") or payload.get("settled_at") or payload.get("ordered_at") or generated_at
         if paid_at:
-            write_line(printer, f"Zeit: {paid_at}")
-        write_separator(printer)
-        _write_order_lines(printer, payload, arts, show_prices=True, currency=currency)
-        write_separator(printer)
-        write_line(printer, f"Total: {_money(total, currency)}")
+            write_sized_line(printer, f"Zeit: {_format_ordered_at(str(paid_at))}", line_size)
+        write_separator(printer, width=width)
+        _write_order_lines(
+            printer,
+            payload,
+            arts,
+            show_prices=True,
+            currency=currency,
+            line_size=line_size,
+            width=width,
+        )
+        write_separator(printer, width=width)
+        if (line_size or "normal").lower() == "normal":
+            write_two_column(printer, "Total:", _money(total, currency), width)
+        else:
+            write_sized_line(printer, f"Total: {_money(total, currency)}", line_size)
         for payment in payments:
             if not isinstance(payment, dict):
                 continue
             label = _payment_type_label(str(payment.get("type") or ""))
             amount = int(payment.get("amount_cents") or 0)
-            write_line(printer, f"{label}: {_money(amount, currency)}")
-        write_line(printer, "Danke!")
+            write_sized_line(printer, f"{label}: {_money(amount, currency)}", line_size)
+        bottom = (profile.get("bottom_line") or "").strip()
+        if bottom:
+            write_centered_block(printer, bottom)
+        else:
+            write_sized_line(printer, "Danke!", line_size)
 
     return render_slip(render, feed_lines=feed_lines)
 

@@ -20,6 +20,16 @@
       @confirm="onTwintQrConfirm"
       @cancel="onTwintQrCancel"
     />
+    <PaymentReceiptPromptSheet
+      :open="receiptPromptOpen"
+      :step="receiptPromptStep"
+      :targets="receiptPromptTargets"
+      :busy="receiptPromptBusy"
+      @yes="onReceiptPrintYes"
+      @no="onReceiptPrintNo"
+      @cancel="onReceiptPrintCancel"
+      @select-station="onReceiptSelectStation"
+    />
   </div>
 </template>
 
@@ -27,6 +37,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
+import PaymentReceiptPromptSheet from './components/PaymentReceiptPromptSheet.vue'
 import TwintQrSheet from './components/TwintQrSheet.vue'
 import { api, isAndroidApp } from './api'
 import { applyAndroidSafeAreaInsets } from './utils/androidInsets'
@@ -45,6 +56,16 @@ import {
   confirmTwintQr,
   cancelTwintQr,
 } from './utils/pickPaymentType'
+import {
+  receiptPromptOpen,
+  receiptPromptStep,
+  receiptPromptTargets,
+  receiptPromptBusy,
+  confirmReceiptPrintYes,
+  confirmReceiptPrintNo,
+  cancelReceiptPrompt,
+  selectReceiptStation,
+} from './utils/paymentReceiptPrompt'
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
@@ -90,6 +111,22 @@ function onTwintQrConfirm() {
 
 function onTwintQrCancel() {
   cancelTwintQr()
+}
+
+function onReceiptPrintYes() {
+  confirmReceiptPrintYes()
+}
+
+function onReceiptPrintNo() {
+  confirmReceiptPrintNo()
+}
+
+function onReceiptPrintCancel() {
+  cancelReceiptPrompt()
+}
+
+function onReceiptSelectStation(uuid) {
+  selectReceiptStation(uuid)
 }
 
 const fullscreen = computed(() => Boolean(route.meta.fullscreen))

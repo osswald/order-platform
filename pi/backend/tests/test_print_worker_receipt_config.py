@@ -1,6 +1,6 @@
 """Receipt builders honour event printing configuration."""
 
-from app.print_worker import build_customer_pickup_text, build_escpos_receipt_text
+from app.print_worker import build_customer_pickup_text, build_escpos_receipt_text, build_payment_receipt_text
 
 
 def _event_with_printing(**profile_overrides):
@@ -22,12 +22,20 @@ def _event_with_printing(**profile_overrides):
     }
     station.update(profile_overrides.get("station_receipt") or {})
     customer.update(profile_overrides.get("customer_receipt") or {})
+    payment = {
+        "logo_enabled": False,
+        "show_event_title": True,
+        "size_order_lines": "normal",
+        "bottom_line": "",
+    }
+    payment.update(profile_overrides.get("payment_receipt") or {})
     return {
         "configuration": {
             "printing": {
                 "label_event_title": profile_overrides.get("label_event_title", ""),
                 "station_receipt": station,
                 "customer_receipt": customer,
+                "payment_receipt": payment,
             }
         }
     }
@@ -151,3 +159,44 @@ def test_customer_receipt_legacy_footer_when_empty():
     )
     text = raw.decode("cp858", errors="replace")
     assert "Bitte an der Ausgabe abholen." in text
+
+
+def test_payment_receipt_honours_profile():
+    ev = _event_with_printing(
+        label_event_title="Sommerfest",
+        payment_receipt={
+            "show_event_title": True,
+            "bottom_line": "Vielen Dank",
+        },
+    )
+    raw = build_payment_receipt_text(
+        {
+            "table_number": 4,
+            "lines": [{"article_id": 1, "qty": 1, "article_name": "Bier"}],
+            "payments": [{"type": "cash", "amount_cents": 500}],
+            "paid_at": "2026-06-01T12:00:00+00:00",
+        },
+        "Original",
+        payment_id=99,
+        articles={"1": {"id": 1, "name": "Bier", "price": 5.0}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Sommerfest" in text
+    assert "Original" not in text
+    assert "Vielen Dank" in text
+    assert "Danke!" not in text
+    assert "Tisch: 4" in text
+
+
+def test_payment_receipt_hides_event_title_and_uses_default_footer():
+    ev = _event_with_printing(payment_receipt={"show_event_title": False, "bottom_line": ""})
+    raw = build_payment_receipt_text(
+        {"lines": [], "payments": [{"type": "cash", "amount_cents": 100}]},
+        "Event Name",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Event Name" not in text
+    assert "Danke!" in text

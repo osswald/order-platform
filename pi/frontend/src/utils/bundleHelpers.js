@@ -155,3 +155,38 @@ export function articlesForIds(event, articleIds) {
   }
   return out
 }
+
+/** True when synced printer_hosts has an explicit host for this station/register uuid. */
+export function printerHostConfigured(event, uuid) {
+  const hosts = event?.printer_hosts || {}
+  const raw = hosts[String(uuid)]
+  if (raw == null) return false
+  if (typeof raw === 'string') {
+    const host = raw.split(':')[0]?.trim()
+    return Boolean(host)
+  }
+  if (typeof raw === 'object') {
+    return Boolean(String(raw.host || '').trim())
+  }
+  return false
+}
+
+/**
+ * Stations and cash registers that can print payment receipts (network ESC/POS).
+ * @returns {{ uuid: string, label: string, kind: 'station' | 'register' }[]}
+ */
+export function receiptPrintTargets(event) {
+  const out = []
+  for (const st of event?.configuration?.stations || []) {
+    const uuid = String(st.uuid || '').trim()
+    if (!uuid || !printerHostConfigured(event, uuid)) continue
+    out.push({ uuid, label: st.name || uuid, kind: 'station' })
+  }
+  for (const reg of event?.configuration?.cash_registers || []) {
+    const uuid = String(reg.uuid || '').trim()
+    if (!uuid || !printerHostConfigured(event, uuid)) continue
+    const name = reg.name || uuid
+    out.push({ uuid, label: `Kasse: ${name}`, kind: 'register' })
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label, 'de'))
+}

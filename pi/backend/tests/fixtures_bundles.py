@@ -152,12 +152,19 @@ def payment_receipts_bundle() -> dict[str, Any]:
                 "currency": "CHF",
                 "payment_mode": "pay_now",
                 "payment_types": ["cash"],
-                "printer_hosts": {},
+                "printer_hosts": {"st-bar": "127.0.0.1:9100"},
                 "articles": {
                     "10": {"id": 10, "name": "Burger", "price": 12.0, "additions": []},
                 },
                 "configuration": {
-                    "stations": [],
+                    "stations": [
+                        {
+                            "uuid": "st-bar",
+                            "name": "Bar",
+                            "sort_order": 0,
+                            "article_ids": [10],
+                        }
+                    ],
                     "event_waiters": [{"uuid": "w-1", "name": "Anna"}],
                 },
             }

@@ -51,6 +51,8 @@ from ..schemas.edge import (
     OrderPayResponse,
     PaymentReceiptBody,
     PaymentReceiptEscposResponse,
+    PaymentReceiptPrintBody,
+    PaymentReceiptPrintResponse,
     PaymentsListResponse,
     PickupOrdersResponse,
     PickupPickedUpResponse,
@@ -95,7 +97,7 @@ from ..models import (
     SyncedBundle,
 )
 from ..security import verify_password
-from ..printer_endpoint import resolve_printer_endpoint
+from ..printer_endpoint import parse_printer_host_entry, resolve_printer_endpoint
 from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
@@ -695,6 +697,57 @@ def _create_payment_receipt(
     db.add(receipt)
     db.flush()
     return receipt
+
+
+def _printer_host_configured(ev: dict, target_uuid: str) -> bool:
+    """True when printer_hosts has an explicit non-empty host for this uuid."""
+    hosts = ev.get("printer_hosts") or {}
+    key = str(target_uuid).strip()
+    if key not in hosts:
+        return False
+    entry = parse_printer_host_entry(hosts[key])
+    return bool(entry.get("host"))
+
+
+def _local_order_id_for_payment_receipt(row: PaymentReceipt) -> int:
+    """PrintJob requires local_order_id; use settlement order when recorded on receipt."""
+    if row.source_type in ("order", "table_partial") and row.source_id:
+        try:
+            return int(row.source_id)
+        except (TypeError, ValueError):
+            pass
+    return 0
+
+
+def _create_payment_receipt_print_job(
+    db: Session,
+    row: PaymentReceipt,
+    ev: dict,
+    station_uuid: str,
+) -> int:
+    payload = json.loads(row.payload_json or "{}")
+    host, port, feed_lines = resolve_printer_endpoint(ev, station_uuid)
+    esc = build_payment_receipt_text(
+        payload,
+        ev.get("name", "Event"),
+        payment_id=row.id,
+        articles=_article_map(ev),
+        currency=ev.get("currency", "EUR"),
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        event=ev,
+        feed_lines=feed_lines,
+    )
+    pj = PrintJob(
+        local_order_id=_local_order_id_for_payment_receipt(row),
+        station_uuid=station_uuid,
+        printer_host=host,
+        printer_port=port,
+        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        status="queued",
+    )
+    db.add(pj)
+    db.flush()
+    return pj.id
 
 
 def _receipt_payload_from_orders(
@@ -2448,6 +2501,32 @@ def payment_receipt(
         payment_id=row.id,
         escpos_payload=base64.b64encode(esc).decode("ascii"),
     )
+
+
+@router.post("/v1/payments/{payment_id}/receipt/print", response_model=PaymentReceiptPrintResponse)
+def payment_receipt_print_to_station(
+    payment_id: int,
+    body: PaymentReceiptPrintBody,
+    db: Session = Depends(get_db),
+) -> PaymentReceiptPrintResponse:
+    station_uuid = body.station_uuid.strip()
+    if not station_uuid:
+        raise HTTPException(status_code=422, detail="station_uuid required")
+    row = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, row.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    if not _printer_host_configured(ev, station_uuid):
+        raise HTTPException(
+            status_code=422,
+            detail="Kein Drucker für diese Station konfiguriert",
+        )
+    job_id = _create_payment_receipt_print_job(db, row, ev, station_uuid)
+    db.commit()
+    return PaymentReceiptPrintResponse(ok=True, print_job_id=job_id)
 
 
 @router.post("/v1/printers/test-receipt", response_model=EscposPayloadResponse)

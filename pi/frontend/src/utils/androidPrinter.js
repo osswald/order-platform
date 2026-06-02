@@ -32,6 +32,14 @@ export function isAndroidPrinterAvailable() {
   return Boolean(bridge())
 }
 
+/** Android app with a paired Bluetooth printer selected. */
+export function isBluetoothPrinterConfigured() {
+  if (!isAndroidPrinterAvailable()) return false
+  const sel = getSelectedPrinter()
+  if (sel?.ok === false) return false
+  return Boolean(String(sel?.address || '').trim())
+}
+
 export function permissionStatus() {
   return call('permissionStatus')
 }

@@ -28,18 +28,39 @@ class ReceiptProfileConfig(BaseModel):
     @field_validator("bottom_line")
     @classmethod
     def _limit_bottom_line(cls, v: str) -> str:
-        text = (v or "").replace("\r\n", "\n").replace("\r", "\n")
-        if len(text) > MAX_BOTTOM_LINE_CHARS:
-            raise ValueError(f"bottom_line max {MAX_BOTTOM_LINE_CHARS} characters")
-        lines = text.split("\n")
-        if len(lines) > 8:
-            raise ValueError("bottom_line max 8 lines")
-        return text
+        return _validate_bottom_line(v)
+
+
+class PaymentReceiptProfileConfig(BaseModel):
+    """Zahlungsbeleg (payment receipt) — compact layout, no hero/pickup sizes."""
+
+    logo_enabled: bool = True
+    show_event_title: bool = True
+    size_order_lines: SizeOrderLines = "normal"
+    bottom_line: str = ""
+
+    @field_validator("bottom_line")
+    @classmethod
+    def _limit_bottom_line(cls, v: str) -> str:
+        return _validate_bottom_line(v)
+
+
+def _validate_bottom_line(v: str) -> str:
+    text = (v or "").replace("\r\n", "\n").replace("\r", "\n")
+    if len(text) > MAX_BOTTOM_LINE_CHARS:
+        raise ValueError(f"bottom_line max {MAX_BOTTOM_LINE_CHARS} characters")
+    lines = text.split("\n")
+    if len(lines) > 8:
+        raise ValueError("bottom_line max 8 lines")
+    return text
 
 
 class ReceiptPrintingConfig(BaseModel):
     station_receipt: ReceiptProfileConfig = Field(default_factory=lambda: default_station_profile())
     customer_receipt: ReceiptProfileConfig = Field(default_factory=lambda: default_customer_profile())
+    payment_receipt: PaymentReceiptProfileConfig = Field(
+        default_factory=lambda: default_payment_profile()
+    )
 
 
 class EventReceiptPrintingConfig(ReceiptPrintingConfig):
@@ -85,6 +106,15 @@ def default_customer_profile() -> dict[str, Any]:
         size_table_or_pickup="xlarge",
         size_order_lines="normal",
         show_price=False,
+        bottom_line="",
+    ).model_dump()
+
+
+def default_payment_profile() -> dict[str, Any]:
+    return PaymentReceiptProfileConfig(
+        logo_enabled=True,
+        show_event_title=True,
+        size_order_lines="normal",
         bottom_line="",
     ).model_dump()
 
@@ -216,6 +246,7 @@ def printing_bundle_dict(event) -> dict[str, Any]:
         "label_event_title": cfg.get("label_event_title") or "",
         "station_receipt": cfg.get("station_receipt") or default_station_profile(),
         "customer_receipt": cfg.get("customer_receipt") or default_customer_profile(),
+        "payment_receipt": cfg.get("payment_receipt") or default_payment_profile(),
     }
     if has_receipt_logo(event):
         out["logo_base64"] = event.receipt_logo_data

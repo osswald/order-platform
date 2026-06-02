@@ -7,7 +7,7 @@
     <p v-else-if="loading" class="muted">Laden…</p>
     <template v-else>
       <div class="form-field logo-field">
-        <label>Logo (Station &amp; Kunde)</label>
+        <label>Logo (Station, Kunde &amp; Zahlungsbeleg)</label>
         <div v-if="logoPreviewUrl" class="logo-preview">
           <img :src="logoPreviewUrl" alt="Beleg-Logo" />
         </div>
@@ -55,6 +55,7 @@
       <v-tabs v-model="receiptTab" density="comfortable" class="receipt-tabs">
         <v-tab value="station">Station / Küche</v-tab>
         <v-tab value="customer">Kunde (Abholbeleg)</v-tab>
+        <v-tab value="payment">Belege</v-tab>
       </v-tabs>
       <v-window v-model="receiptTab" class="receipt-tab-panels">
         <v-window-item value="station">
@@ -66,6 +67,9 @@
         </v-window-item>
         <v-window-item value="customer">
           <ReceiptProfileFields v-model="config.customer_receipt" pickup-label="Pickup-Code" />
+        </v-window-item>
+        <v-window-item value="payment">
+          <PaymentReceiptProfileFields v-model="config.payment_receipt" />
         </v-window-item>
       </v-window>
 
@@ -86,6 +90,7 @@
 
 <script setup>
 import { ref, toRef, watch } from 'vue'
+import PaymentReceiptProfileFields from './PaymentReceiptProfileFields.vue'
 import ReceiptProfileFields from './ReceiptProfileFields.vue'
 import { useReceiptPrinting } from '../composables/useReceiptPrinting'
 

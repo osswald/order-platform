@@ -80,6 +80,10 @@ class PaymentReceiptBody(BaseModel):
     reprint: bool = False
 
 
+class PaymentReceiptPrintBody(BaseModel):
+    station_uuid: str = Field(..., min_length=1, max_length=36)
+
+
 class PrinterTestReceiptBody(BaseModel):
     event_id: int | None = None
 
@@ -223,6 +227,11 @@ class PrinterTestStationPrintsResponse(BaseModel):
 class PaymentReceiptEscposResponse(BaseModel):
     payment_id: int
     escpos_payload: str
+
+
+class PaymentReceiptPrintResponse(BaseModel):
+    ok: bool = True
+    print_job_id: int
 
 
 class PrintJobSummary(BaseModel):
