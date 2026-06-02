@@ -1,10 +1,14 @@
 """Pi event lifecycle: purge local data on status changes."""
 
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import json
+import uuid
 
-from app.database import Base
+import pytest
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.database import run_migrations
 from app.event_lifecycle import purge_event_local_data, reconcile_bundle_lifecycle
 from app.models import (
     CollectiveBill,
@@ -13,12 +17,25 @@ from app.models import (
     OutboxEntry,
     PrintJob,
 )
+from app.models_operational import OrderSession
+
+
+def _submission_count(db) -> int:
+    return int(db.execute(select(func.count()).select_from(LocalOrder)).scalar_one())
 
 
 @pytest.fixture
 def db():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(bind=engine)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    from app import database
+
+    database.engine = engine
+    database.SessionLocal = sessionmaker(bind=engine)
+    run_migrations()
     Session = sessionmaker(bind=engine)
     session = Session()
     yield session
@@ -26,7 +43,11 @@ def db():
 
 
 def _seed_event_data(session, event_id: int = 1):
+    session.add(OrderSession(event_id=event_id, table_number=1, order_source="waiter", status="OPEN"))
+    session.flush()
+    session_id = session.query(OrderSession).first().id
     order = LocalOrder(
+        session_id=session_id,
         client_order_id=f"o-{event_id}",
         event_id=event_id,
         table_number=1,
@@ -45,9 +66,11 @@ def _seed_event_data(session, event_id: int = 1):
     )
     session.add(
         OutboxEntry(
-            client_order_id=f"o-{event_id}",
+            chunk_id=str(uuid.uuid4()),
+            entity_type="submission",
+            entity_ids_json="[]",
             event_id=event_id,
-            payload_json="{}",
+            payload_json=json.dumps({"client_order_id": f"o-{event_id}"}),
             status="pending",
         )
     )
@@ -60,7 +83,7 @@ def test_purge_event_local_data(db):
     _seed_event_data(db, 1)
     purge_event_local_data(db, 1)
     db.commit()
-    assert db.query(LocalOrder).count() == 0
+    assert _submission_count(db) == 0
     assert db.query(OutboxEntry).count() == 0
     assert db.query(PrintJob).count() == 0
     assert db.query(CollectiveBill).count() == 0
@@ -73,7 +96,7 @@ def test_reconcile_test_to_prod_purges(db):
     new_bundle = {"events": [{"id": 1, "status": "prod"}]}
     purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
     assert purged == [1]
-    assert db.query(LocalOrder).count() == 0
+    assert _submission_count(db) == 0
 
 
 def test_reconcile_prod_to_prod_no_purge(db):
@@ -81,7 +104,7 @@ def test_reconcile_prod_to_prod_no_purge(db):
     bundle = {"events": [{"id": 1, "status": "prod"}]}
     purged = reconcile_bundle_lifecycle(db, bundle, bundle)
     assert purged == []
-    assert db.query(LocalOrder).count() == 1
+    assert _submission_count(db) == 1
 
 
 def test_reconcile_event_removed_from_bundle_purges(db):
@@ -90,7 +113,7 @@ def test_reconcile_event_removed_from_bundle_purges(db):
     new_bundle = {"events": []}
     purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
     assert purged == [1]
-    assert db.query(LocalOrder).count() == 0
+    assert _submission_count(db) == 0
 
 
 def test_pull_bundle_order_pull_before_push():

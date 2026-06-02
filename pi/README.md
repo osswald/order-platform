@@ -196,7 +196,7 @@ Cloud endpoints:
 
 - `POST {CLOUD_BASE_URL}/edge/v1/pair` - first-boot pairing, creates one SD-card installation credential.
 - `GET {CLOUD_BASE_URL}/edge/v1/bundle` - active events, configuration, articles, printer mappings, admin PIN hashes.
-- `POST {CLOUD_BASE_URL}/edge/v1/orders` - idempotent order upload by `client_order_id`.
+- `POST {CLOUD_BASE_URL}/edge/v1/sync/operational/chunk` - idempotent chunk upload by `chunk_id` (fallback to `/edge/v1/orders` while migrating).
 
 Cloud edge auth also requires an active appliance lending for today UTC. If sync returns:
 
@@ -240,9 +240,10 @@ Admin/printing/registers:
 
 When cloud credentials are configured, the Pi backend runs a background loop, default every 60 seconds:
 
-1. push pending local orders to cloud
-2. pull the latest event bundle
-3. reapply pending local stock deductions so unsynced local orders are not overwritten by cloud stock
+1. pull latest bundle (pre-event / periodic)
+2. reconcile rental lifecycle and purge stale event/org data
+3. push pending operational chunks to cloud with per-chunk ack
+4. reapply pending local stock deductions so unsynced local orders are not overwritten by cloud stock
 
 If cloud is unreachable, the Pi keeps serving from SQLite and retries on the next cycle.
 

@@ -1,6 +1,7 @@
 """Verify pull + reapply keeps stock deductions for unsent outbox orders."""
 
 import json
+import uuid
 
 from app.models import OutboxEntry, SyncedBundle
 from app.stock import apply_stock_to_bundle
@@ -38,10 +39,13 @@ def test_reapply_pending_stock_after_cloud_pull(db_session):
     )
     db_session.add(
         OutboxEntry(
-            client_order_id="test-order-1",
+            chunk_id=str(uuid.uuid4()),
+            entity_type="submission",
+            entity_ids_json="[]",
             event_id=1,
             payload_json=json.dumps(
                 {
+                    "client_order_id": "test-order-1",
                     "event_id": 1,
                     "lines": [{"article_id": 42, "qty": 3}],
                 }

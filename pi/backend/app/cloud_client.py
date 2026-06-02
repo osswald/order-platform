@@ -1,5 +1,6 @@
 """Pull/push against cloud edge API."""
 
+import json
 import os
 from typing import Any
 
@@ -48,12 +49,57 @@ async def fetch_bundle() -> dict[str, Any]:
         return r.json()
 
 
+async def fetch_bundle_manifest() -> dict[str, Any]:
+    base, cid, secret = _require_config()
+    url = f"{base}/edge/v1/bundle/manifest"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url, headers=_headers(cid, secret))
+        r.raise_for_status()
+        return r.json()
+
+
+async def fetch_bundle_chunk(*, section: str, cursor: str | None = None) -> dict[str, Any]:
+    base, cid, secret = _require_config()
+    url = f"{base}/edge/v1/bundle/chunk"
+    params: dict[str, str] = {"section": section}
+    if cursor:
+        params["cursor"] = cursor
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        r = await client.get(url, headers=_headers(cid, secret), params=params)
+        r.raise_for_status()
+        return r.json()
+
+
 async def submit_order(client_order_id: str, event_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/orders"
     body = {"client_order_id": client_order_id, "event_id": event_id, "payload": payload}
     async with httpx.AsyncClient(timeout=60.0) as client:
         r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
+        r.raise_for_status()
+        return r.json()
+
+
+async def submit_operational_chunk(
+    *,
+    chunk_id: str,
+    event_id: int,
+    entity_type: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    base, cid, secret = _require_config()
+    url = f"{base}/edge/v1/sync/operational/chunk"
+    body = {
+        "chunk_id": chunk_id,
+        "event_id": event_id,
+        "entity_type": entity_type,
+        "payload": payload,
+    }
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
+        if r.status_code == 404:
+            client_order_id = str(payload.get("client_order_id") or chunk_id)
+            return await submit_order(client_order_id, event_id, payload)
         r.raise_for_status()
         return r.json()
 

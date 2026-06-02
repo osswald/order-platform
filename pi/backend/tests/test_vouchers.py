@@ -92,31 +92,29 @@ def test_register_voucher_only_single_print_job_no_pickup_slip(client):
 
 
 def test_settle_partial_with_amount_voucher_credit(client):
+    from tests.seed_orders import seed_open_submission
+
     c, Session = client
     db = Session()
-    db.add(
-        LocalOrder(
-            client_order_id="v-open-1",
-            event_id=1,
-            table_number=4,
-            payment_status="open",
-            payload_json=json.dumps(
+    seed_open_submission(
+        db,
+        client_order_id="v-open-1",
+        event_id=1,
+        table_number=4,
+        payload={
+            "event_id": 1,
+            "table_number": 4,
+            "payment_status": "open",
+            "lines": [
                 {
-                    "event_id": 1,
-                    "table_number": 4,
-                    "payment_status": "open",
-                    "lines": [
-                        {
-                            "article_id": 20,
-                            "qty": 1,
-                            "note": "",
-                            "additions": [],
-                            "unit_cents": 500,
-                        }
-                    ],
+                    "article_id": 20,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [],
+                    "unit_cents": 500,
                 }
-            ),
-        )
+            ],
+        },
     )
     db.commit()
     db.close()
@@ -162,30 +160,28 @@ def test_register_order_with_amount_voucher_redemption(client):
 
 
 def test_settle_partial_with_article_entitlement_voucher(client):
+    from tests.seed_orders import seed_open_submission
+
     c, Session = client
     db = Session()
-    db.add(
-        LocalOrder(
-            client_order_id="v-art-1",
-            event_id=1,
-            table_number=7,
-            payment_status="open",
-            payload_json=json.dumps(
+    seed_open_submission(
+        db,
+        client_order_id="v-art-1",
+        event_id=1,
+        table_number=7,
+        payload={
+            "event_id": 1,
+            "table_number": 7,
+            "payment_status": "open",
+            "lines": [
                 {
-                    "event_id": 1,
-                    "table_number": 7,
-                    "payment_status": "open",
-                    "lines": [
-                        {
-                            "article_id": 20,
-                            "qty": 1,
-                            "note": "",
-                            "additions": [{"article_id": 99, "qty": 1}],
-                        }
-                    ],
+                    "article_id": 20,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [{"article_id": 99, "qty": 1}],
                 }
-            ),
-        )
+            ],
+        },
     )
     db.commit()
     db.close()

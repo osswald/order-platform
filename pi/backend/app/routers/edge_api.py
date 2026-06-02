@@ -83,6 +83,9 @@ from ..order_fiscal import (
     snapshot_lines,
     waiter_name_from_event,
 )
+from ..domain.items import upsert_items_from_payload
+from ..domain.sessions import ensure_order_session
+from ..domain.sync_enqueue import enqueue_payload_sync
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
 from ..models import (
     CollectiveBill,
@@ -531,9 +534,22 @@ def _create_kitchen_ticket(
 
 
 def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
-    out = db.query(OutboxEntry).filter(OutboxEntry.client_order_id == order.client_order_id).first()
-    if out and out.status == "pending":
-        out.payload_json = json.dumps(payload)
+    cid = order.client_order_id
+    for out in (
+        db.query(OutboxEntry)
+        .filter(OutboxEntry.event_id == order.event_id, OutboxEntry.status.in_(("pending", "error")))
+        .order_by(OutboxEntry.id.asc())
+        .all()
+    ):
+        try:
+            existing = json.loads(out.payload_json)
+        except json.JSONDecodeError:
+            continue
+        if existing.get("client_order_id") == cid:
+            out.payload_json = json.dumps(payload)
+            out.status = "pending"
+            return
+    enqueue_payload_sync(db, event_id=order.event_id, client_order_id=cid, payload=payload)
 
 
 def _cloud_config_http_error(e: CloudConfigError) -> HTTPException:
@@ -972,7 +988,17 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         payload["lines"] = order_lines
         if waiter_name:
             payload["waiter_name"] = waiter_name
+    session_id = ensure_order_session(
+        db,
+        event_id=body.event_id,
+        table_number=table_number_db if table_number_db else None,
+        waiter_uuid=body.waiter_uuid,
+        order_source=order_source,
+        cash_register_uuid=body.cash_register_uuid if order_source == "cash_register" else None,
+        pickup_code=pickup_code,
+    )
     order = LocalOrder(
+        session_id=session_id,
         client_order_id=body.client_order_id,
         event_id=body.event_id,
         table_number=table_number_db,
@@ -987,6 +1013,17 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     )
     db.add(order)
     db.flush()
+    upsert_items_from_payload(
+        db,
+        session_id=session_id,
+        submission_id=order.id,
+        event_id=body.event_id,
+        table_number=table_number_db if table_number_db else None,
+        collective_batch_id=None,
+        lines=order_lines,
+        order_number=order_number,
+        ordered_at=datetime.now(timezone.utc) if order_number else None,
+    )
 
     groups = group_lines_by_station(ev, article_order_lines)
     print_job_ids: list[int] = []
@@ -1061,13 +1098,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         _set_pickup_ready_if_complete(db, order)
         payload = json.loads(order.payload_json)
 
-    out = OutboxEntry(
-        client_order_id=body.client_order_id,
-        event_id=body.event_id,
-        payload_json=json.dumps(payload),
-        status="pending",
-    )
-    db.add(out)
+    enqueue_payload_sync(db, event_id=body.event_id, client_order_id=body.client_order_id, payload=payload)
 
     articles_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts)
     save_bundle(db, bundle)
@@ -1364,7 +1395,15 @@ def settle_table_partial(
         order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
         if len(order_nums) == 1:
             paid_payload["order_number"] = order_nums.pop()
+        sess_id = int(orders[0].session_id) if orders else ensure_order_session(
+            db,
+            event_id=body.event_id,
+            table_number=table_number,
+            waiter_uuid=orders[0].waiter_uuid if orders else None,
+            order_source="waiter",
+        )
         paid_order = LocalOrder(
+            session_id=sess_id,
             client_order_id=pay_cid,
             event_id=body.event_id,
             table_number=table_number,
@@ -1383,14 +1422,7 @@ def settle_table_partial(
             source_type="table_partial",
             source_id=paid_order.id,
         ).id
-        db.add(
-            OutboxEntry(
-                client_order_id=pay_cid,
-                event_id=body.event_id,
-                payload_json=json.dumps(paid_payload),
-                status="pending",
-            )
-        )
+        enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
 
     db.commit()
 
@@ -1870,7 +1902,15 @@ def _settle_orders_partial(
         if len(order_nums) == 1:
             paid_payload["order_number"] = order_nums.pop()
         coll_id = settlement_meta.get("collective_bill_id")
+        sess_id = int(orders[0].session_id) if orders else ensure_order_session(
+            db,
+            event_id=body.event_id,
+            table_number=settlement_meta.get("table_number"),
+            waiter_uuid=orders[0].waiter_uuid if orders else None,
+            order_source="waiter",
+        )
         paid_order = LocalOrder(
+            session_id=sess_id,
             client_order_id=pay_cid,
             event_id=body.event_id,
             table_number=0 if coll_id else settlement_meta.get("table_number"),
@@ -1890,14 +1930,7 @@ def _settle_orders_partial(
             source_type="collective_partial" if settlement_meta.get("collective_bill_id") else "table_partial",
             source_id=paid_order.id,
         ).id
-        db.add(
-            OutboxEntry(
-                client_order_id=pay_cid,
-                event_id=body.event_id,
-                payload_json=json.dumps(paid_payload),
-                status="pending",
-            )
-        )
+        enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
 
     return {
         "paid_cents": expected_cents,

@@ -7,7 +7,9 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from .models import CollectiveBill, LocalOrder, OutboxEntry
+from .domain.sessions import ensure_order_session
+from .domain.sync_enqueue import enqueue_payload_sync
+from .models import CollectiveBill, LocalOrder
 from .order_line_utils import merge_lines_into_list, take_selections_from_orders
 
 
@@ -85,7 +87,15 @@ def append_lines_to_table(
             "payment_status": "open",
             "transferred": True,
         }
+        session_id = ensure_order_session(
+            db,
+            event_id=event_id,
+            table_number=target_table,
+            waiter_uuid=waiter_uuid,
+            order_source="waiter",
+        )
         order = LocalOrder(
+            session_id=session_id,
             client_order_id=cid,
             event_id=event_id,
             table_number=target_table,
@@ -97,14 +107,7 @@ def append_lines_to_table(
         )
         db.add(order)
         db.flush()
-        db.add(
-            OutboxEntry(
-                client_order_id=cid,
-                event_id=event_id,
-                payload_json=json.dumps(payload),
-                status="pending",
-            )
-        )
+        enqueue_payload_sync(db, event_id=event_id, client_order_id=cid, payload=payload)
 
 
 def append_lines_to_collective(
@@ -153,7 +156,15 @@ def append_lines_to_collective(
             "payments": [],
             "payment_status": "open",
         }
+        session_id = ensure_order_session(
+            db,
+            event_id=event_id,
+            table_number=None,
+            waiter_uuid=waiter_uuid,
+            order_source="waiter",
+        )
         order = LocalOrder(
+            session_id=session_id,
             client_order_id=cid,
             event_id=event_id,
             table_number=0,
@@ -165,11 +176,4 @@ def append_lines_to_collective(
         )
         db.add(order)
         db.flush()
-        db.add(
-            OutboxEntry(
-                client_order_id=cid,
-                event_id=event_id,
-                payload_json=json.dumps(payload),
-                status="pending",
-            )
-        )
+        enqueue_payload_sync(db, event_id=event_id, client_order_id=cid, payload=payload)

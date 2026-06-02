@@ -90,32 +90,30 @@ def test_non_ferdig_submission_has_no_order_number(client):
 
 def test_settle_partial_uses_line_snapshot_prices(client):
     """Payment amount must match line_groups unit_cents, not current bundle article price."""
+    from tests.seed_orders import seed_open_submission
+
     c, Session = client
     db = Session()
-    db.add(
-        LocalOrder(
-            client_order_id="snap-order-1",
-            event_id=1,
-            table_number=9,
-            payment_status="open",
-            payload_json=json.dumps(
+    seed_open_submission(
+        db,
+        client_order_id="snap-order-1",
+        event_id=1,
+        table_number=9,
+        payload={
+            "event_id": 1,
+            "table_number": 9,
+            "payment_status": "open",
+            "lines": [
                 {
-                    "event_id": 1,
-                    "table_number": 9,
-                    "payment_status": "open",
-                    "lines": [
-                        {
-                            "article_id": 10,
-                            "qty": 1,
-                            "note": "",
-                            "additions": [],
-                            "unit_cents": 3950,
-                            "article_name": "Bier",
-                        }
-                    ],
+                    "article_id": 10,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [],
+                    "unit_cents": 3950,
+                    "article_name": "Bier",
                 }
-            ),
-        )
+            ],
+        },
     )
     db.commit()
     db.close()

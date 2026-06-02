@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, submit_order
+from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, submit_operational_chunk
 from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .stock import apply_stock_to_bundle, save_bundle
@@ -58,16 +58,24 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
     for row in rows:
         try:
             payload = json.loads(row.payload_json)
-            await submit_order(row.client_order_id, row.event_id, payload)
-            row.status = "sent"
+            client_order_id = payload.get("client_order_id") or row.chunk_id
+            await submit_operational_chunk(
+                chunk_id=row.chunk_id,
+                event_id=row.event_id,
+                entity_type=row.entity_type,
+                payload=payload,
+            )
+            row.status = "acked"
+            row.acked_at = datetime.now(timezone.utc)
             row.last_error = None
             sent += 1
         except CloudConfigError:
             raise
         except Exception as e:
             row.status = "error"
+            row.attempt_count = int(row.attempt_count or 0) + 1
             row.last_error = str(e)[:2000]
-            errors.append({"client_order_id": row.client_order_id, "error": str(e)})
+            errors.append({"chunk_id": row.chunk_id, "error": str(e)})
         db.commit()
     return {"sent": sent, "errors": errors}
 

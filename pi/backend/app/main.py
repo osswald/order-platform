@@ -7,8 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .bootstrap import ensure_default_synced_bundle
-from .database import Base, apply_schema_patches, engine
-from .models import CollectiveBill, SyncedBundle  # noqa: F401 — register tables for create_all
+from .database import run_migrations
+from .models import SyncedBundle  # noqa: F401
+from . import models_operational  # noqa: F401
 from .print_worker import print_worker_loop
 from .sync_worker import sync_worker_loop
 from .routers import health, edge_api, setup
@@ -25,8 +26,7 @@ sync_task: asyncio.Task | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global stop_print_worker, print_task, stop_sync_worker, sync_task
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
+    run_migrations()
     ensure_default_synced_bundle()
 
     stop_print_worker = asyncio.Event()

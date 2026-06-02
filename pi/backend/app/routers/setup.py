@@ -5,7 +5,9 @@ import httpx
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from ..database import SessionLocal
 from ..edge_config import clear_edge_config, is_edge_configured, read_edge_config, write_edge_config
+from ..event_lifecycle import purge_on_unpair
 from ..setup_cloud import DEFAULT_CLOUD_BASE_URL, allow_cloud_url_override, resolve_cloud_base_url
 
 router = APIRouter(prefix="/v1/setup")
@@ -68,6 +70,11 @@ def read_setup_status():
 @router.post("/unpair", response_model=SetupStatusResponse)
 def unpair_device(body: UnpairSetupRequest) -> SetupStatusResponse:
     _require_unpair_secret(body.unpair_secret)
+    db = SessionLocal()
+    try:
+        purge_on_unpair(db)
+    finally:
+        db.close()
     clear_edge_config()
     return _status_from_config()
 

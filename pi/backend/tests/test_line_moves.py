@@ -67,25 +67,22 @@ def test_assign_to_collective_twice(client):
     assert summary["name"] == "Personal"
 
 
-def test_schema_patch_creates_collective_bills_table():
-    import app.database as database
-    from app.database import apply_schema_patches
+def test_migrations_create_payment_batches_table():
+    from app.database import Base, run_migrations
 
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    with engine.begin() as conn:
-        conn.execute(
-            __import__("sqlalchemy").text(
-                "CREATE TABLE local_orders (id INTEGER PRIMARY KEY, client_order_id VARCHAR(64))"
-            )
-        )
+    Base.metadata.drop_all(bind=engine)
+    import app.database as database
+
     database.engine = engine
-    apply_schema_patches()
+    run_migrations()
     inspector = __import__("sqlalchemy").inspect(engine)
-    assert "collective_bills" in inspector.get_table_names()
+    assert "payment_batches" in inspector.get_table_names()
+    assert "order_submissions" in inspector.get_table_names()
 
 
 def test_empty_collective_bill_in_open_list(client):
