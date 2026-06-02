@@ -25,6 +25,7 @@ from ..models import (
 from ..event_collective_bills import build_event_collective_bills_list
 from ..vouchers import cell_voucher_uuids_for_read
 from ..event_copy import copy_event, default_copy_name
+from ..edge_reporting import build_payment_batches_report_v3, build_sales_report_v3
 from ..event_sales import build_event_sales_report
 from ..payment_types_config import normalize_payment_types, payment_types_from_event
 from ..twint_qr import (
@@ -591,6 +592,83 @@ def read_event_collective_bills(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_event_collective_bills_list(db, event)
+
+
+class V3SalesTotalsRead(BaseModel):
+    distinct_orders_count: int
+    line_cents: int
+    paid_cents: int
+    open_cents: int
+
+
+class V3SalesByWaiterRead(BaseModel):
+    name: str
+    order_count: int
+    line_cents: int
+    paid_cents: int
+
+
+class V3SalesByStationRead(BaseModel):
+    name: str
+    qty: int
+    line_cents: int
+
+
+class V3SalesByArticleRead(BaseModel):
+    name: str
+    qty: int
+    line_cents: int
+
+
+class V3SalesByPaymentTypeRead(BaseModel):
+    type: str
+    label: str
+    amount_cents: int
+
+
+class EventSalesReportV3Read(BaseModel):
+    currency: str
+    totals: V3SalesTotalsRead
+    by_waiter: list[V3SalesByWaiterRead]
+    by_station: list[V3SalesByStationRead]
+    by_article: list[V3SalesByArticleRead]
+    by_payment_type: list[V3SalesByPaymentTypeRead]
+
+
+@router.get("/{event_id}/sales-report-v3", response_model=EventSalesReportV3Read)
+def read_event_sales_report_v3(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    return build_sales_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
+
+
+class PaymentBatchV3Read(BaseModel):
+    uuid: str
+    name: str
+    status: str
+    created_at: str | None = None
+    closed_at: str | None = None
+    total_cents: int
+
+
+class EventPaymentBatchesV3Read(BaseModel):
+    currency: str
+    payment_batches: list[PaymentBatchV3Read]
+
+
+@router.get("/{event_id}/payment-batches-v3", response_model=EventPaymentBatchesV3Read)
+def read_event_payment_batches_v3(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    return build_payment_batches_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
 
 
 @router.get("/{event_id}/twint-qr")

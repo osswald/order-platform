@@ -14,10 +14,12 @@ from app.event_status import (
     validate_status_transition,
 )
 from app.models import (
+    Appliance,
     EdgeSubmittedOrder,
     Event,
     EventArticleStock,
     EventCollectiveBill,
+    HireCompany,
     Organisation,
 )
 from app.routers.edge import _active_events_for_org
@@ -31,7 +33,9 @@ def db():
     Session = sessionmaker(bind=engine)
     session = Session()
     now = datetime.now(timezone.utc)
-    org = Organisation(id=1, name="Org", country="CH")
+    hc = HireCompany(id=1, name="HC")
+    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH")
+    appliance = Appliance(id=1, hire_company_id=1, type="pi", name="Pi", edge_client_id="c1", edge_secret_hash="x")
     event = Event(
         id=1,
         name="Fest",
@@ -43,7 +47,7 @@ def db():
         payment_mode="pay_later",
         payment_types=["cash"],
     )
-    session.add_all([org, event])
+    session.add_all([hc, org, appliance, event])
     session.add(
         EventArticleStock(
             event_id=1,

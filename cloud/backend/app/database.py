@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 import uuid
 
@@ -482,3 +483,18 @@ def _relax_appliances_organisation_id() -> None:
             # SQLite cannot drop NOT NULL easily; column left unused on legacy DBs.
             return
         conn.execute(text("ALTER TABLE appliances ALTER COLUMN organisation_id DROP NOT NULL"))
+
+
+
+def run_migrations() -> None:
+    """Apply cloud Alembic migrations, fallback to metadata create_all."""
+    try:
+        from alembic import command
+        from alembic.config import Config
+        root = Path(__file__).resolve().parent.parent
+        cfg = Config(str(root / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+        command.upgrade(cfg, "head")
+    except Exception:
+        Base.metadata.create_all(bind=engine)
+

@@ -13,7 +13,7 @@ from app.dashboard_summary import (
     running_event_ids,
 )
 from app.database import Base
-from app.models import Event, Organisation
+from app.models import Event, HireCompany, Organisation
 
 
 @pytest.fixture
@@ -97,7 +97,8 @@ def test_attention_missing_twint_qr():
 
 def test_build_organisation_dashboard_summary(db):
     now = datetime.now(timezone.utc)
-    org = Organisation(id=1, name="Test Org", country="CH")
+    db.add(HireCompany(id=1, name="HC"))
+    org = Organisation(id=1, hire_company_id=1, name="Test Org", country="CH")
     db.add(org)
     db.add(
         _event(

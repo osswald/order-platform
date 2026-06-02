@@ -15,6 +15,7 @@ from app.models import (
     EdgeSubmittedOrder,
     Event,
     EventCollectiveBill,
+    HireCompany,
     Organisation,
 )
 
@@ -25,7 +26,9 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     db = Session()
-    org = Organisation(id=1, name="Org", country="CH")
+    hc = HireCompany(id=1, name="HC")
+    db.add(hc)
+    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH")
     db.add(org)
     now = datetime.now(timezone.utc)
     ev = Event(
@@ -39,7 +42,7 @@ def db_session():
         payment_mode="pay_later",
     )
     db.add(ev)
-    app = Appliance(id=1, type="pi", name="Pi", edge_client_id="c1", edge_secret_hash="x")
+    app = Appliance(id=1, hire_company_id=1, type="pi", name="Pi", edge_client_id="c1", edge_secret_hash="x")
     db.add(app)
     db.commit()
     yield db, ev

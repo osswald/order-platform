@@ -16,6 +16,10 @@ from ..models import (
     ApplianceLending,
     AppliancePairingSession,
     EdgeSubmittedOrder,
+    EdgeOrderItem,
+    EdgePayment,
+    EdgePaymentBatch,
+    EdgeOrderSession,
     Event,
     EventAppLayout,
     EventAppLayoutCell,
@@ -341,6 +345,19 @@ class EdgeOrderAck(BaseModel):
     duplicate: bool = False
 
 
+class EdgeOperationalChunkCreate(BaseModel):
+    chunk_id: str = Field(..., min_length=8, max_length=64)
+    event_id: int
+    entity_type: str = Field(..., min_length=1, max_length=32)
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class EdgeOperationalChunkAck(BaseModel):
+    chunk_id: str
+    status: str = "acked"
+    accepted: int = 1
+
+
 @router.post("/v1/orders", response_model=EdgeOrderAck)
 def submit_edge_order(
     body: EdgeOrderCreate,
@@ -414,3 +431,114 @@ def submit_edge_order(
     db.commit()
     db.refresh(row)
     return EdgeOrderAck(server_order_id=row.id, duplicate=False)
+
+
+@router.post("/v1/sync/operational/chunk", response_model=EdgeOperationalChunkAck)
+def submit_operational_chunk(
+    body: EdgeOperationalChunkCreate,
+    ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
+    db: Session = Depends(get_db),
+):
+    event = _load_event_for_org(db, body.event_id, ctx.organisation_id)
+    if not event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
+
+    payload = body.payload or {}
+    existing = (
+        db.query(EdgeSubmittedOrder)
+        .filter(EdgeSubmittedOrder.client_order_id == body.chunk_id)
+        .first()
+    )
+    if existing:
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=0)
+
+    # Keep audit trail while migrating.
+    db.add(
+        EdgeSubmittedOrder(
+            client_order_id=body.chunk_id,
+            appliance_id=ctx.appliance.id,
+            organisation_id=ctx.organisation_id,
+            event_id=body.event_id,
+            payload={"entity_type": body.entity_type, **payload},
+        )
+    )
+
+    lines = payload.get("lines") or []
+    payments = payload.get("payments") or []
+    submission_id = int(payload.get("submission_id") or payload.get("local_order_id") or 0) or None
+    session_id = int(payload.get("session_id") or 0) or submission_id or 0
+    table_number = payload.get("table_number")
+    waiter_uuid = payload.get("waiter_uuid")
+    payment_status = str(payload.get("payment_status") or "open")
+    method = str(payments[0].get("type") if payments and isinstance(payments[0], dict) else "cash")
+    batch_uuid = str(payload.get("collective_bill_uuid") or "")
+
+    if session_id:
+        db.add(
+            EdgeOrderSession(
+                organisation_id=ctx.organisation_id,
+                appliance_id=ctx.appliance.id,
+                event_id=body.event_id,
+                session_id=session_id,
+                table_number=table_number,
+                order_source=str(payload.get("order_source") or "waiter"),
+            )
+        )
+    line_sum = 0
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        qty = int(line.get("qty") or 1)
+        unit = int(line.get("unit_cents") or line.get("unit_price_cents") or 0)
+        lc = max(0, qty * unit)
+        line_sum += lc
+        db.add(
+            EdgeOrderItem(
+                organisation_id=ctx.organisation_id,
+                appliance_id=ctx.appliance.id,
+                event_id=body.event_id,
+                session_id=session_id,
+                submission_id=submission_id,
+                article_id=int(line["article_id"]) if line.get("article_id") is not None else None,
+                article_name=str(line.get("article_name") or ""),
+                station_uuid=line.get("station_uuid"),
+                waiter_uuid=waiter_uuid,
+                quantity=qty,
+                unit_price_cents=unit,
+                line_total_cents=lc,
+                payment_status=payment_status,
+                payment_batch_uuid=batch_uuid or None,
+                method=method,
+                payload=line,
+            )
+        )
+    if batch_uuid:
+        db.add(
+            EdgePaymentBatch(
+                organisation_id=ctx.organisation_id,
+                appliance_id=ctx.appliance.id,
+                event_id=body.event_id,
+                batch_uuid=batch_uuid,
+                name=str(payload.get("collective_bill_name") or "Sammelrechnung"),
+                status="closed" if payment_status == "paid" else "open",
+                total_cents=line_sum,
+            )
+        )
+    if payment_status == "paid":
+        for p in payments:
+            if not isinstance(p, dict):
+                continue
+            db.add(
+                EdgePayment(
+                    organisation_id=ctx.organisation_id,
+                    appliance_id=ctx.appliance.id,
+                    event_id=body.event_id,
+                    submission_id=submission_id,
+                    payment_batch_uuid=batch_uuid or None,
+                    method=str(p.get("type") or "cash"),
+                    amount_cents=int(p.get("amount_cents") or 0),
+                    payload=p,
+                )
+            )
+    db.commit()
+    return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)

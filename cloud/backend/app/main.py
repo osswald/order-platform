@@ -7,7 +7,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .database import SessionLocal, apply_schema_patches, engine, Base
+from .database import SessionLocal, apply_schema_patches, run_migrations, engine, Base
 from .models import User
 from .roles import ROLE_PLATFORM_ADMIN
 from .routers import (
@@ -66,7 +66,7 @@ def _bootstrap_admin_user() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    run_migrations()
     apply_schema_patches()
     _bootstrap_admin_user()
     yield

@@ -433,3 +433,65 @@ class EventArticleStock(Base):
     baseline_in_stock = Column(Integer, nullable=True)
     event = relationship("Event", backref="article_stock")
     article = relationship("Article")
+
+
+class EdgeOrderSession(Base):
+    __tablename__ = "edge_order_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    session_id = Column(Integer, nullable=False, index=True)
+    table_number = Column(Integer, nullable=True, index=True)
+    order_source = Column(String(32), nullable=False, default="waiter")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EdgeOrderItem(Base):
+    __tablename__ = "edge_order_items"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    session_id = Column(Integer, nullable=False, index=True)
+    submission_id = Column(Integer, nullable=True, index=True)
+    article_id = Column(Integer, nullable=True, index=True)
+    article_name = Column(String(255), nullable=False, default="")
+    station_uuid = Column(String(36), nullable=True, index=True)
+    waiter_uuid = Column(String(36), nullable=True, index=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price_cents = Column(Integer, nullable=False, default=0)
+    line_total_cents = Column(Integer, nullable=False, default=0)
+    payment_status = Column(String(16), nullable=False, default="open")
+    payment_batch_uuid = Column(String(36), nullable=True, index=True)
+    method = Column(String(32), nullable=True, index=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EdgePaymentBatch(Base):
+    __tablename__ = "edge_payment_batches"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    batch_uuid = Column(String(36), nullable=False, index=True)
+    name = Column(String(128), nullable=False, default="Sammelrechnung")
+    status = Column(String(16), nullable=False, default="open")
+    total_cents = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class EdgePayment(Base):
+    __tablename__ = "edge_payments"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    submission_id = Column(Integer, nullable=True, index=True)
+    payment_batch_uuid = Column(String(36), nullable=True, index=True)
+    method = Column(String(32), nullable=False, default="cash")
+    amount_cents = Column(Integer, nullable=False, default=0)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
