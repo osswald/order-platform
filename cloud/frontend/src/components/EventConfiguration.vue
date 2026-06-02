@@ -493,8 +493,8 @@ const configSections = computed(() => {
   list.push({ id: 'belege', title: 'Belege' })
   list.push({ id: 'lager', title: 'Lagerartikel' })
   if (showOperationalTabs.value) {
-    list.push({ id: 'umsatz', title: 'Umsatz' })
-    list.push({ id: 'sammelrechnungen', title: 'Sammelrechnungen' })
+    list.push({ id: 'umsatz', title: 'Umsatz (neu)' })
+    list.push({ id: 'sammelrechnungen', title: 'Zahlungsbatches' })
   }
   return list
 })
