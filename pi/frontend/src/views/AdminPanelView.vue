@@ -4,13 +4,7 @@
     <p class="muted">Konfiguration, Sync und Cloud-Push.</p>
 
     <div class="card">
-      <div class="field">
-        <label for="base">Pi-API Basis-URL</label>
-        <input id="base" v-model="baseInput" class="input" type="url" placeholder="http://192.168.192.10" />
-        <p class="muted">Wird in diesem Browser gespeichert. Leer = Build-Default (<code>VITE_API_BASE</code>).</p>
-      </div>
       <div class="row">
-        <button type="button" class="btn" :disabled="busy" @click="saveBase">URL speichern</button>
         <button type="button" class="btn primary" :disabled="busy" @click="doPull">Konfiguration laden</button>
       </div>
       <p v-if="lastSyncAt" class="muted">Letzte Synchronisation: {{ lastSyncAt }}</p>
@@ -106,7 +100,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, getApiBase, isAndroidApp } from '../api'
+import { api, isAndroidApp } from '../api'
 import { useAdminSession } from '../composables/useAdminSession'
 import { useBundle } from '../composables/useBundle'
 import { useSyncOperations } from '../composables/useSyncOperations'
@@ -117,9 +111,8 @@ const { label } = useAppVersion()
 
 const router = useRouter()
 const { clearAdminSession } = useAdminSession()
-const { syncStatus, loadSyncStatus, saveApiBase, pullConfiguration, pushOutbox } = useSyncOperations()
+const { syncStatus, loadSyncStatus, pullConfiguration, pushOutbox } = useSyncOperations()
 const { bundle, busy, lastSyncAt, syncError, refreshBundle, showToast, selectedEventId } = useBundle()
-const baseInput = ref('')
 const opsEventId = ref(null)
 const opsRegisterUuid = ref(null)
 const eventCount = computed(() => bundle.value?.events?.length || 0)
@@ -180,7 +173,6 @@ watch(cashRegisters, (regs) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  baseInput.value = getApiBase()
   try {
     await refreshBundle()
     await loadSyncStatus()
@@ -188,10 +180,6 @@ onMounted(async () => {
     /* Pi unreachable */
   }
 })
-
-function saveBase() {
-  baseInput.value = saveApiBase(baseInput.value)
-}
 
 async function doPull() {
   try {

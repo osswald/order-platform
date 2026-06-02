@@ -42,7 +42,7 @@ def db_session():
         payment_mode="pay_later",
     )
     db.add(ev)
-    app = Appliance(id=1, hire_company_id=1, type="pi", name="Pi", edge_client_id="c1", edge_secret_hash="x")
+    app = Appliance(id=1, hire_company_id=1, type="pi", name="Pi")
     db.add(app)
     db.commit()
     yield db, ev

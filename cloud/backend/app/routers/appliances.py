@@ -2,7 +2,6 @@ import re
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import List
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -126,14 +125,8 @@ class ApplianceRead(ApplianceBase):
     lendings: list[ApplianceLendingRead] | None = None
     lendable: bool = True
     lend_block_reason: str | None = None
-    edge_client_id: str | None = None
     edge_credentials: list[ApplianceEdgeCredentialRead] | None = None
 
-
-class ApplianceAdminCreated(ApplianceRead):
-    """Admin-only response when edge credentials are issued."""
-
-    edge_secret: str | None = Field(None, description="Plain secret; returned only when created or rotated")
 
 class AppliancePairingSessionRead(BaseModel):
     id: int
@@ -237,7 +230,6 @@ def _appliance_to_read(
         lendings=lendings_list,
         lendable=lendable,
         lend_block_reason=lend_block_reason,
-        edge_client_id=getattr(appliance, "edge_client_id", None),
         edge_credentials=edge_credentials,
     )
 
@@ -388,7 +380,7 @@ def read_appliance(
     return _appliance_to_read(appliance, today=today, active_by_appliance_id=None, include_lendings=True)
 
 
-@router.post("/", response_model=ApplianceAdminCreated)
+@router.post("/", response_model=ApplianceRead)
 def create_appliance(
     appliance_in: ApplianceCreate,
     db: Session = Depends(get_db),
@@ -413,20 +405,11 @@ def create_appliance(
     else:
         appliance.name = (appliance_in.name or "").strip() or None
 
-    edge_secret_out: str | None = None
-    if appliance_type == "server":
-        appliance.edge_client_id = uuid4().hex
-        edge_secret_out = secrets.token_urlsafe(32)
-        appliance.edge_secret_hash = get_password_hash(edge_secret_out)
-
     db.add(appliance)
     db.commit()
     db.refresh(appliance)
     today = _utc_today()
-    read = _appliance_to_read(appliance, today=today, active_by_appliance_id={}, include_lendings=False)
-    d = read.model_dump() if hasattr(read, "model_dump") else read.dict()
-    d["edge_secret"] = edge_secret_out
-    return ApplianceAdminCreated(**d)
+    return _appliance_to_read(appliance, today=today, active_by_appliance_id={}, include_lendings=False)
 
 
 @router.put("/{appliance_id}", response_model=ApplianceRead)
@@ -481,33 +464,6 @@ def update_appliance(
     )
     active_by_id = {row.appliance_id: row for row in active_rows}
     return _appliance_to_read(appliance, today=today, active_by_appliance_id=active_by_id, include_lendings=False)
-
-
-@router.post(
-    "/{appliance_id}/edge-credentials",
-    response_model=ApplianceAdminCreated,
-)
-def rotate_appliance_edge_credentials(
-    appliance_id: int,
-    db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
-):
-    appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
-    if appliance.type != "server":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Edge credentials are only for server appliances",
-        )
-    appliance.edge_client_id = uuid4().hex
-    secret = secrets.token_urlsafe(32)
-    appliance.edge_secret_hash = get_password_hash(secret)
-    db.commit()
-    db.refresh(appliance)
-    today = _utc_today()
-    read = _appliance_to_read(appliance, today=today, active_by_appliance_id={}, include_lendings=False)
-    d = read.model_dump() if hasattr(read, "model_dump") else read.dict()
-    d["edge_secret"] = secret
-    return ApplianceAdminCreated(**d)
 
 
 @router.post(

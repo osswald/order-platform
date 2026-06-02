@@ -46,15 +46,15 @@ Pairing is the normal production credential flow.
 6. Cloud creates a new SD-card installation credential for that server appliance.
 7. The Pi stores the returned credentials in `/data/edge.env`.
 
-The cloud only returns `EDGE_SECRET` once during pairing. The Pi backend reads credentials from environment variables first and then from `/data/edge.env`.
+The cloud only returns `EDGE_SECRET` once during pairing. The Pi backend reads credentials from `/data/edge.env`.
 
 **Setup lockdown (production):**
 
 - `POST /v1/setup/pair` is rejected with **403** if the Pi is already paired (`/data/edge.env` exists).
-- The cloud URL sent in the pairing request is **ignored** unless `ALLOW_CLOUD_URL_OVERRIDE=true`; production uses `DEFAULT_CLOUD_BASE_URL` (default `https://api.vendiqo.ch`).
+- Pairing always uses `DEFAULT_CLOUD_BASE_URL` (default `https://api.vendiqo.ch`).
 - `POST /v1/setup/unpair` clears local credentials when `PI_SETUP_UNPAIR_SECRET` is set on the Pi and the request body includes the matching `unpair_secret`.
 
-Local Docker dev enables `ALLOW_CLOUD_URL_OVERRIDE=true` in `docker-compose.yml` so you can point pairing at `http://host.docker.internal:8000`.
+Local Docker dev should set `DEFAULT_CLOUD_BASE_URL=http://host.docker.internal:8000` in `pi/.env`.
 
 ## Multiple SD cards per server
 
@@ -83,8 +83,6 @@ Important operating rule:
 
 If the active SD card breaks, insert a paired backup SD card and boot the Pi. It should continue syncing as the same server appliance. In cloud admin, individual SD cards can be revoked from the server appliance detail.
 
-Legacy manual appliance credentials (`EDGE_CLIENT_ID` / `EDGE_SECRET` on the appliance itself) are still accepted for compatibility, but new production setup should use pairing.
-
 ## Credential/config files
 
 ### Production paired Pi
@@ -105,16 +103,12 @@ EDGE_SECRET=...
 
 ### Local development
 
-For local Docker development, copy `pi/.env.example` to `pi/.env` and fill values manually if needed.
+For local Docker development, copy `pi/.env.example` to `pi/.env` and set the cloud URL for pairing if needed.
 
 | Variable | Description |
 |----------|-------------|
-| `CLOUD_BASE_URL` | Cloud API base URL, no trailing slash. Local default is `http://host.docker.internal:8000`; production default is `https://api.vendiqo.ch`. |
-| `EDGE_CLIENT_ID` | Legacy/manual edge client id, or value written by pairing into `/data/edge.env`. |
-| `EDGE_SECRET` | Legacy/manual edge secret, or value written by pairing into `/data/edge.env`. |
 | `EDGE_CONFIG_FILE` | Credential file path. Production default: `/data/edge.env`. |
-| `DEFAULT_CLOUD_BASE_URL` | Cloud API used during pairing when URL override is disabled. |
-| `ALLOW_CLOUD_URL_OVERRIDE` | `true` only in dev; allows the setup UI to choose the cloud URL. |
+| `DEFAULT_CLOUD_BASE_URL` | Cloud API used during pairing. |
 | `PI_SETUP_UNPAIR_SECRET` | Enables `POST /v1/setup/unpair` with matching `unpair_secret` (factory reset). |
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
@@ -207,7 +201,7 @@ Cloud edge auth also requires an active appliance lending for today UTC. If sync
 
 Setup/sync:
 
-- `GET /v1/setup/status` - pairing/setup status (`allow_cloud_url_override`, `can_unpair`).
+- `GET /v1/setup/status` - pairing/setup status (`can_unpair`).
 - `POST /v1/setup/pair` - pairing code; writes `/data/edge.env` (403 if already paired).
 - `POST /v1/setup/unpair` - clear `/data/edge.env` when `PI_SETUP_UNPAIR_SECRET` matches.
 - `POST /v1/sync/pull` - download bundle from cloud into SQLite.

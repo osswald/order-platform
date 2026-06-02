@@ -19,7 +19,6 @@ def _status_defaults(**overrides):
         "setup_url": "http://192.168.192.10",
         "cloud_base_url": "https://api.vendiqo.ch",
         "edge_client_id": None,
-        "allow_cloud_url_override": False,
         "can_unpair": False,
     }
     base.update(overrides)
@@ -87,7 +86,6 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
     response = client.post(
         "/v1/setup/pair",
         json={
-            "cloud_base_url": "https://api.vendiqo.ch/",
             "pairing_code": "123-456",
             "device_name": "vendiqo-pi",
         },
@@ -116,27 +114,8 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
     assert bundle.json()["organisation_id"] == 7
 
 
-def test_setup_pair_rejects_invalid_cloud_url_when_override_enabled(
-    client, monkeypatch, tmp_path,
-):
+def test_setup_pair_uses_default_cloud_base_url(client, monkeypatch, tmp_path):
     _isolate_edge_config(monkeypatch, tmp_path)
-    monkeypatch.setenv("ALLOW_CLOUD_URL_OVERRIDE", "true")
-
-    response = client.post(
-        "/v1/setup/pair",
-        json={
-            "cloud_base_url": "api.vendiqo.ch",
-            "pairing_code": "123456",
-        },
-    )
-
-    assert response.status_code == 422
-
-
-def test_setup_pair_ignores_cloud_url_without_override(client, monkeypatch, tmp_path):
-    _isolate_edge_config(monkeypatch, tmp_path)
-    monkeypatch.delenv("ALLOW_CLOUD_URL_OVERRIDE", raising=False)
-
     seen_urls: list[str] = []
 
     class FakeResponse:
@@ -171,7 +150,6 @@ def test_setup_pair_ignores_cloud_url_without_override(client, monkeypatch, tmp_
     response = client.post(
         "/v1/setup/pair",
         json={
-            "cloud_base_url": "https://evil.example/",
             "pairing_code": "123-456",
         },
     )

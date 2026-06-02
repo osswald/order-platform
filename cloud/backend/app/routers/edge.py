@@ -78,17 +78,11 @@ def get_edge_server_appliance(
         )
         .first()
     )
-    if edge_credential is not None:
-        appliance = edge_credential.appliance
-        if not verify_password(x_edge_secret, edge_credential.edge_secret_hash):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
-    else:
-        # Legacy single appliance credential support for manually configured Pis.
-        appliance = db.query(Appliance).filter(Appliance.edge_client_id == x_edge_client_id).first()
-        if not appliance or appliance.type != "server":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
-        if not appliance.edge_secret_hash or not verify_password(x_edge_secret, appliance.edge_secret_hash):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
+    if edge_credential is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
+    appliance = edge_credential.appliance
+    if not verify_password(x_edge_secret, edge_credential.edge_secret_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
 
     today = _utc_today()
     lending = (

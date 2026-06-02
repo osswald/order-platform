@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from ..database import SessionLocal
 from ..edge_config import clear_edge_config, is_edge_configured, read_edge_config, write_edge_config
 from ..event_lifecycle import purge_on_unpair
-from ..setup_cloud import DEFAULT_CLOUD_BASE_URL, allow_cloud_url_override, resolve_cloud_base_url
+from ..setup_cloud import DEFAULT_CLOUD_BASE_URL, resolve_cloud_base_url
 
 router = APIRouter(prefix="/v1/setup")
 
@@ -20,13 +20,11 @@ class SetupStatusResponse(BaseModel):
     setup_url: str = SETUP_URL
     cloud_base_url: str | None = None
     edge_client_id: str | None = None
-    allow_cloud_url_override: bool = False
     can_unpair: bool = False
 
 
 class PairSetupRequest(BaseModel):
     pairing_code: str = Field(..., min_length=6, max_length=32)
-    cloud_base_url: str = Field(DEFAULT_CLOUD_BASE_URL, min_length=1, max_length=255)
     device_name: str | None = Field(None, max_length=255)
 
 
@@ -46,7 +44,6 @@ def _status_from_config() -> SetupStatusResponse:
         configured=configured,
         cloud_base_url=values["CLOUD_BASE_URL"] or DEFAULT_CLOUD_BASE_URL,
         edge_client_id=values["EDGE_CLIENT_ID"] or None,
-        allow_cloud_url_override=allow_cloud_url_override(),
         can_unpair=bool(os.getenv("PI_SETUP_UNPAIR_SECRET", "").strip()),
     )
 
@@ -88,7 +85,7 @@ async def pair_with_cloud(body: PairSetupRequest):
         )
 
     try:
-        cloud_base_url = resolve_cloud_base_url(body.cloud_base_url)
+        cloud_base_url = resolve_cloud_base_url()
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

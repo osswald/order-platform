@@ -24,7 +24,7 @@ def _parse_env_file(path: Path) -> dict[str, str]:
 def read_edge_config() -> dict[str, str]:
     file_values = _parse_env_file(EDGE_CONFIG_FILE)
     return {
-        key: (os.environ.get(key) or file_values.get(key) or "").strip()
+        key: (file_values.get(key) or "").strip()
         for key in EDGE_CONFIG_KEYS
     }
 

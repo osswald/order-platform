@@ -82,9 +82,6 @@ class Appliance(Base):
     escpos_feed_lines = Column(Integer, nullable=True)
     model = Column(String, nullable=True)
     comment = Column(String, nullable=True)
-    # Raspberry Pi / edge: device authenticates to cloud with client id + secret (secret stored hashed).
-    edge_client_id = Column(String(64), nullable=True, unique=True, index=True)
-    edge_secret_hash = Column(String(255), nullable=True)
     hire_company = relationship("HireCompany", back_populates="appliances")
     lendings = relationship("ApplianceLending", back_populates="appliance", cascade="all, delete-orphan")
     pairing_sessions = relationship("AppliancePairingSession", back_populates="appliance", cascade="all, delete-orphan")

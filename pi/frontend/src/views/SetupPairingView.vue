@@ -17,11 +17,7 @@
       </div>
 
       <form v-if="!status?.configured" class="setup-form" @submit.prevent="pair">
-        <label v-if="status?.allow_cloud_url_override">
-          Cloud API
-          <input v-model="cloudBaseUrl" type="url" required placeholder="https://api.vendiqo.ch" />
-        </label>
-        <p v-else-if="status" class="cloud-fixed muted">
+        <p v-if="status" class="cloud-fixed muted">
           Cloud API: <strong>{{ status.cloud_base_url }}</strong>
         </p>
         <label>
@@ -82,7 +78,6 @@ const { label } = useAppVersion()
 
 const router = useRouter()
 const status = ref(null)
-const cloudBaseUrl = ref('https://api.vendiqo.ch')
 const pairingCode = ref('')
 const unpairSecret = ref('')
 const loading = ref(false)
@@ -93,7 +88,6 @@ const messageType = ref('')
 async function loadStatus() {
   try {
     status.value = await api('/v1/setup/status')
-    cloudBaseUrl.value = status.value.cloud_base_url || cloudBaseUrl.value
   } catch {
     status.value = null
   }
@@ -106,9 +100,6 @@ async function pair() {
     const body = {
       pairing_code: pairingCode.value,
       device_name: 'vendiqo-pi',
-    }
-    if (status.value?.allow_cloud_url_override) {
-      body.cloud_base_url = cloudBaseUrl.value
     }
     const result = await api('/v1/setup/pair', {
       method: 'POST',

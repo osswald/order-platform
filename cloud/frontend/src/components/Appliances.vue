@@ -63,71 +63,9 @@
         <v-btn color="primary" :disabled="!form.type" @click="saveAppliance">Speichern</v-btn>
       </div>
 
-      <div v-if="edgeCredentialsRevealed" class="edge-credentials-panel">
-        <h3>Edge-Zugangsdaten (einmalig)</h3>
-        <p class="edge-credentials-warning">
-          Speichern Sie den Schlüssel jetzt (z.&nbsp;B. für <code>EDGE_CLIENT_ID</code> und <code>EDGE_SECRET</code> auf dem Pi).
-          Er wird nicht erneut angezeigt. Eine Neuausstellung macht den bisherigen Schlüssel ungültig.
-        </p>
-        <div class="form-field">
-          <label>Edge-Client-ID</label>
-          <div class="edge-copy-row">
-            <v-text-field
-              :model-value="edgeCredentialsRevealed.clientId"
-              readonly
-              hide-details
-              class="edge-secret-input"
-            />
-            <v-btn variant="outlined" type="button" @click="copyEdgeField('Edge-Client-ID', edgeCredentialsRevealed.clientId)">
-              Kopieren
-            </v-btn>
-          </div>
-        </div>
-        <div class="form-field">
-          <label>Edge-Geheimnis</label>
-          <div class="edge-copy-row">
-            <v-text-field
-              :model-value="edgeCredentialsRevealed.secret"
-              readonly
-              hide-details
-              class="edge-secret-input"
-            />
-            <v-btn variant="outlined" type="button" @click="copyEdgeField('Edge-Geheimnis', edgeCredentialsRevealed.secret)">
-              Kopieren
-            </v-btn>
-          </div>
-        </div>
-        <v-btn variant="outlined" type="button" @click="clearEdgeCredentialsReveal">Anzeige schließen</v-btn>
-      </div>
-
       <template v-if="editMode && applianceDetail">
         <div v-if="applianceDetail.type === 'server'" class="lending-section edge-server-section">
           <h3>Edge-Anbindung (On-Prem / Pi)</h3>
-          <p class="edge-credentials-hint">
-            Die Client-ID können Sie jederzeit kopieren; das Geheimnis nur direkt nach Erstellung oder Neuausstellung (siehe Kasten oben).
-          </p>
-          <div class="form-field">
-            <label>Edge-Client-ID</label>
-            <div class="edge-copy-row">
-              <v-text-field
-                :model-value="applianceDetail.edge_client_id || '—'"
-                readonly
-                hide-details
-                class="edge-secret-input"
-              />
-              <v-btn
-                v-if="applianceDetail.edge_client_id"
-                variant="outlined"
-                type="button"
-                @click="copyEdgeField('Edge-Client-ID', applianceDetail.edge_client_id)"
-              >
-                Kopieren
-              </v-btn>
-            </div>
-          </div>
-          <v-btn variant="outlined" type="button" @click="rotateEdgeCredentials">
-            Edge-Zugangsdaten neu ausgeben
-          </v-btn>
 
           <div class="pairing-panel">
             <h4>Raspberry Pi SD-Karten</h4>
@@ -423,8 +361,6 @@ const pairingMessage = ref('')
 const pairingMessageType = ref('')
 const pairingLoading = ref(false)
 const cancellingLendingId = ref(null)
-/** Einmalige Anzeige nach POST /appliances (Server) oder POST .../edge-credentials */
-const edgeCredentialsRevealed = ref(null)
 const lendForm = ref({
   organisationId: null,
   startDate: null,
@@ -603,22 +539,6 @@ function resetLendForm() {
   }
 }
 
-function clearEdgeCredentialsReveal() {
-  edgeCredentialsRevealed.value = null
-}
-
-async function copyEdgeField(label, text) {
-  if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    message.value = `${label} in die Zwischenablage kopiert.`
-    messageType.value = 'success'
-  } catch {
-    message.value = 'Kopieren in die Zwischenablage nicht möglich.'
-    messageType.value = 'error'
-  }
-}
-
 function clearDetailState() {
   form.value = emptyForm()
   message.value = ''
@@ -627,11 +547,9 @@ function clearDetailState() {
   pairingMessage.value = ''
   resetLendForm()
   lendingMessage.value = ''
-  clearEdgeCredentialsReveal()
 }
 
 function applyDeviceToForm(device) {
-  clearEdgeCredentialsReveal()
   pairingSession.value = null
   pairingMessage.value = ''
   form.value = {
@@ -734,16 +652,6 @@ async function saveAppliance() {
       await fetchApplianceDetail(savedId)
       message.value = 'Gerät aktualisiert.'
       messageType.value = 'success'
-    } else if (body.type === 'server' && body.edge_secret) {
-      edgeCredentialsRevealed.value = {
-        clientId: body.edge_client_id,
-        secret: body.edge_secret,
-      }
-      message.value = 'Gerät erstellt.'
-      messageType.value = 'success'
-      await goToDetail(body.id)
-      applyDeviceToForm(body)
-      await fetchApplianceDetail(body.id)
     } else {
       message.value = 'Gerät erstellt.'
       messageType.value = 'success'
@@ -751,46 +659,6 @@ async function saveAppliance() {
     }
   } catch (error) {
     message.value = 'Fehler beim Speichern des Geräts.'
-    messageType.value = 'error'
-  }
-}
-
-async function rotateEdgeCredentials() {
-  if (!activeId.value || applianceDetail.value?.type !== 'server') return
-  if (
-    !confirm(
-      'Neue Edge-Zugangsdaten ausgeben? Der bisherige Schlüssel funktioniert danach nicht mehr (z. B. Pi .env anpassen).',
-    )
-  ) {
-    return
-  }
-  try {
-    const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials`, {
-      method: 'POST',
-    })
-    if (!response.ok) {
-      message.value = await parseApiErrorDetail(response)
-      messageType.value = 'error'
-      return
-    }
-    const body = await response.json()
-    edgeCredentialsRevealed.value = {
-      clientId: body.edge_client_id,
-      secret: body.edge_secret,
-    }
-    await fetchApplianceDetail(activeId.value)
-    await fetchAppliances()
-    form.value = {
-      type: body.type,
-      name: body.name || '',
-      ip_address: body.ip_address || '',
-      model: body.model || '',
-      comment: body.comment || '',
-    }
-    message.value = 'Neue Edge-Zugangsdaten wurden ausgegeben.'
-    messageType.value = 'success'
-  } catch {
-    message.value = 'Edge-Zugangsdaten konnten nicht neu ausgegeben werden.'
     messageType.value = 'error'
   }
 }
@@ -984,49 +852,11 @@ textarea {
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-.edge-credentials-panel {
-  margin-top: 1.5rem;
-  padding: 1.25rem;
-  border: 1px solid rgb(var(--v-theme-primary));
-  border-radius: 8px;
-  background: rgba(var(--v-theme-primary), 0.08);
-}
-
-.edge-credentials-panel h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.edge-credentials-warning {
-  margin: 0 0 1rem;
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.edge-credentials-warning code {
-  font-size: 0.85em;
-}
-
 .edge-credentials-hint {
   color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 0.75rem;
   font-size: 0.875rem;
   line-height: 1.4;
-}
-
-.edge-copy-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-}
-
-.edge-copy-row .edge-secret-input {
-  flex: 1;
-  min-width: 0;
-  font-family: ui-monospace, monospace;
-  font-size: 0.85rem;
 }
 
 .edge-server-section {

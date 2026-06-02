@@ -35,7 +35,7 @@ def db():
     now = datetime.now(timezone.utc)
     hc = HireCompany(id=1, name="HC")
     org = Organisation(id=1, hire_company_id=1, name="Org", country="CH")
-    appliance = Appliance(id=1, hire_company_id=1, type="pi", name="Pi", edge_client_id="c1", edge_secret_hash="x")
+    appliance = Appliance(id=1, hire_company_id=1, type="pi", name="Pi")
     event = Event(
         id=1,
         name="Fest",

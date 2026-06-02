@@ -65,18 +65,6 @@ def apply_schema_patches() -> None:
             f"ALTER TABLE appliances ADD COLUMN IF NOT EXISTS {col} {pg_type}",
         )
     _add_column_if_missing(
-        "appliances",
-        "edge_client_id",
-        "ALTER TABLE appliances ADD COLUMN edge_client_id VARCHAR(64)",
-        "ALTER TABLE appliances ADD COLUMN IF NOT EXISTS edge_client_id VARCHAR(64)",
-    )
-    _add_column_if_missing(
-        "appliances",
-        "edge_secret_hash",
-        "ALTER TABLE appliances ADD COLUMN edge_secret_hash VARCHAR(255)",
-        "ALTER TABLE appliances ADD COLUMN IF NOT EXISTS edge_secret_hash VARCHAR(255)",
-    )
-    _add_column_if_missing(
         "events",
         "payment_mode",
         "ALTER TABLE events ADD COLUMN payment_mode VARCHAR(32) NOT NULL DEFAULT 'pay_later'",

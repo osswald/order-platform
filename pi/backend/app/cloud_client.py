@@ -1,7 +1,6 @@
 """Pull/push against cloud edge API."""
 
 import json
-import os
 from typing import Any
 
 import httpx
@@ -19,9 +18,9 @@ class CloudConfigError(Exception):
 
 def _resolve_config() -> tuple[str, str, str]:
     values = read_edge_config()
-    base = (values.get("CLOUD_BASE_URL") or os.environ.get("CLOUD_BASE_URL") or "").strip().rstrip("/")
-    cid = (values.get("EDGE_CLIENT_ID") or os.environ.get("EDGE_CLIENT_ID") or "").strip()
-    secret = (values.get("EDGE_SECRET") or os.environ.get("EDGE_SECRET") or "").strip()
+    base = (values.get("CLOUD_BASE_URL") or "").strip().rstrip("/")
+    cid = (values.get("EDGE_CLIENT_ID") or "").strip()
+    secret = (values.get("EDGE_SECRET") or "").strip()
     return base, cid, secret
 
 
