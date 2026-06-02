@@ -19,6 +19,14 @@ dist/
 # Misc
 .DS_Store
 
+# SQLite runtime/test DB artifacts
+pi/backend/test.db
+pi/backend/test.db-shm
+pi/backend/test.db-wal
+cloud/backend/test.db
+cloud/backend/test.db-shm
+cloud/backend/test.db-wal
+
 # IDE
 .vscode/
 android/.idea/
