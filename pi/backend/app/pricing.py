@@ -58,15 +58,13 @@ def _addition_price_cents(articles: dict, base_article: dict | None, addition_id
 
 
 def line_unit_cents(line: dict, articles: dict) -> int:
+    # Snapshotted lines store unit_cents as the full per-unit price (base + additions).
     if line.get("unit_cents") is not None:
-        unit = int(line["unit_cents"])
-    else:
-        aid = line.get("article_id")
-        base = _article_entry(articles, aid)
-        price = float(base["price"]) if base and base.get("price") is not None else 0.0
-        unit = int(round(price * 100))
+        return max(0, int(line["unit_cents"]))
     aid = line.get("article_id")
     base = _article_entry(articles, aid)
+    price = float(base["price"]) if base and base.get("price") is not None else 0.0
+    unit = int(round(price * 100))
     for add in line.get("additions") or []:
         if not isinstance(add, dict):
             continue

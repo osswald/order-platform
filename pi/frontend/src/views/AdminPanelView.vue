@@ -7,7 +7,7 @@
       <div class="row">
         <button type="button" class="btn primary" :disabled="busy" @click="doPull">Konfiguration laden</button>
       </div>
-      <p v-if="lastSyncAt" class="muted">Letzte Synchronisation: {{ lastSyncAt }}</p>
+      <p v-if="lastSyncAt" class="muted">Letzte Synchronisation: {{ lastSyncDisplay }}</p>
       <p v-else class="muted">Noch keine Synchronisation.</p>
       <p v-if="syncStatus" class="muted small">
         Auto-Sync:
@@ -17,6 +17,10 @@
           <template v-if="syncStatus.last_cycle_at"> · Zyklus {{ formatCycle(syncStatus.last_cycle_at) }}</template>
         </template>
         <template v-else> · Cloud nicht konfiguriert</template>
+      </p>
+      <p v-if="syncStatus?.configured" class="muted small">
+        Auto-Sync aktiv bedeutet: Der Pi synchronisiert automatisch im Hintergrund. Ausstehend zeigt die Anzahl lokaler
+        Änderungen, die noch nicht in die Cloud übertragen wurden.
       </p>
       <p v-if="syncError" class="muted" style="color: var(--danger)">{{ syncError }}</p>
     </div>
@@ -152,6 +156,11 @@ const androidApp = computed(() => isAndroidApp())
 
 const formatCycle = formatDateTime
 
+const lastSyncDisplay = computed(() => {
+  if (!lastSyncAt.value) return '—'
+  return `${formatDateTime(lastSyncAt.value)} (${relativeFromNow(lastSyncAt.value)})`
+})
+
 const opsEvent = computed(() => events.value.find((e) => Number(e.id) === Number(opsEventId.value)) || null)
 
 const cashRegisters = computed(() => {
@@ -177,6 +186,27 @@ const displayUrl = computed(() => {
   if (typeof window === 'undefined') return path
   return `${window.location.origin}${path}`
 })
+
+function relativeFromNow(iso) {
+  const ts = new Date(iso)
+  if (Number.isNaN(ts.getTime())) return 'unbekannt'
+  const diffMs = Date.now() - ts.getTime()
+  if (diffMs < 0) return 'gerade eben'
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (diffMs < minute) return 'gerade eben'
+  if (diffMs < hour) {
+    const mins = Math.floor(diffMs / minute)
+    return `vor ${mins} Min.`
+  }
+  if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour)
+    return `vor ${hours} Std.`
+  }
+  const days = Math.floor(diffMs / day)
+  return `vor ${days} Tag${days === 1 ? '' : 'en'}`
+}
 
 watch(events, (list) => {
   if (!list.length) {

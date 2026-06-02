@@ -46,6 +46,8 @@ export function lineUnitCents(line, articles, event = null) {
     const vd = defs.find((d) => String(d.uuid) === vUuid)
     return Math.max(0, Number(vd?.value_cents) || 0)
   }
+  // Snapshotted / API lines: unit_cents is already base + additions per unit.
+  if (line?.unit_cents != null) return Math.max(0, Number(line.unit_cents))
   const base = articleEntry(articles, line.article_id)
   let unit = base ? Math.round(Number(base.price || 0) * 100) : 0
   for (const add of line.additions || []) {
