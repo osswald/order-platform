@@ -5,12 +5,48 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from .models import EdgeOrderItem, EdgePaymentBatch
+from .event_sales import (
+    _build_name_maps,
+    _resolve_station_name,
+    _resolve_waiter_name,
+    _station_bucket_key,
+    _waiter_bucket_key,
+    payment_type_label,
+)
+from .models import EdgeOrderItem, EdgePaymentBatch, Event, EventStation
+
+
+def _load_event_for_reporting(db: Session, *, organisation_id: int, event_id: int) -> Event | None:
+    return (
+        db.query(Event)
+        .options(
+            joinedload(Event.stations).joinedload(EventStation.articles),
+            joinedload(Event.event_waiters),
+        )
+        .filter(Event.id == event_id, Event.organisation_id == organisation_id)
+        .first()
+    )
 
 
 def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -> dict[str, Any]:
+    event = _load_event_for_reporting(db, organisation_id=organisation_id, event_id=event_id)
+    if event:
+        maps = _build_name_maps(db, event)
+    else:
+        maps = {
+            "station_names_by_uuid": {},
+            "article_station_uuid": {},
+            "station_names_by_int": {},
+            "waiter_by_uuid": {},
+            "waiter_by_int": {},
+            "waiter_by_source": {},
+            "global_waiter": {},
+        }
+    currency = ((event.currency if event else None) or "CHF").upper()
+    article_station_uuid = maps["article_station_uuid"]
+
     rows = (
         db.query(EdgeOrderItem)
         .filter(
@@ -23,10 +59,11 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
     total_line = 0
     total_paid = 0
     order_ids: set[int] = set()
-    by_waiter: dict[str, dict[str, Any]] = defaultdict(lambda: {"name": "Unbekannt", "order_count": 0, "line_cents": 0, "paid_cents": 0})
-    by_station: dict[str, dict[str, Any]] = defaultdict(lambda: {"name": "Ohne Station", "qty": 0, "line_cents": 0})
-    by_article: dict[str, dict[str, Any]] = defaultdict(lambda: {"name": "Unbekannt", "qty": 0, "line_cents": 0})
-    by_payment_type: dict[str, dict[str, Any]] = defaultdict(lambda: {"type": "cash", "label": "Bar", "amount_cents": 0})
+    by_waiter: dict[str, dict[str, Any]] = {}
+    waiter_order_ids: dict[str, set[int]] = defaultdict(set)
+    by_station: dict[str, dict[str, Any]] = {}
+    by_article: dict[str, dict[str, Any]] = {}
+    by_payment_type: dict[str, dict[str, Any]] = {}
 
     for r in rows:
         submission_id = int(r.submission_id or 0)
@@ -34,30 +71,75 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
             order_ids.add(submission_id)
         lc = int(r.line_total_cents or 0)
         total_line += lc
-        if str(r.payment_status or "").lower() == "paid":
+        is_paid = str(r.payment_status or "").lower() == "paid"
+        if is_paid:
             total_paid += lc
-        waiter = str(r.waiter_uuid or "unknown")
-        by_waiter[waiter]["name"] = waiter if waiter != "unknown" else "Unbekannt"
-        by_waiter[waiter]["line_cents"] += lc
-        by_waiter[waiter]["paid_cents"] += lc if str(r.payment_status or "").lower() == "paid" else 0
-        station = str(r.station_uuid or "none")
-        by_station[station]["name"] = station if station != "none" else "Ohne Station"
-        by_station[station]["qty"] += int(r.quantity or 0)
-        by_station[station]["line_cents"] += lc
-        art = str(r.article_id or r.article_name or "unknown")
-        by_article[art]["name"] = str(r.article_name or "Unbekannt")
-        by_article[art]["qty"] += int(r.quantity or 0)
-        by_article[art]["line_cents"] += lc
-        pm = str(r.method or "cash").lower()
-        by_payment_type[pm]["type"] = pm
-        by_payment_type[pm]["label"] = {"cash": "Bar", "twint": "TWINT", "stripe_terminal": "Karte"}.get(pm, pm.upper())
-        by_payment_type[pm]["amount_cents"] += lc if str(r.payment_status or "").lower() == "paid" else 0
 
-    for w in by_waiter.values():
-        w["order_count"] = len(order_ids)
+        waiter_uuid = str(r.waiter_uuid).strip() if r.waiter_uuid else None
+        w_key = _waiter_bucket_key(waiter_uuid, None) or "__none__"
+        if w_key == "__none__":
+            waiter_name = "Unbekannt"
+        else:
+            waiter_name = _resolve_waiter_name(
+                {"waiter_uuid": waiter_uuid},
+                waiter_uuid,
+                None,
+                maps,
+            )
+        if w_key not in by_waiter:
+            by_waiter[w_key] = {
+                "name": waiter_name,
+                "order_count": 0,
+                "line_cents": 0,
+                "paid_cents": 0,
+            }
+        by_waiter[w_key]["line_cents"] += lc
+        by_waiter[w_key]["paid_cents"] += lc if is_paid else 0
+        if submission_id:
+            waiter_order_ids[w_key].add(submission_id)
+
+        line_payload = r.payload if isinstance(r.payload, dict) else {}
+        station_uuid = str(r.station_uuid).strip() if r.station_uuid else None
+        if not station_uuid and r.article_id is not None:
+            station_uuid = article_station_uuid.get(int(r.article_id))
+        st_key = _station_bucket_key(station_uuid, None) or "__none__"
+        if st_key == "__none__" and not station_uuid:
+            station_label = "Ohne Station"
+        else:
+            station_label = _resolve_station_name(line_payload, station_uuid, None, maps)
+        if st_key not in by_station:
+            by_station[st_key] = {
+                "name": station_label,
+                "qty": 0,
+                "line_cents": 0,
+            }
+        by_station[st_key]["qty"] += int(r.quantity or 0)
+        by_station[st_key]["line_cents"] += lc
+
+        art_key = str(r.article_id if r.article_id is not None else r.article_name or "unknown")
+        if art_key not in by_article:
+            by_article[art_key] = {
+                "name": str(r.article_name or "Unbekannt"),
+                "qty": 0,
+                "line_cents": 0,
+            }
+        by_article[art_key]["qty"] += int(r.quantity or 0)
+        by_article[art_key]["line_cents"] += lc
+
+        pm = str(r.method or "cash").lower()
+        if pm not in by_payment_type:
+            by_payment_type[pm] = {
+                "type": pm,
+                "label": payment_type_label(pm),
+                "amount_cents": 0,
+            }
+        by_payment_type[pm]["amount_cents"] += lc if is_paid else 0
+
+    for w_key, bucket in by_waiter.items():
+        bucket["order_count"] = len(waiter_order_ids.get(w_key, set()))
 
     return {
-        "currency": "CHF",
+        "currency": currency,
         "totals": {
             "distinct_orders_count": len(order_ids),
             "line_cents": total_line,
@@ -72,6 +154,8 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
 
 
 def build_payment_batches_report_v3(db: Session, *, organisation_id: int, event_id: int) -> dict[str, Any]:
+    event = _load_event_for_reporting(db, organisation_id=organisation_id, event_id=event_id)
+    currency = ((event.currency if event else None) or "CHF").upper()
     rows = (
         db.query(EdgePaymentBatch)
         .filter(
@@ -82,7 +166,7 @@ def build_payment_batches_report_v3(db: Session, *, organisation_id: int, event_
         .all()
     )
     return {
-        "currency": "CHF",
+        "currency": currency,
         "payment_batches": [
             {
                 "uuid": r.batch_uuid,
