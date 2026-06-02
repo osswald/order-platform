@@ -85,7 +85,7 @@ from ..order_fiscal import (
 )
 from ..domain.items import upsert_items_from_payload
 from ..domain.sessions import ensure_order_session
-from ..domain.sync_enqueue import enqueue_payload_sync
+from ..domain.sync_enqueue import enrich_payload_for_cloud_sync, enqueue_payload_sync
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
 from ..models import (
     CollectiveBill,
@@ -534,6 +534,11 @@ def _create_kitchen_ticket(
 
 
 def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
+    payload = enrich_payload_for_cloud_sync(
+        payload,
+        local_order_id=order.id,
+        session_id=int(order.session_id),
+    )
     cid = order.client_order_id
     for out in (
         db.query(OutboxEntry)
@@ -1098,7 +1103,12 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         _set_pickup_ready_if_complete(db, order)
         payload = json.loads(order.payload_json)
 
-    enqueue_payload_sync(db, event_id=body.event_id, client_order_id=body.client_order_id, payload=payload)
+    enqueue_payload_sync(
+        db,
+        event_id=body.event_id,
+        client_order_id=body.client_order_id,
+        payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+    )
 
     articles_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts)
     save_bundle(db, bundle)
@@ -1422,6 +1432,12 @@ def settle_table_partial(
             source_type="table_partial",
             source_id=paid_order.id,
         ).id
+        paid_payload = enrich_payload_for_cloud_sync(
+            paid_payload,
+            local_order_id=paid_order.id,
+            session_id=sess_id,
+        )
+        paid_order.payload_json = json.dumps(paid_payload)
         enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
 
     db.commit()
@@ -1930,6 +1946,12 @@ def _settle_orders_partial(
             source_type="collective_partial" if settlement_meta.get("collective_bill_id") else "table_partial",
             source_id=paid_order.id,
         ).id
+        paid_payload = enrich_payload_for_cloud_sync(
+            paid_payload,
+            local_order_id=paid_order.id,
+            session_id=sess_id,
+        )
+        paid_order.payload_json = json.dumps(paid_payload)
         enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
 
     return {

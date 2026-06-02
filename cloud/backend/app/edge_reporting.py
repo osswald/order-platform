@@ -15,7 +15,30 @@ from .event_sales import (
     _waiter_bucket_key,
     payment_type_label,
 )
-from .models import EdgeOrderItem, EdgePaymentBatch, Event, EventStation
+from .models import EdgeOrderItem, EdgePaymentBatch, EdgeSubmittedOrder, Event, EventStation
+
+
+def _distinct_order_key(row: EdgeOrderItem) -> str:
+    if row.submission_id is not None:
+        return f"sub:{int(row.submission_id)}"
+    line = row.payload if isinstance(row.payload, dict) else {}
+    order_number = line.get("order_number")
+    if order_number is not None and row.session_id is not None:
+        return f"sess:{int(row.session_id)}:ord:{int(order_number)}"
+    return f"item:{int(row.id)}"
+
+
+def _audit_order_keys(db: Session, *, organisation_id: int, event_id: int) -> set[str]:
+    cids = (
+        db.query(EdgeSubmittedOrder.client_order_id)
+        .filter(
+            EdgeSubmittedOrder.organisation_id == organisation_id,
+            EdgeSubmittedOrder.event_id == event_id,
+        )
+        .distinct()
+        .all()
+    )
+    return {f"cid:{cid}" for (cid,) in cids if cid}
 
 
 def _load_event_for_reporting(db: Session, *, organisation_id: int, event_id: int) -> Event | None:
@@ -58,17 +81,16 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
     )
     total_line = 0
     total_paid = 0
-    order_ids: set[int] = set()
+    order_keys: set[str] = set()
     by_waiter: dict[str, dict[str, Any]] = {}
-    waiter_order_ids: dict[str, set[int]] = defaultdict(set)
+    waiter_order_keys: dict[str, set[str]] = defaultdict(set)
     by_station: dict[str, dict[str, Any]] = {}
     by_article: dict[str, dict[str, Any]] = {}
     by_payment_type: dict[str, dict[str, Any]] = {}
 
     for r in rows:
-        submission_id = int(r.submission_id or 0)
-        if submission_id:
-            order_ids.add(submission_id)
+        order_key = _distinct_order_key(r)
+        order_keys.add(order_key)
         lc = int(r.line_total_cents or 0)
         total_line += lc
         is_paid = str(r.payment_status or "").lower() == "paid"
@@ -95,8 +117,7 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
             }
         by_waiter[w_key]["line_cents"] += lc
         by_waiter[w_key]["paid_cents"] += lc if is_paid else 0
-        if submission_id:
-            waiter_order_ids[w_key].add(submission_id)
+        waiter_order_keys[w_key].add(order_key)
 
         line_payload = r.payload if isinstance(r.payload, dict) else {}
         station_uuid = str(r.station_uuid).strip() if r.station_uuid else None
@@ -135,13 +156,16 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
             }
         by_payment_type[pm]["amount_cents"] += lc if is_paid else 0
 
+    if not order_keys and rows:
+        order_keys = _audit_order_keys(db, organisation_id=organisation_id, event_id=event_id)
+
     for w_key, bucket in by_waiter.items():
-        bucket["order_count"] = len(waiter_order_ids.get(w_key, set()))
+        bucket["order_count"] = len(waiter_order_keys.get(w_key, set()))
 
     return {
         "currency": currency,
         "totals": {
-            "distinct_orders_count": len(order_ids),
+            "distinct_orders_count": len(order_keys),
             "line_cents": total_line,
             "paid_cents": total_paid,
             "open_cents": max(0, total_line - total_paid),

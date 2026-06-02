@@ -133,3 +133,57 @@ def test_sales_report_v3_unknown_station_uuid_fallback(db_session):
     report = build_sales_report_v3(db_session, organisation_id=1, event_id=1)
     station_names = [row["name"] for row in report["by_station"]]
     assert any(n.startswith("Station ") for n in station_names)
+
+
+def test_sales_report_v3_counts_orders_by_submission_id(db_session):
+    report = build_sales_report_v3(db_session, organisation_id=1, event_id=1)
+    assert report["totals"]["distinct_orders_count"] == 2
+
+
+def test_sales_report_v3_counts_orders_by_session_and_order_number_without_submission_id():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+    now = datetime.now(timezone.utc)
+    db.add(HireCompany(id=1, name="HC"))
+    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1))
+    ev = Event(
+        id=1,
+        name="Fest",
+        status="production",
+        start=now,
+        end=now,
+        currency="CHF",
+        organisation_id=1,
+    )
+    db.add(ev)
+    db.add(EventWaiter(event_id=1, uuid=WAITER_UUID, name="Max", pin="1234"))
+    for order_number, line_total in ((3, 400), (3, 400), (4, 300)):
+        db.add(
+            EdgeOrderItem(
+                organisation_id=1,
+                appliance_id=1,
+                event_id=1,
+                session_id=200,
+                submission_id=None,
+                article_id=10,
+                article_name="Item",
+                waiter_uuid=WAITER_UUID,
+                quantity=1,
+                unit_price_cents=line_total,
+                line_total_cents=line_total,
+                payment_status="paid",
+                method="cash",
+                payload={"order_number": order_number},
+            )
+        )
+    db.commit()
+    try:
+        report = build_sales_report_v3(db, organisation_id=1, event_id=1)
+        assert report["totals"]["distinct_orders_count"] == 2
+        anna = next(row for row in report["by_waiter"] if row["name"] == "Max")
+        assert anna["order_count"] == 2
+        assert anna["line_cents"] == 1100
+    finally:
+        db.close()

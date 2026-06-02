@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from .domain.sessions import ensure_order_session
-from .domain.sync_enqueue import enqueue_payload_sync
+from .domain.sync_enqueue import enrich_payload_for_cloud_sync, enqueue_payload_sync
 from .models import CollectiveBill, LocalOrder
 from .order_line_utils import merge_lines_into_list, take_selections_from_orders
 
@@ -107,7 +107,12 @@ def append_lines_to_table(
         )
         db.add(order)
         db.flush()
-        enqueue_payload_sync(db, event_id=event_id, client_order_id=cid, payload=payload)
+        enqueue_payload_sync(
+            db,
+            event_id=event_id,
+            client_order_id=cid,
+            payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+        )
 
 
 def append_lines_to_collective(
@@ -176,4 +181,9 @@ def append_lines_to_collective(
         )
         db.add(order)
         db.flush()
-        enqueue_payload_sync(db, event_id=event_id, client_order_id=cid, payload=payload)
+        enqueue_payload_sync(
+            db,
+            event_id=event_id,
+            client_order_id=cid,
+            payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+        )
