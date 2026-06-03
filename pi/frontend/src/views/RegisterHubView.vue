@@ -27,11 +27,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCart } from '../composables/useCart'
 import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 import { useRegisterSession } from '../composables/useRegisterSession'
+import { ensureShiftForSubject, maybeEndShiftOnSwitch } from '../composables/useShiftSession'
 
 const router = useRouter()
 const route = useRoute()
 const { clearCart } = useCart()
-const { register, setDisplayIdle, clearPickupHold, orderRoute } = useRegisterDisplay()
+const { register, event, setDisplayIdle, clearPickupHold, orderRoute } = useRegisterDisplay()
 const { setRegisterSession } = useRegisterSession()
 
 function refreshHubDisplay() {
@@ -45,15 +46,33 @@ function startOrder() {
   router.push(orderRoute())
 }
 
-function switchRegister() {
+async function switchRegister() {
+  const ok = await maybeEndShiftOnSwitch({
+    event: event.value,
+    eventId: event.value?.id,
+    subjectType: 'cash_register',
+    cashRegisterUuid: register.value?.uuid,
+  })
+  if (!ok) return
   setRegisterSession(null)
   router.push({ name: 'registers' })
 }
 
 watch(() => route.name, refreshHubDisplay)
 
-onMounted(() => {
+onMounted(async () => {
   if (!register.value) {
+    router.replace({ name: 'registers' })
+    return
+  }
+  try {
+    await ensureShiftForSubject({
+      event: event.value,
+      eventId: event.value?.id,
+      subjectType: 'cash_register',
+      cashRegisterUuid: register.value.uuid,
+    })
+  } catch {
     router.replace({ name: 'registers' })
     return
   }

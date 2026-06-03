@@ -106,6 +106,7 @@ from ..print_worker import (
     build_escpos_receipt_text,
     build_escpos_station_test_slip,
     build_payment_receipt_text,
+    build_shift_close_receipt_text,
     build_voucher_slip_text,
     group_lines_by_station,
     resolve_station_uuid_for_line,
@@ -708,6 +709,15 @@ def _create_payment_receipt(
     receipt_payload.setdefault("payment_status", "paid")
     receipt_payload.setdefault("paid_at", datetime.now(timezone.utc).isoformat())
     _add_waiter_name(ev, receipt_payload)
+    from ..shift_integration import record_shift_for_payment_receipt
+
+    record_shift_for_payment_receipt(
+        db,
+        ev,
+        receipt_payload,
+        event_id=int(receipt_payload.get("event_id") or ev.get("id") or 0),
+        reference_id=str(source_id) if source_id is not None else None,
+    )
     receipt = PaymentReceipt(
         event_id=int(receipt_payload.get("event_id") or ev.get("id")),
         waiter_uuid=receipt_payload.get("waiter_uuid"),
@@ -1108,6 +1118,20 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         event_id=body.event_id,
         client_order_id=body.client_order_id,
         payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+    )
+
+    from ..shift_integration import record_shift_order_submit
+
+    order_gross = sum(line_total_cents(ln, arts) for ln in order_lines if isinstance(ln, dict))
+    record_shift_order_submit(
+        db,
+        ev,
+        event_id=body.event_id,
+        waiter_uuid=body.waiter_uuid,
+        cash_register_uuid=body.cash_register_uuid if order_source == "cash_register" else None,
+        amount_cents=order_gross,
+        reference_id=body.client_order_id,
+        voucher_records=voucher_records if voucher_records and payment_status != "paid" else None,
     )
 
     articles_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts)

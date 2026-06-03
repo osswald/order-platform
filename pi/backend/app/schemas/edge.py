@@ -367,3 +367,48 @@ class PaymentListItem(BaseModel):
 
 class PaymentsListResponse(BaseModel):
     payments: list[PaymentListItem]
+
+
+class ShiftSessionOpenBody(BaseModel):
+    event_id: int
+    subject_type: Literal["waiter", "cash_register"]
+    waiter_uuid: str | None = None
+    cash_register_uuid: str | None = None
+    operator_waiter_uuid: str | None = None
+    opening_balance_cents: int = Field(0, ge=0)
+
+
+class ShiftSessionCloseBody(BaseModel):
+    counted_cash_cents: int = Field(..., ge=0)
+    station_uuid: str | None = None
+    paper_width: ReceiptPaperWidth | None = None
+
+
+class ShiftSessionReceiptBody(BaseModel):
+    counted_cash_cents: int | None = Field(None, ge=0)
+    paper_width: ReceiptPaperWidth | None = None
+
+
+class ShiftSessionRead(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    event_id: int
+    subject_type: str
+    subject_name: str
+    status: str
+    opening_balance_cents: int
+    wallet_cents: int
+    total_cash_cents: int
+    total_non_cash_cents: int
+    started_at: str | None = None
+
+
+class ShiftSessionEscposResponse(BaseModel):
+    cash_session_id: int
+    escpos_payload: str
+
+
+class ShiftSessionPrintResponse(BaseModel):
+    ok: bool
+    print_job_id: int | None = None

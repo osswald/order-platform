@@ -49,12 +49,20 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { isAndroidApp } from '../api'
 import { useEventContext } from '../composables/useEventContext'
+import { maybeEndShiftOnSwitch } from '../composables/useShiftSession'
 
 const router = useRouter()
 const { event, waiter, setWaiter } = useEventContext()
 const androidApp = computed(() => isAndroidApp())
 
-function switchWaiter() {
+async function switchWaiter() {
+  const ok = await maybeEndShiftOnSwitch({
+    event: event.value,
+    eventId: event.value?.id,
+    subjectType: 'waiter',
+    waiterUuid: waiter.value?.uuid,
+  })
+  if (!ok) return
   setWaiter(null)
   router.push({ name: 'login' })
 }

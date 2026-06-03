@@ -327,6 +327,62 @@ def build_payment_receipt_text(
     return render_slip(render, feed_lines=feed_lines)
 
 
+def build_shift_close_receipt_text(
+    session_payload: dict,
+    event_name: str,
+    *,
+    currency: str = "EUR",
+    event: dict | None = None,
+    feed_lines: int = 1,
+    paper_width: str | None = None,
+    line_width: int | None = None,
+) -> bytes:
+    """Schichtabrechnung slip when closing a waiter/register shift."""
+    profile = _profile_cfg(event, "payment_receipt")
+    line_size = profile.get("size_order_lines") or "normal"
+    title = _event_title_for_print(event, event_name)
+    width = line_width if line_width is not None else resolve_line_width(paper_width)
+    logo_width = resolve_logo_max_width(width)
+
+    opening = int(session_payload.get("opening_balance_cents") or 0)
+    counted = int(session_payload.get("counted_cash_cents") or 0)
+    cash_earned = counted - opening
+    by_method = session_payload.get("payments_by_method") or {}
+    by_voucher = session_payload.get("vouchers_by_definition") or {}
+    subject_name = str(session_payload.get("subject_name") or "—")
+    started = session_payload.get("started_at")
+    ended = session_payload.get("ended_at")
+
+    def render(printer: Dummy) -> None:
+        write_logo_from_event(
+            printer,
+            event,
+            logo_enabled=bool(profile.get("logo_enabled", True)),
+            max_width=logo_width,
+        )
+        write_sized_line(printer, "Schichtabrechnung", line_size)
+        if profile.get("show_event_title", True) and title:
+            write_two_column(printer, title, "", width, left_bold=True)
+        write_separator(printer, width=width)
+        write_sized_line(printer, subject_name, "large")
+        if started:
+            write_sized_line(printer, f"Schichtbeginn: {_format_ordered_at(str(started))}", line_size)
+        if ended:
+            write_sized_line(printer, f"Schichtende: {_format_ordered_at(str(ended))}", line_size)
+        write_separator(printer, width=width)
+        write_sized_line(printer, f"Startbetrag: {_money(opening, currency)}", line_size)
+        write_sized_line(printer, f"Endbetrag: {_money(counted, currency)}", line_size)
+        write_sized_line(printer, f"Bar-Einnahme: {_money(cash_earned, currency)}", line_size)
+        write_separator(printer, width=width)
+        for method, amount in sorted(by_method.items(), key=lambda x: x[0]):
+            label = _payment_type_label(method)
+            write_sized_line(printer, f"{label}: {_money(int(amount), currency)}", line_size)
+        for vname, amount in sorted(by_voucher.items(), key=lambda x: x[0]):
+            write_sized_line(printer, f"{vname}: {_money(int(amount), currency)}", line_size)
+
+    return render_slip(render, feed_lines=feed_lines)
+
+
 def build_voucher_slip_text(
     *,
     event_name: str,

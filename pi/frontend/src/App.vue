@@ -20,6 +20,7 @@
       @confirm="onTwintQrConfirm"
       @cancel="onTwintQrCancel"
     />
+    <ShiftOpenDialog />
     <PaymentReceiptPromptSheet
       :open="receiptPromptOpen"
       :step="receiptPromptStep"
@@ -36,6 +37,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ShiftOpenDialog from './components/ShiftOpenDialog.vue'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
 import PaymentReceiptPromptSheet from './components/PaymentReceiptPromptSheet.vue'
 import TwintQrSheet from './components/TwintQrSheet.vue'

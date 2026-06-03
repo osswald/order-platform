@@ -34,6 +34,7 @@ from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import get_password_hash, verify_password
 from ..deps import get_db
+from ..event_cash_sessions import upsert_edge_cash_session
 from ..rate_limit import EDGE_PAIR_RATE_LIMIT, limiter
 from .events import serialize_event_configuration
 
@@ -192,6 +193,7 @@ class EdgeEventBundle(BaseModel):
     currency: str
     payment_mode: str
     payment_types: list[str] = Field(default_factory=lambda: ["cash"])
+    shift_settlement_enabled: bool = False
     twint_qr_data_url: str | None = None
     start: datetime
     end: datetime
@@ -310,6 +312,7 @@ def read_edge_bundle(
                 currency=ev.currency,
                 payment_mode=getattr(ev, "payment_mode", None) or "pay_later",
                 payment_types=payment_types_from_event(ev),
+                shift_settlement_enabled=bool(getattr(ev, "shift_settlement_enabled", False)),
                 twint_qr_data_url=twint_qr_data_url_for_event(ev),
                 start=ev.start,
                 end=ev.end,
@@ -457,6 +460,7 @@ def submit_operational_chunk(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
 
     payload = body.payload or {}
+    entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()
     existing = (
         db.query(EdgeSubmittedOrder)
         .filter(EdgeSubmittedOrder.client_order_id == body.chunk_id)
@@ -464,6 +468,17 @@ def submit_operational_chunk(
     )
     if existing:
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=0)
+
+    if entity_type == "cash_session":
+        upsert_edge_cash_session(
+            db,
+            organisation_id=ctx.organisation_id,
+            appliance_id=ctx.appliance.id,
+            event_id=body.event_id,
+            payload=payload,
+        )
+        db.commit()
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
 
     # Keep audit trail while migrating.
     db.add(

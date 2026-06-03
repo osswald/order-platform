@@ -163,16 +163,36 @@ class CashSession(Base):
     __tablename__ = "cash_sessions"
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_id = Column(Integer, nullable=False, index=True)
-    cash_register_uuid = Column(String(36), nullable=False, index=True)
+    subject_type = Column(String(32), nullable=False, default="cash_register", index=True)
+    waiter_uuid = Column(String(36), nullable=True, index=True)
+    cash_register_uuid = Column(String(36), nullable=True, index=True)
+    subject_name = Column(String(128), nullable=False, default="")
     operator_waiter_uuid = Column(String(36), nullable=True)
     status = Column(String(16), nullable=False, default="OPEN")
     opening_balance_cents = Column(Integer, nullable=False, default=0)
+    wallet_cents = Column(Integer, nullable=False, default=0)
     total_cash_cents = Column(Integer, nullable=False, default=0)
+    total_non_cash_cents = Column(Integer, nullable=False, default=0)
     total_card_cents = Column(Integer, nullable=False, default=0)
     counted_cash_cents = Column(Integer, nullable=True)
     variance_cents = Column(Integer, nullable=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class CashSessionLedger(Base):
+    __tablename__ = "cash_session_ledger"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cash_session_id = Column(Integer, nullable=False, index=True)
+    entry_type = Column(String(32), nullable=False)
+    amount_cents = Column(Integer, nullable=False, default=0)
+    affects_wallet = Column(Integer, nullable=False, default=0)
+    method = Column(String(32), nullable=True)
+    voucher_definition_uuid = Column(String(36), nullable=True)
+    voucher_name = Column(String(128), nullable=True)
+    reference_id = Column(String(64), nullable=True)
+    payload_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class SyncOutbox(Base):

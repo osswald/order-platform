@@ -98,7 +98,7 @@ function pickRegister(uuid) {
   registerListOpen.value = false
 }
 
-function login() {
+async function login() {
   err.value = ''
   const reg = registers.value.find((x) => x.uuid === registerId.value)
   if (!reg) {

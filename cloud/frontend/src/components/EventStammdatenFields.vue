@@ -105,6 +105,15 @@
         />
       </div>
       <div class="toggle-row">
+        <label for="shift-settlement-enabled">Kellner-/Kassenabrechnung</label>
+        <v-switch
+          id="shift-settlement-enabled"
+          v-model="form.shiftSettlementEnabled"
+          hide-details
+          density="compact"
+        />
+      </div>
+      <div class="toggle-row">
         <label for="vouchers-enabled">Gutscheine</label>
         <v-switch
           id="vouchers-enabled"

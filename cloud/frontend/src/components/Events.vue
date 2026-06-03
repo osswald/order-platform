@@ -17,6 +17,7 @@
         :event-status="form.status"
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
+        :shift-settlement-enabled="form.shiftSettlementEnabled"
       >
         <template #stammdaten>
           <EventStammdatenFields
@@ -204,6 +205,7 @@ const emptyForm = () => ({
   paymentMode: 'pay_later',
   paymentTypes: ['cash'],
   cashRegistersEnabled: false,
+  shiftSettlementEnabled: false,
   vouchersEnabled: false,
 })
 
@@ -449,6 +451,7 @@ async function applyEventToForm(event) {
       ? [...event.payment_types]
       : ['cash'],
     cashRegistersEnabled: Boolean(event.cash_registers_enabled),
+    shiftSettlementEnabled: Boolean(event.shift_settlement_enabled),
     vouchersEnabled: Boolean(event.vouchers_enabled),
   }
   originalStatus.value = event.status || 'config'
@@ -561,6 +564,7 @@ async function saveEvent() {
     payment_mode: form.value.paymentMode,
     payment_types: form.value.paymentTypes,
     cash_registers_enabled: Boolean(form.value.cashRegistersEnabled),
+    shift_settlement_enabled: Boolean(form.value.shiftSettlementEnabled),
     vouchers_enabled: Boolean(form.value.vouchersEnabled),
   }
   if (!editMode.value) {

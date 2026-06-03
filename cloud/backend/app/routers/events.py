@@ -23,6 +23,7 @@ from ..models import (
     User,
 )
 from ..event_collective_bills import build_event_collective_bills_list
+from ..event_cash_sessions import build_cash_sessions_page
 from ..event_transactions import build_event_transactions_page
 from ..vouchers import cell_voucher_uuids_for_read
 from ..event_copy import copy_event, default_copy_name
@@ -63,6 +64,7 @@ class EventBase(BaseModel):
     payment_mode: str = "pay_later"
     payment_types: List[str] = Field(default_factory=lambda: ["cash"])
     cash_registers_enabled: bool = False
+    shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
 
     @model_validator(mode="after")
@@ -91,6 +93,7 @@ class EventCreate(BaseModel):
     payment_mode: str = "pay_later"
     payment_types: List[str] = Field(default_factory=lambda: ["cash"])
     cash_registers_enabled: bool = False
+    shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
 
     @model_validator(mode="after")
@@ -123,6 +126,7 @@ class EventUpdate(BaseModel):
     payment_mode: str | None = None
     payment_types: List[str] | None = None
     cash_registers_enabled: bool | None = None
+    shift_settlement_enabled: bool | None = None
     vouchers_enabled: bool | None = None
 
 
@@ -277,6 +281,7 @@ def event_response(event: Event) -> dict:
         "payment_types": payment_types_from_event(event),
         "has_twint_qr": has_twint_qr(event),
         "cash_registers_enabled": bool(getattr(event, "cash_registers_enabled", False)),
+        "shift_settlement_enabled": bool(getattr(event, "shift_settlement_enabled", False)),
         "vouchers_enabled": bool(getattr(event, "vouchers_enabled", False)),
     }
 
@@ -649,6 +654,56 @@ def read_event_transactions(
     )
 
 
+class CashSessionRead(BaseModel):
+    id: int
+    cash_session_id: int
+    subject_type: str
+    subject_name: str
+    operator_waiter_name: str
+    status: str
+    opening_balance_cents: int
+    wallet_cents: int
+    total_cash_cents: int
+    total_non_cash_cents: int
+    counted_cash_cents: int | None = None
+    variance_cents: int | None = None
+    started_at: str | None = None
+    ended_at: str | None = None
+    ledger: List[dict] = []
+    payments_by_method: dict = {}
+    vouchers_by_definition: dict = {}
+
+
+class EventCashSessionsPageRead(BaseModel):
+    currency: str
+    total: int
+    page: int
+    items_per_page: int
+    items: List[CashSessionRead]
+
+
+@router.get("/{event_id}/cash-sessions", response_model=EventCashSessionsPageRead)
+def read_event_cash_sessions(
+    event_id: int,
+    page: int = Query(1, ge=1),
+    items_per_page: int = Query(25, ge=1, le=200),
+    sort_by: str = Query("started_at"),
+    sort_desc: bool = Query(True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    return build_cash_sessions_page(
+        db,
+        event,
+        page=page,
+        items_per_page=items_per_page,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
+    )
+
+
 class V3SalesTotalsRead(BaseModel):
     distinct_orders_count: int
     line_cents: int
@@ -914,6 +969,7 @@ def create_event(
         payment_mode=event_in.payment_mode,
         payment_types=event_in.payment_types,
         cash_registers_enabled=bool(event_in.cash_registers_enabled),
+        shift_settlement_enabled=bool(event_in.shift_settlement_enabled),
         vouchers_enabled=bool(event_in.vouchers_enabled),
     )
     db.add(event)
@@ -1008,6 +1064,8 @@ def update_event(
             ) from e
     if event_in.cash_registers_enabled is not None:
         event.cash_registers_enabled = bool(event_in.cash_registers_enabled)
+    if event_in.shift_settlement_enabled is not None:
+        event.shift_settlement_enabled = bool(event_in.shift_settlement_enabled)
     if event_in.vouchers_enabled is not None:
         event.vouchers_enabled = bool(event_in.vouchers_enabled)
     if event.end < event.start:

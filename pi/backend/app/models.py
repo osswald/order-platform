@@ -6,6 +6,7 @@ from .database import Base
 from .models_operational import (  # noqa: F401
     BundleMeta,
     CashSession,
+    CashSessionLedger,
     Invoice,
     InvoiceItem,
     ItemTransferLog,

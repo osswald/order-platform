@@ -96,6 +96,12 @@ def apply_schema_patches() -> None:
     )
     _add_column_if_missing(
         "events",
+        "shift_settlement_enabled",
+        "ALTER TABLE events ADD COLUMN shift_settlement_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS shift_settlement_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "events",
         "vouchers_enabled",
         "ALTER TABLE events ADD COLUMN vouchers_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE events ADD COLUMN IF NOT EXISTS vouchers_enabled BOOLEAN NOT NULL DEFAULT FALSE",

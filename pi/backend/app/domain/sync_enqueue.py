@@ -38,6 +38,22 @@ def enqueue_submission_sync(db: Session, *, event_id: int, submission_id: int, p
     )
 
 
+def enqueue_cash_session_sync(db: Session, *, event_id: int, payload: dict) -> None:
+    chunk_id = str(uuid.uuid4())
+    session_id = int(payload.get("cash_session_id") or 0)
+    db.add(
+        OutboxEntry(
+            chunk_id=chunk_id,
+            entity_type="cash_session",
+            entity_ids_json=json.dumps([session_id]),
+            event_id=event_id,
+            payload_json=json.dumps(payload),
+            payload_version=1,
+            status="pending",
+        )
+    )
+
+
 def enqueue_payload_sync(db: Session, *, event_id: int, client_order_id: str, payload: dict) -> None:
     """Legacy-shaped enqueue keyed by client_order_id in payload."""
     chunk_id = str(uuid.uuid4())

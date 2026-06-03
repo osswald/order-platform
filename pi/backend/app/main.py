@@ -12,7 +12,7 @@ from .models import SyncedBundle  # noqa: F401
 from . import models_operational  # noqa: F401
 from .print_worker import print_worker_loop
 from .sync_worker import sync_worker_loop
-from .routers import health, edge_api, setup
+from .routers import health, edge_api, setup, shift_session
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -70,3 +70,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(setup.router, tags=["setup"])
 app.include_router(edge_api.router, tags=["edge"])
+app.include_router(shift_session.router, tags=["shift"])

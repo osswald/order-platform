@@ -147,6 +147,7 @@ class Event(Base):
     twint_qr_mime = Column(String(64), nullable=True)
     twint_qr_data = Column(String, nullable=True)  # base64-encoded PNG/SVG
     cash_registers_enabled = Column(Boolean, nullable=False, default=False)
+    shift_settlement_enabled = Column(Boolean, nullable=False, default=False)
     vouchers_enabled = Column(Boolean, nullable=False, default=False)
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
@@ -478,6 +479,32 @@ class EdgePaymentBatch(Base):
     total_cents = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     closed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class EdgeCashSession(Base):
+    __tablename__ = "edge_cash_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    cash_session_id = Column(Integer, nullable=False, index=True)
+    subject_type = Column(String(32), nullable=False, default="waiter")
+    waiter_uuid = Column(String(36), nullable=True, index=True)
+    cash_register_uuid = Column(String(36), nullable=True, index=True)
+    subject_name = Column(String(128), nullable=False, default="")
+    operator_waiter_uuid = Column(String(36), nullable=True)
+    status = Column(String(16), nullable=False, default="OPEN")
+    opening_balance_cents = Column(Integer, nullable=False, default=0)
+    wallet_cents = Column(Integer, nullable=False, default=0)
+    total_cash_cents = Column(Integer, nullable=False, default=0)
+    total_non_cash_cents = Column(Integer, nullable=False, default=0)
+    counted_cash_cents = Column(Integer, nullable=True)
+    variance_cents = Column(Integer, nullable=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class EdgePayment(Base):

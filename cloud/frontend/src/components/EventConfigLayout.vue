@@ -18,34 +18,25 @@
     </details>
   </div>
 
-  <div v-else class="event-config-tabs">
-    <v-tabs
-      v-model="activeTabModel"
-      show-arrows
-      density="comfortable"
-      class="event-config-tablist"
-    >
-      <v-tab
+  <div v-else class="event-config-split">
+    <nav class="event-config-nav" aria-label="Event-Konfiguration">
+      <button
         v-for="section in sections"
         :key="section.id"
-        :value="section.id"
-        class="event-config-tab"
+        type="button"
+        class="event-config-nav-item"
+        :class="{ 'event-config-nav-item--active': activeTabModel === section.id }"
+        :aria-current="activeTabModel === section.id ? 'page' : undefined"
+        @click="activeTabModel = section.id"
       >
         {{ section.title }}
-      </v-tab>
-    </v-tabs>
-    <v-window v-model="activeTabModel" class="event-config-tabpanels">
-      <v-window-item
-        v-for="section in sections"
-        :key="section.id"
-        :value="section.id"
-        class="event-config-tabpanel"
-      >
-        <div class="event-config-tabpanel-body">
-          <slot :name="section.id" />
-        </div>
-      </v-window-item>
-    </v-window>
+      </button>
+    </nav>
+    <div class="event-config-main">
+      <div class="event-config-tabpanel-body">
+        <slot :name="activeTabModel" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -173,25 +164,93 @@ const activeTabModel = computed({
   background: rgb(var(--v-theme-surface));
 }
 
-.event-config-tabs {
+.event-config-split {
+  display: grid;
+  grid-template-columns: minmax(10.5rem, 12.5rem) minmax(0, 1fr);
   border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;
   background: rgb(var(--v-theme-surface));
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  min-height: 12rem;
 }
 
-.event-config-tablist {
+.event-config-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem;
+  border-right: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   background: rgba(var(--v-theme-on-surface), 0.02);
-  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  max-height: min(72vh, 36rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.event-config-tabpanels {
+.event-config-nav-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.event-config-nav-item:hover {
+  background: rgba(var(--v-theme-primary), 0.08);
+}
+
+.event-config-nav-item:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 1px;
+}
+
+.event-config-nav-item--active {
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
+}
+
+.event-config-main {
+  min-width: 0;
   background: rgb(var(--v-theme-surface));
 }
 
 .event-config-tabpanel-body {
   padding: 1.1rem 1.25rem 1.25rem;
+}
+
+@media (max-width: 960px) {
+  .event-config-split {
+    grid-template-columns: 1fr;
+  }
+
+  .event-config-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+    border-right: none;
+    border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+    padding: 0.45rem 0.5rem;
+  }
+
+  .event-config-nav-item {
+    width: auto;
+    flex: 0 1 auto;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.55rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -207,7 +266,8 @@ const activeTabModel = computed({
 @media (prefers-reduced-motion: reduce) {
   .event-config-accordion-header,
   .event-config-accordion-chevron,
-  .event-config-accordion-chevron :deep(.v-icon) {
+  .event-config-accordion-chevron :deep(.v-icon),
+  .event-config-nav-item {
     transition: none;
   }
 }

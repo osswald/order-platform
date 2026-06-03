@@ -58,6 +58,7 @@ import { useRouter, useRoute } from 'vue-router'
 import PinNumberInput from '../components/PinNumberInput.vue'
 import { useWaiterSession } from '../composables/useWaiterSession'
 import { setRegisterSession } from '../store'
+import { ensureShiftForSubject } from '../composables/useShiftSession'
 
 const router = useRouter()
 const route = useRoute()
@@ -88,7 +89,7 @@ function pickWaiter(uuid) {
   waiterListOpen.value = false
 }
 
-function login() {
+async function login() {
   err.value = ''
   const w = waiters.value.find((x) => x.uuid === waiterId.value)
   if (!w) {
@@ -101,6 +102,18 @@ function login() {
   }
   setRegisterSession(null)
   setWaiter({ uuid: w.uuid, name: w.name })
+  try {
+    await ensureShiftForSubject({
+      event: event.value,
+      eventId: event.value?.id,
+      subjectType: 'waiter',
+      waiterUuid: w.uuid,
+    })
+  } catch (e) {
+    err.value = e.message || 'Schicht konnte nicht gestartet werden'
+    setWaiter(null)
+    return
+  }
   const redir = route.query.redirect
   if (typeof redir === 'string' && redir.startsWith('/')) {
     router.replace(redir)
