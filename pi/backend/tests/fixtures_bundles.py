@@ -86,6 +86,14 @@ def voucher_bundle() -> dict[str, Any]:
             "allowed_article_ids": [20],
             "include_additions": True,
         },
+        {
+            "uuid": "vd-wurst",
+            "name": "Wurst",
+            "kind": "article_entitlement",
+            "value_cents": None,
+            "allowed_article_ids": [20],
+            "include_additions": False,
+        },
     ]
     event["configuration"]["app_layouts"][0]["cells"] = [
         {

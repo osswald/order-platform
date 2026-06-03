@@ -133,6 +133,7 @@ export function useSplitPay({
           })),
         }),
       })
+      voucherRedemptions.value = []
       if (res.remaining_cents <= 0) {
         onFullySettled?.()
         return res

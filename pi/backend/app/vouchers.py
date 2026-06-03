@@ -6,7 +6,7 @@ import json
 
 from fastapi import HTTPException
 
-from .pricing import line_total_cents
+from .pricing import line_total_cents, voucher_entitlement_credit_cents
 
 VOUCHER_KIND_FIXED = "fixed_amount"
 VOUCHER_KIND_ARTICLE = "article_entitlement"
@@ -77,20 +77,10 @@ def article_lines_only(lines: list) -> list[dict]:
     return [dict(ln) for ln in (lines or []) if is_article_line(ln)]
 
 
-def additions_allowed(vd: dict, additions: list | None) -> bool:
-    if not additions:
-        return True
-    return bool(vd.get("include_additions", True))
-
-
 def selection_matches_entitlement(vd: dict, selection: dict) -> bool:
     allowed = {int(x) for x in (vd.get("allowed_article_ids") or [])}
     aid = int(selection.get("article_id"))
-    if aid not in allowed:
-        return False
-    if not additions_allowed(vd, selection.get("additions")):
-        return False
-    return True
+    return aid in allowed
 
 
 def _normalize_additions(additions: list | None) -> list[dict]:
@@ -113,13 +103,6 @@ def _additions_signature(additions: list | None) -> str:
 
 def _line_key(article_id, note: str, additions: list | None = None) -> tuple[int, str, str]:
     return (int(article_id), str(note or ""), _additions_signature(additions))
-
-
-def _unit_cents_for_article(articles: dict, article_id, note: str = "", additions: list | None = None) -> int:
-    from .pricing import line_unit_cents
-
-    line = {"article_id": article_id, "qty": 1, "note": note, "additions": _normalize_additions(additions)}
-    return line_unit_cents(line, articles)
 
 
 def compute_voucher_credits(
@@ -166,27 +149,20 @@ def compute_voucher_credits(
             remaining -= applied
         elif kind == VOUCHER_KIND_ARTICLE:
             sel = raw
+            if not selection_matches_entitlement(vd, sel):
+                raise HTTPException(status_code=400, detail="Selection not eligible for voucher")
+            line_unit: int | None = None
             if selections and line_groups:
-                if not selection_matches_entitlement(vd, sel):
-                    raise HTTPException(status_code=400, detail="Selection not eligible for voucher")
                 key = _line_key(sel.get("article_id"), sel.get("note", ""), sel.get("additions"))
-                unit = unit_by_key.get(key)
-                if unit is None:
+                line_unit = unit_by_key.get(key)
+                if line_unit is None:
                     raise HTTPException(status_code=400, detail="Voucher selection not on open orders")
-                qty = max(1, int(sel.get("qty") or 1))
-                applied = unit * qty
-            else:
-                if not selection_matches_entitlement(vd, sel):
-                    raise HTTPException(status_code=400, detail="Selection not eligible for voucher")
-                applied = (
-                    _unit_cents_for_article(
-                        articles,
-                        sel.get("article_id"),
-                        sel.get("note", ""),
-                        sel.get("additions"),
-                    )
-                    * max(1, int(sel.get("qty") or 1))
-                )
+            applied = voucher_entitlement_credit_cents(
+                sel,
+                articles,
+                vd,
+                snapped_line_unit=line_unit,
+            )
             credits.append(
                 {
                     "voucher_definition_uuid": v_uuid,

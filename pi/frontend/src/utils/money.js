@@ -1,3 +1,5 @@
+import { lineIdentityKeyFromItem } from './bundleHelpers'
+
 /** Swiss number format: 1'234.56 (apostrophe thousands, dot decimals). */
 export const MONEY_LOCALE = 'de-CH'
 
@@ -36,6 +38,35 @@ function additionPriceCents(articles, baseArticle, additionId) {
   }
   const a = articleEntry(articles, additionId)
   return a ? Math.round(Number(a.price || 0) * 100) : 0
+}
+
+export function articleBaseUnitCents(articles, articleId) {
+  const base = articleEntry(articles, articleId)
+  return base ? Math.round(Number(base.price || 0) * 100) : 0
+}
+
+/** One entitled item: base catalog price, or full line unit when include_additions is set. */
+export function voucherEntitlementCreditCents(sel, articles, vd, event = null, lineGroups = null) {
+  if (vd?.include_additions) {
+    if (lineGroups?.length) {
+      const key = lineIdentityKeyFromItem(sel)
+      const g = lineGroups.find((x) => lineIdentityKeyFromItem(x) === key)
+      if (g != null && (g.unit_cents != null || g.unitCents != null)) {
+        return Math.max(0, Number(g.unit_cents ?? g.unitCents) || 0)
+      }
+    }
+    return lineUnitCents(
+      {
+        article_id: sel.article_id,
+        note: sel.note || '',
+        additions: sel.additions || [],
+        qty: 1,
+      },
+      articles,
+      event,
+    )
+  }
+  return articleBaseUnitCents(articles, sel.article_id)
 }
 
 export function lineUnitCents(line, articles, event = null) {

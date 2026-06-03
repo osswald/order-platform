@@ -57,6 +57,34 @@ def _addition_price_cents(articles: dict, base_article: dict | None, addition_id
     return 0
 
 
+def article_base_unit_cents(articles: dict, article_id) -> int:
+    """Catalog unit price for an article (no additions)."""
+    base = _article_entry(articles, article_id)
+    price = float(base["price"]) if base and base.get("price") is not None else 0.0
+    return max(0, int(round(price * 100)))
+
+
+def voucher_entitlement_credit_cents(
+    selection: dict,
+    articles: dict,
+    vd: dict,
+    *,
+    snapped_line_unit: int | None = None,
+) -> int:
+    """One entitled item: base price only, or full line unit when include_additions is set."""
+    if bool(vd.get("include_additions", False)):
+        if snapped_line_unit is not None:
+            return max(0, int(snapped_line_unit))
+        line = {
+            "article_id": selection.get("article_id"),
+            "qty": 1,
+            "note": selection.get("note", ""),
+            "additions": selection.get("additions"),
+        }
+        return line_unit_cents(line, articles)
+    return article_base_unit_cents(articles, selection.get("article_id"))
+
+
 def line_unit_cents(line: dict, articles: dict) -> int:
     # Snapshotted lines store unit_cents as the full per-unit price (base + additions).
     if line.get("unit_cents") is not None:

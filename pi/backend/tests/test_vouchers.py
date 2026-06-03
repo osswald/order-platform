@@ -214,3 +214,189 @@ def test_settle_partial_with_article_entitlement_voucher(client):
     body = r.json()
     assert body["voucher_credit_cents"] == 500
     assert body["paid_cents"] == 0
+
+
+def test_article_entitlement_credits_one_unit_when_qty_two(client):
+    from tests.seed_orders import seed_open_submission
+
+    c, Session = client
+    db = Session()
+    seed_open_submission(
+        db,
+        client_order_id="v-qty2-1",
+        event_id=1,
+        table_number=8,
+        payload={
+            "event_id": 1,
+            "table_number": 8,
+            "payment_status": "open",
+            "lines": [
+                {
+                    "article_id": 20,
+                    "qty": 2,
+                    "note": "",
+                    "additions": [],
+                    "unit_cents": 500,
+                }
+            ],
+        },
+    )
+    db.commit()
+    db.close()
+
+    r = c.post(
+        "/v1/tables/8/settle-partial",
+        json={
+            "event_id": 1,
+            "payments": [{"type": "cash", "amount_cents": 500}],
+            "selections": [{"article_id": 20, "qty": 2, "note": "", "additions": []}],
+            "voucher_redemptions": [
+                {
+                    "voucher_definition_uuid": "vd-wurst",
+                    "article_id": 20,
+                    "note": "",
+                    "qty": 2,
+                    "additions": [],
+                }
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["voucher_credit_cents"] == 500
+
+
+def _bundle_with_salat_addon(bundle: dict) -> dict:
+    from tests.fixtures_bundles import bundle_copy
+
+    b = bundle_copy(bundle)
+    event = b["events"][0]
+    event["articles"]["99"] = {"id": 99, "name": "Salat", "price": 3.0, "additions": []}
+    event["articles"]["20"]["additions"] = [{"article_id": 99, "name": "Salat", "price": 3.0}]
+    return b
+
+
+def test_article_entitlement_base_only_with_addon_line(client, bundle):
+    import json
+
+    from app.models import SyncedBundle
+    from tests.seed_orders import seed_open_submission
+
+    b = _bundle_with_salat_addon(bundle)
+    c, Session = client
+    db = Session()
+    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
+    row.json_body = json.dumps(b)
+    seed_open_submission(
+        db,
+        client_order_id="v-addon-1",
+        event_id=1,
+        table_number=9,
+        payload={
+            "event_id": 1,
+            "table_number": 9,
+            "payment_status": "open",
+            "lines": [
+                {
+                    "article_id": 20,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [{"article_id": 99, "qty": 1}],
+                }
+            ],
+        },
+    )
+    db.commit()
+    db.close()
+
+    r = c.post(
+        "/v1/tables/9/settle-partial",
+        json={
+            "event_id": 1,
+            "payments": [{"type": "cash", "amount_cents": 300}],
+            "selections": [
+                {
+                    "article_id": 20,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [{"article_id": 99, "qty": 1}],
+                }
+            ],
+            "voucher_redemptions": [
+                {
+                    "voucher_definition_uuid": "vd-wurst",
+                    "article_id": 20,
+                    "note": "",
+                    "qty": 1,
+                    "additions": [{"article_id": 99, "qty": 1}],
+                }
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["voucher_credit_cents"] == 500
+    assert body["paid_cents"] == 300
+
+
+def test_article_entitlement_include_additions_credits_full_line_unit(client, bundle):
+    import json
+
+    from app.models import SyncedBundle
+    from tests.seed_orders import seed_open_submission
+
+    b = _bundle_with_salat_addon(bundle)
+    c, Session = client
+    db = Session()
+    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
+    row.json_body = json.dumps(b)
+    db.commit()
+    seed_open_submission(
+        db,
+        client_order_id="v-full-1",
+        event_id=1,
+        table_number=10,
+        payload={
+            "event_id": 1,
+            "table_number": 10,
+            "payment_status": "open",
+            "lines": [
+                {
+                    "article_id": 20,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [{"article_id": 99, "qty": 1}],
+                }
+            ],
+        },
+    )
+    db.commit()
+    db.close()
+
+    r = c.post(
+        "/v1/tables/10/settle-partial",
+        json={
+            "event_id": 1,
+            "payments": [{"type": "cash", "amount_cents": 0}],
+            "selections": [
+                {
+                    "article_id": 20,
+                    "qty": 1,
+                    "note": "",
+                    "additions": [{"article_id": 99, "qty": 1}],
+                }
+            ],
+            "voucher_redemptions": [
+                {
+                    "voucher_definition_uuid": "vd-drink",
+                    "article_id": 20,
+                    "note": "",
+                    "qty": 1,
+                    "additions": [{"article_id": 99, "qty": 1}],
+                }
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["voucher_credit_cents"] == 800

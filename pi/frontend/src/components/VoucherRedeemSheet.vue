@@ -34,7 +34,7 @@
           <li v-for="(sel, idx) in eligibleSelections" :key="idx">
             <button type="button" class="pick-row" @click="confirmArticle(sel)">
               <span class="name">{{ sel.label }}</span>
-              <span class="meta muted">{{ formatAmount(sel.unit_cents * sel.qty) }}</span>
+              <span class="meta muted">{{ formatAmount(sel.unit_cents) }}</span>
             </button>
           </li>
         </ul>
@@ -47,8 +47,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useEventContext } from '../composables/useEventContext'
-import { formatAmount, lineUnitCents } from '../utils/money'
-import { lineIdentityKeyFromItem, voucherDefinitionsForEvent } from '../utils/bundleHelpers'
+import { formatAmount, voucherEntitlementCreditCents } from '../utils/money'
+import { lineAdditionLabels, voucherDefinitionsForEvent } from '../utils/bundleHelpers'
 
 const { showToast } = useEventContext()
 
@@ -87,25 +87,13 @@ function typeHint(vd) {
   return 'Artikel-Gutschein'
 }
 
-function unitFromGroup(g) {
-  return Math.max(0, Number(g?.unit_cents ?? g?.unitCents) || 0)
-}
-
-function unitForSelection(sel) {
-  const key = lineIdentityKeyFromItem(sel)
-  const g = (props.lineGroups || []).find((x) => lineIdentityKeyFromItem(x) === key)
-  if (g) return unitFromGroup(g)
-  const arts = props.event?.articles || {}
-  return lineUnitCents(
-    {
-      article_id: sel.article_id,
-      note: sel.note || '',
-      additions: sel.additions || [],
-      qty: 1,
-    },
-    arts,
-    props.event,
-  )
+function selectionLabel(sel, arts) {
+  const a = arts[String(sel.article_id)] || arts[sel.article_id]
+  const base = a?.name || `Artikel #${sel.article_id}`
+  const adds = lineAdditionLabels(sel, arts)
+  if (!adds.length) return base
+  const hint = adds.map((x) => x.name).join(', ')
+  return `${base} (+ ${hint})`
 }
 
 const eligibleSelections = computed(() => {
@@ -115,18 +103,11 @@ const eligibleSelections = computed(() => {
   const arts = props.event?.articles || {}
   return (props.selections || [])
     .filter((s) => allowed.has(Number(s.article_id)))
-    .filter((s) => {
-      if (!vd.include_additions && (s.additions || []).length) return false
-      return true
-    })
-    .map((s) => {
-      const a = arts[String(s.article_id)] || arts[s.article_id]
-      return {
-        ...s,
-        label: a?.name || `Artikel #${s.article_id}`,
-        unit_cents: unitForSelection(s),
-      }
-    })
+    .map((s) => ({
+      ...s,
+      label: selectionLabel(s, arts),
+      unit_cents: voucherEntitlementCreditCents(s, arts, vd, props.event, props.lineGroups),
+    }))
 })
 
 function pickType(vd) {
@@ -160,7 +141,8 @@ function confirmAmount() {
 function confirmArticle(sel) {
   const vd = pendingType.value
   if (!vd) return
-  const applied = unitForSelection(sel) * Math.max(1, Number(sel.qty) || 1)
+  const arts = props.event?.articles || {}
+  const applied = voucherEntitlementCreditCents(sel, arts, vd, props.event, props.lineGroups)
   if (applied <= 0) {
     showToast('Position nicht gefunden', 'err')
     return
@@ -171,7 +153,7 @@ function confirmArticle(sel) {
     applied_cents: applied,
     article_id: sel.article_id,
     note: sel.note || '',
-    qty: sel.qty,
+    qty: 1,
     additions: sel.additions || [],
   })
   close()
