@@ -240,10 +240,23 @@ class PaymentReceiptPrintResponse(BaseModel):
 
 class PrintJobSummary(BaseModel):
     id: int
-    local_order_id: int | None
-    printer_host: str | None
-    status: str | None
-    last_error: str | None
+    local_order_id: int | None = None
+    printer_host: str | None = None
+    status: str | None = None
+    last_error: str | None = None
+    station_uuid: str | None = None
+    station_name: str | None = None
+    table_number: int | None = None
+    order_number: int | None = None
+    job_kind: str | None = None
+    event_id: int | None = None
+    created_at: str | None = None
+
+
+class PrintJobRetryResponse(BaseModel):
+    ok: bool = True
+    print_job_id: int
+    status: str
 
 
 class OpenTableRow(BaseModel):

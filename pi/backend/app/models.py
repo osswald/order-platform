@@ -59,6 +59,7 @@ class PrintJob(Base):
     local_order_id = Column(Integer, nullable=False, index=True)
     order_submission_id = Column(Integer, nullable=True, index=True)
     station_uuid = Column(String(36), nullable=True)
+    job_kind = Column(String(32), nullable=True)
     printer_host = Column(String(255), nullable=False)
     printer_port = Column(Integer, nullable=False, default=9100)
     escpos_payload = Column(Text, nullable=False)

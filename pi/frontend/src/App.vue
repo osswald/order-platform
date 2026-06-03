@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ShiftOpenDialog from './components/ShiftOpenDialog.vue'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
@@ -46,6 +46,11 @@ import { applyAndroidSafeAreaInsets } from './utils/androidInsets'
 import { useBundle } from './composables/useBundle'
 import { useBundleRefresh } from './composables/useBundleRefresh'
 import { useToast } from './composables/useToast'
+import { useWaiterSession } from './composables/useWaiterSession'
+import {
+  startWaiterPrintFailurePolling,
+  stopWaiterPrintFailurePolling,
+} from './composables/useStationPrintFailures'
 import {
   pickerOpen as paymentPickerOpen,
   pickerTypes as paymentPickerTypes,
@@ -72,8 +77,27 @@ const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
 const { bundleReady, refreshBundle } = useBundle()
+const { waiter, selectedEventId } = useWaiterSession()
 
 useBundleRefresh()
+
+watch(
+  [() => waiter.value?.uuid, selectedEventId],
+  () => {
+    stopWaiterPrintFailurePolling()
+    const waiterUuid = waiter.value?.uuid
+    const eventId = selectedEventId.value
+    if (waiterUuid && eventId) {
+      startWaiterPrintFailurePolling(() => ({
+        eventId: selectedEventId.value,
+        waiterUuid: waiter.value?.uuid,
+      }))
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(stopWaiterPrintFailurePolling)
 
 if (isAndroidApp()) {
   router.afterEach(() => {

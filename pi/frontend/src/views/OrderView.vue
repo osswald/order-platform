@@ -76,6 +76,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import { useCart } from '../composables/useCart'
 import { useEventContext } from '../composables/useEventContext'
+import { useStationPrintFailures } from '../composables/useStationPrintFailures'
 import { formatMoney } from '../utils/money'
 import { getDefaultLayout, articlesForIds, hasAdditions, resolveStationUuidForArticle } from '../utils/bundleHelpers'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
@@ -105,7 +106,8 @@ const {
   cartLineLabel,
   clearCart,
 } = useCart()
-const { event, currency, waiter, showToast, patchEventArticles } = useEventContext()
+const { event, currency, waiter, showToast, patchEventArticles, selectedEventId } = useEventContext()
+const { watchJobIds, failureLabel, loadFailedJobs } = useStationPrintFailures()
 const submitting = ref(false)
 const sheetOpen = ref(false)
 const sheetArticles = ref([])
@@ -319,6 +321,18 @@ async function submitOrder() {
     clearCart()
     activeTableNumber.value = null
     showToast('Bestellung gespeichert.', 'ok')
+    const jobIds = res.print_job_ids || (res.print_job_id != null ? [res.print_job_id] : [])
+    if (jobIds.length) {
+      watchJobIds(jobIds, {
+        onFailed: (job) => {
+          showToast(failureLabel(job), 'err')
+          loadFailedJobs({
+            eventId: selectedEventId.value,
+            waiterUuid: waiter.value?.uuid,
+          })
+        },
+      })
+    }
     router.replace({ name: 'hub' })
   } catch (e) {
     showToast(e.message || 'Fehler', 'err')

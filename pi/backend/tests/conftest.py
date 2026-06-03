@@ -65,7 +65,7 @@ def isolated_engine() -> Generator[Engine, None, None]:
     import app.database as database
 
     engine = create_engine(
-        "sqlite://",
+        "sqlite:///?cache=shared",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )

@@ -30,6 +30,7 @@ def _sqlite_pragmas(connection) -> None:
     connection.execute(text("PRAGMA cache_size=-8192"))
     connection.execute(text("PRAGMA temp_store=MEMORY"))
     connection.execute(text("PRAGMA mmap_size=67108864"))
+    connection.execute(text("PRAGMA busy_timeout=30000"))
 
 
 def run_migrations_offline() -> None:
@@ -46,6 +47,18 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        _sqlite_pragmas(connection)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = get_url()
     connectable = engine_from_config(

@@ -3,6 +3,16 @@
     <h1>Kellner</h1>
     <p class="muted">{{ event?.name }} · {{ waiter?.name }}</p>
 
+    <div v-if="failedCount > 0" class="card print-fail-banner">
+      <p>
+        <strong>{{ failedCount }} Druckfehler</strong>
+        — Stationsbons konnten nicht gedruckt werden.
+      </p>
+      <button type="button" class="btn primary" @click="router.push({ name: 'print-failures' })">
+        Anzeigen & erneut drucken
+      </button>
+    </div>
+
     <div class="hub-actions">
       <button type="button" class="btn primary hub-btn" @click="router.push({ name: 'table-new' })">
         Neue Bestellung
@@ -45,15 +55,24 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { isAndroidApp } from '../api'
 import { useEventContext } from '../composables/useEventContext'
 import { maybeEndShiftOnSwitch } from '../composables/useShiftSession'
+import { useStationPrintFailures } from '../composables/useStationPrintFailures'
 
 const router = useRouter()
-const { event, waiter, setWaiter } = useEventContext()
+const { event, waiter, setWaiter, selectedEventId } = useEventContext()
+const { failedCount, loadFailedJobs } = useStationPrintFailures()
 const androidApp = computed(() => isAndroidApp())
+
+onMounted(() => {
+  loadFailedJobs({
+    eventId: selectedEventId.value,
+    waiterUuid: waiter.value?.uuid,
+  })
+})
 
 async function switchWaiter() {
   const ok = await maybeEndShiftOnSwitch({
@@ -69,6 +88,15 @@ async function switchWaiter() {
 </script>
 
 <style scoped>
+.print-fail-banner {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-color: var(--err, #c62828);
+  background: color-mix(in srgb, var(--err, #c62828) 8%, var(--card));
+}
+.print-fail-banner p {
+  margin: 0 0 0.75rem;
+}
 .hub-actions {
   display: flex;
   flex-direction: column;

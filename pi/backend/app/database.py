@@ -16,12 +16,13 @@ _LEGACY_V3_TABLES = frozenset(
     {
         "bundle_meta",
         "synced_bundle",
-        "submitted_orders",
+        "order_submissions",
         "order_sessions",
         "cash_sessions",
         "sync_outbox",
     }
 )
+_SCHEMA_MARKERS = frozenset({"order_submissions", "synced_bundle", "print_jobs"})
 
 
 @event.listens_for(engine, "connect")
@@ -35,6 +36,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:
     cursor.execute("PRAGMA cache_size=-8192")
     cursor.execute("PRAGMA temp_store=MEMORY")
     cursor.execute("PRAGMA mmap_size=67108864")
+    cursor.execute("PRAGMA busy_timeout=30000")
     cursor.close()
 
 
@@ -49,6 +51,14 @@ def _add_column_if_missing(table: str, column: str, ddl: str) -> None:
             conn.execute(text(ddl))
     except Exception:
         log.exception("Failed to add column %s.%s", table, column)
+
+
+def apply_print_job_schema_patches() -> None:
+    _add_column_if_missing(
+        "print_jobs",
+        "job_kind",
+        "ALTER TABLE print_jobs ADD COLUMN job_kind VARCHAR(32)",
+    )
 
 
 def apply_shift_session_schema_patches() -> None:
@@ -104,21 +114,46 @@ def apply_shift_session_schema_patches() -> None:
         log.exception("Failed to backfill cash_sessions shift columns")
 
 
-def _stamp_legacy_v3_baseline(cfg) -> None:
+def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
+    """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
+    if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
+        return None
+    if "print_jobs" in tables:
+        cols = {c["name"] for c in inspector.get_columns("print_jobs")}
+        if "job_kind" in cols:
+            return "003_print_job_kind"
+    if "cash_sessions" in tables:
+        cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
+        if "subject_type" in cols:
+            return "002_shift_sessions"
+    return "001_v3"
+
+
+def _stamp_legacy_v3_baseline(cfg, connection=None) -> None:
     """DBs created via create_all() have tables but no alembic_version — stamp before upgrade."""
     from alembic import command
 
     try:
-        inspector = inspect(engine)
+        inspector = inspect(connection if connection is not None else engine)
         tables = set(inspector.get_table_names())
     except Exception:
         return
-    if "alembic_version" in tables:
+    if _current_alembic_revision():
         return
-    if not (_LEGACY_V3_TABLES & tables):
+    rev = _revision_for_existing_schema(tables, inspector)
+    if not rev:
         return
-    log.info("Stamping legacy Pi database at revision 001_v3 before upgrade")
-    command.stamp(cfg, "001_v3")
+    log.info("Stamping existing Pi database at revision %s before upgrade", rev)
+    command.stamp(cfg, rev)
+
+
+def _dispose_engine_before_alembic() -> None:
+    """Release file DB locks before Alembic runs. Skip for in-memory SQLite (tests)."""
+    url = SQLALCHEMY_DATABASE_URL
+    if url in ("sqlite://", "sqlite:///:memory:"):
+        return
+    if url.startswith("sqlite://"):
+        engine.dispose()
 
 
 def _create_all_tables() -> None:
@@ -126,6 +161,24 @@ def _create_all_tables() -> None:
     from . import models_operational  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+
+def _alembic_head_revision(cfg) -> str:
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(cfg).get_current_head()
+
+
+def _current_alembic_revision() -> str | None:
+    try:
+        inspector = inspect(engine)
+        if "alembic_version" not in inspector.get_table_names():
+            return None
+        with engine.connect() as conn:
+            row = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        return str(row) if row else None
+    except Exception:
+        return None
 
 
 def run_migrations() -> None:
@@ -137,12 +190,22 @@ def run_migrations() -> None:
 
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         cfg = Config(os.path.join(root, "alembic.ini"))
-        cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
-        _stamp_legacy_v3_baseline(cfg)
-        command.upgrade(cfg, "head")
+        # Always migrate the same database as the app engine (tests replace engine in-memory).
+        cfg.set_main_option("sqlalchemy.url", str(engine.url))
+        head = _alembic_head_revision(cfg)
+        current = _current_alembic_revision()
+        if current == head:
+            log.debug("Alembic already at head (%s)", head)
+        else:
+            _dispose_engine_before_alembic()
+            with engine.begin() as connection:
+                cfg.attributes["connection"] = connection
+                _stamp_legacy_v3_baseline(cfg, connection)
+                command.upgrade(cfg, "head")
     except Exception:
-        log.exception("Alembic upgrade failed; applying shift-session schema patches")
+        log.exception("Alembic upgrade failed; applying schema patches")
     apply_shift_session_schema_patches()
+    apply_print_job_schema_patches()
     _create_all_tables()
 
 

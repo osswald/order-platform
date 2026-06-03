@@ -58,6 +58,12 @@ const routes = [
     meta: { title: 'Kellner', requiresBundle: true, requiresEvent: true, requiresWaiter: true, nav: true },
   },
   {
+    path: '/print-failures',
+    name: 'print-failures',
+    component: () => import('../views/PrintFailuresView.vue'),
+    meta: { title: 'Druckfehler', requiresBundle: true, requiresEvent: true, requiresWaiter: true },
+  },
+  {
     path: '/tables/open',
     name: 'tables-open',
     component: () => import('../views/OpenTablesView.vue'),

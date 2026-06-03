@@ -203,6 +203,7 @@ def shift_session_print(
     job = PrintJob(
         local_order_id=0,
         station_uuid=station_uuid,
+        job_kind="shift_close",
         printer_host=host,
         printer_port=port,
         escpos_payload=base64.b64encode(esc).decode("ascii"),
