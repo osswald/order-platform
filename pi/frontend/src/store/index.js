@@ -1,6 +1,12 @@
 import { ref, computed } from 'vue'
 import { api } from '../api'
-import { lineTotalCents } from '../utils/money'
+import {
+  lineGrossCents,
+  lineTotalCents,
+  normalizeDiscount,
+  orderSubtotalCents,
+  orderTotalCents,
+} from '../utils/money'
 import { cartLineLabelForEvent, voucherDefinitionByUuid } from '../utils/bundleHelpers'
 
 /** @type {import('vue').Ref<object | null>} */
@@ -16,6 +22,9 @@ export const activeTableNumber = ref(null)
 
 /** @type {import('vue').Ref<Array<{ lineId: string, article_id: number, qty: number, station_uuid: string | null, note: string }>>} */
 export const cartLines = ref([])
+
+/** @type {import('vue').Ref<{ kind: 'percent' | 'amount', value: number } | null>} */
+export const orderDiscount = ref(null)
 
 /** @type {import('vue').Ref<{ message: string, type: 'ok' | 'err' } | null>} */
 export const toast = ref(null)
@@ -39,6 +48,11 @@ export const selectedEvent = computed(() => {
 
 export function clearCart() {
   cartLines.value = []
+  orderDiscount.value = null
+}
+
+export function setOrderDiscount(discount) {
+  orderDiscount.value = discount || null
 }
 
 const WAITER_SESSION_KEY = 'pi_waiter_session'
@@ -232,6 +246,11 @@ export function additionsSignature(additions) {
   return JSON.stringify(list)
 }
 
+export function discountSignature(discount) {
+  const d = normalizeDiscount(discount)
+  return d ? JSON.stringify(d) : ''
+}
+
 /** Remaining units that can still be added to the cart (null = unlimited). */
 export function availableQty(articleId, excludeLineId = null) {
   const a = getArticle(articleId)
@@ -309,12 +328,14 @@ export function addCartLine({
     }
   }
   const sig = additionsSignature(adds)
+  const discountSig = discountSignature(undefined)
   const existing = cartLines.value.find(
     (l) =>
       l.article_id === aid &&
       l.station_uuid === su &&
       (l.note || '') === noteStr &&
-      additionsSignature(l.additions) === sig,
+      additionsSignature(l.additions) === sig &&
+      discountSignature(l.discount) === discountSig,
   )
   if (existing) {
     existing.qty += addQty
@@ -343,16 +364,39 @@ export function decrementCartLine(lineId) {
 }
 
 export function updateCartLine(lineId, patch) {
-  cartLines.value = cartLines.value.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l))
+  cartLines.value = cartLines.value.map((l) => {
+    if (l.lineId !== lineId) return l
+    const next = { ...l, ...patch }
+    if ('discount' in patch && patch.discount === undefined) {
+      delete next.discount
+    }
+    return next
+  })
 }
 
 export const cartCount = computed(() => cartLines.value.reduce((s, l) => s + l.qty, 0))
 
+export const cartSubtotalCents = computed(() => {
+  const ev = selectedEvent.value
+  const arts = ev?.articles || {}
+  return orderSubtotalCents(cartLines.value, arts, ev)
+})
+
+export const cartGrossCents = computed(() => {
+  const ev = selectedEvent.value
+  const arts = ev?.articles || {}
+  return cartLines.value.reduce((s, l) => s + lineGrossCents(l, arts, ev), 0)
+})
+
 export const cartTotalCents = computed(() => {
   const ev = selectedEvent.value
   const arts = ev?.articles || {}
-  return cartLines.value.reduce((s, l) => s + lineTotalCents(l, arts, ev), 0)
+  return orderTotalCents(cartLines.value, orderDiscount.value, arts, ev)
 })
+
+export const cartDiscountCents = computed(() =>
+  Math.max(0, cartGrossCents.value - cartTotalCents.value),
+)
 
 export function addVoucherCartLine({ voucher_definition_uuid, qty = 1, unit_cents = null }) {
   const ev = selectedEvent.value

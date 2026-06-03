@@ -57,7 +57,58 @@ export function lineUnitCents(line, articles, event = null) {
   return Math.max(0, unit)
 }
 
-export function lineTotalCents(line, articles, event = null) {
+export function discountsEnabled(event) {
+  return Boolean(event?.discounts_enabled)
+}
+
+export function normalizeDiscount(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const kind = String(raw.kind || '').toLowerCase()
+  if (kind !== 'percent' && kind !== 'amount') return null
+  let value = Math.max(0, Number(raw.value) || 0)
+  if (kind === 'percent') value = Math.min(100, value)
+  if (value <= 0) return null
+  return { kind, value }
+}
+
+export function applyDiscountCents(grossCents, discount) {
+  const gross = Math.max(0, Number(grossCents) || 0)
+  const d = normalizeDiscount(discount)
+  if (!d) return gross
+  if (d.kind === 'percent') {
+    const off = Math.round((gross * d.value) / 100)
+    return Math.max(0, gross - off)
+  }
+  return Math.max(0, gross - Math.min(gross, d.value))
+}
+
+export function lineGrossCents(line, articles, event = null) {
   const qty = Math.max(1, Number(line.qty) || 1)
   return lineUnitCents(line, articles, event) * qty
+}
+
+export function lineTotalCents(line, articles, event = null) {
+  return applyDiscountCents(lineGrossCents(line, articles, event), line.discount)
+}
+
+export function orderSubtotalCents(lines, articles, event = null) {
+  return (lines || []).reduce((s, l) => s + lineTotalCents(l, articles, event), 0)
+}
+
+export function orderTotalCents(lines, orderDiscount, articles, event = null) {
+  return applyDiscountCents(orderSubtotalCents(lines, articles, event), orderDiscount)
+}
+
+export function discountLabel(discount) {
+  const d = normalizeDiscount(discount)
+  if (!d) return ''
+  if (d.kind === 'percent') return `Rabatt ${d.value}%`
+  return `Rabatt ${formatAmount(d.value)}`
+}
+
+export function discountButtonLabel(discount) {
+  const d = normalizeDiscount(discount)
+  if (!d) return '%'
+  if (d.kind === 'percent') return `−${d.value}%`
+  return `−${formatAmount(d.value)}`
 }

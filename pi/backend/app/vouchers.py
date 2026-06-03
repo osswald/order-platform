@@ -55,15 +55,21 @@ def line_total_for_order(line: dict, ev: dict, articles: dict) -> int:
     return line_total_cents(line, articles)
 
 
-def order_lines_total_cents(lines: list, ev: dict, articles: dict) -> tuple[int, int]:
-    total_cents = 0
+def order_lines_total_cents(
+    lines: list,
+    ev: dict,
+    articles: dict,
+    order_discount: dict | None = None,
+) -> tuple[int, int]:
+    from .pricing import order_total_cents
+
     item_count = 0
     for line in lines or []:
         if not isinstance(line, dict):
             continue
         qty = max(1, int(line.get("qty") or 1))
-        total_cents += line_total_for_order(line, ev, articles)
         item_count += qty
+    total_cents = order_total_cents(lines, order_discount, ev, articles)
     return total_cents, item_count
 
 

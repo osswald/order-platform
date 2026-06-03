@@ -165,6 +165,7 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         cash_registers_enabled=bool(getattr(source, "cash_registers_enabled", False)),
         shift_settlement_enabled=bool(getattr(source, "shift_settlement_enabled", False)),
         vouchers_enabled=bool(getattr(source, "vouchers_enabled", False)),
+        discounts_enabled=bool(getattr(source, "discounts_enabled", False)),
     )
     if source.twint_qr_mime and source.twint_qr_data:
         new_event.twint_qr_mime = source.twint_qr_mime

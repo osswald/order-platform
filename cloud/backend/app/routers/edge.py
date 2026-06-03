@@ -194,6 +194,7 @@ class EdgeEventBundle(BaseModel):
     payment_mode: str
     payment_types: list[str] = Field(default_factory=lambda: ["cash"])
     shift_settlement_enabled: bool = False
+    discounts_enabled: bool = False
     twint_qr_data_url: str | None = None
     start: datetime
     end: datetime
@@ -313,6 +314,7 @@ def read_edge_bundle(
                 payment_mode=getattr(ev, "payment_mode", None) or "pay_later",
                 payment_types=payment_types_from_event(ev),
                 shift_settlement_enabled=bool(getattr(ev, "shift_settlement_enabled", False)),
+                discounts_enabled=bool(getattr(ev, "discounts_enabled", False)),
                 twint_qr_data_url=twint_qr_data_url_for_event(ev),
                 start=ev.start,
                 end=ev.end,

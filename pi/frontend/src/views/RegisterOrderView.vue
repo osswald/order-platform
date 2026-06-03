@@ -4,10 +4,10 @@
       :table="register?.name || 'Kasse'"
       :total-label="totalLabel"
       :qty="cartCount"
-      :show-menu="canRedeemVoucher"
+      :show-menu="showHeaderMenu"
       :disabled="submitting || !cartCount"
       @back="goBack"
-      @menu="openVoucherRedeem"
+      @menu="orderMenuOpen = true"
       @submit="submitOrder"
     />
 
@@ -28,9 +28,13 @@
           :event="event"
           :currency="currency"
           :label-fn="cartLineLabel"
+          :discounts-enabled="discountsEnabled"
+          :order-discount="orderDiscount"
           @tap-name="onTapName"
           @tap-qty="onTapQty"
           @tap-price="onTapPrice"
+          @tap-discount="onTapDiscount"
+          @remove-order-discount="setOrderDiscount(null)"
         />
       </div>
 
@@ -50,7 +54,6 @@
     <ArticlePickerSheet
       :open="sheetOpen"
       :articles="sheetArticles"
-      :event-currency="currency"
       @close="sheetOpen = false"
       @add="onAddFromSheet"
     />
@@ -80,6 +83,36 @@
       @pick="onCellPickerPick"
     />
 
+    <OrderMenuSheet
+      :open="orderMenuOpen"
+      :show-order-discount="discountsEnabled"
+      :show-voucher="canRedeemVoucher"
+      @close="orderMenuOpen = false"
+      @order-discount="openOrderDiscount"
+      @redeem-voucher="openVoucherRedeem"
+    />
+
+    <LineDiscountSheet
+      :open="lineDiscountOpen"
+      :line="lineDiscountLine"
+      :articles="articles"
+      :event="event"
+      :currency="currency"
+      @close="lineDiscountOpen = false"
+      @discount-save="onLineDiscountSave"
+    />
+
+    <OrderDiscountSheet
+      :open="orderDiscountOpen"
+      :lines="lines"
+      :articles="articles"
+      :event="event"
+      :currency="currency"
+      :order-discount="orderDiscount"
+      @close="orderDiscountOpen = false"
+      @discount-save="onOrderDiscountSave"
+    />
+
     <VoucherRedeemSheet
       :open="voucherSheetOpen"
       :event="event"
@@ -98,7 +131,12 @@ import { useRouter } from 'vue-router'
 import { api } from '../api'
 import { useCart } from '../composables/useCart'
 import { useEventContext } from '../composables/useEventContext'
-import { formatMoney, lineTotalCents, lineUnitCents } from '../utils/money'
+import {
+  discountsEnabled as eventDiscountsEnabled,
+  formatMoney,
+  lineTotalCents,
+  lineUnitCents,
+} from '../utils/money'
 import {
   articlesForIds,
   getDefaultLayout,
@@ -121,6 +159,9 @@ import AdditionsPickerSheet from '../components/AdditionsPickerSheet.vue'
 import QtyInputModal from '../components/QtyInputModal.vue'
 import VoucherRedeemSheet from '../components/VoucherRedeemSheet.vue'
 import SplitPayVoucherRow from '../components/SplitPayVoucherRow.vue'
+import OrderMenuSheet from '../components/OrderMenuSheet.vue'
+import LineDiscountSheet from '../components/LineDiscountSheet.vue'
+import OrderDiscountSheet from '../components/OrderDiscountSheet.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -136,6 +177,15 @@ const qtyModalLine = ref(null)
 const additionsPickerOpen = ref(false)
 const additionsPickerArticle = ref(null)
 const pendingAdd = ref(null)
+const orderMenuOpen = ref(false)
+const lineDiscountOpen = ref(false)
+const lineDiscountLine = ref(null)
+const orderDiscountOpen = ref(false)
+
+const discountsEnabled = computed(() => eventDiscountsEnabled(event.value))
+const showHeaderMenu = computed(
+  () => cartCount.value > 0 && (canRedeemVoucher.value || discountsEnabled.value),
+)
 
 const {
   register,
@@ -152,6 +202,8 @@ const {
   lines,
   cartCount,
   cartTotalCents,
+  orderDiscount,
+  setOrderDiscount,
   addCartLine,
   addVoucherCartLine,
   cartLineLabel,
@@ -377,11 +429,38 @@ function goBack() {
 }
 
 function openVoucherRedeem() {
+  orderMenuOpen.value = false
   if (!registerArticleCents.value) {
     showToast('Keine Artikel-Positionen für Gutschein', 'err')
     return
   }
   voucherSheetOpen.value = true
+}
+
+function onTapDiscount(line) {
+  lineDiscountLine.value = line
+  lineDiscountOpen.value = true
+}
+
+function onLineDiscountSave({ lineId, discount }) {
+  lineDiscountOpen.value = false
+  lineDiscountLine.value = null
+  if (!lineId) return
+  if (discount) {
+    updateCartLine(lineId, { discount })
+  } else {
+    updateCartLine(lineId, { discount: undefined })
+  }
+}
+
+function openOrderDiscount() {
+  orderMenuOpen.value = false
+  orderDiscountOpen.value = true
+}
+
+function onOrderDiscountSave({ discount }) {
+  orderDiscountOpen.value = false
+  setOrderDiscount(discount)
 }
 
 function onVoucherApply(redemption) {
@@ -423,36 +502,42 @@ async function submitOrder() {
           unit_cents: l.unit_cents,
         }
       }
-      return {
+      const row = {
         article_id: l.article_id,
         qty: l.qty,
         station_uuid: l.station_uuid,
         note: l.note || '',
         additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
       }
+      if (discountsEnabled.value && l.discount) row.discount = l.discount
+      return row
     })
+    const body = {
+      client_order_id,
+      event_id: event.value.id,
+      table_number: null,
+      waiter_uuid: waiter.value?.uuid ?? null,
+      order_source: 'cash_register',
+      cash_register_uuid: register.value.uuid,
+      lines: payloadLines,
+      payments: buildPayment(registerPayableCents.value, payType),
+      voucher_redemptions: voucherRedemptions.value.map((r) => ({
+        voucher_definition_uuid: r.voucher_definition_uuid,
+        article_id: r.article_id,
+        note: r.note || '',
+        qty: r.qty || 1,
+        additions: (r.additions || []).map((a) => ({
+          article_id: a.article_id,
+          qty: a.qty ?? 1,
+        })),
+      })),
+    }
+    if (discountsEnabled.value && orderDiscount.value) {
+      body.order_discount = orderDiscount.value
+    }
     const res = await api('/v1/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        client_order_id,
-        event_id: event.value.id,
-        table_number: null,
-        waiter_uuid: waiter.value?.uuid ?? null,
-        order_source: 'cash_register',
-        cash_register_uuid: register.value.uuid,
-        lines: payloadLines,
-        payments: buildPayment(registerPayableCents.value, payType),
-        voucher_redemptions: voucherRedemptions.value.map((r) => ({
-          voucher_definition_uuid: r.voucher_definition_uuid,
-          article_id: r.article_id,
-          note: r.note || '',
-          qty: r.qty || 1,
-          additions: (r.additions || []).map((a) => ({
-            article_id: a.article_id,
-            qty: a.qty ?? 1,
-          })),
-        })),
-      }),
+      body: JSON.stringify(body),
     })
     if (res.articles) patchEventArticles(event.value.id, res.articles)
     scheduleIdleAfterPickup(10000)

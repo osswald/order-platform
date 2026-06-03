@@ -423,7 +423,8 @@ def _write_station_order_lines_formatted(
     line_size: str = "large",
     show_prices: bool = True,
 ) -> tuple[int, int]:
-    from .pricing import line_total_cents
+    from .discounts import discount_hint
+    from .pricing import line_gross_cents, line_total_cents
 
     total_qty = 0
     total_cents = 0
@@ -437,13 +438,15 @@ def _write_station_order_lines_formatted(
         art = arts.get(str(aid)) or arts.get(int(aid)) or {} if aid is not None else {}
         name = line.get("article_name") or art.get("name") or (f"#{aid}" if aid is not None else "—")
         if aid is not None:
+            gross_cents = line_gross_cents(line, arts)
             line_cents = line_total_cents(line, arts)
-            row_cents = _line_base_total_cents(line, arts)
+            row_cents = line_cents if line.get("discount") else _line_base_total_cents(line, arts)
         else:
             from .pricing import line_unit_cents
 
             unit = line_unit_cents(line, arts)
-            line_cents = unit * qty
+            gross_cents = unit * qty
+            line_cents = gross_cents
             row_cents = line_cents
         total_qty += qty
         total_cents += line_cents
@@ -451,6 +454,9 @@ def _write_station_order_lines_formatted(
             write_item_row(printer, qty, name, row_cents, width, size=line_size)
         else:
             write_sized_line(printer, f"{qty}x {name}", line_size)
+        hint = discount_hint(line.get("discount"), gross_cents, line_cents)
+        if hint:
+            write_subline(printer, hint, size=line_size)
         for add in line.get("additions") or []:
             if not isinstance(add, dict):
                 continue

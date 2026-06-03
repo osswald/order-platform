@@ -28,6 +28,7 @@ class LocalOrderCreate(BaseModel):
     order_source: str = "waiter"
     cash_register_uuid: str | None = None
     lines: list[dict[str, Any]] = Field(default_factory=list)
+    order_discount: dict[str, Any] | None = None
     payments: list[dict[str, Any]] = Field(default_factory=list)
     voucher_redemptions: list[VoucherRedemptionIn] = Field(default_factory=list)
 

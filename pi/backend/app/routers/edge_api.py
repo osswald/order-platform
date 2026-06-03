@@ -114,7 +114,8 @@ from ..print_worker import (
     station_name_from_event,
     _send_to_printer,
 )
-from ..pricing import line_total_cents, line_unit_cents
+from ..discounts import validate_submit_discounts
+from ..pricing import line_total_cents, line_unit_cents, order_lines_gross_cents, order_total_cents
 from ..stock import apply_stock_to_bundle, save_bundle, validate_stock
 from ..vouchers import (
     article_lines_only,
@@ -931,11 +932,12 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     pm = (ev.get("payment_mode") or "pay_later").lower()
     arts = _article_map(ev)
     payments = list(body.payments or [])
-    line_cents, _ = _line_totals(body.lines, arts, ev)
+    normalized_order_discount = validate_submit_discounts(ev, body.lines, body.order_discount, arts)
+    line_cents, _ = order_lines_total_cents(body.lines, ev, arts, normalized_order_discount)
     redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
     if redemptions_in and not payments:
         raise HTTPException(status_code=400, detail="Gutschein einlösen erfordert Zahlung")
-    article_gross, _ = order_lines_total_cents(article_lines_only(body.lines), ev, arts)
+    article_gross = order_lines_gross_cents(article_lines_only(body.lines), ev, arts)
     voucher_credit = 0
     voucher_records: list[dict] = []
     if redemptions_in:
@@ -987,6 +989,8 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     if voucher_records:
         payload["voucher_redemptions"] = voucher_records
         payload["voucher_credit_cents"] = voucher_credit
+    if normalized_order_discount:
+        payload["order_discount"] = normalized_order_discount
     if order_source == "cash_register":
         payload.update(
             {
@@ -1128,14 +1132,14 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
 
     from ..shift_integration import record_shift_order_submit
 
-    order_gross = sum(line_total_cents(ln, arts) for ln in order_lines if isinstance(ln, dict))
+    order_amount = order_total_cents(order_lines, normalized_order_discount, ev, arts)
     record_shift_order_submit(
         db,
         ev,
         event_id=body.event_id,
         waiter_uuid=body.waiter_uuid,
         cash_register_uuid=body.cash_register_uuid if order_source == "cash_register" else None,
-        amount_cents=order_gross,
+        amount_cents=order_amount,
         reference_id=body.client_order_id,
         voucher_records=voucher_records if voucher_records and payment_status != "paid" else None,
     )

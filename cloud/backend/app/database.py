@@ -106,6 +106,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE events ADD COLUMN vouchers_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE events ADD COLUMN IF NOT EXISTS vouchers_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _add_column_if_missing(
+        "events",
+        "discounts_enabled",
+        "ALTER TABLE events ADD COLUMN discounts_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS discounts_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
     for table in ("hire_companies", "organisations", "events"):
         _add_column_if_missing(
             table,

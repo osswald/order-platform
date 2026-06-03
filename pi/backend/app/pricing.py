@@ -79,6 +79,71 @@ def line_unit_cents(line: dict, articles: dict) -> int:
     return max(0, unit)
 
 
-def line_total_cents(line: dict, articles: dict) -> int:
+def discounts_enabled(ev: dict | None) -> bool:
+    return bool((ev or {}).get("discounts_enabled"))
+
+
+def normalize_discount(raw) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    kind = str(raw.get("kind") or "").strip().lower()
+    if kind not in ("percent", "amount"):
+        return None
+    value = max(0, int(raw.get("value") or 0))
+    if kind == "percent":
+        value = min(100, value)
+    if value <= 0:
+        return None
+    return {"kind": kind, "value": value}
+
+
+def apply_discount_cents(gross_cents: int, discount: dict | None) -> int:
+    gross_cents = max(0, int(gross_cents))
+    d = normalize_discount(discount)
+    if not d:
+        return gross_cents
+    if d["kind"] == "percent":
+        off = round(gross_cents * d["value"] / 100)
+        return max(0, gross_cents - off)
+    return max(0, gross_cents - min(gross_cents, d["value"]))
+
+
+def line_gross_cents(line: dict, articles: dict) -> int:
     qty = max(1, int(line.get("qty") or 1))
     return line_unit_cents(line, articles) * qty
+
+
+def line_total_cents(line: dict, articles: dict) -> int:
+    gross = line_gross_cents(line, articles)
+    return apply_discount_cents(gross, line.get("discount"))
+
+
+def order_subtotal_cents(lines: list, ev: dict, articles: dict) -> int:
+    from .vouchers import line_total_for_order
+
+    total = 0
+    for line in lines or []:
+        if not isinstance(line, dict):
+            continue
+        total += line_total_for_order(line, ev, articles)
+    return total
+
+
+def order_total_cents(lines: list, order_discount: dict | None, ev: dict, articles: dict) -> int:
+    subtotal = order_subtotal_cents(lines, ev, articles)
+    return apply_discount_cents(subtotal, order_discount)
+
+
+def order_lines_gross_cents(lines: list, ev: dict, articles: dict) -> int:
+    from .vouchers import is_voucher_sale_line
+
+    total = 0
+    for line in lines or []:
+        if not isinstance(line, dict):
+            continue
+        if is_voucher_sale_line(line):
+            qty = max(1, int(line.get("qty") or 1))
+            total += voucher_sale_unit_cents(ev, line) * qty
+        else:
+            total += line_gross_cents(line, articles)
+    return total

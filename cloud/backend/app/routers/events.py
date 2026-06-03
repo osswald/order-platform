@@ -66,6 +66,7 @@ class EventBase(BaseModel):
     cash_registers_enabled: bool = False
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
+    discounts_enabled: bool = False
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -95,6 +96,7 @@ class EventCreate(BaseModel):
     cash_registers_enabled: bool = False
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
+    discounts_enabled: bool = False
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -128,6 +130,7 @@ class EventUpdate(BaseModel):
     cash_registers_enabled: bool | None = None
     shift_settlement_enabled: bool | None = None
     vouchers_enabled: bool | None = None
+    discounts_enabled: bool | None = None
 
 
 class EventRead(EventBase):
@@ -283,6 +286,7 @@ def event_response(event: Event) -> dict:
         "cash_registers_enabled": bool(getattr(event, "cash_registers_enabled", False)),
         "shift_settlement_enabled": bool(getattr(event, "shift_settlement_enabled", False)),
         "vouchers_enabled": bool(getattr(event, "vouchers_enabled", False)),
+        "discounts_enabled": bool(getattr(event, "discounts_enabled", False)),
     }
 
 
@@ -971,6 +975,7 @@ def create_event(
         cash_registers_enabled=bool(event_in.cash_registers_enabled),
         shift_settlement_enabled=bool(event_in.shift_settlement_enabled),
         vouchers_enabled=bool(event_in.vouchers_enabled),
+        discounts_enabled=bool(event_in.discounts_enabled),
     )
     db.add(event)
     db.flush()
@@ -1068,6 +1073,8 @@ def update_event(
         event.shift_settlement_enabled = bool(event_in.shift_settlement_enabled)
     if event_in.vouchers_enabled is not None:
         event.vouchers_enabled = bool(event_in.vouchers_enabled)
+    if event_in.discounts_enabled is not None:
+        event.discounts_enabled = bool(event_in.discounts_enabled)
     if event.end < event.start:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="End must be after start")
 

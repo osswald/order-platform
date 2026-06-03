@@ -208,6 +208,7 @@ const emptyForm = () => ({
   cashRegistersEnabled: false,
   shiftSettlementEnabled: false,
   vouchersEnabled: false,
+  discountsEnabled: false,
 })
 
 const form = ref(emptyForm())
@@ -228,6 +229,7 @@ function stammdatenSnapshot() {
     cashRegistersEnabled: Boolean(form.value.cashRegistersEnabled),
     shiftSettlementEnabled: Boolean(form.value.shiftSettlementEnabled),
     vouchersEnabled: Boolean(form.value.vouchersEnabled),
+    discountsEnabled: Boolean(form.value.discountsEnabled),
   })
 }
 
@@ -478,6 +480,7 @@ async function applyEventToForm(event) {
     cashRegistersEnabled: Boolean(event.cash_registers_enabled),
     shiftSettlementEnabled: Boolean(event.shift_settlement_enabled),
     vouchersEnabled: Boolean(event.vouchers_enabled),
+    discountsEnabled: Boolean(event.discounts_enabled),
   }
   originalStatus.value = event.status || 'config'
   stammdatenBaseline.value = stammdatenSnapshot()
@@ -592,6 +595,7 @@ async function saveEvent() {
     cash_registers_enabled: Boolean(form.value.cashRegistersEnabled),
     shift_settlement_enabled: Boolean(form.value.shiftSettlementEnabled),
     vouchers_enabled: Boolean(form.value.vouchersEnabled),
+    discounts_enabled: Boolean(form.value.discountsEnabled),
   }
   if (!editMode.value) {
     payload.organisation_id = props.activeOrganisationId

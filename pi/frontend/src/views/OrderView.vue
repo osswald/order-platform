@@ -4,8 +4,10 @@
       :table="tableNumber"
       :total-label="totalLabel"
       :qty="cartCount"
+      :show-menu="discountsEnabled && cartCount > 0"
       :disabled="submitting || !cartCount"
       @back="goHub"
+      @menu="orderMenuOpen = true"
       @submit="submitOrder"
     />
 
@@ -17,9 +19,13 @@
         :event="event"
         :currency="currency"
         :label-fn="cartLineLabel"
+        :discounts-enabled="discountsEnabled"
+        :order-discount="orderDiscount"
         @tap-name="onTapName"
         @tap-qty="onTapQty"
         @tap-price="onTapPrice"
+        @tap-discount="onTapDiscount"
+        @remove-order-discount="setOrderDiscount(null)"
       />
 
       <div class="grid-half">
@@ -38,7 +44,6 @@
     <ArticlePickerSheet
       :open="sheetOpen"
       :articles="sheetArticles"
-      :event-currency="currency"
       @close="sheetOpen = false"
       @add="onAddFromSheet"
     />
@@ -67,6 +72,34 @@
       @close="qtyModalOpen = false"
       @confirm="onQtyConfirm"
     />
+
+    <OrderMenuSheet
+      :open="orderMenuOpen"
+      :show-order-discount="discountsEnabled"
+      @close="orderMenuOpen = false"
+      @order-discount="openOrderDiscount"
+    />
+
+    <LineDiscountSheet
+      :open="lineDiscountOpen"
+      :line="lineDiscountLine"
+      :articles="articles"
+      :event="event"
+      :currency="currency"
+      @close="lineDiscountOpen = false"
+      @discount-save="onLineDiscountSave"
+    />
+
+    <OrderDiscountSheet
+      :open="orderDiscountOpen"
+      :lines="lines"
+      :articles="articles"
+      :event="event"
+      :currency="currency"
+      :order-discount="orderDiscount"
+      @close="orderDiscountOpen = false"
+      @discount-save="onOrderDiscountSave"
+    />
   </div>
 </template>
 
@@ -77,7 +110,7 @@ import { api } from '../api'
 import { useCart } from '../composables/useCart'
 import { useEventContext } from '../composables/useEventContext'
 import { useStationPrintFailures } from '../composables/useStationPrintFailures'
-import { formatMoney } from '../utils/money'
+import { discountsEnabled as eventDiscountsEnabled, formatMoney } from '../utils/money'
 import { getDefaultLayout, articlesForIds, hasAdditions, resolveStationUuidForArticle } from '../utils/bundleHelpers'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
 import CartPanel from '../components/CartPanel.vue'
@@ -87,6 +120,9 @@ import StationFallbackList from '../components/StationFallbackList.vue'
 import ArticlePickerSheet from '../components/ArticlePickerSheet.vue'
 import AdditionsPickerSheet from '../components/AdditionsPickerSheet.vue'
 import QtyInputModal from '../components/QtyInputModal.vue'
+import OrderMenuSheet from '../components/OrderMenuSheet.vue'
+import LineDiscountSheet from '../components/LineDiscountSheet.vue'
+import OrderDiscountSheet from '../components/OrderDiscountSheet.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,6 +130,8 @@ const {
   lines,
   cartCount,
   cartTotalCents,
+  orderDiscount,
+  setOrderDiscount,
   activeTableNumber,
   addCartLine,
   addVoucherCartLine,
@@ -118,6 +156,12 @@ const qtyModalLine = ref(null)
 const additionsPickerOpen = ref(false)
 const additionsPickerArticle = ref(null)
 const pendingAdd = ref(null)
+const orderMenuOpen = ref(false)
+const lineDiscountOpen = ref(false)
+const lineDiscountLine = ref(null)
+const orderDiscountOpen = ref(false)
+
+const discountsEnabled = computed(() => eventDiscountsEnabled(event.value))
 
 const tableNumber = computed(() => {
   const q = route.query.table
@@ -266,6 +310,32 @@ function onTapPrice(lineId) {
   decrementCartLine(lineId)
 }
 
+function onTapDiscount(line) {
+  lineDiscountLine.value = line
+  lineDiscountOpen.value = true
+}
+
+function onLineDiscountSave({ lineId, discount }) {
+  lineDiscountOpen.value = false
+  lineDiscountLine.value = null
+  if (!lineId) return
+  if (discount) {
+    updateCartLine(lineId, { discount })
+  } else {
+    updateCartLine(lineId, { discount: undefined })
+  }
+}
+
+function openOrderDiscount() {
+  orderMenuOpen.value = false
+  orderDiscountOpen.value = true
+}
+
+function onOrderDiscountSave({ discount }) {
+  orderDiscountOpen.value = false
+  setOrderDiscount(discount)
+}
+
 function goHub() {
   router.push({ name: 'hub' })
 }
@@ -284,7 +354,7 @@ async function submitOrder() {
           unit_cents: l.unit_cents,
         }
       }
-      return {
+      const row = {
         article_id: l.article_id,
         qty: l.qty,
         station_uuid: l.station_uuid,
@@ -294,17 +364,23 @@ async function submitOrder() {
           qty: a.qty ?? 1,
         })),
       }
+      if (discountsEnabled.value && l.discount) row.discount = l.discount
+      return row
     })
+    const body = {
+      client_order_id,
+      event_id: event.value.id,
+      table_number: tableNumber.value,
+      waiter_uuid: waiter.value?.uuid ?? null,
+      lines: payloadLines,
+      payments: [],
+    }
+    if (discountsEnabled.value && orderDiscount.value) {
+      body.order_discount = orderDiscount.value
+    }
     const res = await api('/v1/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        client_order_id,
-        event_id: event.value.id,
-        table_number: tableNumber.value,
-        waiter_uuid: waiter.value?.uuid ?? null,
-        lines: payloadLines,
-        payments: [],
-      }),
+      body: JSON.stringify(body),
     })
     if (res.articles) {
       patchEventArticles(event.value.id, res.articles)
