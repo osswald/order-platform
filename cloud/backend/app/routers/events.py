@@ -67,6 +67,7 @@ class EventBase(BaseModel):
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
     discounts_enabled: bool = False
+    offer_payment_receipt: bool = False
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -97,6 +98,7 @@ class EventCreate(BaseModel):
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
     discounts_enabled: bool = False
+    offer_payment_receipt: bool = False
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -131,6 +133,7 @@ class EventUpdate(BaseModel):
     shift_settlement_enabled: bool | None = None
     vouchers_enabled: bool | None = None
     discounts_enabled: bool | None = None
+    offer_payment_receipt: bool | None = None
 
 
 class EventRead(EventBase):
@@ -287,6 +290,7 @@ def event_response(event: Event) -> dict:
         "shift_settlement_enabled": bool(getattr(event, "shift_settlement_enabled", False)),
         "vouchers_enabled": bool(getattr(event, "vouchers_enabled", False)),
         "discounts_enabled": bool(getattr(event, "discounts_enabled", False)),
+        "offer_payment_receipt": bool(getattr(event, "offer_payment_receipt", False)),
     }
 
 
@@ -976,6 +980,7 @@ def create_event(
         shift_settlement_enabled=bool(event_in.shift_settlement_enabled),
         vouchers_enabled=bool(event_in.vouchers_enabled),
         discounts_enabled=bool(event_in.discounts_enabled),
+        offer_payment_receipt=bool(event_in.offer_payment_receipt),
     )
     db.add(event)
     db.flush()
@@ -1075,6 +1080,8 @@ def update_event(
         event.vouchers_enabled = bool(event_in.vouchers_enabled)
     if event_in.discounts_enabled is not None:
         event.discounts_enabled = bool(event_in.discounts_enabled)
+    if event_in.offer_payment_receipt is not None:
+        event.offer_payment_receipt = bool(event_in.offer_payment_receipt)
     if event.end < event.start:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="End must be after start")
 

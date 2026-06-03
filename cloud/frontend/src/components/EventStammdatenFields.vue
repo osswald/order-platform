@@ -64,7 +64,7 @@
           placeholder="Modus wählen"
           hide-details="auto"
         />
-        <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = vor Abschluss; Später = nach Absenden.</small>
+        <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = Bezahlen beim Abschicken der Bestellung; Später = Bezahlung erfolgt zu einem späteren Zeitpunkt.</small>
       </div>
       <div class="form-field">
         <label>Zahlungsarten (Pi)</label>
@@ -79,7 +79,19 @@
           closable-chips
           hide-details="auto"
         />
-        <small>Bei Abrechnung wählt der Kellner eine Art (Popup nur bei mehreren).</small>
+        <small>Bei Abrechnung wählt der Kellner eine Art (Popup erscheintnur bei mehreren Zahlungsarten).</small>
+      </div>
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="offer-payment-receipt">Zahlungsbeleg nach Bezahlung anbieten</label>
+          <v-switch
+            id="offer-payment-receipt"
+            v-model="form.offerPaymentReceipt"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">Nach Bezahlung fragt die App, ob ein Zahlungsbeleg gedruckt werden soll.</small>
       </div>
       <TwintQrField
         v-if="showTwintQrSection"
@@ -95,48 +107,61 @@
 
     <section class="field-group">
       <h3 class="field-group-title">Config</h3>
-      <div class="toggle-row">
-        <label for="cash-registers-enabled">Kassen</label>
-        <v-switch
-          id="cash-registers-enabled"
-          v-model="form.cashRegistersEnabled"
-          hide-details
-          density="compact"
-        />
-        <small>Aktiviert die Kellner-/Kassenabrechnung.</small>
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="cash-registers-enabled">Kassen</label>
+          <v-switch
+            id="cash-registers-enabled"
+            v-model="form.cashRegistersEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">Aktiviert Kassen. Kassen sind stationäre Geräte, an denen Bestellungen aufgenommen werden können.</small>
       </div>
-      <div class="toggle-row">
-        <label for="shift-settlement-enabled">Kellner-/Kassenabrechnung</label>
-        <v-switch
-          id="shift-settlement-enabled"
-          v-model="form.shiftSettlementEnabled"
-          hide-details
-          density="compact"
-        />
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="shift-settlement-enabled">Kellner-/Kassenabrechnung</label>
+          <v-switch
+            id="shift-settlement-enabled"
+            v-model="form.shiftSettlementEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">
+          Aktiviert die Schichtabrechnung für Kellner und Kassen. Zu Beginn einer Schicht wird der Kassenbestand erfasst und am Ende
+          der Schicht wird abgerechnet.
+        </small>
       </div>
-      <small>Aktiviert die Kellner-/Kassenabrechnung.</small>
-      <div class="toggle-row">
-        <label for="vouchers-enabled">Gutscheine</label>
-        <v-switch
-          id="vouchers-enabled"
-          v-model="form.vouchersEnabled"
-          hide-details
-          density="compact"
-        />
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="vouchers-enabled">Gutscheine</label>
+          <v-switch
+            id="vouchers-enabled"
+            v-model="form.vouchersEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">Aktiviert die Verwendung von Gutscheinen die bei der Bezahlung angerechnet werden können.<br>
+        Gutscheine können auch an Kassen verkauft werden.</small>
       </div>
-      <small>Aktiviert die Verwendung von Gutscheinen für die Verkauf von Produkten.</small>
-      <div class="toggle-row">
-        <label for="discounts-enabled">Rabatte aktivieren</label>
-        <v-switch
-          id="discounts-enabled"
-          hint="Aktiviert die Verwendung von Rabatten für den Verkauf von Produkten."
-          v-model="form.discountsEnabled"
-          hide-details
-          density="compact"
-          persistent-hint
-        />
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="discounts-enabled">Rabatte aktivieren</label>
+          <v-switch
+            id="discounts-enabled"
+            v-model="form.discountsEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">
+          Aktiviert die Verwendung von Rabatten.<br>
+          Rabatte können bei einer Bestellung pro Position oder für die gesamte Bestellung angewendet werden. (% oder Betrag)
+        </small>
       </div>
-      <small>Aktiviert die Verwendung von Rabatten für den Verkauf von Produkten.</small>
     </section>
   </div>
 </template>
@@ -231,21 +256,32 @@ function parseLocalDatetime(value) {
   gap: 0.75rem;
 }
 
+.toggle-block {
+  margin-bottom: 0.65rem;
+}
+
+.toggle-block:last-child {
+  margin-bottom: 0;
+}
+
 .toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.toggle-row:last-child {
   margin-bottom: 0;
 }
 
 .toggle-row label {
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+.toggle-hint {
+  display: block;
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
 small {

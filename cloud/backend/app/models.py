@@ -150,6 +150,7 @@ class Event(Base):
     shift_settlement_enabled = Column(Boolean, nullable=False, default=False)
     vouchers_enabled = Column(Boolean, nullable=False, default=False)
     discounts_enabled = Column(Boolean, nullable=False, default=False)
+    offer_payment_receipt = Column(Boolean, nullable=False, default=False)
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
     receipt_logo_data = Column(Text, nullable=True)

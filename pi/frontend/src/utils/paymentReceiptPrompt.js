@@ -69,12 +69,18 @@ async function printBluetooth(paymentId, showToast, { reprint = false } = {}) {
   }
 }
 
+/** Cloud Stammdaten: offer «Zahlungsbeleg drucken?» after payment (default off). */
+export function offerPaymentReceiptEnabled(event) {
+  return Boolean(event?.offer_payment_receipt)
+}
+
 /**
  * Ask whether to print a payment receipt; route to Bluetooth or station printer.
  * @param {{ paymentId: number|string, event: object, showToast?: Function, reprint?: boolean }} opts
  */
 export async function offerPaymentReceipt({ paymentId, event, showToast, reprint = false }) {
   if (paymentId == null || paymentId === '') return
+  if (!reprint && !offerPaymentReceiptEnabled(event)) return
 
   let wantPrint = false
   try {
