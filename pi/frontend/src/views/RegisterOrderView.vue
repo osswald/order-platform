@@ -490,38 +490,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.order-screen {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-.order-body {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
-  gap: 0.75rem;
-  padding: 0.75rem;
-}
-.cart-half,
-.grid-half {
-  min-height: 0;
-}
 .cart-half {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 0;
 }
 .register-voucher-list {
   list-style: none;
   padding: 0;
   margin: 0;
   flex-shrink: 0;
-}
-@media (max-width: 800px) {
-  .order-body {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

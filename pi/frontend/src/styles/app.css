@@ -590,6 +590,25 @@ html.android-app .split-pay-screen .split-header {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Tablet/desktop: cart left, article grid right */
+@media (min-width: 768px) {
+  .order-body {
+    display: grid;
+    grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .cart-half {
+    flex: unset;
+  }
+
+  .grid-half {
+    flex: unset;
+    padding: 0;
+  }
+}
+
 .cart-panel {
   height: 100%;
   overflow-y: auto;
