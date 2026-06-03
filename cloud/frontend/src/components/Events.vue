@@ -18,6 +18,7 @@
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
         :shift-settlement-enabled="form.shiftSettlementEnabled"
+        :stammdaten-dirty="stammdatenDirty"
       >
         <template #stammdaten>
           <EventStammdatenFields
@@ -210,7 +211,30 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
+const stammdatenBaseline = ref('')
 const originalStatus = ref('config')
+
+function stammdatenSnapshot() {
+  const types = Array.isArray(form.value.paymentTypes) ? [...form.value.paymentTypes] : []
+  types.sort()
+  return JSON.stringify({
+    name: (form.value.name || '').trim(),
+    status: form.value.status,
+    start: toIso(form.value.start),
+    end: toIso(form.value.end),
+    currency: form.value.currency,
+    paymentMode: form.value.paymentMode,
+    paymentTypes: types,
+    cashRegistersEnabled: Boolean(form.value.cashRegistersEnabled),
+    shiftSettlementEnabled: Boolean(form.value.shiftSettlementEnabled),
+    vouchersEnabled: Boolean(form.value.vouchersEnabled),
+  })
+}
+
+const stammdatenDirty = computed(() => {
+  if (!editMode.value || !stammdatenBaseline.value) return false
+  return stammdatenSnapshot() !== stammdatenBaseline.value
+})
 const hasTwintQr = ref(false)
 const twintQrPreviewUrl = ref('')
 const twintQrBusy = ref(false)
@@ -434,6 +458,7 @@ function clearFormState() {
   revokeTwintQrPreview()
   form.value = emptyForm()
   originalStatus.value = 'config'
+  stammdatenBaseline.value = ''
   message.value = ''
 }
 
@@ -455,6 +480,7 @@ async function applyEventToForm(event) {
     vouchersEnabled: Boolean(event.vouchers_enabled),
   }
   originalStatus.value = event.status || 'config'
+  stammdatenBaseline.value = stammdatenSnapshot()
   message.value = ''
   if (hasTwintQr.value) await loadTwintQrPreview()
 }
@@ -583,6 +609,9 @@ async function saveEvent() {
     })
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
+    if (wasEdit) {
+      stammdatenBaseline.value = stammdatenSnapshot()
+    }
     await fetchEvents()
     message.value = wasEdit ? 'Veranstaltung aktualisiert.' : 'Veranstaltung erstellt.'
     messageType.value = 'success'

@@ -24,7 +24,7 @@
               item-value="lending_id"
               hide-default-footer
               no-data-text="Keine aktiven Ausleihen."
-              class="vq-data-table list-table"
+              class="vq-data-table list-table lending-table"
             >
               <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
               <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
@@ -42,7 +42,7 @@
               item-value="lending_id"
               hide-default-footer
               no-data-text="Keine geplanten Ausleihen."
-              class="vq-data-table list-table"
+              class="vq-data-table list-table lending-table lending-table--planned"
             >
               <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
               <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
@@ -70,7 +70,7 @@
               item-value="lending_id"
               hide-default-footer
               no-data-text="Keine vergangenen Ausleihen."
-              class="vq-data-table list-table"
+              class="vq-data-table list-table lending-table"
             >
               <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
               <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
@@ -99,16 +99,22 @@ const props = defineProps({
   },
 })
 
+const COL_ID = { width: '5rem' }
+const COL_NAME = { minWidth: '12rem' }
+const COL_TYPE = { width: '8rem', sortable: false }
+const COL_PERIOD = { width: '14rem', sortable: false }
+const COL_ACTIONS = { align: 'end', width: '9rem', sortable: false }
+
 const lendingHeaders = [
-  { title: 'ID', key: 'appliance_id' },
-  { title: 'Gerät', key: 'appliance_name', sortable: false },
-  { title: 'Typ', key: 'appliance_type', sortable: false },
-  { title: 'Zeitraum', key: 'period', sortable: false },
+  { title: 'ID', key: 'appliance_id', ...COL_ID },
+  { title: 'Gerät', key: 'appliance_name', ...COL_NAME, sortable: false },
+  { title: 'Typ', key: 'appliance_type', ...COL_TYPE },
+  { title: 'Zeitraum', key: 'period', ...COL_PERIOD },
 ]
 
 const plannedLendingHeaders = [
   ...lendingHeaders,
-  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
+  { title: 'Aktion', key: 'actions', ...COL_ACTIONS },
 ]
 
 const lendings = ref(null)
@@ -206,6 +212,42 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
+}
+
+.lend-sections :deep(.lending-table table) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.lend-sections :deep(.lending-table th),
+.lend-sections :deep(.lending-table td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lend-sections :deep(.lending-table th:nth-child(1)),
+.lend-sections :deep(.lending-table td:nth-child(1)) {
+  width: 5rem;
+}
+
+.lend-sections :deep(.lending-table th:nth-child(2)),
+.lend-sections :deep(.lending-table td:nth-child(2)) {
+  width: auto;
+}
+
+.lend-sections :deep(.lending-table th:nth-child(3)),
+.lend-sections :deep(.lending-table td:nth-child(3)) {
+  width: 8rem;
+}
+
+.lend-sections :deep(.lending-table th:nth-child(4)),
+.lend-sections :deep(.lending-table td:nth-child(4)) {
+  width: 14rem;
+}
+
+.lend-sections :deep(.lending-table--planned th:nth-child(5)),
+.lend-sections :deep(.lending-table--planned td:nth-child(5)) {
+  width: 9rem;
 }
 
 @media (max-width: 1000px) {

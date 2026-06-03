@@ -3,7 +3,6 @@
     <p v-if="loadError" class="error">{{ loadError }}</p>
     <p v-else-if="loading" class="muted">Laden…</p>
     <template v-else>
-      <p v-if="message" :class="messageType">{{ message }}</p>
       <p v-if="!itemsLocal.length" class="muted">
         Keine Artikel an Stationen dieses Events verknüpft. Artikel zuerst unter „Stationen“ zuweisen.
       </p>
@@ -15,7 +14,7 @@
             :items="group.items"
             item-value="id"
             hide-default-footer
-            class="vq-data-table list-table nested"
+            class="vq-data-table list-table nested stock-table"
           >
             <template #item.monitor_stock="{ item }">
               <v-checkbox v-model="item.monitor_stock" hide-details density="compact" />
@@ -34,16 +33,6 @@
           </VqDataTable>
         </section>
       </template>
-      <div class="section-toolbar" style="margin-top: 1rem">
-        <v-btn
-          color="primary"
-          type="button"
-          :disabled="saving || loading"
-          @click="saveStock"
-        >
-          Lager speichern
-        </v-btn>
-      </div>
     </template>
   </div>
 </template>
@@ -52,6 +41,7 @@
 import { ref, watch, computed } from 'vue'
 import { apiFetch } from '../api'
 import { stockGroupsForItems } from '../utils/stockByStation'
+import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -65,78 +55,103 @@ const props = defineProps({
   },
 })
 
+const emit = defineEmits(['status-change'])
+
+const COL_NAME = { minWidth: '12rem' }
+const COL_MONITOR = { width: '9rem', sortable: false, align: 'center' }
+const COL_QTY = { width: '8rem', sortable: false, align: 'end' }
+
 const stockHeaders = [
-  { title: 'Artikel', key: 'name' },
-  { title: 'Bestand führen', key: 'monitor_stock', sortable: false },
-  { title: 'Bestand', key: 'in_stock', sortable: false },
+  { title: 'Artikel', key: 'name', ...COL_NAME },
+  { title: 'Bestand führen', key: 'monitor_stock', ...COL_MONITOR },
+  { title: 'Bestand', key: 'in_stock', ...COL_QTY },
 ]
 
 const loading = ref(true)
 const loadError = ref('')
-const saving = ref(false)
-const message = ref('')
-const messageType = ref('')
 const itemsLocal = ref([])
 
 const stockGroups = computed(() => stockGroupsForItems(itemsLocal.value, props.stations))
+
+function stockPayloadSnapshot() {
+  return {
+    items: itemsLocal.value.map((row) => ({
+      article_id: row.id,
+      monitor_stock: !!row.monitor_stock,
+      in_stock: row.monitor_stock ? (row.in_stock ?? 0) : null,
+    })),
+  }
+}
+
+function applyStockItems(data) {
+  itemsLocal.value = (data.items || []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    label: row.label,
+    monitor_stock: !!row.monitor_stock,
+    in_stock: row.monitor_stock ? (row.in_stock ?? 0) : 0,
+  }))
+}
+
+async function persistStock() {
+  if (!props.eventId) return false
+  const resp = await apiFetch(`/events/${props.eventId}/event-stock`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(stockPayloadSnapshot()),
+  })
+  if (!resp.ok) throw new Error(await resp.text())
+  const data = await resp.json()
+  applyStockItems(data)
+  return true
+}
+
+const autosaveEnabled = computed(() => !!props.eventId && !loading.value)
+
+const {
+  status: autosaveStatus,
+  errorMessage: autosaveError,
+  markSaved,
+  resetSnapshot,
+  flush,
+  setError,
+} = useDirtyAutosave({
+  getSnapshot: stockPayloadSnapshot,
+  saveFn: async () => {
+    try {
+      return await persistStock()
+    } catch (e) {
+      setError(e.message || 'Speichern fehlgeschlagen')
+      return false
+    }
+  },
+  watchSource: itemsLocal,
+  enabled: autosaveEnabled,
+})
+
+watch([autosaveStatus, autosaveError], () => {
+  emit('status-change', {
+    status: autosaveStatus.value,
+    errorMessage: autosaveError.value,
+  })
+}, { immediate: true })
 
 async function loadStock() {
   if (!props.eventId) return
   loading.value = true
   loadError.value = ''
-  message.value = ''
+  resetSnapshot()
   try {
     const resp = await apiFetch(`/events/${props.eventId}/event-stock`)
     if (!resp.ok) throw new Error(await resp.text())
     const data = await resp.json()
-    itemsLocal.value = (data.items || []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      label: row.label,
-      monitor_stock: !!row.monitor_stock,
-      in_stock: row.monitor_stock ? (row.in_stock ?? 0) : 0,
-    }))
+    applyStockItems(data)
+    markSaved()
   } catch (e) {
     loadError.value = e.message || 'Laden fehlgeschlagen'
     itemsLocal.value = []
   } finally {
     loading.value = false
-  }
-}
-
-async function saveStock() {
-  if (!props.eventId) return
-  saving.value = true
-  message.value = ''
-  try {
-    const payload = {
-      items: itemsLocal.value.map((row) => ({
-        article_id: row.id,
-        monitor_stock: !!row.monitor_stock,
-        in_stock: row.monitor_stock ? (row.in_stock ?? 0) : null,
-      })),
-    }
-    const resp = await apiFetch(`/events/${props.eventId}/event-stock`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    if (!resp.ok) throw new Error(await resp.text())
-    const data = await resp.json()
-    itemsLocal.value = (data.items || []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      label: row.label,
-      monitor_stock: !!row.monitor_stock,
-      in_stock: row.monitor_stock ? (row.in_stock ?? 0) : 0,
-    }))
-    message.value = 'Lager gespeichert.'
-    messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || 'Speichern fehlgeschlagen'
-    messageType.value = 'error'
-  } finally {
-    saving.value = false
   }
 }
 
@@ -147,6 +162,13 @@ watch(
   },
   { immediate: true },
 )
+
+defineExpose({
+  autosaveStatus,
+  autosaveError,
+  flush,
+  isDirty: () => autosaveStatus.value === 'dirty' || autosaveStatus.value === 'error',
+})
 </script>
 
 <style scoped>
@@ -163,6 +185,32 @@ watch(
 }
 .muted {
   opacity: 0.7;
+}
+
+.event-stock-tab :deep(.stock-table table) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.event-stock-tab :deep(.stock-table th),
+.event-stock-tab :deep(.stock-table td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-stock-tab :deep(.stock-table th:nth-child(1)),
+.event-stock-tab :deep(.stock-table td:nth-child(1)) {
+  width: auto;
+}
+
+.event-stock-tab :deep(.stock-table th:nth-child(2)),
+.event-stock-tab :deep(.stock-table td:nth-child(2)) {
+  width: 9rem;
+}
+
+.event-stock-tab :deep(.stock-table th:nth-child(3)),
+.event-stock-tab :deep(.stock-table td:nth-child(3)) {
+  width: 8rem;
 }
 
 @media (max-width: 992px) {

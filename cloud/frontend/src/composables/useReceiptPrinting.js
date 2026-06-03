@@ -1,5 +1,6 @@
-import { ref, unref } from 'vue'
+import { ref, unref, computed, watch } from 'vue'
 import { apiFetch } from '../api'
+import { useDirtyAutosave } from './useDirtyAutosave'
 
 export function defaultReceiptProfile(kind = 'station') {
   return {
@@ -33,7 +34,7 @@ export function defaultReceiptConfig(isEvent = false) {
   return cfg
 }
 
-export function useReceiptPrinting(apiBasePathRef, { isEvent = false } = {}) {
+export function useReceiptPrinting(apiBasePathRef, { isEvent = false, autosave = false } = {}) {
   const basePath = () => unref(apiBasePathRef)
   const loading = ref(false)
   const saving = ref(false)
@@ -95,11 +96,11 @@ export function useReceiptPrinting(apiBasePathRef, { isEvent = false } = {}) {
     }
   }
 
-  async function save() {
+  async function save({ silent = false } = {}) {
     const apiBasePath = basePath()
     if (!apiBasePath) return false
     saving.value = true
-    saveMessage.value = ''
+    if (!silent) saveMessage.value = ''
     try {
       const res = await apiFetch(`${apiBasePath}/receipt-printing`, {
         method: 'PUT',
@@ -113,14 +114,42 @@ export function useReceiptPrinting(apiBasePathRef, { isEvent = false } = {}) {
       const data = await res.json()
       config.value = mergeConfig(data.config || {})
       hasReceiptLogo.value = Boolean(data.has_receipt_logo)
-      saveMessage.value = 'Beleg-Einstellungen gespeichert.'
+      if (!silent) saveMessage.value = 'Beleg-Einstellungen gespeichert.'
       return true
     } catch (e) {
-      saveMessage.value = e.message || 'Speichern fehlgeschlagen'
-      return false
+      const msg = e.message || 'Speichern fehlgeschlagen'
+      if (!silent) saveMessage.value = msg
+      throw e
     } finally {
       saving.value = false
     }
+  }
+
+  const autosaveEnabled = computed(() => autosave && !!basePath() && !loading.value)
+
+  let dirtyAutosave = null
+  if (autosave) {
+    dirtyAutosave = useDirtyAutosave({
+      getSnapshot: () => config.value,
+      saveFn: async () => {
+        try {
+          return await save({ silent: true })
+        } catch (e) {
+          dirtyAutosave.setError(e.message || 'Speichern fehlgeschlagen')
+          return false
+        }
+      },
+      watchSource: config,
+      enabled: autosaveEnabled,
+    })
+    watch(loading, (isLoading, wasLoading) => {
+      if (wasLoading && !isLoading && !loadError.value) {
+        dirtyAutosave.markSaved()
+      }
+    })
+    watch(apiBasePathRef, () => {
+      dirtyAutosave.resetSnapshot()
+    })
   }
 
   async function uploadLogo(file) {
@@ -183,5 +212,8 @@ export function useReceiptPrinting(apiBasePathRef, { isEvent = false } = {}) {
     save,
     uploadLogo,
     removeLogo,
+    autosaveStatus: dirtyAutosave?.status,
+    autosaveError: dirtyAutosave?.errorMessage,
+    flushAutosave: dirtyAutosave?.flush,
   }
 }

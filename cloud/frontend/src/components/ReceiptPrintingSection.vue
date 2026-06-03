@@ -73,23 +73,18 @@
         </v-window-item>
       </v-window>
 
-      <div class="actions">
-        <v-btn
-          color="primary"
-          type="button"
-          :disabled="saving"
-          @click="save"
-        >
+      <div v-if="!autosave" class="actions">
+        <v-btn color="primary" type="button" :disabled="saving" @click="save">
           Beleg-Einstellungen speichern
         </v-btn>
       </div>
-      <p v-if="saveMessage" class="muted">{{ saveMessage }}</p>
+      <p v-if="saveMessage" class="muted" :class="{ 'error-text': saveMessage && !autosave }">{{ saveMessage }}</p>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, toRef, watch } from 'vue'
+import { ref, toRef, watch, computed } from 'vue'
 import PaymentReceiptProfileFields from './PaymentReceiptProfileFields.vue'
 import ReceiptProfileFields from './ReceiptProfileFields.vue'
 import { useReceiptPrinting } from '../composables/useReceiptPrinting'
@@ -101,6 +96,10 @@ const props = defineProps({
   title: { type: String, default: 'Belege' },
   hint: { type: String, default: '' },
 })
+
+const emit = defineEmits(['status-change'])
+
+const autosave = computed(() => props.isEvent)
 
 const fileInput = ref(null)
 const receiptTab = ref('station')
@@ -119,7 +118,24 @@ const {
   save,
   uploadLogo,
   removeLogo,
-} = useReceiptPrinting(apiBasePathRef, { isEvent: props.isEvent })
+  autosaveStatus,
+  autosaveError,
+  flushAutosave,
+} = useReceiptPrinting(apiBasePathRef, { isEvent: props.isEvent, autosave: props.isEvent })
+
+watch([autosaveStatus, autosaveError], () => {
+  if (!props.isEvent) return
+  emit('status-change', {
+    status: autosaveStatus?.value ?? 'idle',
+    errorMessage: autosaveError?.value ?? '',
+  })
+}, { immediate: true })
+
+defineExpose({
+  autosaveStatus,
+  autosaveError,
+  flushAutosave,
+})
 
 watch(
   () => [props.apiBasePath, props.entityId],
@@ -179,5 +195,10 @@ function onLogoFile(event) {
 
 .receipt-tab-panels {
   padding-top: 0.5rem;
+}
+
+.error-text {
+  color: rgb(var(--v-theme-error));
+  margin-top: 0.5rem;
 }
 </style>

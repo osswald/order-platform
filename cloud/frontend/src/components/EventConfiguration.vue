@@ -3,8 +3,6 @@
     <p v-if="loadError" class="error">{{ loadError }}</p>
     <p v-else-if="loading" class="muted">Laden…</p>
     <template v-else>
-      <p v-if="configMessage" :class="configMessageType">{{ configMessage }}</p>
-
       <EventConfigLayout
         :mobile="isMobile"
         v-model:active-tab="activeConfigTab"
@@ -83,19 +81,19 @@
             class="vq-data-table nested"
             hide-default-footer
           >
-            <template #item.name="{ item }">
-              <v-text-field v-model="item.name" density="compact" hide-details />
+            <template #item.name="{ index }">
+              <v-text-field v-model="waitersLocal[index].name" density="compact" hide-details />
             </template>
-            <template #item.pin="{ item }">
-              <v-text-field v-model="item.pin" density="compact" hide-details />
+            <template #item.pin="{ index }">
+              <v-text-field v-model="waitersLocal[index].pin" density="compact" hide-details />
             </template>
-            <template #item.actions="{ item }">
+            <template #item.actions="{ index }">
               <v-btn
                 icon="mdi-delete"
                 variant="text"
                 color="error"
                 type="button"
-                @click="removeWaiter(item)"
+                @click="removeWaiterByIndex(index)"
               />
             </template>
           </VqDataTable>
@@ -253,23 +251,25 @@
               <div class="form-field">
                 <label>Breite</label>
                 <v-number-input
-                  v-model="lo.grid_width"
+                  :model-value="lo.grid_width"
                   :min="1"
                   :max="64"
                   control-variant="stacked"
                   density="compact"
                   hide-details
+                  @update:model-value="(v) => onGridWidthChange(lo, v)"
                 />
               </div>
               <div class="form-field">
                 <label>Höhe</label>
                 <v-number-input
-                  v-model="lo.grid_height"
+                  :model-value="lo.grid_height"
                   :min="1"
                   :max="64"
                   control-variant="stacked"
                   density="compact"
                   hide-details
+                  @update:model-value="(v) => onGridHeightChange(lo, v)"
                 />
               </div>
             </div>
@@ -307,11 +307,16 @@
             is-event
             title="Beleg-Druck"
             hint="Gilt für Station- und Kundenbelege dieser Veranstaltung (Pi-Sync)."
+            @status-change="onReceiptStatusChange"
           />
         </template>
 
         <template #lager>
-          <EventStockTab :event-id="eventId" :stations="stationsLocal" />
+          <EventStockTab
+            :event-id="eventId"
+            :stations="stationsLocal"
+            @status-change="onStockStatusChange"
+          />
         </template>
 
         <template v-if="showOperationalTabs" #umsatz>
@@ -331,11 +336,15 @@
         </template>
       </EventConfigLayout>
 
-      <div class="config-save">
-        <v-btn color="primary" type="button" :disabled="saving" @click="saveConfiguration">
-          Konfiguration speichern
-        </v-btn>
-      </div>
+      <EventSaveStatusBar
+        :configuration-status="configAutosaveStatus"
+        :receipt-status="receiptSaveStatus"
+        :stock-status="stockSaveStatus"
+        :stammdaten-dirty="stammdatenDirty"
+        :configuration-error="configAutosaveError"
+        :receipt-error="receiptSaveError"
+        :stock-error="stockSaveError"
+      />
     </template>
 
     <v-dialog v-model="cellDialogVisible" max-width="32rem" class="cell-dialog">
@@ -437,10 +446,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, useSlots } from 'vue'
+import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import { apiFetch } from '../api'
+import { parseApiErrorDetail } from '../utils/apiError'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import EventConfigLayout from './EventConfigLayout.vue'
+import EventSaveStatusBar from './EventSaveStatusBar.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
@@ -471,6 +483,10 @@ const props = defineProps({
     default: false,
   },
   shiftSettlementEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  stammdatenDirty: {
     type: Boolean,
     default: false,
   },
@@ -536,9 +552,21 @@ watch(
 
 const loading = ref(true)
 const loadError = ref('')
-const saving = ref(false)
-const configMessage = ref('')
-const configMessageType = ref('')
+
+const receiptSaveStatus = ref('idle')
+const receiptSaveError = ref('')
+const stockSaveStatus = ref('idle')
+const stockSaveError = ref('')
+
+function onReceiptStatusChange({ status, errorMessage }) {
+  receiptSaveStatus.value = status || 'idle'
+  receiptSaveError.value = errorMessage || ''
+}
+
+function onStockStatusChange({ status, errorMessage }) {
+  stockSaveStatus.value = status || 'idle'
+  stockSaveError.value = errorMessage || ''
+}
 
 const printerOptions = ref([])
 const stationsLocal = ref([])
@@ -678,6 +706,73 @@ function cellVoucherUuids(c) {
   return []
 }
 
+function clampGridDim(value, fallback = 4) {
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(64, Math.max(1, n))
+}
+
+function isCellInGrid(c, width, height) {
+  return c.row >= 0 && c.col >= 0 && c.row < height && c.col < width
+}
+
+function cellHasData(c) {
+  if ((c.label || '').trim()) return true
+  if ((c.article_ids || []).length > 0) return true
+  if (cellVoucherUuids(c).length > 0) return true
+  const color = (c.color || '').toLowerCase()
+  if (color && color !== '#eeeeee' && color !== '#eee') return true
+  return false
+}
+
+function applyGridSizeChange(lo, nextW, nextH) {
+  const prevW = lo.grid_width
+  const prevH = lo.grid_height
+  nextW = clampGridDim(nextW, prevW)
+  nextH = clampGridDim(nextH, prevH)
+  if (nextW === prevW && nextH === prevH) return true
+
+  if (nextW >= prevW && nextH >= prevH) {
+    lo.grid_width = nextW
+    lo.grid_height = nextH
+    return true
+  }
+
+  if (!Array.isArray(lo.cells)) lo.cells = []
+
+  lo.cells = lo.cells.filter((c) => {
+    if (isCellInGrid(c, nextW, nextH)) return true
+    return !cellHasData(c)
+  })
+
+  const oobWithData = lo.cells.filter((c) => !isCellInGrid(c, nextW, nextH) && cellHasData(c))
+  if (oobWithData.length) {
+    const examples = oobWithData
+      .slice(0, 3)
+      .map((c) => `Zeile ${c.row + 1}, Spalte ${c.col + 1}`)
+      .join('; ')
+    const more = oobWithData.length > 3 ? ' …' : ''
+    const msg =
+      oobWithData.length === 1
+        ? `1 Zelle mit Inhalt liegt ausserhalb des neuen Rasters (${examples}) und wird entfernt. Fortfahren?`
+        : `${oobWithData.length} Zellen mit Inhalt liegen ausserhalb des neuen Rasters (z. B. ${examples}${more}) und werden entfernt. Fortfahren?`
+    if (!confirm(msg)) return false
+    lo.cells = lo.cells.filter((c) => isCellInGrid(c, nextW, nextH))
+  }
+
+  lo.grid_width = nextW
+  lo.grid_height = nextH
+  return true
+}
+
+function onGridWidthChange(lo, value) {
+  applyGridSizeChange(lo, value, lo.grid_height)
+}
+
+function onGridHeightChange(lo, value) {
+  applyGridSizeChange(lo, lo.grid_width, value)
+}
+
 function cellPreviewMeta(lo, row, col) {
   const c = displayCell(lo, row, col)
   const vCount = cellVoucherUuids(c).length
@@ -793,9 +888,39 @@ function addWaiterRow() {
   waitersLocal.value.push({ _key: `nw-${waiterKey}`, name: '', pin: '0000', source_waiter_id: null })
 }
 
-function removeWaiter(row) {
-  const ix = waitersLocal.value.indexOf(row)
+function removeWaiterByIndex(ix) {
   if (ix >= 0) waitersLocal.value.splice(ix, 1)
+}
+
+function configurationValidationError() {
+  for (const s of stationsLocal.value) {
+    if (!(s.name || '').trim()) {
+      return 'Bitte einen Namen für jede Station angeben.'
+    }
+  }
+  for (const w of waitersLocal.value) {
+    if (!(w.name || '').trim()) {
+      return 'Bitte einen Namen für jeden Event-Kellner angeben.'
+    }
+    if (!(String(w.pin || '')).trim()) {
+      return 'Bitte eine PIN für jeden Event-Kellner angeben.'
+    }
+  }
+  if (props.cashRegistersEnabled) {
+    for (const reg of cashRegistersLocal.value) {
+      if (!(reg.name || '').trim()) {
+        return 'Bitte einen Namen für jede Kasse angeben.'
+      }
+    }
+  }
+  if (props.vouchersEnabled) {
+    for (const vd of vouchersLocal.value) {
+      if (!(vd.name || '').trim()) {
+        return 'Bitte einen Namen für jeden Gutschein angeben.'
+      }
+    }
+  }
+  return null
 }
 
 function addLayout() {
@@ -840,7 +965,7 @@ function removeCashRegister(idx) {
 async function loadConfiguration() {
   loading.value = true
   loadError.value = ''
-  configMessage.value = ''
+  if (resetConfigSnapshot) resetConfigSnapshot()
   try {
     const [cfgRes, artRes, wRes] = await Promise.all([
       apiFetch(`/events/${props.eventId}/configuration`),
@@ -912,6 +1037,9 @@ async function loadConfiguration() {
     loadError.value = 'Konfiguration konnte nicht geladen werden.'
   } finally {
     loading.value = false
+    if (!loadError.value && markConfigSaved) {
+      markConfigSaved()
+    }
   }
 }
 
@@ -921,7 +1049,7 @@ async function openCellDialog(layoutIndex, row, col) {
   cellEditCol.value = col
   cellTreeFilter.value = ''
   const lo = layoutsLocal.value[layoutIndex]
-  const c = ensureCell(lo, row, col)
+  const c = displayCell(lo, row, col)
   const vUuids = cellVoucherUuids(c)
   cellEdit.value = {
     label: c.label || '',
@@ -1017,18 +1145,20 @@ function buildPutPayload() {
       is_default: !!lo.is_default,
       grid_width: lo.grid_width,
       grid_height: lo.grid_height,
-      cells: (lo.cells || []).map((c) => {
-        const vUuids = cellVoucherUuids(c)
-        return {
-          row: c.row,
-          col: c.col,
-          label: c.label || '',
-          color: c.color || '#eeeeee',
-          article_ids: Array.isArray(c.article_ids) ? c.article_ids : [],
-          voucher_definition_uuid: vUuids[0] || null,
-          voucher_definition_uuids: vUuids,
-        }
-      }),
+      cells: (lo.cells || [])
+        .filter((c) => isCellInGrid(c, lo.grid_width, lo.grid_height))
+        .map((c) => {
+          const vUuids = cellVoucherUuids(c)
+          return {
+            row: c.row,
+            col: c.col,
+            label: c.label || '',
+            color: c.color || '#eeeeee',
+            article_ids: Array.isArray(c.article_ids) ? c.article_ids : [],
+            voucher_definition_uuid: vUuids[0] || null,
+            voucher_definition_uuids: vUuids,
+          }
+        }),
     })),
     voucher_definitions: vouchersLocal.value.map((vd) => {
       const row = {
@@ -1057,9 +1187,12 @@ function buildPutPayload() {
   }
 }
 
-async function saveConfiguration() {
-  configMessage.value = ''
-  saving.value = true
+async function persistConfiguration() {
+  const validationErr = configurationValidationError()
+  if (validationErr) {
+    setConfigAutosaveError(validationErr)
+    return false
+  }
   try {
     const response = await apiFetch(`/events/${props.eventId}/configuration`, {
       method: 'PUT',
@@ -1067,29 +1200,71 @@ async function saveConfiguration() {
       body: JSON.stringify(buildPutPayload()),
     })
     if (!response.ok) {
-      let detail = await response.text()
-      try {
-        const j = JSON.parse(detail)
-        if (typeof j.detail === 'string') detail = j.detail
-      } catch {
-        /* ignore */
-      }
-      configMessage.value = detail || 'Speichern fehlgeschlagen.'
-      configMessageType.value = 'error'
-      return
+      setConfigAutosaveError(await parseApiErrorDetail(response))
+      return false
     }
     const cfg = await response.json()
     printerOptions.value = cfg.printer_options || []
-    configMessage.value = 'Konfiguration gespeichert.'
-    configMessageType.value = 'success'
-    await loadConfiguration()
+    return true
   } catch {
-    configMessage.value = 'Konfiguration konnte nicht gespeichert werden.'
-    configMessageType.value = 'error'
-  } finally {
-    saving.value = false
+    setConfigAutosaveError('Konfiguration konnte nicht gespeichert werden.')
+    return false
   }
 }
+
+const configWatchSource = computed(() => ({
+  stations: stationsLocal.value,
+  waiters: waitersLocal.value,
+  layouts: layoutsLocal.value,
+  vouchers: vouchersLocal.value,
+  cashRegisters: cashRegistersLocal.value,
+}))
+
+const configAutosaveEnabled = computed(
+  () => !loading.value && !loadError.value && !cellDialogVisible.value,
+)
+
+const {
+  status: configAutosaveStatus,
+  errorMessage: configAutosaveError,
+  markSaved: markConfigSaved,
+  resetSnapshot: resetConfigSnapshot,
+  flush: flushConfigAutosave,
+  setError: setConfigAutosaveError,
+  isDirty: configIsDirty,
+} = useDirtyAutosave({
+  getSnapshot: buildPutPayload,
+  saveFn: persistConfiguration,
+  watchSource: configWatchSource,
+  enabled: configAutosaveEnabled,
+  validate: configurationValidationError,
+})
+
+const hasUnsavedChanges = computed(
+  () =>
+    props.stammdatenDirty ||
+    configIsDirty.value ||
+    configAutosaveStatus.value === 'dirty' ||
+    configAutosaveStatus.value === 'saving' ||
+    receiptSaveStatus.value === 'dirty' ||
+    receiptSaveStatus.value === 'saving' ||
+    stockSaveStatus.value === 'dirty' ||
+    stockSaveStatus.value === 'saving',
+)
+
+function onBeforeUnload(event) {
+  if (!hasUnsavedChanges.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', onBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload)
+})
 
 watch(
   () => props.eventId,
@@ -1190,14 +1365,6 @@ label {
   font-size: 0.65rem;
   opacity: 0.65;
   line-height: 1.1;
-}
-
-.config-save {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-  display: flex;
-  justify-content: flex-end;
 }
 
 .vq-data-table.nested {
