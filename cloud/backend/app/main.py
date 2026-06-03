@@ -22,6 +22,7 @@ from .routers import (
     organisations,
     stripe_connect,
     stripe_terminal,
+    stripe_webhooks,
     appliances,
     users,
     waiters,
@@ -110,4 +111,5 @@ app.include_router(articles.router, prefix="/articles", tags=["articles"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])
 app.include_router(stripe_connect.router, prefix="/stripe/connect", tags=["stripe-connect"])
+app.include_router(stripe_webhooks.router, prefix="/stripe", tags=["stripe-webhooks"])
 app.include_router(stripe_terminal.router, prefix="/edge", tags=["stripe-terminal"])

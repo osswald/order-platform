@@ -26,7 +26,7 @@ android {
 
     defaultConfig {
         applicationId = "ch.vendiqo.app"
-        minSdk = 31
+        minSdk = 33
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersion
@@ -80,6 +80,9 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.webkit:webkit:1.12.1")
+    val stripeTerminalVersion = "5.5.1"
+    implementation("com.stripe:stripeterminal-taptopay:$stripeTerminalVersion")
+    implementation("com.stripe:stripeterminal-core:$stripeTerminalVersion")
 }
 
 val frontendDir = rootProject.projectDir.parentFile.resolve("pi/frontend")

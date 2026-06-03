@@ -14,6 +14,7 @@ from ..deps import get_db
 from ..models import Organisation
 from ..stripe_client import StripeConfigError
 from .. import stripe_client
+from ..stripe_connect_status import update_organisation_from_stripe_account
 from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
 
 router = APIRouter()
@@ -46,13 +47,6 @@ def _stripe_error(exc: Exception) -> HTTPException:
         message = getattr(exc, "user_message", None) or str(exc)
         return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
     return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Stripe request failed")
-
-
-def _update_connect_status(organisation: Organisation, account) -> None:
-    organisation.stripe_charges_enabled = bool(getattr(account, "charges_enabled", False))
-    organisation.stripe_payouts_enabled = bool(getattr(account, "payouts_enabled", False))
-    organisation.stripe_details_submitted = bool(getattr(account, "details_submitted", False))
-    organisation.stripe_account_updated_at = datetime.now(timezone.utc)
 
 
 def _status_response(organisation: Organisation) -> StripeConnectStatus:
@@ -102,7 +96,7 @@ def create_connect_account_link(
                 country=organisation.country,
             )
             organisation.stripe_account_id = account.id
-            _update_connect_status(organisation, account)
+            update_organisation_from_stripe_account(organisation, account)
 
         link = stripe_client.create_account_link(
             account_id=organisation.stripe_account_id,
@@ -131,7 +125,7 @@ def refresh_connect_status(
         account = stripe_client.retrieve_account(organisation.stripe_account_id)
     except Exception as exc:
         raise _stripe_error(exc) from exc
-    _update_connect_status(organisation, account)
+    update_organisation_from_stripe_account(organisation, account)
     db.commit()
     db.refresh(organisation)
     return _status_response(organisation)

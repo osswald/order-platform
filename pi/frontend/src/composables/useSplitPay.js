@@ -4,7 +4,7 @@ import { api } from '../api'
 import { formatAmount } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
-import { pickPaymentType } from '../utils/pickPaymentType'
+import { resolvePaymentsForAmount } from '../utils/resolvePayment'
 
 export function useSplitPay({
   event,
@@ -101,8 +101,7 @@ export function useSplitPay({
     if (paymentMode.value === 'instant') {
       return buildPayment(cents, 'instant')
     }
-    const payType = await pickPaymentType(event.value, cents)
-    return buildPayment(cents, payType)
+    return resolvePaymentsForAmount(event.value, cents)
   }
 
   async function reload() {
@@ -148,7 +147,15 @@ export function useSplitPay({
 
   async function onGreenCheck(onFullySettled) {
     if (!rawBasketCents.value) return
-    const payments = await paymentsForAmount(basketCents.value)
+    let payments
+    try {
+      payments = await paymentsForAmount(basketCents.value)
+    } catch (e) {
+      if (e?.message !== 'cancelled') {
+        showToast(e?.message || 'Zahlung abgebrochen.', 'err')
+      }
+      return
+    }
     return settlePartial(payments, onFullySettled)
   }
 

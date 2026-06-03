@@ -48,8 +48,7 @@ import { useCart } from '../composables/useCart'
 import { useEventContext } from '../composables/useEventContext'
 import { formatAmount, lineTotalCents } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
-import { buildPayment } from '../utils/paymentTypes'
-import { pickPaymentType } from '../utils/pickPaymentType'
+import { resolvePaymentsForAmount } from '../utils/resolvePayment'
 import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
 import MoneyKeypad from '../components/MoneyKeypad.vue'
 
@@ -105,19 +104,24 @@ onMounted(async () => {
 
 async function pay() {
   if (cashMismatch.value) return
-  let payType
+  let payments
   try {
-    payType = await pickPaymentType(event.value, cashCents.value)
-  } catch {
+    payments = await resolvePaymentsForAmount(
+      event.value,
+      cashCents.value,
+      String(orderId.value),
+    )
+  } catch (e) {
+    if (e?.message !== 'cancelled') {
+      showToast(e?.message || 'Zahlung abgebrochen.', 'err')
+    }
     return
   }
   paying.value = true
   try {
     const res = await api(`/v1/orders/${orderId.value}/pay`, {
       method: 'POST',
-      body: JSON.stringify({
-        payments: buildPayment(cashCents.value, payType),
-      }),
+      body: JSON.stringify({ payments }),
     })
     activeTableNumber.value = null
     showToast('Bezahlt.', 'ok')

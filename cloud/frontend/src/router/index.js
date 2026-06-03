@@ -12,6 +12,7 @@ import HireCompanies from '../components/HireCompanies.vue'
 import Appliances from '../components/Appliances.vue'
 import Users from '../components/Users.vue'
 import AccountSettings from '../components/AccountSettings.vue'
+import StripeConnectReturn from '../components/StripeConnectReturn.vue'
 import LoginPage from '../components/LoginPage.vue'
 import SectionPlaceholder from '../components/SectionPlaceholder.vue'
 
@@ -75,6 +76,18 @@ const routes = [
     name: 'settings',
     component: AccountSettings,
     meta: orgScoped,
+  },
+  {
+    path: '/settings/stripe/return',
+    name: 'stripe-connect-return',
+    component: StripeConnectReturn,
+    meta: tenantAdminOnly,
+  },
+  {
+    path: '/settings/stripe/refresh',
+    name: 'stripe-connect-refresh',
+    component: StripeConnectReturn,
+    meta: tenantAdminOnly,
   },
   {
     path: '/no-access/:section',

@@ -33,3 +33,13 @@ export function eventTwintQrDataUrl(event) {
 export function buildPayment(amountCents, type) {
   return [{ type, amount_cents: Math.max(0, Number(amountCents) || 0) }]
 }
+
+export function buildStripeTerminalPayment(amountCents, paymentIntentId) {
+  return [
+    {
+      type: 'stripe_terminal',
+      amount_cents: Math.max(0, Number(amountCents) || 0),
+      stripe_payment_intent_id: String(paymentIntentId || '').trim(),
+    },
+  ]
+}

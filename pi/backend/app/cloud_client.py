@@ -112,6 +112,23 @@ async def submit_operational_chunk(
         return r.json()
 
 
+async def ping_cloud_reachable() -> tuple[bool, str | None]:
+    """Return whether the Pi can reach the cloud API (for Terminal gating)."""
+    try:
+        base, _, _ = _require_config()
+    except CloudConfigError:
+        return False, "not_configured"
+    url = f"{base}/health"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(url)
+            if r.is_success:
+                return True, None
+            return False, f"http_{r.status_code}"
+    except Exception as exc:
+        return False, str(exc)[:200]
+
+
 async def create_terminal_connection_token(event_id: int) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/terminal/connection-token"

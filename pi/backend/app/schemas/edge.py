@@ -127,6 +127,11 @@ class SyncPushResponse(BaseModel):
     errors: list[SyncPushError] = Field(default_factory=list)
 
 
+class CloudReachableResponse(BaseModel):
+    reachable: bool
+    reason: str | None = None
+
+
 class SyncStatusResponse(BaseModel):
     """Mirrors sync_service.sync_status plus per-request fields."""
 

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -15,6 +16,7 @@ from ..cloud_client import (
     CloudConfigError,
     create_terminal_connection_token as cloud_create_terminal_connection_token,
     create_terminal_payment_intent as cloud_create_terminal_payment_intent,
+    ping_cloud_reachable,
     retrieve_terminal_payment_intent as cloud_retrieve_terminal_payment_intent,
 )
 from ..sync_service import (
@@ -64,6 +66,7 @@ from ..schemas.edge import (
     StationTestPrintResult,
     RegisterDisplayBody,
     RegisterDisplayResponse,
+    CloudReachableResponse,
     SyncMetaResponse,
     SyncPullResponse,
     SyncPushResponse,
@@ -130,6 +133,7 @@ router = APIRouter()
 
 PAYMENT_MODES_CASH = {"pay_now", "instant"}
 ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "stripe_terminal"})
+STRIPE_PAYMENT_INTENT_ID_PATTERN = re.compile(r"^pi_[A-Za-z0-9_]+$")
 
 
 def _event_payment_types(ev: dict) -> set[str]:
@@ -171,6 +175,13 @@ def _validate_payment_types(ev: dict, payments: list) -> None:
                 status_code=400,
                 detail=f"Payment type «{t or '?'}» is not allowed for this event",
             )
+        if t == "stripe_terminal":
+            pi_id = (p.get("stripe_payment_intent_id") or "").strip()
+            if not STRIPE_PAYMENT_INTENT_ID_PATTERN.match(pi_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Stripe Terminal payment requires a valid stripe_payment_intent_id",
+                )
 
 
 def _get_bundle_dict(db: Session) -> dict:
@@ -647,6 +658,14 @@ async def terminal_payment_intent_status(
         raise _cloud_config_http_error(e) from e
     except httpx.HTTPStatusError as e:
         raise _cloud_gateway_http_error(e) from e
+
+
+@router.get("/v1/cloud/reachable", response_model=CloudReachableResponse)
+async def get_cloud_reachable() -> CloudReachableResponse:
+    if not is_cloud_configured():
+        return CloudReachableResponse(reachable=False, reason="not_configured")
+    reachable, reason = await ping_cloud_reachable()
+    return CloudReachableResponse(reachable=reachable, reason=reason)
 
 
 @router.get("/v1/sync/status", response_model=SyncStatusResponse)

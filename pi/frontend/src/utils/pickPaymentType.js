@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { formatAmount } from './money'
 import { eventPaymentTypes, eventTwintQrDataUrl } from './paymentTypes'
+import { stripeTerminalPickerEntry } from './stripeTerminalAvailability'
 
 export const pickerOpen = ref(false)
 export const pickerTypes = ref([])
@@ -20,12 +21,34 @@ function amountLabelFor(cents) {
   return ''
 }
 
-function pickTypeFromSheet(event, amountCents) {
+function entryValue(entry) {
+  return typeof entry === 'object' && entry != null ? entry.value : entry
+}
+
+function entryDisabled(entry) {
+  return Boolean(typeof entry === 'object' && entry != null && entry.disabled)
+}
+
+async function buildPickerEntries(event) {
   const types = eventPaymentTypes(event)
-  if (types.length === 1) {
-    return Promise.resolve(types[0])
+  const entries = []
+  for (const t of types) {
+    if (t === 'stripe_terminal') {
+      entries.push(await stripeTerminalPickerEntry())
+    } else {
+      entries.push({ value: t, disabled: false })
+    }
   }
-  pickerTypes.value = types
+  return entries
+}
+
+async function pickTypeFromSheet(event, amountCents) {
+  const entries = await buildPickerEntries(event)
+  const enabled = entries.filter((e) => !entryDisabled(e))
+  if (entries.length === 1 && enabled.length === 1) {
+    return entryValue(enabled[0])
+  }
+  pickerTypes.value = entries
   pickerAmountLabel.value = amountLabelFor(amountCents)
   pickerOpen.value = true
   return new Promise((resolve, reject) => {
@@ -59,7 +82,15 @@ export async function pickPaymentType(event, amountCents = null, hooks = {}) {
   return type
 }
 
-export function confirmPaymentType(type) {
+export function confirmPaymentType(typeOrEntry) {
+  const entry =
+    typeof typeOrEntry === 'object' && typeOrEntry != null
+      ? typeOrEntry
+      : pickerTypes.value.find((e) => entryValue(e) === typeOrEntry)
+  if (entry && entryDisabled(entry)) {
+    return
+  }
+  const type = entryValue(entry ?? typeOrEntry)
   pickerOpen.value = false
   const r = resolvePick
   resolvePick = null

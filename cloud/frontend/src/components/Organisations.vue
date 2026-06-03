@@ -84,6 +84,8 @@
         </div>
       </template>
 
+      <OrganisationStripeSection v-if="editMode && activeId" :organisation-id="activeId" />
+
       <ReceiptPrintingSection
         v-if="editMode && activeId"
         :api-base-path="`/organisations/${activeId}`"
@@ -187,6 +189,7 @@ import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
+import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'

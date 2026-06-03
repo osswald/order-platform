@@ -145,8 +145,7 @@ import {
   voucherDefinitionByUuid,
   cartLineLabelForEvent,
 } from '../utils/bundleHelpers'
-import { buildPayment } from '../utils/paymentTypes'
-import { pickPaymentType } from '../utils/pickPaymentType'
+import { resolvePaymentsForAmount } from '../utils/resolvePayment'
 import { useRoute } from 'vue-router'
 import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
@@ -475,24 +474,32 @@ function removeVoucherLine(index) {
 
 async function submitOrder() {
   if (!cartCount.value || !event.value || !register.value) return
-  let payType
+  const client_order_id = `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  let payments
   try {
-    payType = await pickPaymentType(event.value, registerPayableCents.value, {
-      onTwintShow: ({ dataUrl, amountCents }) =>
-        updateDisplay({
-          state: 'twint',
-          show_twint: true,
-          twint_qr_data_url: dataUrl,
-          total_cents: amountCents,
-        }),
-      onTwintHide: () => {},
-    })
-  } catch {
+    payments = await resolvePaymentsForAmount(
+      event.value,
+      registerPayableCents.value,
+      client_order_id,
+      {
+        onTwintShow: ({ dataUrl, amountCents }) =>
+          updateDisplay({
+            state: 'twint',
+            show_twint: true,
+            twint_qr_data_url: dataUrl,
+            total_cents: amountCents,
+          }),
+        onTwintHide: () => {},
+      },
+    )
+  } catch (e) {
+    if (e?.message !== 'cancelled') {
+      showToast(e?.message || 'Zahlung abgebrochen.', 'err')
+    }
     return
   }
   submitting.value = true
   try {
-    const client_order_id = `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
     const payloadLines = lines.value.map((l) => {
       if (l.kind === 'voucher_sale') {
         return {
@@ -520,7 +527,7 @@ async function submitOrder() {
       order_source: 'cash_register',
       cash_register_uuid: register.value.uuid,
       lines: payloadLines,
-      payments: buildPayment(registerPayableCents.value, payType),
+      payments,
       voucher_redemptions: voucherRedemptions.value.map((r) => ({
         voucher_definition_uuid: r.voucher_definition_uuid,
         article_id: r.article_id,

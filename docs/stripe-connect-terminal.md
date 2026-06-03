@@ -1,8 +1,10 @@
 # Stripe Connect and Terminal integration
 
-This repository now has the first integration seam for organisations that want
-their own Stripe account connected in the cloud and in-person card payments
-collected from Android waiter devices.
+Organisations connect their own Stripe account in the cloud admin UI. In-person
+contactless payments run on Android waiter devices via **Tap to Pay** (Stripe
+Terminal SDK). Raspberry Pi and Android never receive the platform Stripe secret;
+they use Pi-local APIs that proxy to cloud edge endpoints with existing appliance
+credentials.
 
 ## Ownership model
 
@@ -16,15 +18,23 @@ collected from Android waiter devices.
 
 ## Cloud endpoints
 
-Cloud admin onboarding:
+Cloud admin onboarding (`tenant admin`):
 
 - `GET /stripe/connect/organisations/{organisation_id}/status`
 - `POST /stripe/connect/organisations/{organisation_id}/account-link`
 - `POST /stripe/connect/organisations/{organisation_id}/refresh`
 
-The onboarding request returns a Stripe Account Link for the selected
-organisation. The cloud stores the connected account id and readiness flags on
-`organisations`.
+UI: **Organisationen** → organisation detail → section **Kartenzahlung (Stripe)**.
+
+Return URLs (configure in cloud `.env`):
+
+- `STRIPE_CONNECT_RETURN_URL` → `https://<admin-host>/settings/stripe/return`
+- `STRIPE_CONNECT_REFRESH_URL` → `https://<admin-host>/settings/stripe/refresh`
+
+Webhooks:
+
+- `POST /stripe/webhooks` — events: `account.updated`, `payment_intent.succeeded`
+- Set `STRIPE_WEBHOOK_SECRET` from the Stripe Dashboard endpoint signing secret.
 
 Edge-authenticated Terminal endpoints:
 
@@ -36,19 +46,38 @@ The cloud creates Terminal PaymentIntents on the connected account using
 `payment_method_types=["card_present"]`, which is the Terminal-specific
 exception to the general rule of not hard-coding payment method types.
 
-## Pi and Android flow
+## Pi endpoints
+
+- `GET /v1/cloud/reachable` — short probe to cloud `/health` (gates Terminal in UI)
+- `POST /v1/terminal/connection-token` — proxy to cloud
+- `POST /v1/terminal/payment-intents` — proxy to cloud
+- `GET /v1/terminal/payment-intents/{id}?event_id=...` — proxy to cloud
+
+## Payment type availability (Pi PWA)
+
+Event flag: **Karte (Stripe Terminal)** (`stripe_terminal`) in cloud event config.
+
+The picker **always shows** Karte when enabled on the event, but the button is
+**disabled** unless:
+
+1. **Android app** — WebView with `AndroidTerminal` bridge / `PiFrontendAndroid` user agent
+2. **Cloud reachable** — `GET /v1/cloud/reachable` succeeds (internet; Terminal APIs need cloud)
+
+Hints under a disabled button: «Nur in der Android-App verfügbar.» / «Cloud-Verbindung erforderlich.»
+
+## Android Tap to Pay flow
 
 1. Cloud admin connects the event organisation to Stripe and enables
    `stripe_terminal` as an event payment type.
 2. Pi sync pulls the event bundle and exposes `stripe_terminal` locally.
-3. The waiter selects "Karte" in the Android WebView.
-4. The PWA calls `POST /v1/terminal/payment-intents` on the Pi.
-5. The Pi proxies the request to cloud and receives a PaymentIntent client
-   secret.
-6. The PWA calls the native `window.AndroidTerminal.collectPayment(...)` bridge.
-7. Kotlin uses Stripe Terminal SDK to discover/connect the reader, collect the
-   payment method, and confirm the PaymentIntent.
-8. The PWA records the completed payment as:
+3. Waiter selects **Karte** (enabled only on Android with cloud).
+4. PWA calls `POST /v1/terminal/payment-intents` on the Pi.
+5. Pi proxies to cloud and returns a PaymentIntent client secret.
+6. PWA calls `POST /v1/terminal/connection-token`, then native
+   `window.AndroidTerminal.collectPayment(connectionToken, clientSecret)`.
+7. Kotlin (Stripe Terminal SDK, Tap to Pay) discovers/connects the on-device reader,
+   collects the card, and confirms the PaymentIntent.
+8. PWA records:
 
 ```json
 {
@@ -58,17 +87,17 @@ exception to the general rule of not hard-coding payment method types.
 }
 ```
 
-The order/payment payload then syncs to cloud through the existing outbox.
+The order/payment payload syncs to cloud through the existing outbox.
 
-## Android bridge contract
+### Android bridge contract
 
-`pi/frontend/src/utils/androidTerminal.js` expects a native object:
+`pi/frontend/src/utils/androidTerminal.js` expects:
 
 ```kotlin
 webView.addJavascriptInterface(stripeTerminalBridge, "AndroidTerminal")
 ```
 
-Minimum bridge method:
+Minimum method:
 
 ```kotlin
 @JavascriptInterface
@@ -87,9 +116,9 @@ or:
 { "ok": false, "error": "Reader disconnected" }
 ```
 
-The native implementation should add Stripe Terminal SDK, Android location/NFC
-permissions as required by the selected reader mode, and manage reader
-discovery/reconnect lifecycle outside the WebView.
+Implementation: `android/app/.../StripeTerminalBridge.kt` with
+`stripeterminal-taptopay` + `stripeterminal-core` (see `app/build.gradle.kts`).
+`minSdk` is 33 for Tap to Pay. Location permission is required.
 
 ## Required configuration
 
@@ -102,15 +131,26 @@ STRIPE_CONNECT_RETURN_URL=https://admin.vendiqo.ch/settings/stripe/return
 STRIPE_CONNECT_REFRESH_URL=https://admin.vendiqo.ch/settings/stripe/refresh
 ```
 
-Use a restricted Stripe key with the minimum permissions needed for Connect,
-Account Links, Terminal Connection Tokens, and PaymentIntents.
+Use a restricted Stripe key with Connect, Account Links, Terminal Connection Tokens,
+and PaymentIntents.
 
-## Remaining production work
+Pi: cloud pairing (`CLOUD_BASE_URL`, edge credentials) — no `STRIPE_*` on Pi.
 
-- Add the cloud admin UI panel for Connect onboarding status and account-link
-  launch.
-- Implement `StripeTerminalBridge.kt` with the Stripe Terminal Android SDK.
-- Gate the "Karte" picker action on cloud connectivity because Terminal cannot
-  complete offline.
-- Add Stripe webhooks for `account.updated` and `payment_intent.succeeded` to
-  reconcile onboarding status and payment completion.
+Stripe Dashboard: enable **Tap to Pay on Android** for the platform and connected accounts.
+
+## Manual test checklist
+
+| Scenario | Expected |
+|----------|----------|
+| Browser PWA, event has Karte | Karte button visible, **disabled** |
+| Android offline / cloud down | Karte **disabled**, cloud hint |
+| Android online, org not onboarded | Karte enabled; payment fails at PI creation (409) |
+| Connect onboarding in cloud | Status chips update; `charges_enabled` true |
+| Event + Karte enabled, Android online | Tap to Pay flow completes; payment has `stripe_payment_intent_id` |
+| Webhook `account.updated` | Organisation flags refresh without manual refresh |
+
+## Troubleshooting
+
+- **503 Stripe not configured** — set `STRIPE_SECRET_KEY` on cloud backend.
+- **Karte disabled on Android** — check location permission and `GET /v1/cloud/reachable`.
+- **Terminal SDK errors** — device must support Tap to Pay (GMS, NFC); use Stripe test mode / simulated reader in debug builds.

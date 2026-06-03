@@ -21,6 +21,9 @@
       @cancel="onTwintQrCancel"
     />
     <ShiftOpenDialog />
+    <div v-if="terminalPaymentBusy" class="terminal-busy-overlay" aria-live="polite">
+      <p>Karte an das Gerät halten…</p>
+    </div>
     <PaymentReceiptPromptSheet
       :open="receiptPromptOpen"
       :step="receiptPromptStep"
@@ -63,6 +66,7 @@ import {
   confirmTwintQr,
   cancelTwintQr,
 } from './utils/pickPaymentType'
+import { terminalPaymentBusy } from './utils/resolvePayment'
 import {
   receiptPromptOpen,
   receiptPromptStep,
