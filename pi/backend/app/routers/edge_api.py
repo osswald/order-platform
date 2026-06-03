@@ -25,6 +25,7 @@ from ..sync_service import (
     pull_bundle,
     push_outbox,
     reapply_pending_stock,
+    sync_cycle_lock,
     sync_status,
 )
 from ..deps import get_db
@@ -682,11 +683,19 @@ def get_sync_status(db: Session = Depends(get_db)) -> SyncStatusResponse:
 
 @router.post("/v1/sync/pull", response_model=SyncPullResponse)
 async def sync_pull(db: Session = Depends(get_db)) -> SyncPullResponse:
-    try:
-        result = await pull_bundle(db)
-        reapply_pending_stock(db, result.get("bundle"))
-    except CloudConfigError as e:
-        raise _cloud_config_http_error(e) from e
+    async with sync_cycle_lock:
+        try:
+            result = await pull_bundle(db)
+            reapply_pending_stock(db, result.get("bundle"))
+        except CloudConfigError as e:
+            raise _cloud_config_http_error(e) from e
+        except httpx.HTTPStatusError as e:
+            raise _cloud_gateway_http_error(e) from e
+        except httpx.HTTPError as e:
+            raise HTTPException(
+                status_code=502,
+                detail="Cloud bundle endpoint could not be reached",
+            ) from e
     return SyncPullResponse(ok=True, event_count=result["event_count"])
 
 
@@ -705,11 +714,19 @@ def get_meta(db: Session = Depends(get_db)) -> SyncMetaResponse:
 
 @router.post("/v1/sync/push", response_model=SyncPushResponse)
 async def sync_push(db: Session = Depends(get_db)) -> SyncPushResponse:
-    try:
-        result = await push_outbox(db, retry_errors=False)
-        return SyncPushResponse.model_validate(result)
-    except CloudConfigError as e:
-        raise _cloud_config_http_error(e) from e
+    async with sync_cycle_lock:
+        try:
+            result = await push_outbox(db, retry_errors=False)
+            return SyncPushResponse.model_validate(result)
+        except CloudConfigError as e:
+            raise _cloud_config_http_error(e) from e
+        except httpx.HTTPStatusError as e:
+            raise _cloud_gateway_http_error(e) from e
+        except httpx.HTTPError as e:
+            raise HTTPException(
+                status_code=502,
+                detail="Cloud sync endpoint could not be reached",
+            ) from e
 
 
 def _add_waiter_name(ev: dict, payload: dict) -> None:

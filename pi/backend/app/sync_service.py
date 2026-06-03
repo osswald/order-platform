@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
+
+# Serialize pull/push with the background sync worker (SQLite).
+sync_cycle_lock = asyncio.Lock()
 
 from sqlalchemy.orm import Session
 

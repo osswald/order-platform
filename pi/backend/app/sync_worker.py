@@ -7,11 +7,9 @@ import logging
 import os
 
 from .database import SessionLocal
-from .sync_service import run_sync_cycle, sync_status
+from .sync_service import run_sync_cycle, sync_cycle_lock, sync_status
 
 log = logging.getLogger(__name__)
-
-_cycle_lock = asyncio.Lock()
 
 
 def _sync_enabled() -> bool:
@@ -27,7 +25,7 @@ def _sync_interval_seconds() -> float:
 
 
 async def _run_one_cycle() -> None:
-    async with _cycle_lock:
+    async with sync_cycle_lock:
         db = SessionLocal()
         try:
             summary = await run_sync_cycle(db)
