@@ -38,3 +38,4 @@ android/keystore.properties
 android/app/build/
 android/build/
 android/app/src/main/assets/public/
+*.hprof

@@ -138,6 +138,18 @@ Pi: cloud pairing (`CLOUD_BASE_URL`, edge credentials) — no `STRIPE_*` on Pi.
 
 Stripe Dashboard: enable **Tap to Pay on Android** for the platform and connected accounts.
 
+## Manual test PDFs
+
+- **Full platform:** [`vendiqo-full-test-scenarios.pdf`](vendiqo-full-test-scenarios.pdf) — all features (cloud, Pi, Android)
+- **Stripe Connect / Terminal only:** [`stripe-terminal-test-scenarios.pdf`](stripe-terminal-test-scenarios.pdf)
+
+Regenerate:
+
+```bash
+python3 docs/generate_full_app_test_pdf.py
+python3 docs/generate_stripe_terminal_test_pdf.py
+```
+
 ## Manual test checklist
 
 | Scenario | Expected |
