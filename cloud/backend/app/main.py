@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -18,6 +20,7 @@ from .routers import (
     events,
     health,
     hire_companies,
+    hosted_pi,
     receipt_printing,
     organisations,
     stripe_connect,
@@ -29,6 +32,8 @@ from .routers import (
 )
 from .rate_limit import limiter
 from .security import get_password_hash
+
+log = logging.getLogger(__name__)
 
 allowed_origins = [
     origin.strip()
@@ -65,12 +70,37 @@ def _bootstrap_admin_user() -> None:
         db.close()
 
 
+async def _hosted_pi_maintenance_loop() -> None:
+    from .deps import SessionLocal
+    from .hosted_pi_service import expire_due_instances, reconcile_stuck_provisioning
+
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                await expire_due_instances(db)
+                await reconcile_stuck_provisioning(db)
+            finally:
+                db.close()
+        except Exception:
+            log.exception("hosted Pi maintenance cycle failed")
+        await asyncio.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     run_migrations()
     apply_schema_patches()
     _bootstrap_admin_user()
-    yield
+    maintenance_task = asyncio.create_task(_hosted_pi_maintenance_loop())
+    try:
+        yield
+    finally:
+        maintenance_task.cancel()
+        try:
+            await maintenance_task
+        except asyncio.CancelledError:
+            pass
 
 
 _enable_openapi = os.getenv("ENABLE_OPENAPI", "true").lower() == "true"
@@ -105,6 +135,7 @@ app.include_router(organisations.router, prefix="/organisations", tags=["organis
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(events.router, prefix="/events", tags=["events"])
+app.include_router(hosted_pi.router, prefix="/events", tags=["hosted-pi"])
 app.include_router(waiters.router, prefix="/waiters", tags=["waiters"])
 app.include_router(article_categories.router, prefix="/article-categories", tags=["article-categories"])
 app.include_router(articles.router, prefix="/articles", tags=["articles"])

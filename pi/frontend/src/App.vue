@@ -1,8 +1,29 @@
 <template>
-  <div class="app-shell" :class="{ 'app-shell--fullscreen': fullscreen }">
-    <main class="app-main" :class="{ 'app-main--fullscreen': fullscreen }">
+  <div class="app-shell" :class="{ 'app-shell--fullscreen': fullscreen && !emulatedPrinter }">
+    <div
+      v-if="emulatedPrinter"
+      class="hosted-demo-shell"
+      :class="{ 'hosted-demo-shell--wide': isWide }"
+    >
+      <div class="hosted-demo-app">
+        <main class="app-main" :class="{ 'app-main--fullscreen': fullscreen }">
+          <RouterView />
+        </main>
+      </div>
+      <aside v-if="isWide" class="hosted-demo-receipts">
+        <EmulatedReceiptsPanel />
+      </aside>
+      <template v-else>
+        <button type="button" class="hosted-demo-fab" @click="receiptsOpen = true">Belege</button>
+        <ReceiptBottomSheet :open="receiptsOpen" @close="receiptsOpen = false">
+          <EmulatedReceiptsPanel compact :show-header="false" />
+        </ReceiptBottomSheet>
+      </template>
+    </div>
+    <main v-else class="app-main" :class="{ 'app-main--fullscreen': fullscreen }">
       <RouterView />
     </main>
+
     <div class="toast-host" aria-live="polite">
       <div v-if="toast" class="toast" :class="toast.type">{{ toast.message }}</div>
     </div>
@@ -38,16 +59,20 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ShiftOpenDialog from './components/ShiftOpenDialog.vue'
 import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
 import PaymentReceiptPromptSheet from './components/PaymentReceiptPromptSheet.vue'
 import TwintQrSheet from './components/TwintQrSheet.vue'
-import { api, isAndroidApp } from './api'
+import EmulatedReceiptsPanel from './components/EmulatedReceiptsPanel.vue'
+import ReceiptBottomSheet from './components/ReceiptBottomSheet.vue'
+import { isAndroidApp } from './api'
 import { applyAndroidSafeAreaInsets } from './utils/androidInsets'
 import { useBundle } from './composables/useBundle'
 import { useBundleRefresh } from './composables/useBundleRefresh'
+import { useMediaQuery } from './composables/useMediaQuery'
+import { useSetupStatus } from './composables/useSetupStatus'
 import { useToast } from './composables/useToast'
 import { useWaiterSession } from './composables/useWaiterSession'
 import {
@@ -77,11 +102,15 @@ import {
   cancelReceiptPrompt,
   selectReceiptStation,
 } from './utils/paymentReceiptPrompt'
+
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
 const { bundleReady, refreshBundle } = useBundle()
 const { waiter, selectedEventId } = useWaiterSession()
+const { emulatedPrinter, fetchSetupStatus } = useSetupStatus()
+const isWide = useMediaQuery('(min-width: 900px)')
+const receiptsOpen = ref(false)
 
 useBundleRefresh()
 
@@ -110,18 +139,15 @@ if (isAndroidApp()) {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (isAndroidApp()) {
     applyAndroidSafeAreaInsets()
     requestAnimationFrame(applyAndroidSafeAreaInsets)
   }
-  api('/v1/setup/status')
-    .then((status) => {
-      if (!status?.configured && route.name !== 'setup') {
-        router.replace({ name: 'setup' })
-      }
-    })
-    .catch(() => {})
+  const status = await fetchSetupStatus()
+  if (!status?.configured && route.name !== 'setup') {
+    router.replace({ name: 'setup' })
+  }
   if (!bundleReady()) {
     refreshBundle().catch(() => {})
   }

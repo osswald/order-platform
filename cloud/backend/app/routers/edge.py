@@ -30,7 +30,7 @@ from ..models import (
 )
 from ..payment_types_config import payment_types_from_event
 from ..twint_qr import twint_qr_data_url_for_event
-from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES
+from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import get_password_hash, verify_password
 from ..deps import get_db
@@ -151,6 +151,44 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
         .order_by(Event.start.asc())
         .all()
     )
+
+
+def _emulated_printer_hosts(event: Event) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for st in event.stations or []:
+        out[str(st.uuid)] = {"host": "emulated", "port": 0, "feed_lines": 1}
+    for reg in event.cash_registers or []:
+        out[str(reg.uuid)] = {"host": "emulated", "port": 0, "feed_lines": 1}
+    return out
+
+
+def _load_event_bundle_row(db: Session, event_id: int, organisation_id: int) -> Event | None:
+    return (
+        db.query(Event)
+        .options(
+            joinedload(Event.organisation),
+            joinedload(Event.stations).joinedload(EventStation.articles),
+            joinedload(Event.event_waiters),
+            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.cash_registers),
+            joinedload(Event.voucher_definitions),
+        )
+        .filter(Event.id == event_id, Event.organisation_id == organisation_id)
+        .first()
+    )
+
+
+def _events_for_edge_bundle(db: Session, ctx: ApplianceEdgeContext) -> tuple[list[Event], bool]:
+    """Return events for bundle pull and whether printer hosts should be emulated."""
+    from ..hosted_pi_service import hosted_pi_for_appliance
+
+    hosted = hosted_pi_for_appliance(db, ctx.appliance.id)
+    if hosted and getattr(ctx.appliance, "is_hosted_virtual", False):
+        event = _load_event_bundle_row(db, hosted.event_id, ctx.organisation_id)
+        if event and normalize_status(event.status) == "config":
+            return [event], True
+        return [], True
+    return _active_events_for_org(db, ctx.organisation_id), False
 
 
 def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
@@ -298,7 +336,7 @@ def read_edge_bundle(
 ):
     appliance = ctx.appliance
     org_id = ctx.organisation_id
-    events = _active_events_for_org(db, org_id)
+    events, emulated_printers = _events_for_edge_bundle(db, ctx)
     bundles: list[EdgeEventBundle] = []
     for ev in events:
         cfg = serialize_event_configuration(db, ev)
@@ -306,6 +344,7 @@ def read_edge_bundle(
         from ..receipt_printing_config import printing_bundle_dict
 
         cfg_dict["printing"] = printing_bundle_dict(ev)
+        printer_hosts = _emulated_printer_hosts(ev) if emulated_printers else _printer_hosts_by_station(db, ev)
         bundles.append(
             EdgeEventBundle(
                 id=ev.id,
@@ -322,7 +361,7 @@ def read_edge_bundle(
                 end=ev.end,
                 configuration=cfg_dict,
                 articles=_article_snapshot(db, ev),
-                printer_hosts=_printer_hosts_by_station(db, ev),
+                printer_hosts=printer_hosts,
             )
         )
     db.commit()

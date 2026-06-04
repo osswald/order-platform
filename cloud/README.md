@@ -34,6 +34,7 @@ The cloud API is multi-tenant: each **Verleiher** (`hire_companies`) owns applia
 - DNS A records pointing to the VPS (TTL can be 3600):
   - `admin.vendiqo.ch` → server IP
   - `api.vendiqo.ch` → server IP
+  - `*.demo.vendiqo.ch` → server IP (wildcard for hosted Cloud-Pi sandboxes)
 - Firewall: allow **22/tcp**, **80/tcp**, **443/tcp** only
 
 ```bash
@@ -105,6 +106,15 @@ docker compose -f docker-compose.prod.yml exec -T cloud-db \
 ```
 
 Store backups off the VPS on a schedule.
+
+## Hosted Cloud-Pi (config events)
+
+Organisation users can start a temporary browser Pi from the event admin UI while an event is in **Konfiguration** status.
+
+- Set `HOSTED_PI_MANAGER_SECRET` in `.env` (same value for `cloud-backend` and `hosted-pi-manager`).
+- DNS wildcard: `*.demo.vendiqo.ch` → VPS IP (see prerequisites above).
+- Pi images: CI builds `linux/amd64,linux/arm64`; hosted instances use the amd64 tags on the VPS.
+- Max **5** concurrent instances globally; each runs up to **24 hours** with emulated printers.
 
 ## Troubleshooting
 

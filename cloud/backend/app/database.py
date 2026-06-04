@@ -179,6 +179,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_stations ADD COLUMN kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE event_stations ADD COLUMN IF NOT EXISTS kitchen_monitor_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _add_column_if_missing(
+        "appliances",
+        "is_hosted_virtual",
+        "ALTER TABLE appliances ADD COLUMN is_hosted_virtual BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE appliances ADD COLUMN IF NOT EXISTS is_hosted_virtual BOOLEAN NOT NULL DEFAULT FALSE",
+    )
     _ensure_event_cash_registers_table()
     _add_column_if_missing(
         "event_cash_registers",

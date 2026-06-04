@@ -4,6 +4,11 @@ from pathlib import Path
 
 EDGE_CONFIG_FILE = Path(os.environ.get("EDGE_CONFIG_FILE", "/data/edge.env"))
 EDGE_CONFIG_KEYS = ("CLOUD_BASE_URL", "EDGE_CLIENT_ID", "EDGE_SECRET")
+_ENV_ALIASES = {
+    "CLOUD_BASE_URL": "CLOUD_BASE_URL",
+    "EDGE_CLIENT_ID": "EDGE_CLIENT_ID",
+    "EDGE_SECRET": "EDGE_SECRET",
+}
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -24,7 +29,7 @@ def _parse_env_file(path: Path) -> dict[str, str]:
 def read_edge_config() -> dict[str, str]:
     file_values = _parse_env_file(EDGE_CONFIG_FILE)
     return {
-        key: (file_values.get(key) or "").strip()
+        key: (file_values.get(key) or os.getenv(_ENV_ALIASES[key], "") or "").strip().strip('"').strip("'")
         for key in EDGE_CONFIG_KEYS
     }
 

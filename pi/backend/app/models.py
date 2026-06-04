@@ -68,6 +68,16 @@ class PrintJob(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class EmulatedReceipt(Base):
+    __tablename__ = "emulated_receipts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_kind = Column(String(32), nullable=True)
+    station_name = Column(String(255), nullable=True)
+    escpos_payload = Column(Text, nullable=False)
+    preview_text = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class PaymentReceipt(Base):
     __tablename__ = "payment_receipts"
     id = Column(Integer, primary_key=True, autoincrement=True)

@@ -80,6 +80,7 @@ class Appliance(Base):
     name = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     escpos_feed_lines = Column(Integer, nullable=True)
+    is_hosted_virtual = Column(Boolean, nullable=False, default=False)
     model = Column(String, nullable=True)
     comment = Column(String, nullable=True)
     hire_company = relationship("HireCompany", back_populates="appliances")
@@ -131,6 +132,30 @@ class ApplianceEdgeCredential(Base):
     last_seen_at = Column(DateTime(timezone=True), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     appliance = relationship("Appliance", back_populates="edge_credentials")
+
+
+class HostedPiInstance(Base):
+    """Ephemeral cloud-hosted Pi sandbox for a config-status event."""
+
+    __tablename__ = "hosted_pi_instances"
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    hire_company_id = Column(Integer, ForeignKey("hire_companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True, index=True)
+    edge_credential_id = Column(Integer, ForeignKey("appliance_edge_credentials.id", ondelete="SET NULL"), nullable=True)
+    subdomain_slug = Column(String(32), nullable=False, unique=True, index=True)
+    status = Column(String(32), nullable=False, default="provisioning")
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    stopped_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    event = relationship("Event")
+    organisation = relationship("Organisation")
+    appliance = relationship("Appliance")
+    edge_credential = relationship("ApplianceEdgeCredential")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
 
 
 class Event(Base):

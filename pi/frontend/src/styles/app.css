@@ -278,6 +278,66 @@ h2 {
   min-height: 100dvh;
 }
 
+/* Hosted Cloud-Pi: Pi app + emulated receipts */
+.hosted-demo-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  width: 100%;
+}
+
+.hosted-demo-shell--wide {
+  display: grid;
+  grid-template-columns: minmax(320px, 430px) 1fr;
+  align-items: stretch;
+}
+
+.hosted-demo-app {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hosted-demo-shell--wide .hosted-demo-app {
+  border-right: 1px solid var(--border);
+}
+
+.hosted-demo-shell--wide .hosted-demo-app .app-main {
+  max-width: 430px;
+  margin: 0;
+  width: 100%;
+}
+
+.hosted-demo-receipts {
+  overflow-y: auto;
+  min-height: 0;
+  background: var(--bg, #0f172a);
+}
+
+.hosted-demo-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(1rem + var(--safe-bottom));
+  z-index: 40;
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.hosted-demo-shell--wide .hosted-demo-fab {
+  display: none;
+}
+
 /* Android WebView: --safe-* set from AndroidInsets bridge; avoid 100dvh (ignores system bars) */
 html.android-app,
 html.android-app body,

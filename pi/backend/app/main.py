@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .bootstrap import ensure_default_synced_bundle
 from .database import run_migrations
+from .edge_config import is_edge_configured, write_edge_config
 from .models import SyncedBundle  # noqa: F401
 from . import models_operational  # noqa: F401
 from .print_worker import print_worker_loop
@@ -23,10 +24,24 @@ stop_sync_worker: asyncio.Event | None = None
 sync_task: asyncio.Task | None = None
 
 
+def _bootstrap_hosted_edge_config() -> None:
+    if os.getenv("HOSTED_PI", "").strip() != "1":
+        return
+    if is_edge_configured():
+        return
+    base = os.getenv("CLOUD_BASE_URL", "").strip()
+    cid = os.getenv("EDGE_CLIENT_ID", "").strip()
+    secret = os.getenv("EDGE_SECRET", "").strip()
+    if base and cid and secret:
+        write_edge_config(cloud_base_url=base, edge_client_id=cid, edge_secret=secret)
+        log.info("Hosted Pi edge credentials written to %s", os.getenv("EDGE_CONFIG_FILE", "/data/edge.env"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global stop_print_worker, print_task, stop_sync_worker, sync_task
     run_migrations()
+    _bootstrap_hosted_edge_config()
     ensure_default_synced_bundle()
 
     stop_print_worker = asyncio.Event()

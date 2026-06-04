@@ -24,6 +24,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cloud-db:5432/${POSTGRES_DB}
       APP_NAME: cloud-backend
       APP_ENV: production
+      HOSTED_PI_MANAGER_URL: http://hosted-pi-manager:8090
+      HOSTED_PI_MANAGER_SECRET: ${HOSTED_PI_MANAGER_SECRET}
+      HOSTED_PI_BASE_DOMAIN: ${HOSTED_PI_BASE_DOMAIN:-demo.vendiqo.ch}
+      HOSTED_PI_CLOUD_BASE_URL: ${HOSTED_PI_CLOUD_BASE_URL:-https://api.vendiqo.ch}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
       interval: 30s
@@ -45,6 +49,26 @@ services:
     networks:
       - app-net
 
+  hosted-pi-manager:
+    restart: unless-stopped
+    build:
+      context: ./hosted-pi-manager
+    environment:
+      HOSTED_PI_MANAGER_SECRET: ${HOSTED_PI_MANAGER_SECRET}
+      HOSTED_PI_BASE_DOMAIN: ${HOSTED_PI_BASE_DOMAIN:-demo.vendiqo.ch}
+      PI_BACKEND_IMAGE: ${PI_BACKEND_IMAGE:-ghcr.io/osswald/order-platform:pi-backend-amd64-latest}
+      PI_FRONTEND_IMAGE: ${PI_FRONTEND_IMAGE:-ghcr.io/osswald/order-platform:pi-frontend-amd64-latest}
+      CADDY_NETWORK: ${CADDY_NETWORK:-cloud_app-net}
+      CADDY_CONTAINER: ${CADDY_CONTAINER:-cloud-caddy-1}
+      CADDY_SNIPPETS_DIR: /caddy-snippets
+      HOSTED_PI_INSTANCES_DIR: /instances
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./hosted-snippets:/caddy-snippets
+      - hosted-pi-instances:/instances
+    networks:
+      - app-net
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -56,6 +80,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./hosted-snippets:/etc/caddy/hosted:ro
       - caddy-data:/data
       - caddy-config:/config
     networks:
@@ -65,6 +90,7 @@ volumes:
   cloud-db-data: {}
   caddy-data: {}
   caddy-config: {}
+  hosted-pi-instances: {}
 
 networks:
   app-net:

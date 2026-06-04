@@ -20,6 +20,7 @@ def _status_defaults(**overrides):
         "cloud_base_url": "https://api.vendiqo.ch",
         "edge_client_id": None,
         "can_unpair": False,
+        "emulated_printer": False,
     }
     base.update(overrides)
     return base

@@ -23,6 +23,7 @@
         :stammdaten-dirty="stammdatenDirty"
       >
         <template #stammdaten>
+          <HostedPiCard v-if="form.status === 'config'" :event-id="activeId" />
           <v-form ref="stammdatenFormRef" @submit.prevent="saveEvent">
             <EventStammdatenFields
               :form="form"
@@ -145,6 +146,7 @@ import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
 import EventConfiguration from './EventConfiguration.vue'
 import EventStammdatenFields from './EventStammdatenFields.vue'
+import HostedPiCard from './HostedPiCard.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'

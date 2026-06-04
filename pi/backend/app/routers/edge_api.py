@@ -103,6 +103,7 @@ from ..models import (
     PrintJob,
     RegisterDisplayState,
     SyncedBundle,
+    EmulatedReceipt,
 )
 from ..security import verify_password
 from ..printer_endpoint import parse_printer_host_entry, resolve_printer_endpoint
@@ -3033,3 +3034,53 @@ def delete_print_job(job_id: int, db: Session = Depends(get_db)) -> OkResponse:
     db.delete(job)
     db.commit()
     return OkResponse()
+
+
+class EmulatedReceiptSummary(BaseModel):
+    id: int
+    job_kind: str | None = None
+    station_name: str | None = None
+    preview_text: str
+    created_at: str | None = None
+
+
+class EmulatedReceiptDetail(EmulatedReceiptSummary):
+    escpos_payload: str
+
+
+@router.get("/v1/emulated-receipts", response_model=list[EmulatedReceiptSummary])
+def list_emulated_receipts(db: Session = Depends(get_db)) -> list[EmulatedReceiptSummary]:
+    from ..emulated_printer import is_emulated_printer_mode
+
+    if not is_emulated_printer_mode():
+        raise HTTPException(status_code=404, detail="Emulated printer mode is not enabled")
+    rows = db.query(EmulatedReceipt).order_by(EmulatedReceipt.id.desc()).limit(100).all()
+    return [
+        EmulatedReceiptSummary(
+            id=row.id,
+            job_kind=row.job_kind,
+            station_name=row.station_name,
+            preview_text=row.preview_text or "",
+            created_at=row.created_at.isoformat() if row.created_at else None,
+        )
+        for row in rows
+    ]
+
+
+@router.get("/v1/emulated-receipts/{receipt_id}", response_model=EmulatedReceiptDetail)
+def get_emulated_receipt(receipt_id: int, db: Session = Depends(get_db)) -> EmulatedReceiptDetail:
+    from ..emulated_printer import is_emulated_printer_mode
+
+    if not is_emulated_printer_mode():
+        raise HTTPException(status_code=404, detail="Emulated printer mode is not enabled")
+    row = db.query(EmulatedReceipt).filter(EmulatedReceipt.id == receipt_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    return EmulatedReceiptDetail(
+        id=row.id,
+        job_kind=row.job_kind,
+        station_name=row.station_name,
+        preview_text=row.preview_text or "",
+        created_at=row.created_at.isoformat() if row.created_at else None,
+        escpos_payload=row.escpos_payload,
+    )

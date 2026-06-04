@@ -1,4 +1,4 @@
-# Build Pi edge backend for linux/arm64 and push to GitHub Container Registry.
+# Build Pi edge images for linux/arm64 (Raspberry Pi) and linux/amd64 (hosted cloud Pi).
 # Configure repository variable IMAGE_NAME if you want a custom image name.
 name: Pi Docker images
 
@@ -43,10 +43,11 @@ jobs:
         with:
           context: ./pi/backend
           file: ./pi/backend/Dockerfile
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-latest
+            ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-amd64-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-${{ github.sha }}
 
       - name: Read app version
@@ -60,11 +61,12 @@ jobs:
         with:
           context: .
           file: ./pi/frontend/Dockerfile.prod
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           build-args: |
             VITE_APP_VERSION=${{ steps.version.outputs.value }}
             VITE_BUILD_TIME=${{ steps.version.outputs.build_time }}
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-latest
+            ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-amd64-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-${{ github.sha }}

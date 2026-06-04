@@ -24,6 +24,8 @@ admin.vendiqo.ch {
 	}
 }
 
+import /etc/caddy/hosted/*.caddy
+
 api.vendiqo.ch {
 	import security_headers
 	reverse_proxy cloud-backend:8000 {

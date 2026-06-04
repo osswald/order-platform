@@ -32,6 +32,7 @@ from .escpos_render import (
     write_subline,
     write_two_column,
 )
+from .emulated_printer import is_emulated_printer_mode, store_emulated_receipt
 from .models import LocalOrder, PrintJob, SyncedBundle
 from .pricing import addition_display_name
 
@@ -871,7 +872,25 @@ def _parse_host_port(host_port: str, default_port: int = 9100) -> tuple[str, int
     return host_port.strip(), default_port
 
 
-async def _send_to_printer(host: str, port: int, data: bytes) -> None:
+async def _send_to_printer(
+    host: str,
+    port: int,
+    data: bytes,
+    *,
+    db: Session | None = None,
+    job_kind: str | None = None,
+    station_name: str | None = None,
+) -> None:
+    if is_emulated_printer_mode():
+        if db is None:
+            db = SessionLocal()
+            try:
+                store_emulated_receipt(db, data=data, job_kind=job_kind, station_name=station_name)
+            finally:
+                db.close()
+        else:
+            store_emulated_receipt(db, data=data, job_kind=job_kind, station_name=station_name)
+        return
     target_host = _effective_printer_host(host)
     reader, writer = await asyncio.open_connection(target_host, port)
     try:
@@ -898,7 +917,17 @@ def _load_event_for_order(db: Session, order: LocalOrder) -> dict | None:
 
 async def process_print_job(db: Session, job: PrintJob, ev: dict | None) -> None:
     esc = base64.b64decode(job.escpos_payload)
-    await _send_to_printer(job.printer_host, job.printer_port, esc)
+    station_name = None
+    if ev and job.station_uuid:
+        station_name = station_name_from_event(ev, job.station_uuid)
+    await _send_to_printer(
+        job.printer_host,
+        job.printer_port,
+        esc,
+        db=db,
+        job_kind=job.job_kind,
+        station_name=station_name,
+    )
     job.status = "sent"
     job.last_error = None
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,6 +37,11 @@ sync_status: dict[str, Any] = {
 def is_cloud_configured() -> bool:
     base, cid, secret = _resolve_config()
     return bool(base and cid and secret)
+
+
+def is_push_enabled() -> bool:
+    val = os.getenv("SYNC_PUSH_ENABLED", "1").strip().lower()
+    return val not in ("0", "false", "no")
 
 
 def pending_outbox_count(db: Session) -> int:
@@ -172,12 +178,15 @@ async def run_sync_cycle(db: Session) -> dict[str, Any]:
         summary["pull_failed"] = True
 
     try:
-        push_result = await push_outbox(db, retry_errors=True)
-        summary["push_sent"] = push_result["sent"]
-        summary["push_errors"] = push_result["errors"]
-        sync_status["last_push_sent"] = push_result["sent"]
-        if push_result["errors"]:
-            last_error = push_result["errors"][0].get("error")
+        if is_push_enabled():
+            push_result = await push_outbox(db, retry_errors=True)
+            summary["push_sent"] = push_result["sent"]
+            summary["push_errors"] = push_result["errors"]
+            sync_status["last_push_sent"] = push_result["sent"]
+            if push_result["errors"]:
+                last_error = push_result["errors"][0].get("error")
+        else:
+            summary["push_skipped"] = True
     except CloudConfigError as e:
         last_error = str(e)
     except Exception as e:
