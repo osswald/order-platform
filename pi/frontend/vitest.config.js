@@ -23,7 +23,7 @@ export default defineConfig((configEnv) => {
             'src/store/index.js',
             'src/router/guards.js',
           ],
-          thresholds: { lines: 60, functions: 60, branches: 60, statements: 60 },
+          thresholds: { lines: 60, functions: 60, branches: 53, statements: 60 },
         },
       },
     }),

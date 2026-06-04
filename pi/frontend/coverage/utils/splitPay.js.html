@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>22/22</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.66% </span>
+                <span class="strong">68.75% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/15</span>
+                <span class='fraction'>11/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/4</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>22/22</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
@@ -88,49 +88,49 @@
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
-<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/** Partial-quantity basket cents for one split-pay line group. */
 export function groupBasketCents(g) {
   const qty = Math.max(0, Number(g.basketQty) || 0)
-  const totalQty = Math.max(1, Number(g.totalQty) <span class="branch-0 cbranch-no" title="branch not covered" >|| 1)</span>
+  const totalQty = Math.max(1, Number(g.totalQty) || <span class="branch-1 cbranch-no" title="branch not covered" >1)</span>
   const lineTotal = Math.max(0, Number(g.lineTotalCents) || 0)
   if (lineTotal &gt; 0) {
     return Math.round((lineTotal / totalQty) * qty)
   }
-  return Math.max(0, Number(g.unitCents) <span class="branch-0 cbranch-no" title="branch not covered" >|| 0)</span> * qty
+  return Math.max(0, Number(g.unitCents) || <span class="branch-1 cbranch-no" title="branch not covered" >0)</span> * qty
 }
 &nbsp;
 export function sumGroupBasketCents(groups) {
-  return (groups <span class="branch-0 cbranch-no" title="branch not covered" >|| [])</span>.reduce((s, g) =&gt; s + groupBasketCents(g), 0)
+  return (groups || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>.reduce((s, g) =&gt; s + groupBasketCents(g), 0)
 }
 &nbsp;
 export function sumVoucherCreditCents(redemptions) {
-  return (redemptions <span class="branch-0 cbranch-no" title="branch not covered" >|| [])</span>.reduce(
-    (s, r) =&gt; s + Math.max(0, Number(r.applied_cents) <span class="branch-0 cbranch-no" title="branch not covered" >|| 0)</span>,
+  return (redemptions || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>.reduce(
+    (s, r) =&gt; s + Math.max(0, Number(r.applied_cents) || <span class="branch-1 cbranch-no" title="branch not covered" >0)</span>,
     0,
   )
 }
@@ -145,7 +145,7 @@ export function basketCentsAfterVoucher(rawBasketCents, voucherCreditCents) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-04T20:00:16.310Z
+                at 2026-06-04T20:08:50.232Z
             </div>
         <script src="../prettify.js"></script>
         <script>
