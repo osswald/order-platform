@@ -1,0 +1,45 @@
+name: Frontend tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "cloud/frontend/**"
+      - "pi/frontend/**"
+      - ".github/workflows/frontend-tests.yml"
+  pull_request:
+    paths:
+      - "cloud/frontend/**"
+      - "pi/frontend/**"
+      - ".github/workflows/frontend-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        frontend: [cloud, pi]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ matrix.frontend }}/frontend/package-lock.json
+
+      - name: Install dependencies (${{ matrix.frontend }})
+        working-directory: ${{ matrix.frontend }}/frontend
+        run: npm ci
+
+      - name: Run tests with coverage (${{ matrix.frontend }})
+        working-directory: ${{ matrix.frontend }}/frontend
+        run: npm run test:coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.frontend }}-frontend
+          path: ${{ matrix.frontend }}/frontend/coverage/

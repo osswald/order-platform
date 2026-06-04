@@ -51,6 +51,19 @@ cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && pyte
 
 CI runs both suites via `.github/workflows/backend-tests.yml` on changes under `cloud/backend/**` or `pi/backend/**`.
 
+**Pi frontend**: `cd pi/frontend && npm ci && npm test` (Vitest; no Docker required)
+
+**Cloud frontend**: `cd cloud/frontend && npm ci && npm test`
+
+With coverage report:
+
+```bash
+cd pi/frontend && npm ci && npm run test:coverage
+cd cloud/frontend && npm ci && npm run test:coverage
+```
+
+CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes under `cloud/frontend/**` or `pi/frontend/**`.
+
 ### Building frontends
 
 - `cd cloud/frontend && npm run build`
