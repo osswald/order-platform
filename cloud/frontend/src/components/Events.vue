@@ -9,6 +9,7 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Veranstaltung bearbeiten' : 'Neue Veranstaltung' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
 
       <EventConfiguration
         v-if="editMode && activeId"
@@ -21,33 +22,35 @@
         :stammdaten-dirty="stammdatenDirty"
       >
         <template #stammdaten>
-          <EventStammdatenFields
-            :form="form"
-            :selectable-status-options="selectableStatusOptions"
-            :currency-options="currencyOptions"
-            :payment-mode-options="paymentModeOptions"
-            :payment-type-options="paymentTypeOptions"
-            :show-twint-qr-section="showTwintQrSection"
-            :edit-mode="editMode"
-            :active-id="activeId"
-            :has-twint-qr="hasTwintQr"
-            :twint-qr-preview-url="twintQrPreviewUrl"
-            :twint-qr-busy="twintQrBusy"
-            @upload="uploadTwintQr"
-            @remove="removeTwintQr"
-          />
-          <div class="actions">
-            <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-            <v-btn variant="outlined" type="button" :disabled="copyBusy" @click="copyEvent">
-              Event kopieren
-            </v-btn>
-            <v-btn color="primary" :disabled="!canSave" @click="saveEvent">Speichern</v-btn>
-          </div>
-          <p v-if="message" :class="messageType">{{ message }}</p>
+          <v-form ref="stammdatenFormRef" @submit.prevent="saveEvent">
+            <EventStammdatenFields
+              :form="form"
+              :selectable-status-options="selectableStatusOptions"
+              :currency-options="currencyOptions"
+              :payment-mode-options="paymentModeOptions"
+              :payment-type-options="paymentTypeOptions"
+              :show-twint-qr-section="showTwintQrSection"
+              :edit-mode="editMode"
+              :active-id="activeId"
+              :has-twint-qr="hasTwintQr"
+              :twint-qr-preview-url="twintQrPreviewUrl"
+              :twint-qr-busy="twintQrBusy"
+              @upload="uploadTwintQr"
+              @remove="removeTwintQr"
+            />
+            <div class="actions">
+              <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+              <v-btn variant="outlined" type="button" :disabled="copyBusy" @click="copyEvent">
+                Event kopieren
+              </v-btn>
+              <v-btn color="primary" type="submit">Speichern</v-btn>
+            </div>
+            <p v-if="message" :class="messageType">{{ message }}</p>
+          </v-form>
         </template>
       </EventConfiguration>
 
-      <template v-else>
+      <v-form v-else ref="stammdatenFormRef" @submit.prevent="saveEvent">
         <EventStammdatenFields
           :form="form"
           :selectable-status-options="selectableStatusOptions"
@@ -65,10 +68,10 @@
         />
         <div class="actions">
           <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-          <v-btn color="primary" :disabled="!canSave" @click="saveEvent">Speichern</v-btn>
+          <v-btn color="primary" type="submit">Speichern</v-btn>
         </div>
         <p v-if="message" :class="messageType">{{ message }}</p>
-      </template>
+      </v-form>
     </template>
 
     <template #table>
@@ -144,6 +147,7 @@ import EventStammdatenFields from './EventStammdatenFields.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { validateForm } from '../utils/formRules.js'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -213,6 +217,7 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
+const stammdatenFormRef = ref(null)
 const stammdatenBaseline = ref('')
 const originalStatus = ref('config')
 
@@ -249,19 +254,6 @@ const showTwintQrSection = computed(() =>
 )
 
 const canCreateEvents = computed(() => props.activeOrganisationId != null)
-
-const canSave = computed(() => {
-  return !!(
-    props.activeOrganisationId != null &&
-    form.value.name &&
-    form.value.status &&
-    form.value.start &&
-    form.value.end &&
-    form.value.currency &&
-    Array.isArray(form.value.paymentTypes) &&
-    form.value.paymentTypes.length > 0
-  )
-})
 
 const selectableStatusOptions = computed(() => {
   if (!editMode.value) {
@@ -544,6 +536,7 @@ function defaultCopyName(name) {
 
 async function copyEvent() {
   if (!activeId.value) return
+  if (!(await validateForm(stammdatenFormRef))) return
   const suggested = defaultCopyName(form.value.name)
   const entered = window.prompt('Name der kopierten Veranstaltung', suggested)
   if (entered === null) return
@@ -576,6 +569,12 @@ async function copyEvent() {
 }
 
 async function saveEvent() {
+  if (props.activeOrganisationId == null) {
+    message.value = 'Bitte wählen Sie links eine Organisation.'
+    messageType.value = 'error'
+    return
+  }
+  if (!(await validateForm(stammdatenFormRef))) return
   if (
     editMode.value &&
     originalStatus.value === 'test' &&

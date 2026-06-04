@@ -9,17 +9,26 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Kategorie bearbeiten' : 'Neue Kategorie' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
 
-      <div class="form-field">
-        <label>Name</label>
-        <v-text-field v-model="form.name" placeholder="Getränke" hide-details="auto" />
-      </div>
+      <v-form ref="formRef" @submit.prevent="saveCategory">
+        <div class="form-field">
+          <FormLabel required>Name</FormLabel>
+          <v-text-field
+            v-model="form.name"
+            placeholder="Getränke"
+            hide-details="auto"
+            required
+            :rules="[rules.required]"
+          />
+        </div>
 
-      <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" :disabled="!canSave" @click="saveCategory">Speichern</v-btn>
-      </div>
-      <p v-if="message" :class="messageType">{{ message }}</p>
+        <div class="actions">
+          <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+          <v-btn color="primary" type="submit">Speichern</v-btn>
+        </div>
+        <p v-if="message" :class="messageType">{{ message }}</p>
+      </v-form>
     </template>
 
     <template #table>
@@ -71,8 +80,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
+import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
@@ -115,10 +126,9 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
+const formRef = ref(null)
 
 const canCreateCategories = computed(() => props.activeOrganisationId != null)
-
-const canSave = computed(() => !!(props.activeOrganisationId != null && form.value.name))
 
 function matchesSearch(category, term) {
   if (!term) return true
@@ -220,6 +230,12 @@ function editCategory(category) {
 }
 
 async function saveCategory() {
+  if (props.activeOrganisationId == null) {
+    message.value = 'Bitte wählen Sie links eine Organisation.'
+    messageType.value = 'error'
+    return
+  }
+  if (!(await validateForm(formRef))) return
   const payload = {
     name: form.value.name,
   }

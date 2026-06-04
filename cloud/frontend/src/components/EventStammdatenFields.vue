@@ -3,12 +3,18 @@
     <section class="field-group">
       <h3 class="field-group-title">Basis</h3>
       <div class="form-field">
-        <label>Name</label>
-        <v-text-field v-model="form.name" placeholder="Sommerfest 2026" hide-details="auto" />
+        <FormLabel required>Name</FormLabel>
+        <v-text-field
+          v-model="form.name"
+          placeholder="Sommerfest 2026"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
       </div>
       <div class="field-row">
         <div class="form-field">
-          <label>Status</label>
+          <FormLabel required>Status</FormLabel>
           <v-select
             v-model="form.status"
             :items="selectableStatusOptions"
@@ -16,36 +22,44 @@
             item-value="value"
             placeholder="Status wählen"
             hide-details="auto"
+            required
+            :rules="[rules.required]"
           />
         </div>
         <div class="form-field">
-          <label>Währung</label>
+          <FormLabel required>Währung</FormLabel>
           <v-select
             v-model="form.currency"
             :items="currencyOptions"
             placeholder="Währung wählen"
             hide-details="auto"
+            required
+            :rules="[rules.required]"
           />
         </div>
       </div>
       <div class="field-row">
         <div class="form-field">
-          <label>Start</label>
+          <FormLabel required>Start</FormLabel>
           <v-text-field
             :model-value="formatLocalDatetime(form.start)"
             type="datetime-local"
             placeholder="Startdatum wählen"
             hide-details="auto"
+            required
+            :rules="[() => rules.requiredDate(props.form.start)]"
             @update:model-value="form.start = parseLocalDatetime($event)"
           />
         </div>
         <div class="form-field">
-          <label>Ende</label>
+          <FormLabel required>Ende</FormLabel>
           <v-text-field
             :model-value="formatLocalDatetime(form.end)"
             type="datetime-local"
             placeholder="Enddatum wählen"
             hide-details="auto"
+            required
+            :rules="[() => rules.requiredDate(props.form.end)]"
             @update:model-value="form.end = parseLocalDatetime($event)"
           />
         </div>
@@ -55,7 +69,7 @@
     <section class="field-group">
       <h3 class="field-group-title">Zahlung</h3>
       <div class="form-field">
-        <label>Zahlungsmodus (Pi / Kellner)</label>
+        <FormLabel>Zahlungsmodus (Pi / Kellner)</FormLabel>
         <v-select
           v-model="form.paymentMode"
           :items="paymentModeOptions"
@@ -67,7 +81,7 @@
         <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = Bezahlen beim Abschicken der Bestellung; Später = Bezahlung erfolgt zu einem späteren Zeitpunkt.</small>
       </div>
       <div class="form-field">
-        <label>Zahlungsarten (Pi)</label>
+        <FormLabel required>Zahlungsarten (Pi)</FormLabel>
         <v-select
           v-model="form.paymentTypes"
           :items="paymentTypeOptions"
@@ -78,6 +92,8 @@
           chips
           closable-chips
           hide-details="auto"
+          required
+          :rules="[rules.requiredArray]"
         />
         <small>Bei Abrechnung wählt der Kellner eine Art (Popup erscheintnur bei mehreren Zahlungsarten).</small>
       </div>
@@ -167,9 +183,11 @@
 </template>
 
 <script setup>
+import FormLabel from './FormLabel.vue'
 import TwintQrField from './TwintQrField.vue'
+import { rules } from '../utils/formRules.js'
 
-defineProps({
+const props = defineProps({
   form: {
     type: Object,
     required: true,

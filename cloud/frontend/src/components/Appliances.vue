@@ -8,6 +8,9 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Gerät bearbeiten' : 'Neues Gerät' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+
+      <v-form ref="formRef" @submit.prevent="saveAppliance">
       <div class="form-field">
         <v-select
           v-model="form.type"
@@ -17,6 +20,8 @@
           label="Typ"
           placeholder="Typ wählen"
           hide-details="auto"
+          required
+          :rules="[rules.required]"
         />
       </div>
 
@@ -60,8 +65,9 @@
 
       <div class="actions">
         <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" :disabled="!form.type" @click="saveAppliance">Speichern</v-btn>
+        <v-btn color="primary" type="submit">Speichern</v-btn>
       </div>
+      </v-form>
 
       <template v-if="editMode && applianceDetail">
         <div v-if="applianceDetail.type === 'server'" class="lending-section edge-server-section">
@@ -308,6 +314,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
+import { rules, validateForm } from '../utils/formRules.js'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { cancelPlannedLendingForAppliance, toIsoDate } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
@@ -386,6 +393,7 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
+const formRef = ref(null)
 
 const isPrinter = computed(() => form.value.type === 'printer')
 const isAutoNamed = computed(() => form.value.type === 'server' || form.value.type === 'printer')
@@ -638,6 +646,7 @@ function buildPayload() {
 }
 
 async function saveAppliance() {
+  if (!(await validateForm(formRef))) return
   const payload = buildPayload()
 
   try {

@@ -12,48 +12,55 @@
       <v-card-title>Passwort ändern</v-card-title>
       <v-card-subtitle>Aktualisieren Sie Ihr eigenes Passwort.</v-card-subtitle>
       <v-card-text>
-        <div class="form-field">
-          <v-text-field
-            v-model="form.currentPassword"
-            label="Aktuelles Passwort"
-            placeholder="Aktuelles Passwort"
-            :type="showCurrent ? 'text' : 'password'"
-            :append-inner-icon="showCurrent ? 'mdi-eye-off' : 'mdi-eye'"
-            autocomplete="current-password"
-            hide-details="auto"
-            @click:append-inner="showCurrent = !showCurrent"
-          />
-        </div>
-        <div class="form-field">
-          <v-text-field
-            v-model="form.newPassword"
-            label="Neues Passwort"
-            placeholder="Neues Passwort"
-            :type="showNew ? 'text' : 'password'"
-            :append-inner-icon="showNew ? 'mdi-eye-off' : 'mdi-eye'"
-            autocomplete="new-password"
-            hide-details="auto"
-            @click:append-inner="showNew = !showNew"
-          />
-        </div>
-        <div class="form-field">
-          <v-text-field
-            v-model="form.confirmPassword"
-            label="Neues Passwort bestätigen"
-            placeholder="Neues Passwort bestätigen"
-            :type="showConfirm ? 'text' : 'password'"
-            :append-inner-icon="showConfirm ? 'mdi-eye-off' : 'mdi-eye'"
-            autocomplete="new-password"
-            hide-details="auto"
-            @click:append-inner="showConfirm = !showConfirm"
-          />
-        </div>
-        <div class="actions">
-          <v-btn color="primary" :disabled="!canSave" @click="changePassword">
-            Passwort speichern
-          </v-btn>
-        </div>
-        <p v-if="message" :class="messageType">{{ message }}</p>
+        <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+        <v-form ref="formRef" @submit.prevent="changePassword">
+          <div class="form-field">
+            <v-text-field
+              v-model="form.currentPassword"
+              label="Aktuelles Passwort"
+              placeholder="Aktuelles Passwort"
+              :type="showCurrent ? 'text' : 'password'"
+              :append-inner-icon="showCurrent ? 'mdi-eye-off' : 'mdi-eye'"
+              autocomplete="current-password"
+              hide-details="auto"
+              required
+              :rules="[rules.required]"
+              @click:append-inner="showCurrent = !showCurrent"
+            />
+          </div>
+          <div class="form-field">
+            <v-text-field
+              v-model="form.newPassword"
+              label="Neues Passwort"
+              placeholder="Neues Passwort"
+              :type="showNew ? 'text' : 'password'"
+              :append-inner-icon="showNew ? 'mdi-eye-off' : 'mdi-eye'"
+              autocomplete="new-password"
+              hide-details="auto"
+              required
+              :rules="[rules.required]"
+              @click:append-inner="showNew = !showNew"
+            />
+          </div>
+          <div class="form-field">
+            <v-text-field
+              v-model="form.confirmPassword"
+              label="Neues Passwort bestätigen"
+              placeholder="Neues Passwort bestätigen"
+              :type="showConfirm ? 'text' : 'password'"
+              :append-inner-icon="showConfirm ? 'mdi-eye-off' : 'mdi-eye'"
+              autocomplete="new-password"
+              hide-details="auto"
+              required
+              :rules="confirmRules"
+              @click:append-inner="showConfirm = !showConfirm"
+            />
+          </div>
+          <div class="actions">
+            <v-btn color="primary" type="submit">Passwort speichern</v-btn>
+          </div>
+          <p v-if="message" :class="messageType">{{ message }}</p>
+        </v-form>
       </v-card-text>
     </v-card>
   </section>
@@ -63,6 +70,7 @@
 import { computed, ref } from 'vue'
 import { apiFetch } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
+import { rules, validateForm } from '../utils/formRules.js'
 
 const { label } = useAppVersion()
 
@@ -71,27 +79,20 @@ const form = ref({
   newPassword: '',
   confirmPassword: '',
 })
+const formRef = ref(null)
 const message = ref('')
 const messageType = ref('')
 const showCurrent = ref(false)
 const showNew = ref(false)
 const showConfirm = ref(false)
 
-const canSave = computed(() => {
-  return (
-    form.value.currentPassword &&
-    form.value.newPassword &&
-    form.value.confirmPassword &&
-    form.value.newPassword === form.value.confirmPassword
-  )
-})
+const confirmRules = computed(() => [
+  rules.required,
+  rules.passwordMatch(form.value.newPassword),
+])
 
 async function changePassword() {
-  if (form.value.newPassword !== form.value.confirmPassword) {
-    message.value = 'Die neuen Passwörter stimmen nicht überein.'
-    messageType.value = 'error'
-    return
-  }
+  if (!(await validateForm(formRef))) return
   try {
     const response = await apiFetch('/auth/change-password', {
       method: 'POST',

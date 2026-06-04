@@ -7,62 +7,71 @@
     <v-card class="org-lending-dialog">
       <v-card-title>Geräte ausleihen</v-card-title>
       <v-card-text>
-        <div class="form-field">
-          <label>Organisation</label>
-          <p class="org-readonly">{{ organisationName || '—' }}</p>
-        </div>
-        <div class="field-row">
+        <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+        <v-form ref="formRef" @submit.prevent="submit">
           <div class="form-field">
-            <label>Startdatum</label>
-            <v-date-input
-              v-model="startDate"
-              placeholder="Startdatum"
-              density="compact"
-              hide-details
-              prepend-icon=""
-              prepend-inner-icon="mdi-calendar"
-            />
+            <FormLabel>Organisation</FormLabel>
+            <p class="org-readonly">{{ organisationName || '—' }}</p>
+          </div>
+          <div class="field-row">
+            <div class="form-field">
+              <FormLabel required>Startdatum</FormLabel>
+              <v-date-input
+                v-model="startDate"
+                placeholder="Startdatum"
+                density="compact"
+                hide-details="auto"
+                required
+                :rules="[rules.requiredDate]"
+                prepend-icon=""
+                prepend-inner-icon="mdi-calendar"
+              />
+            </div>
+            <div class="form-field">
+              <FormLabel required>Dauer (Tage)</FormLabel>
+              <v-number-input
+                v-model="durationDays"
+                :min="1"
+                :max="3650"
+                control-variant="stacked"
+                density="compact"
+                hide-details="auto"
+                required
+                :rules="[rules.requiredNumber, rules.minNumber(1)]"
+              />
+            </div>
           </div>
           <div class="form-field">
-            <label>Dauer (Tage)</label>
-            <v-number-input
-              v-model="durationDays"
-              :min="1"
-              :max="3650"
-              control-variant="stacked"
+            <FormLabel required>Geräte</FormLabel>
+            <v-select
+              v-model="selectedIds"
+              :items="applianceSelectItems"
+              item-title="title"
+              item-value="value"
+              placeholder="Geräte wählen"
+              multiple
+              chips
+              closable-chips
               density="compact"
-              hide-details
+              hide-details="auto"
+              required
+              :rules="[rules.requiredArray]"
+              :loading="loadingAppliances"
+              :disabled="!canPickAppliances"
             />
+            <small v-if="loadingAppliances">Geräte werden geladen…</small>
+            <small v-else-if="!canPickAppliances">Bitte Startdatum und Dauer angeben.</small>
+            <small v-else-if="blockedCount" class="blocked-hint">
+              {{ blockedCount }} Gerät{{ blockedCount === 1 ? '' : 'e' }} im gewählten Zeitraum nicht verfügbar.
+            </small>
           </div>
-        </div>
-        <div class="form-field">
-          <label>Geräte</label>
-          <v-select
-            v-model="selectedIds"
-            :items="applianceSelectItems"
-            item-title="title"
-            item-value="value"
-            placeholder="Geräte wählen"
-            multiple
-            chips
-            closable-chips
-            density="compact"
-            hide-details="auto"
-            :loading="loadingAppliances"
-            :disabled="!canPickAppliances"
-          />
-          <small v-if="loadingAppliances">Geräte werden geladen…</small>
-          <small v-else-if="!canPickAppliances">Bitte Startdatum und Dauer angeben.</small>
-          <small v-else-if="blockedCount" class="blocked-hint">
-            {{ blockedCount }} Gerät{{ blockedCount === 1 ? '' : 'e' }} im gewählten Zeitraum nicht verfügbar.
-          </small>
-        </div>
-        <p v-if="submitMessage" :class="submitMessageType">{{ submitMessage }}</p>
-        <ul v-if="submitFailures.length" class="failure-list">
-          <li v-for="(f, i) in submitFailures" :key="i">
-            {{ f.name }}: {{ f.detail }}
-          </li>
-        </ul>
+          <p v-if="submitMessage" :class="submitMessageType">{{ submitMessage }}</p>
+          <ul v-if="submitFailures.length" class="failure-list">
+            <li v-for="(f, i) in submitFailures" :key="i">
+              {{ f.name }}: {{ f.detail }}
+            </li>
+          </ul>
+        </v-form>
       </v-card-text>
       <v-card-actions class="dialog-actions">
         <v-spacer />
@@ -71,8 +80,8 @@
         </v-btn>
         <v-btn
           color="primary"
-          :disabled="!canSubmit || submitting"
           :loading="submitting"
+          :disabled="submitting"
           @click="submit"
         >
           Ausleihen
@@ -84,8 +93,10 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import FormLabel from './FormLabel.vue'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
+import { rules, validateForm } from '../utils/formRules.js'
 import {
   applianceDisplayName,
   applianceTypeLabel,
@@ -109,6 +120,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'completed'])
 
+const formRef = ref(null)
 const startDate = ref(null)
 const durationDays = ref(7)
 const selectedIds = ref([])
@@ -170,15 +182,6 @@ const applianceSelectItems = computed(() => {
 
 const blockedCount = computed(() => appliances.value.filter((a) => a.lendable === false).length)
 
-const canSubmit = computed(() => {
-  return (
-    props.organisationId != null &&
-    canPickAppliances.value &&
-    selectedIds.value.length > 0 &&
-    !loadingAppliances.value
-  )
-})
-
 function resetForm() {
   startDate.value = new Date()
   durationDays.value = 7
@@ -221,7 +224,9 @@ async function fetchAppliances() {
 }
 
 async function submit() {
-  if (!canSubmit.value || submitting.value) return
+  if (submitting.value) return
+  if (props.organisationId == null) return
+  if (!(await validateForm(formRef))) return
   submitting.value = true
   submitMessage.value = ''
   submitMessageType.value = ''
@@ -300,11 +305,6 @@ watch([startDate, durationDays], () => {
 </script>
 
 <style scoped>
-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
 .org-readonly {
   margin: 0;
   font-size: 1rem;

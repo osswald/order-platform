@@ -8,9 +8,18 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Verleiher bearbeiten' : 'Neuer Verleiher' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+
+      <v-form ref="formRef" @submit.prevent="saveCompany">
       <div class="form-field">
-        <label>Name</label>
-        <v-text-field v-model="form.name" placeholder="Vendiqo" hide-details="auto" />
+        <FormLabel required>Name</FormLabel>
+        <v-text-field
+          v-model="form.name"
+          placeholder="Vendiqo"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
       </div>
       <div class="form-field">
         <label>Adresse</label>
@@ -39,9 +48,10 @@
       />
       <div class="actions">
         <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" :disabled="!form.name" @click="saveCompany">Speichern</v-btn>
+        <v-btn color="primary" type="submit">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
+      </v-form>
     </template>
 
     <template #table>
@@ -73,9 +83,11 @@
 <script setup>
 import { inject, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
+import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
@@ -193,7 +205,10 @@ function editCompany(row) {
   goToDetail(row.id)
 }
 
+const formRef = ref(null)
+
 async function saveCompany() {
+  if (!(await validateForm(formRef))) return
   const payload = {
     name: form.value.name,
     address: form.value.address || null,

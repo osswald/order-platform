@@ -8,11 +8,29 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Benutzer bearbeiten' : 'Neuen Benutzer' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+
+      <v-form ref="formRef" @submit.prevent="saveUser">
       <div class="form-field">
-        <v-text-field v-model="form.name" label="Name" placeholder="Max Mustermann" hide-details="auto" />
+        <v-text-field
+          v-model="form.name"
+          label="Name"
+          placeholder="Max Mustermann"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
       </div>
       <div class="form-field">
-        <v-text-field v-model="form.email" label="Email" placeholder="max@example.com" hide-details="auto" />
+        <v-text-field
+          v-model="form.email"
+          label="Email"
+          type="email"
+          placeholder="max@example.com"
+          hide-details="auto"
+          required
+          :rules="[rules.required, rules.email]"
+        />
       </div>
       <div class="form-field">
         <v-select
@@ -31,6 +49,8 @@
           label="Passwort"
           placeholder="Passwort setzen"
           hide-details="auto"
+          required
+          :rules="[rules.required]"
           :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
           @click:append-inner="showPassword = !showPassword"
         />
@@ -62,15 +82,10 @@
       </div>
       <div class="actions">
         <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn
-          color="primary"
-          :disabled="!form.name || !form.email || (!editMode && !form.password)"
-          @click="saveUser"
-        >
-          Speichern
-        </v-btn>
+        <v-btn color="primary" type="submit">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
+      </v-form>
     </template>
 
     <template #table>
@@ -158,6 +173,7 @@ import VqDataTable from './VqDataTable.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
 import { apiFetch } from '../api'
+import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 
 const props = defineProps({
@@ -233,6 +249,7 @@ const form = ref({
   hasEventAdminPin: false,
   clearEventAdminPin: false,
 })
+const formRef = ref(null)
 
 const hasOrganisations = computed(() => (form.value.organisationIdsArray?.length || 0) > 0)
 
@@ -394,6 +411,7 @@ function editUser(u) {
 }
 
 async function saveUser() {
+  if (!(await validateForm(formRef))) return
   const payload = {
     name: form.value.name,
     email: form.value.email,

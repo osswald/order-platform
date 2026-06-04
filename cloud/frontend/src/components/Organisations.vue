@@ -8,8 +8,18 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Organisation bearbeiten' : 'Neue Organisation' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+
+      <v-form ref="formRef" @submit.prevent="saveOrganisation">
       <div class="form-field">
-        <v-text-field v-model="form.name" label="Name" placeholder="Vendiqo GmbH" hide-details="auto" />
+        <v-text-field
+          v-model="form.name"
+          label="Name"
+          placeholder="Vendiqo GmbH"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
       </div>
       <div class="form-field">
         <v-text-field v-model="form.address" label="Adresse" placeholder="Musterstraße 12" hide-details="auto" />
@@ -23,7 +33,15 @@
         </div>
       </div>
       <div class="form-field">
-        <v-select v-model="form.country" :items="countryOptions" label="Land" placeholder="Land wählen" hide-details="auto" />
+        <v-select
+          v-model="form.country"
+          :items="countryOptions"
+          label="Land"
+          placeholder="Land wählen"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
       </div>
       <div class="form-field">
         <label>Benutzer</label>
@@ -95,11 +113,10 @@
       />
       <div class="actions">
         <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" :disabled="!form.name || !form.country" @click="saveOrganisation">
-          Speichern
-        </v-btn>
+        <v-btn color="primary" type="submit">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
+      </v-form>
 
       <OrganisationLendingDialog
         v-if="editMode && activeId"
@@ -193,6 +210,7 @@ import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'
+import { rules, validateForm } from '../utils/formRules.js'
 import { cancelPlannedLending } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
@@ -463,7 +481,10 @@ function editOrganisation(org) {
   fetchOrgApplianceLendings(org.id)
 }
 
+const formRef = ref(null)
+
 async function saveOrganisation() {
+  if (!(await validateForm(formRef))) return
   const payload = {
     name: form.value.name,
     address: form.value.address || null,

@@ -10,7 +10,8 @@
           <p class="tagline">Enterprise Resource Planning</p>
         </div>
 
-        <form @submit.prevent="submit" class="login-form">
+        <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+        <v-form ref="formRef" @submit.prevent="submit" class="login-form">
           <v-text-field
             id="email"
             v-model="email"
@@ -18,6 +19,7 @@
             label="E-Mail Adresse"
             placeholder="admin@example.com"
             required
+            :rules="[rules.required, rules.email]"
             hide-details="auto"
           />
 
@@ -28,13 +30,14 @@
             label="Passwort"
             placeholder="••••••••"
             required
+            :rules="[rules.required]"
             hide-details="auto"
           />
 
           <v-btn type="submit" color="primary" block size="large" :loading="isLoading">
             Anmelden
           </v-btn>
-        </form>
+        </v-form>
 
         <div v-if="message" :class="['message', messageType]">
           {{ message }}
@@ -78,10 +81,12 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { apiUrl } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
+import { rules, validateForm } from '../utils/formRules.js'
 
 const { label } = useAppVersion()
 
 const route = useRoute()
+const formRef = ref(null)
 const email = ref('')
 const password = ref('')
 const message = ref('')
@@ -90,6 +95,7 @@ const isLoading = ref(false)
 
 async function submit() {
   message.value = ''
+  if (!(await validateForm(formRef))) return
   isLoading.value = true
 
   try {

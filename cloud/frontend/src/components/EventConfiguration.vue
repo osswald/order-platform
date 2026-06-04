@@ -3,6 +3,7 @@
     <p v-if="loadError" class="error">{{ loadError }}</p>
     <p v-else-if="loading" class="muted">Laden…</p>
     <template v-else>
+      <p class="form-required-legend config-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
       <EventConfigLayout
         :mobile="isMobile"
         v-model:active-tab="activeConfigTab"
@@ -28,8 +29,15 @@
               />
             </div>
             <div class="form-field">
-              <label>Name</label>
-              <v-text-field v-model="st.name" placeholder="z. B. Bar" density="compact" hide-details />
+              <FormLabel required>Name</FormLabel>
+              <v-text-field
+                v-model="st.name"
+                placeholder="z. B. Bar"
+                density="compact"
+                hide-details="auto"
+                required
+                :rules="[rules.required]"
+              />
             </div>
             <div class="form-field">
               <label>Drucker</label>
@@ -82,10 +90,22 @@
             hide-default-footer
           >
             <template #item.name="{ index }">
-              <v-text-field v-model="waitersLocal[index].name" density="compact" hide-details />
+              <v-text-field
+                v-model="waitersLocal[index].name"
+                density="compact"
+                hide-details="auto"
+                required
+                :rules="[rules.required]"
+              />
             </template>
             <template #item.pin="{ index }">
-              <v-text-field v-model="waitersLocal[index].pin" density="compact" hide-details />
+              <v-text-field
+                v-model="waitersLocal[index].pin"
+                density="compact"
+                hide-details="auto"
+                required
+                :rules="[rules.required]"
+              />
             </template>
             <template #item.actions="{ index }">
               <v-btn
@@ -110,8 +130,15 @@
             </div>
             <div class="field-row">
               <div class="form-field">
-                <label>Name</label>
-                <v-text-field v-model="reg.name" placeholder="z. B. Hauptkasse" density="compact" hide-details />
+                <FormLabel required>Name</FormLabel>
+                <v-text-field
+                  v-model="reg.name"
+                  placeholder="z. B. Hauptkasse"
+                  density="compact"
+                  hide-details="auto"
+                  required
+                  :rules="[rules.required]"
+                />
               </div>
               <div class="form-field">
                 <label>Pickup-Code Buchstaben</label>
@@ -173,8 +200,15 @@
               <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeVoucher(vi)" />
             </div>
             <div class="form-field">
-              <label>Name</label>
-              <v-text-field v-model="vd.name" placeholder="z. B. 20.- Gutschein" density="compact" hide-details />
+              <FormLabel required>Name</FormLabel>
+              <v-text-field
+                v-model="vd.name"
+                placeholder="z. B. 20.- Gutschein"
+                density="compact"
+                hide-details="auto"
+                required
+                :rules="[rules.required]"
+              />
             </div>
             <div class="form-field">
               <label>Art</label>
@@ -459,6 +493,8 @@ import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
 import EventTransactionsTab from './EventTransactionsTab.vue'
 import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
+import FormLabel from './FormLabel.vue'
+import { rules } from '../utils/formRules.js'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -500,8 +536,8 @@ const showTransactionsTab = computed(() =>
 )
 
 const waiterHeaders = [
-  { title: 'Name', key: 'name', sortable: false },
-  { title: 'PIN', key: 'pin', sortable: false },
+  { title: 'Name *', key: 'name', sortable: false },
+  { title: 'PIN *', key: 'pin', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end', width: '4rem' },
 ]
 
@@ -1286,6 +1322,10 @@ watch(
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+.config-legend {
+  margin: 0 0 1rem;
 }
 
 .muted {

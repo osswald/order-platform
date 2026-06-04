@@ -9,9 +9,18 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Artikel bearbeiten' : 'Neuer Artikel' }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
 
+      <v-form ref="formRef" @submit.prevent="saveArticle">
       <div class="form-field">
-        <v-text-field v-model="form.name" label="Name" placeholder="Espresso" hide-details="auto" />
+        <v-text-field
+          v-model="form.name"
+          label="Name"
+          placeholder="Espresso"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
       </div>
 
       <div class="form-field">
@@ -21,6 +30,8 @@
           maxlength="22"
           placeholder="Espresso"
           hide-details="auto"
+          required
+          :rules="labelRules"
         />
         <small>{{ form.label.length }}/22 Zeichen</small>
       </div>
@@ -76,6 +87,8 @@
             :min="form.isAddition ? undefined : 0"
             label="Preis"
             hide-details="auto"
+            required
+            :rules="priceRules"
           />
         </div>
         <div class="form-field">
@@ -87,6 +100,8 @@
             label="Kategorie"
             placeholder="Kategorie wählen"
             hide-details="auto"
+            required
+            :rules="[rules.required]"
           />
         </div>
       </div>
@@ -102,6 +117,8 @@
           :min="0"
           label="Lagerbestand"
           hide-details="auto"
+          required
+          :rules="[rules.requiredNumber, rules.minNumber(0)]"
         />
       </div>
 
@@ -157,9 +174,10 @@
 
       <div class="actions">
         <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" :disabled="!canSave" @click="saveArticle">Speichern</v-btn>
+        <v-btn color="primary" type="submit">Speichern</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
+      </v-form>
     </template>
 
     <template #table>
@@ -250,6 +268,7 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { rules, validateForm } from '../utils/formRules.js'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -369,20 +388,17 @@ const additionOptions = computed(() =>
     })),
 )
 
-const canSave = computed(() => {
-  const priceOk =
-    form.value.price !== null &&
-    form.value.price !== undefined &&
-    (form.value.isAddition || form.value.price >= 0)
-  return !!(
-    props.activeOrganisationId != null &&
-    form.value.name &&
-    form.value.label &&
-    form.value.label.length <= 22 &&
-    priceOk &&
-    form.value.articleCategoryId &&
-    (!form.value.monitorStock || (form.value.inStock !== null && form.value.inStock >= 0))
-  )
+const formRef = ref(null)
+
+const labelRules = [
+  rules.required,
+  (v) => String(v || '').length <= 22 || 'Maximal 22 Zeichen',
+]
+
+const priceRules = computed(() => {
+  const base = [rules.requiredNumber]
+  if (!form.value.isAddition) base.push(rules.minNumber(0))
+  return base
 })
 
 function formatPrice(value) {
@@ -623,6 +639,12 @@ async function saveAdditions() {
 }
 
 async function saveArticle() {
+  if (props.activeOrganisationId == null) {
+    message.value = 'Bitte wählen Sie links eine Organisation.'
+    messageType.value = 'error'
+    return
+  }
+  if (!(await validateForm(formRef))) return
   const payload = {
     name: form.value.name,
     label: form.value.label,

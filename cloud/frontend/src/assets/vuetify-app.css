@@ -58,6 +58,29 @@
   color: rgb(var(--v-theme-warning));
 }
 
+.vq-label {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.vq-label--required::after {
+  content: ' *';
+  color: rgb(var(--v-theme-error));
+  font-weight: 600;
+}
+
+.form-required-legend {
+  margin: -0.75rem 0 1rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.form-required-legend .vq-asterisk {
+  color: rgb(var(--v-theme-error));
+  font-weight: 600;
+}
+
 .form-field {
   display: flex;
   flex-direction: column;
