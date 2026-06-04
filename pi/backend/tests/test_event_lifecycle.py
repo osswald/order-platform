@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database import run_migrations
+from app.database import Base, init_test_schema
 from app.event_lifecycle import purge_event_local_data, reconcile_bundle_lifecycle
 from app.models import (
     CollectiveBill,
@@ -35,7 +35,8 @@ def db():
 
     database.engine = engine
     database.SessionLocal = sessionmaker(bind=engine)
-    run_migrations()
+    Base.metadata.drop_all(bind=engine)
+    init_test_schema()
     Session = sessionmaker(bind=engine)
     session = Session()
     yield session

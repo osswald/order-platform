@@ -12,6 +12,7 @@ if str(_backend_root) not in sys.path:
 import json
 from collections.abc import Generator
 from dataclasses import dataclass
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,7 +21,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database import Base, apply_schema_patches, run_migrations
+from app import models, models_operational  # noqa: F401
+from app.database import Base, init_test_schema
 from app.main import app
 from app.models import SyncedBundle
 from tests.fixtures_bundles import bundle_copy, default_bundle
@@ -81,8 +83,7 @@ def isolated_engine() -> Generator[Engine, None, None]:
     database.engine = engine
     database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.drop_all(bind=engine)
-    run_migrations()
-    apply_schema_patches()
+    init_test_schema()
     try:
         yield engine
     finally:
@@ -125,8 +126,9 @@ def api_context(isolated_engine, bundle) -> Generator[ApiTestContext, None, None
             session.close()
 
     app.dependency_overrides[edge_api.get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield ApiTestContext(client=test_client, Session=Session)
+    with patch("app.main.run_migrations"), patch("app.main.ensure_default_synced_bundle"):
+        with TestClient(app) as test_client:
+            yield ApiTestContext(client=test_client, Session=Session)
     app.dependency_overrides.clear()
 
 

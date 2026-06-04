@@ -6,7 +6,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, run_migrations
+import app.database as database
+from app.database import Base, init_test_schema
 from app.domain.cash_sessions import open_session
 from app.models import SyncedBundle
 from app.shift_integration import attach_shift_to_payload, record_shift_order_submit, session_to_api_dict
@@ -15,8 +16,10 @@ from app.shift_integration import attach_shift_to_payload, record_shift_order_su
 @pytest.fixture
 def db_session():
     engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(bind=engine)
-    run_migrations()
+    database.engine = engine
+    database.SessionLocal = sessionmaker(bind=engine)
+    Base.metadata.drop_all(bind=engine)
+    init_test_schema()
     Session = sessionmaker(bind=engine)
     db = Session()
     ev = {

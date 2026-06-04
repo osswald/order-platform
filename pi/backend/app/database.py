@@ -165,6 +165,13 @@ def _create_all_tables() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+def init_test_schema() -> None:
+    """Create ORM tables and apply column patches without Alembic (used in tests)."""
+    _create_all_tables()
+    apply_shift_session_schema_patches()
+    apply_print_job_schema_patches()
+
+
 def _alembic_head_revision(cfg) -> str:
     from alembic.script import ScriptDirectory
 

@@ -8,7 +8,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base
+import app.database as database
+from app.database import Base, init_test_schema
 from app.domain.cash_sessions import close_session, open_session, record_payments_on_session
 from app.models import SyncedBundle
 from app.print_worker import build_shift_close_receipt_text, _escpos_text
@@ -17,7 +18,10 @@ from app.print_worker import build_shift_close_receipt_text, _escpos_text
 @pytest.fixture
 def db_session():
     engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(bind=engine)
+    database.engine = engine
+    database.SessionLocal = sessionmaker(bind=engine)
+    Base.metadata.drop_all(bind=engine)
+    init_test_schema()
     Session = sessionmaker(bind=engine)
     db = Session()
     ev = {
