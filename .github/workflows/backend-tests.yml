@@ -36,7 +36,9 @@ jobs:
 
       - name: Run tests with coverage (${{ matrix.backend }})
         working-directory: ${{ matrix.backend }}/backend
-        run: pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70 -q
+        env:
+          PYTHONPATH: .
+        run: python -m pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70 -q
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
