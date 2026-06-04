@@ -1,0 +1,73 @@
+"""Unit tests for article addition helpers."""
+
+from datetime import datetime, timezone
+
+import pytest
+from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.additions import (
+    addition_delta_cents,
+    load_links_for_bases,
+    replace_addition_links,
+    validate_base_article,
+)
+from app.database import Base
+from app.models import Article, ArticleAdditionLink, ArticleCategory, Event, HireCompany, EventStation, Organisation
+
+
+@pytest.fixture
+def db():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(bind=engine)
+    session = sessionmaker(bind=engine)()
+    now = datetime.now(timezone.utc)
+    session.add_all(
+        [
+            HireCompany(id=1, name="HC"),
+            Organisation(id=1, name="Org", country="CH", hire_company_id=1),
+            ArticleCategory(id=1, name="Food", organisation_id=1),
+            Article(id=10, name="Beer", label="B", price=5.5, article_category_id=1, is_addition=False),
+            Article(id=11, name="Lime", label="L", price=0.5, article_category_id=1, is_addition=True),
+            Event(
+                id=1,
+                name="Fest",
+                status="config",
+                start=now,
+                end=now,
+                currency="CHF",
+                organisation_id=1,
+                payment_mode="pay_later",
+                payment_types=["cash"],
+            ),
+        ]
+    )
+    session.commit()
+    yield session
+    session.close()
+
+
+def test_addition_delta_cents(db):
+    art = db.query(Article).filter(Article.id == 10).first()
+    assert addition_delta_cents(art) == 550
+
+
+def test_load_and_replace_addition_links(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0}],
+    )
+    db.commit()
+    assert len(links) == 1
+    loaded = load_links_for_bases(db, {base.id})
+    assert loaded[base.id][0].addition_article_id == add.id
+
+
+def test_validate_base_article_rejects_addition(db):
+    with pytest.raises(HTTPException) as exc:
+        validate_base_article(db, 11)
+    assert exc.value.status_code == 400

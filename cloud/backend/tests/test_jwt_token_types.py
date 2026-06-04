@@ -1,11 +1,8 @@
 """Access vs refresh JWT separation (security #2)."""
 
 import pytest
-from fastapi.testclient import TestClient
 from jose import JWTError
 
-from app.database import Base, engine
-from app.main import app
 from app.security import (
     TOKEN_TYPE_ACCESS,
     TOKEN_TYPE_REFRESH,
@@ -14,14 +11,6 @@ from app.security import (
     decode_access_token,
     decode_refresh_token,
 )
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.create_all(bind=engine)
-    yield
 
 
 def test_access_token_includes_typ_claim():
@@ -50,7 +39,7 @@ def test_access_token_rejected_as_refresh_token():
         decode_refresh_token(access)
 
 
-def test_refresh_token_cannot_authenticate_bearer_requests():
+def test_refresh_token_cannot_authenticate_bearer_requests(client):
     refresh_token = create_refresh_token(data={"sub": "any@example.com"})
     me = client.get(
         "/auth/me",

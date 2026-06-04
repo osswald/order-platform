@@ -3,23 +3,15 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, SessionLocal, apply_schema_patches, engine
+from app.database import SessionLocal
 from app.main import app
 from app.models import Appliance, ApplianceLending, HireCompany, Organisation, User
 from app.roles import ROLE_ORG_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    yield
 
 
 def _token_for(email: str, password: str) -> str:

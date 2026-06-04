@@ -1,38 +1,9 @@
 """Multi-tenant hire company isolation."""
 
-import pytest
-from fastapi.testclient import TestClient
-
-from app.database import Base, SessionLocal, apply_schema_patches, engine
-from app.main import app
-from app.rate_limit import limiter
+from app.database import SessionLocal
 from app.models import HireCompany, Organisation, User
 from app.roles import ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
-    yield
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
-
-
-def _token_for(email: str, password: str) -> str:
-    r = client.post("/auth/token", data={"username": email, "password": password})
-    assert r.status_code == 200, r.text
-    return r.json()["access_token"]
 
 
 def test_default_hire_company_backfill_name():
@@ -44,7 +15,7 @@ def test_default_hire_company_backfill_name():
         db.close()
 
 
-def test_org_admin_cannot_access_other_tenant_organisation():
+def test_org_admin_cannot_access_other_tenant_organisation(client, auth_token):
     db = SessionLocal()
     try:
         hc_a = HireCompany(name="Tenant A")
@@ -70,7 +41,7 @@ def test_org_admin_cannot_access_other_tenant_organisation():
     finally:
         db.close()
 
-    token = _token_for("orgadmin-a@test.local", "secret")
+    token = auth_token("orgadmin-a@test.local", "secret")
     r = client.get(
         f"/organisations/{org_b_id}/appliance-lendings",
         headers={"Authorization": f"Bearer {token}"},
@@ -78,7 +49,7 @@ def test_org_admin_cannot_access_other_tenant_organisation():
     assert r.status_code == 403
 
 
-def test_platform_admin_lists_hire_companies():
+def test_platform_admin_lists_hire_companies(client, auth_token):
     db = SessionLocal()
     try:
         plat = User(
@@ -92,7 +63,7 @@ def test_platform_admin_lists_hire_companies():
     finally:
         db.close()
 
-    token = _token_for("plat-admin@test.local", "secret")
+    token = auth_token("plat-admin@test.local", "secret")
     r = client.get("/hire-companies/", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert isinstance(r.json(), list)

@@ -1,32 +1,14 @@
 """Cross-tenant user IDOR and organisation user linkage (security #3, #15)."""
 
-import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, SessionLocal, apply_schema_patches, engine
+from app.database import SessionLocal
 from app.main import app
-from app.rate_limit import limiter
 from app.models import HireCompany, Organisation, User
 from app.roles import ROLE_MEMBER, ROLE_ORG_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
-    yield
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
 
 
 def _token_for(email: str, password: str) -> str:

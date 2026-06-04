@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, SessionLocal, apply_schema_patches, engine
+from app.database import Base, SessionLocal, engine
 from app.event_config_validation import (
     assert_printer_eligible,
     event_printer_candidates,
@@ -27,13 +27,6 @@ from app.roles import ROLE_ORG_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    yield
 
 
 def _utc_dt(year: int, month: int, day: int, hour: int = 12) -> datetime:

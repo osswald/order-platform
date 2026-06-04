@@ -6,28 +6,11 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, SessionLocal, apply_schema_patches, engine
+from app.database import SessionLocal
 from app.main import app
 from app.models import HireCompany, Organisation
-from app.rate_limit import limiter
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
-    yield
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
 
 
 @pytest.fixture(autouse=True)

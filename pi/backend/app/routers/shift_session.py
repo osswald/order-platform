@@ -129,7 +129,7 @@ def shift_session_close(
 
 
 def _shift_receipt_escpos(db: Session, session, ev: dict, *, paper_width: str | None) -> bytes:
-    payload = session_to_sync_payload(db, int(session.id))
+    payload = session_to_sync_payload(db, session)
     return build_shift_close_receipt_text(
         payload,
         ev.get("name", "Event"),

@@ -1,32 +1,14 @@
 """Session invalidation, refresh rotation, and refresh rate limit (security #9)."""
 
-import pytest
 from fastapi.testclient import TestClient
 
-from app.database import Base, SessionLocal, apply_schema_patches, engine
+from app.database import SessionLocal
 from app.main import app
-from app.rate_limit import limiter
 from app.models import User
 from app.roles import ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _ensure_db_tables():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    apply_schema_patches()
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
-    yield
-    try:
-        limiter._storage.reset()
-    except Exception:
-        pass
 
 
 def _create_user(email: str, password: str) -> None:

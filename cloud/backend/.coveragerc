@@ -1,0 +1,11 @@
+[run]
+source = app
+omit =
+    */.pytest_deps/*
+    tests/*
+    app/main.py
+
+[report]
+fail_under = 70
+show_missing = True
+skip_covered = True
