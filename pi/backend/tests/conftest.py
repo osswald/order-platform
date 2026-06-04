@@ -20,7 +20,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database import Base, run_migrations
+from app.database import Base, apply_schema_patches, run_migrations
 from app.main import app
 from app.models import SyncedBundle
 from tests.fixtures_bundles import bundle_copy, default_bundle
@@ -82,6 +82,7 @@ def isolated_engine() -> Generator[Engine, None, None]:
     database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.drop_all(bind=engine)
     run_migrations()
+    apply_schema_patches()
     try:
         yield engine
     finally:

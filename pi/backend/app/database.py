@@ -149,8 +149,10 @@ def _stamp_legacy_v3_baseline(cfg, connection=None) -> None:
 
 def _dispose_engine_before_alembic() -> None:
     """Release file DB locks before Alembic runs. Skip for in-memory SQLite (tests)."""
-    url = SQLALCHEMY_DATABASE_URL
+    url = str(engine.url)
     if url in ("sqlite://", "sqlite:///:memory:"):
+        return
+    if engine.url.drivername == "sqlite" and not engine.url.database:
         return
     if url.startswith("sqlite://"):
         engine.dispose()
