@@ -3013,3 +3013,23 @@ def retry_print_job(job_id: int, db: Session = Depends(get_db)) -> PrintJobRetry
     job.last_error = None
     db.commit()
     return PrintJobRetryResponse(print_job_id=job.id, status=job.status)
+
+
+@router.delete("/v1/print-jobs/{job_id}", response_model=OkResponse)
+def delete_print_job(job_id: int, db: Session = Depends(get_db)) -> OkResponse:
+    job = db.query(PrintJob).filter(PrintJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Print job not found")
+    if job.status != "error":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Print job status is {job.status!r}; only failed jobs can be deleted",
+        )
+    if job.job_kind not in WAITER_PRINT_JOB_KINDS:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Print job kind is {job.job_kind!r}; only waiter station/kitchen jobs can be deleted",
+        )
+    db.delete(job)
+    db.commit()
+    return OkResponse()

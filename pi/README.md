@@ -224,6 +224,7 @@ Admin/printing/registers:
 - `GET /v1/admin/status` - bundle/admin PIN status.
 - `POST /v1/admin/verify` - verify 6-digit Pi admin code.
 - `GET /v1/print-jobs` - print queue.
+- `DELETE /v1/print-jobs/{id}` - dismiss a failed waiter station/kitchen print job (`status=error`, `job_kind` in `station_order` / `kitchen_ticket`).
 - `POST /v1/printers/test-station-prints` - admin test: one station ESC/POS slip per configured station (Pi Admin → **Testdruck**).
 - `POST /v1/printers/test-receipt` - sample payment receipt payload (Android Bluetooth setup).
 - `POST /v1/payments/{payment_id}/receipt` - ESC/POS payload for a payment receipt (Android Bluetooth or reprint).

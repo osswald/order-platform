@@ -195,3 +195,103 @@ def test_get_print_job_by_id(client_session):
     assert body["id"] == job_id
     assert body["station_uuid"] == "st-bar"
     assert body["event_id"] == 1
+
+
+def test_delete_failed_waiter_job(client_session):
+    c, Session = client_session
+    response = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": 10,
+            "waiter_uuid": "w-1",
+            "lines": [
+                {"article_id": 20, "qty": 1, "station_uuid": "st-bar", "note": "", "additions": []},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    job_id = response.json()["print_job_ids"][0]
+
+    db = Session()
+    try:
+        job = db.query(PrintJob).filter(PrintJob.id == job_id).one()
+        job.status = "error"
+        job.last_error = "timeout"
+        db.commit()
+    finally:
+        db.close()
+
+    deleted = c.delete(f"/v1/print-jobs/{job_id}")
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["ok"] is True
+
+    db = Session()
+    try:
+        assert db.query(PrintJob).filter(PrintJob.id == job_id).first() is None
+    finally:
+        db.close()
+
+    listed = c.get(
+        "/v1/print-jobs",
+        params={
+            "status": "error",
+            "waiter_uuid": "w-1",
+            "event_id": 1,
+        },
+    )
+    assert listed.status_code == 200, listed.text
+    assert listed.json() == []
+
+
+def test_delete_rejects_non_error_status(client_session):
+    c, Session = client_session
+    response = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": 11,
+            "waiter_uuid": "w-1",
+            "lines": [
+                {"article_id": 20, "qty": 1, "station_uuid": "st-bar", "note": "", "additions": []},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    job_id = response.json()["print_job_ids"][0]
+
+    deleted = c.delete(f"/v1/print-jobs/{job_id}")
+    assert deleted.status_code == 409, deleted.text
+
+
+def test_delete_rejects_non_waiter_kind(client_session):
+    c, Session = client_session
+    response = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": 12,
+            "waiter_uuid": "w-1",
+            "lines": [
+                {"article_id": 20, "qty": 1, "station_uuid": "st-bar", "note": "", "additions": []},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    job_id = response.json()["print_job_ids"][0]
+
+    db = Session()
+    try:
+        job = db.query(PrintJob).filter(PrintJob.id == job_id).one()
+        job.status = "error"
+        job.last_error = "timeout"
+        job.job_kind = "payment_receipt"
+        db.commit()
+    finally:
+        db.close()
+
+    deleted = c.delete(f"/v1/print-jobs/{job_id}")
+    assert deleted.status_code == 409, deleted.text

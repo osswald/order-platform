@@ -4,6 +4,7 @@ import { api } from '../api'
 const failedJobs = ref([])
 const loadingFailed = ref(false)
 const retryingId = ref(null)
+const deletingId = ref(null)
 
 const POLL_MS = 1500
 const DEFAULT_WATCH_TIMEOUT_MS = 30_000
@@ -74,6 +75,21 @@ async function loadFailedJobs({ eventId, waiterUuid }) {
   }
 }
 
+async function deleteJob(id, { showToast } = {}) {
+  if (deletingId.value != null) return
+  deletingId.value = id
+  try {
+    await api(`/v1/print-jobs/${id}`, { method: 'DELETE' })
+    failedJobs.value = failedJobs.value.filter((j) => j.id !== id)
+    showToast?.('Druckauftrag verworfen.', 'ok')
+  } catch (e) {
+    showToast?.(e.message || 'Verwerfen fehlgeschlagen.', 'err')
+    throw e
+  } finally {
+    deletingId.value = null
+  }
+}
+
 async function retryJob(id, { showToast, onFailed } = {}) {
   if (retryingId.value != null) return
   retryingId.value = id
@@ -135,10 +151,12 @@ export function useStationPrintFailures() {
     failedCount,
     loadingFailed,
     retryingId,
+    deletingId,
     failureLabel,
     watchJobIds,
     loadFailedJobs,
     retryJob,
+    deleteJob,
     fetchJob,
     startWaiterPrintFailurePolling,
     stopWaiterPrintFailurePolling,

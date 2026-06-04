@@ -23,14 +23,24 @@
         </p>
         <p v-if="job.last_error" class="err small">{{ job.last_error }}</p>
       </div>
-      <button
-        type="button"
-        class="btn primary"
-        :disabled="retryingId === job.id"
-        @click="retry(job)"
-      >
-        Erneut drucken
-      </button>
+      <div class="card-actions">
+        <button
+          type="button"
+          class="btn primary"
+          :disabled="retryingId === job.id || deletingId === job.id"
+          @click="retry(job)"
+        >
+          Erneut drucken
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :disabled="retryingId === job.id || deletingId === job.id"
+          @click="dismiss(job)"
+        >
+          Verwerfen
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -41,7 +51,7 @@ import { useEventContext } from '../composables/useEventContext'
 import { useStationPrintFailures } from '../composables/useStationPrintFailures'
 
 const { event, waiter, showToast, selectedEventId } = useEventContext()
-const { failedJobs, loadingFailed, retryingId, loadFailedJobs, retryJob, failureLabel } =
+const { failedJobs, loadingFailed, retryingId, deletingId, loadFailedJobs, retryJob, deleteJob, failureLabel } =
   useStationPrintFailures()
 
 async function refresh() {
@@ -59,6 +69,15 @@ async function retry(job) {
   await refresh()
 }
 
+async function dismiss(job) {
+  const station = job.station_name || job.station_uuid || 'Station'
+  const confirmed = window.confirm(
+    `Druckauftrag für «${station}» verwerfen? Der Bon wird nicht gedruckt.`,
+  )
+  if (!confirmed) return
+  await deleteJob(job.id, { showToast })
+}
+
 onMounted(refresh)
 </script>
 
@@ -69,6 +88,12 @@ onMounted(refresh)
   justify-content: space-between;
   gap: 1rem;
   margin-top: 0.75rem;
+}
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 .small {
   font-size: 0.85rem;
