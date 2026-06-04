@@ -116,7 +116,16 @@
                 >
                   Sperren
                 </v-btn>
-                <span v-else>—</span>
+                <v-btn
+                  v-else
+                  color="error"
+                  variant="outlined"
+                  size="small"
+                  type="button"
+                  @click="deleteEdgeCredential(item.id)"
+                >
+                  Löschen
+                </v-btn>
               </template>
               <template #no-data>Keine gekoppelten SD-Karten.</template>
             </VqDataTable>
@@ -704,6 +713,28 @@ async function revokeEdgeCredential(credentialId) {
     messageType.value = 'success'
   } catch {
     message.value = 'SD-Karte konnte nicht gesperrt werden.'
+    messageType.value = 'error'
+  }
+}
+
+async function deleteEdgeCredential(credentialId) {
+  if (!activeId.value || !credentialId) return
+  if (!confirm('Diese gesperrte SD-Karte wirklich löschen? Der Eintrag wird dauerhaft entfernt.')) return
+  try {
+    const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials/${credentialId}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      message.value = await parseApiErrorDetail(response)
+      messageType.value = 'error'
+      return
+    }
+    await fetchApplianceDetail(activeId.value)
+    await fetchAppliances()
+    message.value = 'SD-Karte wurde gelöscht.'
+    messageType.value = 'success'
+  } catch {
+    message.value = 'SD-Karte konnte nicht gelöscht werden.'
     messageType.value = 'error'
   }
 }

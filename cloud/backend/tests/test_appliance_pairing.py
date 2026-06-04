@@ -184,6 +184,66 @@ def test_multiple_sd_cards_get_separate_revocable_credentials():
     assert revoked_auth.status_code == 401
 
 
+def test_revoked_edge_credential_can_be_deleted():
+    appliance_id, email = _server_appliance_fixture("delete-revoked")
+    token = _token_for(email, "secret")
+
+    pairing_code = client.post(
+        f"/appliances/{appliance_id}/pairing-sessions",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()["pairing_code"]
+    paired = client.post("/edge/v1/pair", json={"pairing_code": pairing_code, "device_name": "Backup SD"})
+    assert paired.status_code == 200, paired.text
+    credential_id = paired.json()["edge_credential_id"]
+
+    revoked = client.post(
+        f"/appliances/{appliance_id}/edge-credentials/{credential_id}/revoke",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert revoked.status_code == 200, revoked.text
+
+    deleted = client.delete(
+        f"/appliances/{appliance_id}/edge-credentials/{credential_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert deleted.status_code == 204, deleted.text
+
+    detail = client.get(f"/appliances/{appliance_id}", headers={"Authorization": f"Bearer {token}"})
+    assert detail.status_code == 200, detail.text
+    assert not any(row["id"] == credential_id for row in detail.json()["edge_credentials"])
+
+
+def test_active_edge_credential_cannot_be_deleted():
+    appliance_id, email = _server_appliance_fixture("delete-active")
+    token = _token_for(email, "secret")
+
+    pairing_code = client.post(
+        f"/appliances/{appliance_id}/pairing-sessions",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()["pairing_code"]
+    paired = client.post("/edge/v1/pair", json={"pairing_code": pairing_code, "device_name": "Main SD"})
+    assert paired.status_code == 200, paired.text
+    credential_id = paired.json()["edge_credential_id"]
+
+    blocked = client.delete(
+        f"/appliances/{appliance_id}/edge-credentials/{credential_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert blocked.status_code == 400, blocked.text
+    assert "Only revoked SD cards can be deleted" in blocked.text
+
+
+def test_delete_unknown_edge_credential_returns_404():
+    appliance_id, email = _server_appliance_fixture("delete-missing")
+    token = _token_for(email, "secret")
+
+    missing = client.delete(
+        f"/appliances/{appliance_id}/edge-credentials/999999",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert missing.status_code == 404, missing.text
+
+
 def test_edge_device_can_self_revoke_via_unpair_endpoint():
     appliance_id, email = _server_appliance_fixture("self-revoke")
     token = _token_for(email, "secret")

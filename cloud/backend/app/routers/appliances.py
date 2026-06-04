@@ -548,6 +548,37 @@ def revoke_appliance_edge_credential(
 
 
 @router.delete(
+    "/{appliance_id}/edge-credentials/{credential_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_appliance_edge_credential(
+    appliance_id: int,
+    credential_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+):
+    _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
+    credential = (
+        db.query(ApplianceEdgeCredential)
+        .filter(
+            ApplianceEdgeCredential.id == credential_id,
+            ApplianceEdgeCredential.appliance_id == appliance_id,
+        )
+        .first()
+    )
+    if credential is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edge credential not found")
+    if credential.status != "revoked":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only revoked SD cards can be deleted",
+        )
+    db.delete(credential)
+    db.commit()
+    return None
+
+
+@router.delete(
     "/{appliance_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
