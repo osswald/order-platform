@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
+from ..appliance_naming import appliance_display_name
 from ..dashboard_summary import build_organisation_dashboard_summary
 from ..models import ApplianceLending, Event, HireCompany, Organisation, User
 from ..auth_deps import get_current_user
@@ -126,7 +127,7 @@ def read_organisation_appliance_lendings(
         item = OrgApplianceLendingItem(
             lending_id=row.id,
             appliance_id=row.appliance_id,
-            appliance_name=appliance.name if appliance else None,
+            appliance_name=appliance_display_name(appliance),
             appliance_type=appliance.type if appliance else "",
             start_date=row.start_date,
             end_date=row.end_date,

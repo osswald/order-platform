@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
+from ..appliance_naming import appliance_display_name
 from ..event_config_validation import (
     build_station_article_tree,
     event_printer_candidates,
@@ -321,7 +322,7 @@ def get_event_for_configuration(
 def serialize_event_configuration(db: Session, event: Event) -> EventConfigurationRead:
     printers = event_printer_candidates(db, event)
     printer_options = [
-        PrinterOptionRead(id=a.id, name=(a.name or f"Drucker #{a.id}")) for a in printers
+        PrinterOptionRead(id=a.id, name=appliance_display_name(a) or f"Drucker #{a.id}") for a in printers
     ]
     stations = []
     for st in sorted(event.stations, key=lambda s: (s.sort_order, s.id)):

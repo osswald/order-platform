@@ -16,29 +16,46 @@
           <div class="field-row">
             <div class="form-field">
               <FormLabel required>Startdatum</FormLabel>
-              <v-date-input
-                v-model="startDate"
-                placeholder="Startdatum"
-                density="compact"
-                hide-details="auto"
-                required
-                :rules="[rules.requiredDate]"
-                prepend-icon=""
-                prepend-inner-icon="mdi-calendar"
-              />
+              <v-menu v-model="startDateMenuOpen" :close-on-content-click="false">
+                <template #activator="{ props: menuProps }">
+                  <v-text-field
+                    :model-value="startDateDisplay"
+                    placeholder="Startdatum"
+                    density="compact"
+                    hide-details="auto"
+                    readonly
+                    prepend-inner-icon="mdi-calendar"
+                    v-bind="menuProps"
+                    :rules="[startDateRule]"
+                  />
+                </template>
+                <v-date-picker
+                  :model-value="startDate"
+                  @update:model-value="onStartDatePick"
+                />
+              </v-menu>
             </div>
             <div class="form-field">
               <FormLabel required>Enddatum</FormLabel>
-              <v-date-input
-                v-model="endDate"
-                placeholder="Enddatum"
-                density="compact"
-                hide-details="auto"
-                required
-                :rules="[rules.requiredDate, endDateRule]"
-                prepend-icon=""
-                prepend-inner-icon="mdi-calendar"
-              />
+              <v-menu v-model="endDateMenuOpen" :close-on-content-click="false">
+                <template #activator="{ props: menuProps }">
+                  <v-text-field
+                    :model-value="endDateDisplay"
+                    placeholder="Enddatum"
+                    density="compact"
+                    hide-details="auto"
+                    readonly
+                    prepend-inner-icon="mdi-calendar"
+                    v-bind="menuProps"
+                    :rules="[endDateRequiredRule, endDateRangeRule]"
+                  />
+                </template>
+                <v-date-picker
+                  :model-value="endDate"
+                  :min="startDate"
+                  @update:model-value="onEndDatePick"
+                />
+              </v-menu>
             </div>
           </div>
           <small v-if="rangeHint" class="range-hint">{{ rangeHint }}</small>
@@ -62,8 +79,8 @@
             />
             <small v-if="loadingAppliances">Geräte werden geladen…</small>
             <small v-else-if="!canPickAppliances">Bitte Start- und Enddatum angeben.</small>
-            <small v-else-if="blockedCount" class="blocked-hint">
-              {{ blockedCount }} Gerät{{ blockedCount === 1 ? '' : 'e' }} im gewählten Zeitraum nicht verfügbar.
+            <small v-else-if="noAppliancesAvailable" class="muted-hint">
+              Im gewählten Zeitraum sind keine Geräte verfügbar.
             </small>
           </div>
           <p v-if="submitMessage" :class="submitMessageType">{{ submitMessage }}</p>
@@ -102,10 +119,12 @@ import {
   applianceDisplayName,
   applianceTypeLabel,
   defaultLendingEndDate,
+  formatDeDate,
   inclusiveDurationDays,
   isValidLendingRange,
   lendingRangeHint,
   toIsoDate,
+  toLocalCalendarDate,
 } from '../utils/applianceLending'
 
 const props = defineProps({
@@ -128,6 +147,8 @@ const emit = defineEmits(['update:visible', 'completed'])
 const formRef = ref(null)
 const startDate = ref(null)
 const endDate = ref(null)
+const startDateMenuOpen = ref(false)
+const endDateMenuOpen = ref(false)
 const selectedIds = ref([])
 const appliances = ref([])
 const loadingAppliances = ref(false)
@@ -136,8 +157,16 @@ const submitMessage = ref('')
 const submitMessageType = ref('')
 const submitFailures = ref([])
 
-const endDateRule = (value) =>
-  isValidLendingRange(startDate.value, value) || 'Enddatum muss am oder nach dem Startdatum liegen'
+const startDateDisplay = computed(() =>
+  startDate.value ? formatDeDate(startDate.value) : '',
+)
+const endDateDisplay = computed(() => (endDate.value ? formatDeDate(endDate.value) : ''))
+
+const startDateRule = () => rules.requiredDate(startDate.value)
+const endDateRequiredRule = () => rules.requiredDate(endDate.value)
+const endDateRangeRule = () =>
+  isValidLendingRange(startDate.value, endDate.value) ||
+  'Enddatum muss am oder nach dem Startdatum liegen'
 
 const canPickAppliances = computed(() => isValidLendingRange(startDate.value, endDate.value))
 
@@ -151,16 +180,18 @@ const applianceById = computed(() => {
   return map
 })
 
+const lendableAppliances = computed(() =>
+  appliances.value.filter((a) => a.lendable !== false),
+)
+
 const applianceOptionGroups = computed(() => {
   const byType = new Map()
-  for (const a of appliances.value) {
+  for (const a of lendableAppliances.value) {
     const type = a.type || 'other'
     if (!byType.has(type)) byType.set(type, [])
     byType.get(type).push({
       label: applianceDisplayName(a),
       value: a.id,
-      disabled: a.lendable === false,
-      title: a.lend_block_reason || undefined,
     })
   }
   return [...byType.entries()]
@@ -179,19 +210,35 @@ const applianceSelectItems = computed(() => {
       items.push({
         title: item.label,
         value: item.value,
-        disabled: item.disabled,
       })
     }
   }
   return items
 })
 
-const blockedCount = computed(() => appliances.value.filter((a) => a.lendable === false).length)
+const noAppliancesAvailable = computed(
+  () => canPickAppliances.value && !loadingAppliances.value && lendableAppliances.value.length === 0,
+)
+
+function onStartDatePick(value) {
+  startDate.value = toLocalCalendarDate(value)
+  startDateMenuOpen.value = false
+  if (endDate.value && !isValidLendingRange(startDate.value, endDate.value)) {
+    endDate.value = defaultLendingEndDate(startDate.value)
+  }
+}
+
+function onEndDatePick(value) {
+  endDate.value = toLocalCalendarDate(value)
+  endDateMenuOpen.value = false
+}
 
 function resetForm() {
-  const start = new Date()
+  const start = toLocalCalendarDate(new Date())
   startDate.value = start
   endDate.value = defaultLendingEndDate(start)
+  startDateMenuOpen.value = false
+  endDateMenuOpen.value = false
   selectedIds.value = []
   appliances.value = []
   submitMessage.value = ''
@@ -323,7 +370,7 @@ watch([startDate, endDate], () => {
   opacity: 0.75;
 }
 
-.blocked-hint {
+.muted-hint {
   opacity: 0.65;
 }
 

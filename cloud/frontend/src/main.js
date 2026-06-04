@@ -4,6 +4,8 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { VDateInput } from 'vuetify/labs/VDateInput'
 import DateFnsAdapter from '@date-io/date-fns'
+import { de as dateFnsDe } from 'date-fns/locale/de'
+import { enUS as dateFnsEnUS } from 'date-fns/locale/en-US'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 import App from './App.vue'
@@ -12,8 +14,16 @@ import { router } from './router/index'
 const vuetify = createVuetify({
   components: { ...components, VDateInput },
   directives,
+  locale: {
+    locale: 'de',
+    fallback: 'en',
+  },
   date: {
     adapter: DateFnsAdapter,
+    locale: {
+      de: dateFnsDe,
+      en: dateFnsEnUS,
+    },
   },
   theme: {
     defaultTheme: 'light',

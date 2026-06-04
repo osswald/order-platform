@@ -1,6 +1,14 @@
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from './apiError'
 
+/** Local calendar date at midnight (for Vuetify date pickers). */
+export function toLocalCalendarDate(d) {
+  if (!d) return null
+  const x = d instanceof Date ? d : new Date(d)
+  if (Number.isNaN(x.getTime())) return null
+  return new Date(x.getFullYear(), x.getMonth(), x.getDate())
+}
+
 export function toIsoDate(d) {
   if (!d) return null
   const x = d instanceof Date ? d : new Date(d)
@@ -36,7 +44,8 @@ export function isValidLendingRange(start, end) {
 }
 
 export function defaultLendingEndDate(start = new Date()) {
-  return endDateFromStartAndDuration(start, 7)
+  const base = toLocalCalendarDate(start) ?? new Date()
+  return endDateFromStartAndDuration(base, 7)
 }
 
 export function formatDeDate(isoOrDate) {
@@ -66,8 +75,12 @@ export function applianceTypeLabel(type) {
 }
 
 export function applianceDisplayName(appliance) {
-  if (appliance?.name) return appliance.name
-  return `#${appliance?.id ?? '?'}`
+  const base = appliance?.name ? appliance.name : `#${appliance?.id ?? '?'}`
+  if (appliance?.type === 'printer') {
+    const ip = appliance.ip_address?.trim() || '—'
+    return `${base} (${ip})`
+  }
+  return base
 }
 
 export async function cancelPlannedLending(organisationId, lendingId) {

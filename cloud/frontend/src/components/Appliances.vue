@@ -278,7 +278,7 @@
         hover
         @click:row="(_, { item }) => editAppliance(item)"
       >
-        <template #item.name="{ item }">{{ item.name || '—' }}</template>
+        <template #item.name="{ item }">{{ applianceDisplayName(item) }}</template>
         <template #item.type="{ item }">{{ typeLabel(item.type) }}</template>
         <template #item.lending_status="{ item }">
           <v-chip
@@ -322,6 +322,7 @@ import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { parseApiErrorDetail } from '../utils/apiError'
 import {
+  applianceDisplayName,
   cancelPlannedLendingForAppliance,
   defaultLendingEndDate,
   inclusiveDurationDays,

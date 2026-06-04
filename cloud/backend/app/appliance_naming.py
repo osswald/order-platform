@@ -417,6 +417,17 @@ def _pick_from_pool(pool: Iterable[str], used: set[str]) -> str:
     return f"{base} {suffix}"
 
 
+def appliance_display_name(appliance) -> str | None:
+    """Human-readable label; printers always include IP (or em dash if unset)."""
+    if appliance is None:
+        return None
+    base = appliance.name or f"#{appliance.id}"
+    if appliance.type == "printer":
+        ip = (appliance.ip_address or "").strip() or "—"
+        return f"{base} ({ip})"
+    return base
+
+
 def generate_appliance_name(
     db: Session,
     appliance_type: str,
