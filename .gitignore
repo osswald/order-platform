@@ -26,6 +26,11 @@ pi/backend/test.db-wal
 cloud/backend/test.db
 cloud/backend/test.db-shm
 cloud/backend/test.db-wal
+**/test.db-journal
+
+# Test / coverage artifacts
+.coverage
+coverage.xml
 
 # IDE
 .vscode/
