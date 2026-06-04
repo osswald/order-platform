@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
@@ -28,9 +28,16 @@ from .vouchers import assert_layout_cells_vouchers, normalize_cell_voucher_uuids
 PICKUP_PREFIX_RE = re.compile(r"^[A-Z]{1,3}$")
 
 
+def _event_calendar_dates(event: Event) -> tuple[date, date]:
+    """Inclusive UTC calendar bounds for event.start / event.end."""
+    start = event.start.astimezone(timezone.utc).date()
+    end = event.end.astimezone(timezone.utc).date()
+    return start, end
+
+
 def event_printer_candidates(db: Session, event: Event) -> list[Appliance]:
-    """Printers with open current or planned lendings to the event organisation (UTC calendar days)."""
-    today = datetime.now(timezone.utc).date()
+    """Printers with open lendings overlapping the event window (current or planned)."""
+    event_start, event_end = _event_calendar_dates(event)
     rows = (
         db.query(Appliance)
         .join(ApplianceLending, ApplianceLending.appliance_id == Appliance.id)
@@ -38,7 +45,8 @@ def event_printer_candidates(db: Session, event: Event) -> list[Appliance]:
             Appliance.type == "printer",
             ApplianceLending.organisation_id == event.organisation_id,
             ApplianceLending.returned_at.is_(None),
-            ApplianceLending.end_date >= today,
+            ApplianceLending.start_date <= event_end,
+            ApplianceLending.end_date >= event_start,
         )
         .distinct()
         .order_by(Appliance.id)

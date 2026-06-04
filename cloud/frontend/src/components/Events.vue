@@ -13,6 +13,7 @@
 
       <EventConfiguration
         v-if="editMode && activeId"
+        ref="eventConfigurationRef"
         :event-id="activeId"
         :organisation-id="activeOrganisationId"
         :event-status="form.status"
@@ -218,6 +219,7 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm())
 const stammdatenFormRef = ref(null)
+const eventConfigurationRef = ref(null)
 const stammdatenBaseline = ref('')
 const originalStatus = ref('config')
 
@@ -618,6 +620,7 @@ async function saveEvent() {
     const wasEdit = editMode.value
     if (wasEdit) {
       stammdatenBaseline.value = stammdatenSnapshot()
+      await eventConfigurationRef.value?.loadConfiguration?.()
     }
     await fetchEvents()
     message.value = wasEdit ? 'Veranstaltung aktualisiert.' : 'Veranstaltung erstellt.'

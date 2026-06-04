@@ -1309,6 +1309,10 @@ watch(
   },
   { immediate: true },
 )
+
+defineExpose({
+  loadConfiguration,
+})
 </script>
 
 <style scoped>
