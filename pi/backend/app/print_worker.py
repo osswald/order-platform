@@ -82,7 +82,11 @@ def _price_hint_eur(cents: int) -> str:
 
 
 def _money(cents: int, currency: str) -> str:
-    return f"{cents / 100:.2f} {currency}"
+    return f"{currency} {cents / 100:.2f}"
+
+
+def _amount(cents: int) -> str:
+    return f"{cents / 100:.2f}"
 
 
 def _printing_block(ev: dict | None) -> dict:
@@ -195,10 +199,14 @@ def _write_order_lines(
     currency: str = "EUR",
     line_size: str = "normal",
     width: int = 48,
+    amount_with_currency: bool = True,
 ) -> None:
     from .pricing import line_total_cents
 
     align_prices = show_prices and (line_size or "normal").lower() == "normal"
+
+    def _format_price(cents: int) -> str:
+        return _money(cents, currency) if amount_with_currency else _amount(cents)
 
     for line in payload.get("lines") or []:
         if not isinstance(line, dict):
@@ -211,9 +219,9 @@ def _write_order_lines(
         name = line.get("article_name") or art.get("name") or f"#{aid}"
         cents = line_total_cents(line, arts)
         if align_prices:
-            write_two_column(printer, f"{qty}x {name}", _money(cents, currency), width)
+            write_two_column(printer, f"{qty}x {name}", _format_price(cents), width)
         else:
-            price = _money(cents, currency) if show_prices else _price_hint_eur(cents)
+            price = _format_price(cents) if show_prices else _price_hint_eur(cents)
             write_sized_line(printer, f"{qty}x {name}{price}", line_size)
         for add in line.get("additions") or []:
             if not isinstance(add, dict):
@@ -221,11 +229,11 @@ def _write_order_lines(
             add_qty = max(1, int(add.get("qty") or 1))
             add_name = addition_display_name(add, arts, art)
             add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
-            add_left = f"  + {add_qty}x {add_name}"
+            add_left = f"  + {add_qty}x {add_name}" if add_qty > 1 else f"  + {add_name}"
             if align_prices and add_cents:
-                write_two_column(printer, add_left, _money(add_cents, currency), width)
+                write_two_column(printer, add_left, _format_price(add_cents), width)
             elif show_prices and add_cents:
-                write_sized_line(printer, f"{add_left} {_money(add_cents, currency)}", line_size)
+                write_sized_line(printer, f"{add_left} {_format_price(add_cents)}", line_size)
             elif not show_prices:
                 add_price = _price_hint_eur(add_cents)
                 write_sized_line(printer, f"{add_left}{add_price}", line_size)
@@ -306,18 +314,28 @@ def build_payment_receipt_text(
             currency=currency,
             line_size=line_size,
             width=width,
+            amount_with_currency=False,
         )
         write_separator(printer, width=width)
         if (line_size or "normal").lower() == "normal":
-            write_two_column(printer, "Total:", _money(total, currency), width)
+            write_two_column(
+                printer,
+                f"Total {currency}:",
+                _amount(total),
+                width,
+                left_bold=True,
+            )
         else:
-            write_sized_line(printer, f"Total: {_money(total, currency)}", line_size)
+            write_sized_line(printer, f"Total {currency}: {_amount(total)}", line_size)
         for payment in payments:
             if not isinstance(payment, dict):
                 continue
             label = _payment_type_label(str(payment.get("type") or ""))
             amount = int(payment.get("amount_cents") or 0)
-            write_sized_line(printer, f"{label}: {_money(amount, currency)}", line_size)
+            if (line_size or "normal").lower() == "normal":
+                write_two_column(printer, f"{label}:", _amount(amount), width)
+            else:
+                write_sized_line(printer, f"{label}: {_amount(amount)}", line_size)
         bottom = (profile.get("bottom_line") or "").strip()
         if bottom:
             write_centered_block(printer, bottom)

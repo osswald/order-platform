@@ -73,6 +73,10 @@ def test_payment_receipt_narrow_lines_fit_paper_width():
     assert len(narrow_seps[0]) == width_narrow
     assert len(wide_seps[0]) == width_wide
 
-    narrow_item_lines = [ln for ln in narrow_text.splitlines() if "CHF" in ln and "x " in ln]
-    wide_item_lines = [ln for ln in wide_text.splitlines() if "CHF" in ln and "x " in ln]
+    narrow_item_lines = [
+        ln for ln in narrow_text.splitlines() if "x " in ln and re.search(r"\d+\.\d{2}\s*$", ln)
+    ]
+    wide_item_lines = [
+        ln for ln in wide_text.splitlines() if "x " in ln and re.search(r"\d+\.\d{2}\s*$", ln)
+    ]
     assert len(narrow_item_lines[0]) < len(wide_item_lines[0])
