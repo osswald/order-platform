@@ -67,3 +67,13 @@ def discount_hint(discount: dict | None, gross_cents: int, net_cents: int) -> st
         return f"Rabatt {d['value']}%"
     off = gross_cents - net_cents
     return f"Rabatt {off / 100:.2f}"
+
+
+def order_discount_hint(order_discount: dict | None, subtotal_cents: int, net_cents: int) -> str | None:
+    d = normalize_discount(order_discount)
+    if not d or subtotal_cents <= net_cents:
+        return None
+    if d["kind"] == "percent":
+        return f"Rabatt Bestellung {d['value']}%"
+    off = subtotal_cents - net_cents
+    return f"Rabatt Bestellung {off / 100:.2f}"

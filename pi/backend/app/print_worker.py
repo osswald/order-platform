@@ -244,6 +244,128 @@ def _write_order_lines(
             write_sized_line(printer, f"  {note}", line_size)
 
 
+def _write_payment_order_lines(
+    printer: Dummy,
+    payload: dict,
+    arts: dict,
+    event: dict | None,
+    *,
+    currency: str = "EUR",
+    line_size: str = "normal",
+    width: int = 48,
+) -> None:
+    from .discounts import discount_hint
+    from .pricing import line_gross_cents, line_total_cents
+    from .vouchers import is_voucher_sale_line, voucher_definition_by_uuid, voucher_sale_unit_cents
+
+    align_prices = (line_size or "normal").lower() == "normal"
+    ev = event or {}
+
+    def _format_price(cents: int) -> str:
+        return _amount(cents)
+
+    for line in payload.get("lines") or []:
+        if not isinstance(line, dict):
+            continue
+        if is_voucher_sale_line(line):
+            qty = max(1, int(line.get("qty") or 1))
+            v_uuid = str(line.get("voucher_definition_uuid") or "").strip()
+            vd = voucher_definition_by_uuid(ev, v_uuid)
+            name = (vd or {}).get("name") or "Gutschein"
+            cents = voucher_sale_unit_cents(ev, line) * qty
+            if align_prices:
+                write_two_column(printer, f"{qty}x {name}", _format_price(cents), width)
+            else:
+                write_sized_line(printer, f"{qty}x {name} {_format_price(cents)}", line_size)
+            continue
+        aid = line.get("article_id")
+        if aid is None:
+            continue
+        qty = max(1, int(line.get("qty") or 1))
+        art = arts.get(str(aid)) or arts.get(int(aid)) or {}
+        name = line.get("article_name") or art.get("name") or f"#{aid}"
+        gross_cents = line_gross_cents(line, arts)
+        cents = line_total_cents(line, arts)
+        if align_prices:
+            write_two_column(printer, f"{qty}x {name}", _format_price(cents), width)
+        else:
+            write_sized_line(printer, f"{qty}x {name} {_format_price(cents)}", line_size)
+        hint = discount_hint(line.get("discount"), gross_cents, cents)
+        if hint:
+            write_subline(printer, hint, size=line_size)
+        for add in line.get("additions") or []:
+            if not isinstance(add, dict):
+                continue
+            add_qty = max(1, int(add.get("qty") or 1))
+            add_name = addition_display_name(add, arts, art)
+            add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
+            add_left = f"  + {add_qty}x {add_name}" if add_qty > 1 else f"  + {add_name}"
+            if align_prices and add_cents:
+                write_two_column(printer, add_left, _format_price(add_cents), width)
+            elif add_cents:
+                write_sized_line(printer, f"{add_left} {_format_price(add_cents)}", line_size)
+            else:
+                write_sized_line(printer, add_left, line_size)
+        note = (line.get("note") or "").strip()
+        if note:
+            write_sized_line(printer, f"  {note}", line_size)
+
+
+def _write_payment_adjustments(
+    printer: Dummy,
+    payload: dict,
+    arts: dict,
+    event: dict | None,
+    *,
+    line_size: str = "normal",
+    width: int = 48,
+) -> None:
+    from .discounts import order_discount_hint
+    from .pricing import order_subtotal_cents, order_total_cents
+    from .vouchers import voucher_definition_by_uuid
+
+    ev = event or {}
+    lines = payload.get("lines") or []
+    order_discount = payload.get("order_discount")
+    align = (line_size or "normal").lower() == "normal"
+
+    subtotal = order_subtotal_cents(lines, ev, arts)
+    after_order = order_total_cents(lines, order_discount, ev, arts)
+    order_hint = order_discount_hint(order_discount, subtotal, after_order)
+    if order_hint and subtotal > after_order:
+        off = subtotal - after_order
+        if align:
+            write_two_column(printer, order_hint, f"-{_amount(off)}", width)
+        else:
+            write_sized_line(printer, f"{order_hint} -{_amount(off)}", line_size)
+
+    for rec in payload.get("voucher_redemptions") or []:
+        if not isinstance(rec, dict):
+            continue
+        applied = int(rec.get("applied_cents") or 0)
+        if applied <= 0:
+            continue
+        v_uuid = str(rec.get("voucher_definition_uuid") or "").strip()
+        vd = voucher_definition_by_uuid(ev, v_uuid)
+        name = (vd or {}).get("name") or "Gutschein"
+        label = f"Gutschein {name}"
+        if align:
+            write_two_column(printer, label, f"-{_amount(applied)}", width)
+        else:
+            write_sized_line(printer, f"{label} -{_amount(applied)}", line_size)
+
+
+def _payment_receipt_due_cents(payload: dict, arts: dict, event: dict | None) -> int:
+    from .pricing import order_total_cents
+
+    ev = event or {}
+    lines = payload.get("lines") or []
+    order_discount = payload.get("order_discount")
+    voucher_credit = int(payload.get("voucher_credit_cents") or 0)
+    after_order = order_total_cents(lines, order_discount, ev, arts)
+    return max(0, after_order - voucher_credit)
+
+
 def build_payment_receipt_text(
     payload: dict,
     event_name: str,
@@ -259,14 +381,10 @@ def build_payment_receipt_text(
     line_width: int | None = None,
 ) -> bytes:
     """Build a payment receipt ESC/POS payload (Android Bluetooth or network)."""
-    from .pricing import line_total_cents
-
     arts = articles or {}
-    lines = payload.get("lines") or []
     payments = payload.get("payments") or []
-    item_total = sum(line_total_cents(line, arts) for line in lines if isinstance(line, dict))
-    payment_total = sum(int(p.get("amount_cents") or 0) for p in payments if isinstance(p, dict))
-    total = payment_total or item_total
+    due_cents = _payment_receipt_due_cents(payload, arts, event)
+    voucher_credit = int(payload.get("voucher_credit_cents") or 0)
     profile = _profile_cfg(event, "payment_receipt")
     line_size = profile.get("size_order_lines") or "normal"
     title = _event_title_for_print(event, event_name)
@@ -306,27 +424,34 @@ def build_payment_receipt_text(
         if paid_at:
             write_sized_line(printer, f"Zeit: {_format_ordered_at(str(paid_at))}", line_size)
         write_separator(printer, width=width)
-        _write_order_lines(
+        _write_payment_order_lines(
             printer,
             payload,
             arts,
-            show_prices=True,
+            event,
             currency=currency,
             line_size=line_size,
             width=width,
-            amount_with_currency=False,
+        )
+        _write_payment_adjustments(
+            printer,
+            payload,
+            arts,
+            event,
+            line_size=line_size,
+            width=width,
         )
         write_separator(printer, width=width)
         if (line_size or "normal").lower() == "normal":
             write_two_column(
                 printer,
                 f"Total {currency}:",
-                _amount(total),
+                _amount(due_cents),
                 width,
                 left_bold=True,
             )
         else:
-            write_sized_line(printer, f"Total {currency}: {_amount(total)}", line_size)
+            write_sized_line(printer, f"Total {currency}: {_amount(due_cents)}", line_size)
         for payment in payments:
             if not isinstance(payment, dict):
                 continue
@@ -336,6 +461,11 @@ def build_payment_receipt_text(
                 write_two_column(printer, f"{label}:", _amount(amount), width)
             else:
                 write_sized_line(printer, f"{label}: {_amount(amount)}", line_size)
+        if voucher_credit > 0:
+            if (line_size or "normal").lower() == "normal":
+                write_two_column(printer, "Gutschein:", _amount(voucher_credit), width)
+            else:
+                write_sized_line(printer, f"Gutschein: {_amount(voucher_credit)}", line_size)
         bottom = (profile.get("bottom_line") or "").strip()
         if bottom:
             write_centered_block(printer, bottom)
@@ -440,6 +570,7 @@ def _write_station_order_lines_formatted(
     *,
     line_size: str = "large",
     show_prices: bool = True,
+    show_discount_hints: bool = True,
 ) -> tuple[int, int]:
     from .discounts import discount_hint
     from .pricing import line_gross_cents, line_total_cents
@@ -472,9 +603,10 @@ def _write_station_order_lines_formatted(
             write_item_row(printer, qty, name, row_cents, width, size=line_size)
         else:
             write_sized_line(printer, f"{qty}x {name}", line_size)
-        hint = discount_hint(line.get("discount"), gross_cents, line_cents)
-        if hint:
-            write_subline(printer, hint, size=line_size)
+        if show_discount_hints:
+            hint = discount_hint(line.get("discount"), gross_cents, line_cents)
+            if hint:
+                write_subline(printer, hint, size=line_size)
         for add in line.get("additions") or []:
             if not isinstance(add, dict):
                 continue
@@ -583,6 +715,7 @@ def _render_receipt_slip(
             width,
             line_size=line_size,
             show_prices=show_prices,
+            show_discount_hints=not is_station_kitchen,
         )
 
     if not is_voucher and show_prices:

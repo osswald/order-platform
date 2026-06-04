@@ -311,3 +311,90 @@ def test_payment_receipt_total_line_bold():
     idx = raw.find(marker)
     assert idx >= 0
     assert b"\x1bE\x01" in raw[max(0, idx - 8):idx]
+
+
+def test_station_receipt_hides_line_discount_hint():
+    ev = _event_with_printing()
+    raw = build_escpos_receipt_text(
+        {
+            "table_number": 3,
+            "lines": [
+                {
+                    "article_id": 1,
+                    "qty": 2,
+                    "article_name": "Bier",
+                    "discount": {"kind": "percent", "value": 10},
+                }
+            ],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Bier", "price": 5.0}},
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Rabatt" not in text
+    assert "2x Bier" in text or "2 Bier" in text
+
+
+def test_payment_receipt_shows_line_discount():
+    ev = _event_with_printing()
+    raw = build_payment_receipt_text(
+        {
+            "lines": [
+                {
+                    "article_id": 1,
+                    "qty": 2,
+                    "article_name": "Bier",
+                    "discount": {"kind": "percent", "value": 10},
+                }
+            ],
+            "payments": [{"type": "cash", "amount_cents": 900}],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Bier", "price": 5.0}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Rabatt 10%" in text
+    assert "9.00" in text
+    assert "Total CHF:" in text
+
+
+def test_payment_receipt_shows_order_discount_and_voucher():
+    ev = _event_with_printing()
+    ev["discounts_enabled"] = True
+    ev["configuration"] = ev.get("configuration") or {}
+    ev["configuration"]["voucher_definitions"] = [
+        {
+            "uuid": "vd-20",
+            "name": "20 CHF Gutschein",
+            "kind": "fixed_amount",
+            "value_cents": 2000,
+            "allowed_article_ids": [],
+            "include_additions": True,
+        }
+    ]
+    raw = build_payment_receipt_text(
+        {
+            "lines": [{"article_id": 1, "qty": 1, "article_name": "Bier"}],
+            "order_discount": {"kind": "amount", "value": 100},
+            "voucher_redemptions": [
+                {"voucher_definition_uuid": "vd-20", "kind": "fixed_amount", "applied_cents": 400}
+            ],
+            "voucher_credit_cents": 400,
+            "payments": [{"type": "cash", "amount_cents": 0}],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Bier", "price": 5.0}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Rabatt Bestellung" in text
+    assert "Gutschein 20 CHF Gutschein" in text
+    assert "Total CHF:" in text
+    assert "0.00" in text
+    assert "Gutschein:" in text
+    assert "4.00" in text
+    assert "10.00" not in text.split("Total CHF:")[-1].split("Bar:")[0]
