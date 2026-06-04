@@ -84,4 +84,12 @@ describe('setupRouterGuards', () => {
     await router.push('/order')
     expect(router.currentRoute.value.name).toBe('events')
   })
+
+  it('allows admin route without bundle when listed as bundle-free', async () => {
+    vi.spyOn(store, 'refreshBundle').mockResolvedValue(0)
+    store.bundle.value = null
+    const router = buildRouter()
+    await router.push('/admin')
+    expect(router.currentRoute.value.name).toBe('admin')
+  })
 })

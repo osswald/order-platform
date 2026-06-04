@@ -142,4 +142,163 @@ describe('addVoucherCartLine', () => {
     expect(store.cartLines.value[0].qty).toBe(3)
     expect(store.cartLines.value[0].unit_cents).toBe(2000)
   })
+
+  it('rejects unknown vouchers and missing events', () => {
+    expect(store.addVoucherCartLine({ voucher_definition_uuid: 'missing' })).toBe(false)
+    store.selectedEventId.value = null
+    expect(store.addVoucherCartLine({ voucher_definition_uuid: 'v-1' })).toBe(false)
+  })
+})
+
+describe('cart helpers and admin state', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+  })
+
+  it('clears cart lines and order discount', () => {
+    store.addCartLine({ article_id: 10, qty: 1 })
+    store.setOrderDiscount({ kind: 'amount', value: 100 })
+    store.clearCart()
+    expect(store.cartLines.value).toHaveLength(0)
+    expect(store.orderDiscount.value).toBeNull()
+  })
+
+  it('removes a cart line by id', () => {
+    store.addCartLine({ article_id: 10, qty: 1 })
+    const lineId = store.cartLines.value[0].lineId
+    store.removeCartLine(lineId)
+    expect(store.cartLines.value).toHaveLength(0)
+  })
+
+  it('exposes article names and cart labels', () => {
+    expect(store.articleName(10)).toBe('Bier')
+    expect(store.articleName(999)).toBe('Artikel #999')
+    store.addCartLine({ article_id: 10, qty: 2 })
+    expect(store.cartLineLabel(store.cartLines.value[0])).toBe('Bier')
+    expect(store.cartCount.value).toBe(2)
+  })
+
+  it('reports bundle and admin pin requirements', () => {
+    expect(store.bundleReady()).toBe(true)
+    store.bundle.value = null
+    expect(store.bundleReady()).toBe(false)
+    store.bundle.value = { ...defaultBundle(), admin_pin_hashes: ['hash'] }
+    expect(store.adminRequiresPin()).toBe(true)
+    store.setAdminUnlocked(true)
+    expect(store.adminUnlocked.value).toBe(true)
+    store.clearAdminSession()
+    expect(store.adminUnlocked.value).toBe(false)
+  })
+})
+
+describe('register session validation', () => {
+  beforeEach(() => {
+    resetStore()
+  })
+
+  it('refreshes register session from bundle configuration', () => {
+    store.bundle.value = bundleWithRegisters()
+    store.selectedEventId.value = 1
+    store.registerSession.value = { uuid: 'register-1', name: 'Old name' }
+    store.validateRegisterSession()
+    expect(store.registerSession.value).toEqual({ uuid: 'register-1', name: 'Kasse 1' })
+  })
+
+  it('setRegisterSession clears waiter and cart', () => {
+    store.bundle.value = bundleWithWaiters()
+    store.selectedEventId.value = 1
+    store.waiter.value = { uuid: 'waiter-1', name: 'Anna' }
+    store.cartLines.value = [{ lineId: 'L-1', article_id: 10, qty: 1 }]
+    store.setRegisterSession({ uuid: 'register-1', name: 'Kasse 1' })
+    expect(store.waiter.value).toBeNull()
+    expect(store.cartLines.value).toHaveLength(0)
+    expect(store.registerSession.value?.uuid).toBe('register-1')
+  })
+})
+
+describe('waiter session validation', () => {
+  beforeEach(() => {
+    resetStore()
+  })
+
+  it('refreshes waiter session from bundle configuration', () => {
+    store.bundle.value = bundleWithWaiters()
+    store.selectedEventId.value = 1
+    store.waiter.value = { uuid: 'waiter-1', name: 'Old' }
+    store.validateWaiterSession()
+    expect(store.waiter.value).toEqual({ uuid: 'waiter-1', name: 'Anna' })
+  })
+})
+
+describe('addCartLine edge cases', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+  })
+
+  it('rejects unsellable additions', () => {
+    store.bundle.value.events[0].articles[20].sellable = false
+    expect(
+      store.addCartLine({
+        article_id: 11,
+        qty: 1,
+        additions: [{ article_id: 20, qty: 1 }],
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects when addition stock is insufficient', () => {
+    expect(
+      store.addCartLine({
+        article_id: 11,
+        qty: 2,
+        additions: [{ article_id: 20, qty: 2 }],
+      }),
+    ).toBe(false)
+  })
+
+  it('merges lines with matching station and additions', () => {
+    expect(
+      store.addCartLine({
+        article_id: 10,
+        qty: 1,
+        station_uuid: 'st-1',
+        additions: [{ article_id: 20, qty: 1 }],
+      }),
+    ).toBe(true)
+    expect(
+      store.addCartLine({
+        article_id: 10,
+        qty: 1,
+        station_uuid: 'st-1',
+        additions: [{ article_id: 20, qty: 1 }],
+      }),
+    ).toBe(true)
+    expect(store.cartLines.value).toHaveLength(1)
+    expect(store.cartLines.value[0].qty).toBe(2)
+  })
+})
+
+describe('patchEventArticles and stockArticlesForEvent', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+  })
+
+  it('patches article stock on the active event', () => {
+    store.patchEventArticles(1, { 10: { in_stock: 1 } })
+    expect(store.bundle.value.events[0].articles[10].in_stock).toBe(1)
+    expect(store.availableQty(10)).toBe(1)
+  })
+
+  it('lists monitored stock articles sorted by name', () => {
+    const ev = store.bundle.value.events[0]
+    ev.articles[30] = { id: 30, name: 'Apfel', monitor_stock: true, in_stock: 4 }
+    expect(store.stockArticlesForEvent(ev).map((a) => a.name)).toEqual(['Apfel', 'Bier', 'Zitrone'])
+    expect(store.stockArticlesForEvent({})).toEqual([])
+  })
 })

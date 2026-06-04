@@ -52,6 +52,15 @@ describe('resolvePaymentsForAmount', () => {
     )
   })
 
+  it('throws when cloud is unreachable for terminal payments', async () => {
+    pickPaymentType.mockResolvedValue('stripe_terminal')
+    isStripeTerminalAndroidReady.mockReturnValue(true)
+    checkCloudReachable.mockResolvedValue({ reachable: false })
+    await expect(resolvePaymentsForAmount(event, 500)).rejects.toThrow(
+      'Cloud-Verbindung erforderlich.',
+    )
+  })
+
   it('collects terminal payment when prerequisites are met', async () => {
     pickPaymentType.mockResolvedValue('stripe_terminal')
     isStripeTerminalAndroidReady.mockReturnValue(true)

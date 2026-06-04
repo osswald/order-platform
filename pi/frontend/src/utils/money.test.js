@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyDiscountCents,
+  discountButtonLabel,
+  discountLabel,
+  discountsEnabled,
   formatAmount,
+  formatMoney,
+  formatPrice,
   lineGrossCents,
   lineTotalCents,
   lineUnitCents,
@@ -63,6 +68,10 @@ describe('lineUnitCents', () => {
     const line = { kind: 'voucher_sale', voucher_definition_uuid: 'v-1', qty: 1 }
     expect(lineUnitCents(line, {}, ev)).toBe(2500)
   })
+
+  it('prefers snapshotted unit_cents on the line', () => {
+    expect(lineUnitCents({ article_id: 1, unit_cents: 999 }, {})).toBe(999)
+  })
 })
 
 describe('normalizeDiscount', () => {
@@ -71,6 +80,35 @@ describe('normalizeDiscount', () => {
     expect(normalizeDiscount({ kind: 'bogus', value: 10 })).toBeNull()
     expect(normalizeDiscount({ kind: 'percent', value: 0 })).toBeNull()
     expect(normalizeDiscount({ kind: 'percent', value: 150 })).toEqual({ kind: 'percent', value: 100 })
+  })
+
+  it('accepts amount discounts', () => {
+    expect(normalizeDiscount({ kind: 'amount', value: 250 })).toEqual({ kind: 'amount', value: 250 })
+  })
+})
+
+describe('discount labels', () => {
+  it('formats percent and amount discount labels', () => {
+    expect(discountLabel({ kind: 'percent', value: 10 })).toBe('Rabatt 10%')
+    expect(discountLabel({ kind: 'amount', value: 250 })).toBe("Rabatt 2.50")
+    expect(discountLabel(null)).toBe('')
+    expect(discountButtonLabel({ kind: 'percent', value: 10 })).toBe('−10%')
+    expect(discountButtonLabel({ kind: 'amount', value: 250 })).toBe('−2.50')
+    expect(discountButtonLabel(null)).toBe('%')
+  })
+})
+
+describe('format helpers', () => {
+  it('formats money and price strings', () => {
+    expect(formatMoney(500)).toBe('5.00')
+    expect(formatPrice(12.5)).toBe('12.50')
+  })
+})
+
+describe('discountsEnabled', () => {
+  it('reads the event flag', () => {
+    expect(discountsEnabled({ discounts_enabled: true })).toBe(true)
+    expect(discountsEnabled({})).toBe(false)
   })
 })
 
