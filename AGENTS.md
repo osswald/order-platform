@@ -66,7 +66,7 @@ CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes und
 
 **E2E smoke** (requires Docker stacks): `cd e2e && npm ci && npx playwright install chromium && npm test`
 
-Seed Pi bundle before Pi smoke locally: `docker compose -f pi/docker-compose.yml exec -T pi-backend python3 scripts/seed_e2e_bundle.py`
+Seed Pi bundle before Pi smoke locally: `docker compose -f pi/docker-compose.yml exec -T -w /app -e PYTHONPATH=/app pi-backend python3 scripts/seed_e2e_bundle.py`
 
 ### Building frontends
 
