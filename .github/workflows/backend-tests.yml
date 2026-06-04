@@ -21,10 +21,10 @@ jobs:
       matrix:
         backend: [cloud, pi]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -41,7 +41,7 @@ jobs:
         run: python -m pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70 -q
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-${{ matrix.backend }}
           path: ${{ matrix.backend }}/backend/coverage.xml
