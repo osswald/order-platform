@@ -64,6 +64,10 @@ cd cloud/frontend && npm ci && npm run test:coverage
 
 CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes under `cloud/frontend/**` or `pi/frontend/**`.
 
+**E2E smoke** (requires Docker stacks): `cd e2e && npm ci && npx playwright install chromium && npm test`
+
+Seed Pi bundle before Pi smoke locally: `docker compose -f pi/docker-compose.yml exec -T pi-backend python3 scripts/seed_e2e_bundle.py`
+
 ### Building frontends
 
 - `cd cloud/frontend && npm run build`

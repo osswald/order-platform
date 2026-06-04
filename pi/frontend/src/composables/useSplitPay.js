@@ -5,6 +5,12 @@ import { formatAmount } from '../utils/money'
 import { lineAdditionLabels } from '../utils/bundleHelpers'
 import { buildPayment } from '../utils/paymentTypes'
 import { resolvePaymentsForAmount } from '../utils/resolvePayment'
+import {
+  basketCentsAfterVoucher,
+  groupBasketCents,
+  sumGroupBasketCents,
+  sumVoucherCreditCents,
+} from '../utils/splitPay'
 
 export function useSplitPay({
   event,
@@ -21,23 +27,12 @@ export function useSplitPay({
   const qtyModalGroup = ref(null)
 
   const totalCents = computed(() => summary.value?.total_cents || 0)
-  function groupBasketCents(g) {
-    const qty = Math.max(0, Number(g.basketQty) || 0)
-    const totalQty = Math.max(1, Number(g.totalQty) || 1)
-    const lineTotal = Math.max(0, Number(g.lineTotalCents) || 0)
-    if (lineTotal > 0) {
-      return Math.round((lineTotal / totalQty) * qty)
-    }
-    return Math.max(0, Number(g.unitCents) || 0) * qty
-  }
 
-  const rawBasketCents = computed(() =>
-    groups.value.reduce((s, g) => s + groupBasketCents(g), 0),
+  const rawBasketCents = computed(() => sumGroupBasketCents(groups.value))
+  const voucherCreditCents = computed(() => sumVoucherCreditCents(voucherRedemptions.value))
+  const basketCents = computed(() =>
+    basketCentsAfterVoucher(rawBasketCents.value, voucherCreditCents.value),
   )
-  const voucherCreditCents = computed(() =>
-    (voucherRedemptions.value || []).reduce((s, r) => s + Math.max(0, Number(r.applied_cents) || 0), 0),
-  )
-  const basketCents = computed(() => Math.max(0, rawBasketCents.value - voucherCreditCents.value))
   const restCents = computed(() => Math.max(0, totalCents.value - rawBasketCents.value))
   const basketItemCount = computed(() => groups.value.reduce((s, g) => s + g.basketQty, 0))
   const remainingItemCount = computed(() =>

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cartLineLabelForEvent,
+  fixedAmountVouchersForCell,
   getDefaultLayout,
   hasAdditions,
   isArticleSellable,
+  lineAdditionLabels,
   lineIdentityKey,
   lineIdentityKeyFromItem,
   normalizeLineAdditions,
@@ -49,6 +52,53 @@ describe('isArticleSellable', () => {
     expect(isArticleSellable({ is_addition: true })).toBe(false)
     expect(isArticleSellable({ sellable: false })).toBe(false)
     expect(isArticleSellable({ name: 'Bier' })).toBe(true)
+  })
+})
+
+describe('lineAdditionLabels', () => {
+  it('resolves names from base article additions and catalog', () => {
+    const arts = {
+      1: {
+        id: 1,
+        additions: [{ article_id: 2, name: 'Zitrone' }],
+      },
+      2: { id: 2, name: 'Zitrone Artikel' },
+    }
+    expect(lineAdditionLabels({ article_id: 1, additions: [{ article_id: 2 }] }, arts)).toEqual([
+      { id: 2, name: 'Zitrone' },
+    ])
+  })
+})
+
+describe('cartLineLabelForEvent', () => {
+  it('labels voucher sale and article lines', () => {
+    const event = {
+      configuration: {
+        voucher_definitions: [{ uuid: 'v-1', name: 'Gutschein 20' }],
+      },
+      articles: { 10: { name: 'Bier' } },
+    }
+    expect(
+      cartLineLabelForEvent({ kind: 'voucher_sale', voucher_definition_uuid: 'v-1' }, event),
+    ).toBe('Gutschein 20')
+    expect(cartLineLabelForEvent({ article_id: 10 }, event)).toBe('Bier')
+  })
+})
+
+describe('fixedAmountVouchersForCell', () => {
+  it('returns fixed_amount definitions referenced by the cell', () => {
+    const event = {
+      configuration: {
+        voucher_definitions: [
+          { uuid: 'v-1', kind: 'fixed_amount', name: 'A' },
+          { uuid: 'v-2', kind: 'percent', name: 'B' },
+        ],
+      },
+    }
+    const cell = { voucher_definition_uuids: ['v-1', 'v-2'] }
+    expect(fixedAmountVouchersForCell(event, cell)).toEqual([
+      { uuid: 'v-1', kind: 'fixed_amount', name: 'A' },
+    ])
   })
 })
 

@@ -98,3 +98,48 @@ describe('cart totals', () => {
     expect(store.cartTotalCents.value).toBe(1200)
   })
 })
+
+describe('updateCartLine and decrementCartLine', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    store.addCartLine({ article_id: 10, qty: 3 })
+  })
+
+  it('patches line fields and clears discount when undefined', () => {
+    const lineId = store.cartLines.value[0].lineId
+    store.updateCartLine(lineId, { discount: { kind: 'percent', value: 5 } })
+    expect(store.cartLines.value[0].discount).toEqual({ kind: 'percent', value: 5 })
+    store.updateCartLine(lineId, { discount: undefined })
+    expect(store.cartLines.value[0].discount).toBeUndefined()
+  })
+
+  it('decrements qty and removes line at one', () => {
+    const lineId = store.cartLines.value[0].lineId
+    store.decrementCartLine(lineId)
+    expect(store.cartLines.value[0].qty).toBe(2)
+    store.decrementCartLine(lineId)
+    store.decrementCartLine(lineId)
+    expect(store.cartLines.value).toHaveLength(0)
+  })
+})
+
+describe('addVoucherCartLine', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = defaultBundle()
+    store.bundle.value.events[0].configuration.voucher_definitions = [
+      { uuid: 'v-1', kind: 'fixed_amount', name: 'Gutschein', value_cents: 2000 },
+    ]
+    store.selectedEventId.value = 1
+  })
+
+  it('adds and merges voucher sale lines', () => {
+    expect(store.addVoucherCartLine({ voucher_definition_uuid: 'v-1', qty: 1 })).toBe(true)
+    expect(store.addVoucherCartLine({ voucher_definition_uuid: 'v-1', qty: 2 })).toBe(true)
+    expect(store.cartLines.value).toHaveLength(1)
+    expect(store.cartLines.value[0].qty).toBe(3)
+    expect(store.cartLines.value[0].unit_cents).toBe(2000)
+  })
+})

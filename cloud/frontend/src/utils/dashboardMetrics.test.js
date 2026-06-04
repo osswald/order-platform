@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   attentionItems,
   eventsByStatus,
+  eventsStatDetail,
+  formatEventDateRange,
   runningEvents,
   statusLabel,
 } from './dashboardMetrics'
@@ -86,5 +88,24 @@ describe('attentionItems', () => {
     )
     expect(items).toHaveLength(1)
     expect(items[0].type).toBe('missing_twint_qr')
+  })
+})
+
+describe('formatEventDateRange', () => {
+  it('returns em dash when dates are missing', () => {
+    expect(formatEventDateRange(null, null)).toBe('—')
+  })
+
+  it('formats a start/end range', () => {
+    const range = formatEventDateRange('2026-06-04T10:00:00Z', '2026-06-04T18:00:00Z')
+    expect(range).toContain('–')
+    expect(range).not.toBe('—')
+  })
+})
+
+describe('eventsStatDetail', () => {
+  it('summarizes running, active, and config counts', () => {
+    expect(eventsStatDetail({ test: 1, prod: 2, config: 3 }, 1)).toContain('läuft jetzt')
+    expect(eventsStatDetail({ test: 0, prod: 0, config: 0 }, 0)).toBe('Keine Veranstaltungen')
   })
 })
