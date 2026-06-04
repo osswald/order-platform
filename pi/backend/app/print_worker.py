@@ -20,6 +20,7 @@ from .escpos_render import (
     resolve_line_width,
     resolve_logo_max_width,
     write_centered_block,
+    write_centered_small_block,
     write_centered_sized,
     write_heading,
     write_hero,
@@ -726,7 +727,7 @@ def _render_receipt_slip(
     if is_station_kitchen:
         operator = _station_operator_label(body)
         if operator:
-            write_two_column(printer, operator, "", width)
+            write_centered_small_block(printer, operator)
     elif is_voucher:
         bottom = (profile.get("bottom_line") or "").strip()
         if bottom:

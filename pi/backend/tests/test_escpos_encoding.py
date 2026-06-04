@@ -53,8 +53,10 @@ def test_station_test_slip_mirrors_production_sizes(monkeypatch):
     text = slip.decode("cp858", errors="replace")
     assert b"\x1b\x61\x01" in slip
     assert bytes([0x1D, 0x21, 0x77]) in slip
-    assert b"\x1b!\x10" in slip
-    assert b"\x1b!\x30" not in slip
+    idx = slip.find(b"Bier")
+    assert idx >= 0
+    window = slip[max(0, idx - 12) : idx + 12]
+    assert b"\x1b!\x30" in window
     assert "Ää Öö Üü ß  Éé Èè Îî Çç" in text
     assert "Station: Grill" in text
     assert "Danke für Ihre Bestellung!" not in text

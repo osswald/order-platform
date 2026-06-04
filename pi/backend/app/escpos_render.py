@@ -111,11 +111,52 @@ def write_sized_line(printer: Dummy, text: str, size: str = "normal") -> None:
     if key == "xlarge":
         printer.set(bold=True, double_height=True, double_width=True)
     elif key == "large":
-        printer.set(bold=True, double_height=True, double_width=False)
+        printer.set(bold=True, double_height=True, double_width=True)
     else:
         printer.set(bold=False, double_height=False, double_width=False)
     printer.text(f"{text}\n")
     printer.set(bold=False, double_height=False, double_width=False)
+
+
+def _reset_text_style(printer: Dummy) -> None:
+    printer.set(
+        font="a",
+        align="left",
+        bold=False,
+        double_height=False,
+        double_width=False,
+        normal_textsize=True,
+    )
+
+
+def write_small_line(printer: Dummy, text: str) -> None:
+    """Font B, normal magnification — smaller than header/meta lines."""
+    printer.set(
+        font="b",
+        bold=False,
+        double_height=False,
+        double_width=False,
+        normal_textsize=True,
+    )
+    printer.text(f"{text}\n")
+    _reset_text_style(printer)
+
+
+def write_centered_small_block(printer: Dummy, text: str) -> None:
+    block = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not block:
+        return
+    printer.set(
+        align="center",
+        font="b",
+        bold=False,
+        double_height=False,
+        double_width=False,
+        normal_textsize=True,
+    )
+    for line in block.split("\n"):
+        printer.text(f"{line}\n")
+    _reset_text_style(printer)
 
 
 def write_centered_block(printer: Dummy, text: str) -> None:

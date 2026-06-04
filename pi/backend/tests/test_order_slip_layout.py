@@ -98,8 +98,10 @@ def test_station_slip_order_lines_use_large_from_profile():
         local_order_id=82,
         event=_event_with_printing(station_receipt={"size_order_lines": "large"}),
     )
-    assert b"\x1b!\x10" in slip
-    assert b"\x1b!\x30" not in slip
+    idx = slip.find(b"Raclette")
+    assert idx >= 0
+    window = slip[max(0, idx - 12) : idx + 12]
+    assert b"\x1b!\x30" in window
     assert _slip_text(slip).count("Raclette") >= 1
 
 

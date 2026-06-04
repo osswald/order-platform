@@ -114,6 +114,12 @@ def test_station_receipt_shows_waiter_name():
     )
     text = raw.decode("cp858", errors="replace")
     assert "Tom Keller" in text
+    idx = raw.find(b"Tom Keller")
+    assert idx >= 0
+    waiter_window = raw[max(0, idx - 12) : idx]
+    assert b"\x1bM\x01" in waiter_window
+    assert b"\x1b!\x30" not in waiter_window
+    assert b"\x1bE\x01" not in waiter_window
 
 
 def test_station_receipt_prefers_cash_register_name():
