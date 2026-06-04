@@ -28,19 +28,20 @@
               />
             </div>
             <div class="form-field">
-              <FormLabel required>Dauer (Tage)</FormLabel>
-              <v-number-input
-                v-model="durationDays"
-                :min="1"
-                :max="3650"
-                control-variant="stacked"
+              <FormLabel required>Enddatum</FormLabel>
+              <v-date-input
+                v-model="endDate"
+                placeholder="Enddatum"
                 density="compact"
                 hide-details="auto"
                 required
-                :rules="[rules.requiredNumber, rules.minNumber(1)]"
+                :rules="[rules.requiredDate, endDateRule]"
+                prepend-icon=""
+                prepend-inner-icon="mdi-calendar"
               />
             </div>
           </div>
+          <small v-if="rangeHint" class="range-hint">{{ rangeHint }}</small>
           <div class="form-field">
             <FormLabel required>Geräte</FormLabel>
             <v-select
@@ -60,7 +61,7 @@
               :disabled="!canPickAppliances"
             />
             <small v-if="loadingAppliances">Geräte werden geladen…</small>
-            <small v-else-if="!canPickAppliances">Bitte Startdatum und Dauer angeben.</small>
+            <small v-else-if="!canPickAppliances">Bitte Start- und Enddatum angeben.</small>
             <small v-else-if="blockedCount" class="blocked-hint">
               {{ blockedCount }} Gerät{{ blockedCount === 1 ? '' : 'e' }} im gewählten Zeitraum nicht verfügbar.
             </small>
@@ -100,6 +101,10 @@ import { rules, validateForm } from '../utils/formRules.js'
 import {
   applianceDisplayName,
   applianceTypeLabel,
+  defaultLendingEndDate,
+  inclusiveDurationDays,
+  isValidLendingRange,
+  lendingRangeHint,
   toIsoDate,
 } from '../utils/applianceLending'
 
@@ -122,7 +127,7 @@ const emit = defineEmits(['update:visible', 'completed'])
 
 const formRef = ref(null)
 const startDate = ref(null)
-const durationDays = ref(7)
+const endDate = ref(null)
 const selectedIds = ref([])
 const appliances = ref([])
 const loadingAppliances = ref(false)
@@ -131,11 +136,12 @@ const submitMessage = ref('')
 const submitMessageType = ref('')
 const submitFailures = ref([])
 
-const canPickAppliances = computed(() => {
-  if (!startDate.value) return false
-  const d = durationDays.value
-  return typeof d === 'number' && d >= 1
-})
+const endDateRule = (value) =>
+  isValidLendingRange(startDate.value, value) || 'Enddatum muss am oder nach dem Startdatum liegen'
+
+const canPickAppliances = computed(() => isValidLendingRange(startDate.value, endDate.value))
+
+const rangeHint = computed(() => lendingRangeHint(startDate.value, endDate.value))
 
 const applianceById = computed(() => {
   const map = new Map()
@@ -183,8 +189,9 @@ const applianceSelectItems = computed(() => {
 const blockedCount = computed(() => appliances.value.filter((a) => a.lendable === false).length)
 
 function resetForm() {
-  startDate.value = new Date()
-  durationDays.value = 7
+  const start = new Date()
+  startDate.value = start
+  endDate.value = defaultLendingEndDate(start)
   selectedIds.value = []
   appliances.value = []
   submitMessage.value = ''
@@ -204,7 +211,7 @@ async function fetchAppliances() {
   loadingAppliances.value = true
   try {
     const start = toIsoDate(startDate.value)
-    const duration = durationDays.value
+    const duration = inclusiveDurationDays(startDate.value, endDate.value)
     const params = new URLSearchParams({
       lend_check_start: start,
       lend_check_duration: String(duration),
@@ -233,7 +240,7 @@ async function submit() {
   submitFailures.value = []
 
   const start = toIsoDate(startDate.value)
-  const duration = durationDays.value
+  const duration = inclusiveDurationDays(startDate.value, endDate.value)
   const orgId = props.organisationId
   let ok = 0
   const failures = []
@@ -294,7 +301,7 @@ watch(
   },
 )
 
-watch([startDate, durationDays], () => {
+watch([startDate, endDate], () => {
   if (props.visible && canPickAppliances.value) {
     fetchAppliances()
   } else if (!canPickAppliances.value) {
@@ -308,6 +315,12 @@ watch([startDate, durationDays], () => {
 .org-readonly {
   margin: 0;
   font-size: 1rem;
+}
+
+.range-hint {
+  display: block;
+  margin: 0 0 0.75rem;
+  opacity: 0.75;
 }
 
 .blocked-hint {

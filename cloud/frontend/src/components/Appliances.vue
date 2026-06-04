@@ -164,18 +164,23 @@
                 prepend-icon=""
                 prepend-inner-icon="mdi-calendar"
                 hide-details="auto"
+                required
+                :rules="[rules.requiredDate]"
               />
             </div>
             <div class="form-field">
-              <v-text-field
-                v-model.number="lendForm.durationDays"
-                type="number"
-                :min="1"
-                :max="3650"
-                label="Tage"
+              <v-date-input
+                v-model="lendForm.endDate"
+                label="Enddatum"
+                placeholder="Enddatum"
+                prepend-icon=""
+                prepend-inner-icon="mdi-calendar"
                 hide-details="auto"
+                required
+                :rules="[rules.requiredDate, lendEndDateRule]"
               />
             </div>
+            <small v-if="lendRangeHint" class="lend-range-hint">{{ lendRangeHint }}</small>
             <v-btn color="primary" type="button" :disabled="!canSubmitLend" @click="submitLend">
               Ausleihen
             </v-btn>
@@ -316,7 +321,14 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { parseApiErrorDetail } from '../utils/apiError'
-import { cancelPlannedLendingForAppliance, toIsoDate } from '../utils/applianceLending'
+import {
+  cancelPlannedLendingForAppliance,
+  defaultLendingEndDate,
+  inclusiveDurationDays,
+  isValidLendingRange,
+  lendingRangeHint,
+  toIsoDate,
+} from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import VqDataTable from './VqDataTable.vue'
 
@@ -380,7 +392,7 @@ const cancellingLendingId = ref(null)
 const lendForm = ref({
   organisationId: null,
   startDate: null,
-  durationDays: 7,
+  endDate: null,
 })
 
 const emptyForm = () => ({
@@ -431,10 +443,17 @@ const organisationOptions = computed(() =>
 
 const lendingStatusLent = computed(() => applianceDetail.value?.lending_status === 'lent')
 
+const lendEndDateRule = (value) =>
+  isValidLendingRange(lendForm.value.startDate, value) ||
+  'Enddatum muss am oder nach dem Startdatum liegen'
+
+const lendRangeHint = computed(() =>
+  lendingRangeHint(lendForm.value.startDate, lendForm.value.endDate),
+)
+
 const canSubmitLend = computed(() => {
-  if (!lendForm.value.organisationId || !lendForm.value.startDate) return false
-  const d = lendForm.value.durationDays
-  return typeof d === 'number' && d >= 1
+  if (!lendForm.value.organisationId) return false
+  return isValidLendingRange(lendForm.value.startDate, lendForm.value.endDate)
 })
 
 function typeLabel(type) {
@@ -549,10 +568,11 @@ async function fetchApplianceDetail(id) {
 }
 
 function resetLendForm() {
+  const start = new Date()
   lendForm.value = {
     organisationId: null,
-    startDate: new Date(),
-    durationDays: 7,
+    startDate: start,
+    endDate: defaultLendingEndDate(start),
   }
 }
 
@@ -781,7 +801,7 @@ async function submitLend() {
       body: JSON.stringify({
         organisation_id: lendForm.value.organisationId,
         start_date: toIsoDate(lendForm.value.startDate),
-        duration_days: lendForm.value.durationDays,
+        duration_days: inclusiveDurationDays(lendForm.value.startDate, lendForm.value.endDate),
       }),
     })
     if (!response.ok) {
@@ -951,6 +971,13 @@ textarea {
 .lending-hint {
   color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 0.75rem;
+}
+
+.lend-range-hint {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.5rem;
+  opacity: 0.75;
 }
 
 .lending-form {

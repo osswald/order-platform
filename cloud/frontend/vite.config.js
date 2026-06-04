@@ -8,7 +8,7 @@ applyAppVersionEnv()
 export default defineConfig({
   plugins: [
     vue(),
-    vuetify({ autoImport: true }),
+    vuetify({ autoImport: { labs: true } }),
   ],
   server: {
     host: '0.0.0.0',

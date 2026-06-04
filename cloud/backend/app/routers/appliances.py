@@ -140,7 +140,21 @@ class AppliancePairingSessionRead(BaseModel):
 class ApplianceLendingCreate(BaseModel):
     organisation_id: int
     start_date: date
-    duration_days: int = Field(..., ge=1)
+    duration_days: int | None = Field(None, ge=1)
+    end_date: date | None = None
+
+    @model_validator(mode="after")
+    def resolve_range(self):
+        if self.duration_days is None and self.end_date is None:
+            raise ValueError("Provide duration_days or end_date")
+        if self.end_date is not None:
+            if self.end_date < self.start_date:
+                raise ValueError("end_date must be on or after start_date")
+            computed_days = (self.end_date - self.start_date).days + 1
+            if self.duration_days is not None and self.duration_days != computed_days:
+                raise ValueError("duration_days does not match end_date")
+            return self.model_copy(update={"duration_days": computed_days})
+        return self
 
 
 def _appliance_to_read(
