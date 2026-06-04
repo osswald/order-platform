@@ -79,7 +79,7 @@ from ..schemas.edge import (
     TransferLinesBody,
     TransferLinesResponse,
 )
-from ..order_line_utils import copy_line_fiscal_fields
+from ..order_line_utils import copy_line_fiscal_fields, discount_signature, line_key as _line_key
 from ..order_fiscal import (
     allocate_order_number,
     distinct_order_numbers_from_payload,
@@ -119,7 +119,13 @@ from ..print_worker import (
     _send_to_printer,
 )
 from ..discounts import validate_submit_discounts
-from ..pricing import line_total_cents, line_unit_cents, order_lines_gross_cents, order_total_cents
+from ..pricing import (
+    line_total_cents,
+    line_unit_cents,
+    normalize_discount,
+    order_lines_gross_cents,
+    order_total_cents,
+)
 from ..stock import apply_stock_to_bundle, save_bundle, validate_stock
 from ..vouchers import (
     article_lines_only,
@@ -247,10 +253,6 @@ def _additions_signature(additions: list | None) -> str:
     return json.dumps(items, separators=(",", ":"))
 
 
-def _line_key(article_id, note: str, additions: list | None = None) -> tuple[int, str, str]:
-    return (int(article_id), str(note or ""), _additions_signature(additions))
-
-
 def _unit_cents_for_article(
     articles: dict,
     article_id,
@@ -280,26 +282,39 @@ def _selections_total_cents(selections: list, articles: dict) -> int:
 
 
 def _selections_total_cents_from_groups(selections: list, line_groups: list[dict]) -> int:
-    """Sum selection qty using unit_cents from open order line groups (price snapshots)."""
-    unit_by_key: dict[tuple[int, str, str], int] = {}
+    """Sum selection qty using discounted line_total_cents from open order line groups."""
+    net_by_key: dict[tuple, tuple[int, int]] = {}
     for g in line_groups:
-        key = _line_key(g["article_id"], g.get("note", ""), g.get("additions"))
-        unit_by_key[key] = int(g["unit_cents"])
+        key = _line_key(
+            g["article_id"],
+            g.get("note", ""),
+            g.get("additions"),
+            g.get("discount"),
+        )
+        total_qty = max(1, int(g.get("total_qty") or 1))
+        line_total = int(g.get("line_total_cents") or 0)
+        net_by_key[key] = (line_total, total_qty)
     total = 0
     for s in selections:
         if not isinstance(s, dict):
             continue
         qty = max(1, int(s.get("qty") or 1))
-        key = _line_key(s.get("article_id"), s.get("note", ""), s.get("additions"))
-        unit = unit_by_key.get(key)
-        if unit is None:
+        key = _line_key(
+            s.get("article_id"),
+            s.get("note", ""),
+            s.get("additions"),
+            s.get("discount"),
+        )
+        entry = net_by_key.get(key)
+        if entry is None:
             raise HTTPException(status_code=400, detail="Selection not found on open orders")
-        total += unit * qty
+        line_total, total_qty = entry
+        total += round(line_total / total_qty) * qty
     return total
 
 
 def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
-    merged: dict[tuple[int, str, str], dict] = {}
+    merged: dict[tuple, dict] = {}
     for o in orders:
         payload = json.loads(o.payload_json)
         for line in payload.get("lines") or []:
@@ -312,7 +327,8 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
                 continue
             note = str(line.get("note") or "")
             adds = _normalize_additions(line.get("additions"))
-            key = _line_key(aid, note, adds)
+            disc = normalize_discount(line.get("discount"))
+            key = _line_key(aid, note, adds, disc)
             qty = max(1, int(line.get("qty") or 1))
             line_cents = line_total_cents(line, articles)
             unit = line_unit_cents(line, articles)
@@ -321,13 +337,22 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
                     "article_id": int(aid),
                     "note": note,
                     "additions": adds,
+                    "discount": disc,
                     "total_qty": 0,
                     "unit_cents": unit,
                     "line_total_cents": 0,
                 }
             merged[key]["total_qty"] += qty
             merged[key]["line_total_cents"] += line_cents
-    return sorted(merged.values(), key=lambda g: (g["article_id"], g["note"], _additions_signature(g.get("additions"))))
+    return sorted(
+        merged.values(),
+        key=lambda g: (
+            g["article_id"],
+            g["note"],
+            _additions_signature(g.get("additions")),
+            discount_signature(g.get("discount")),
+        ),
+    )
 
 
 def _cash_register_from_event(ev: dict, cash_register_uuid: str | None) -> dict | None:
@@ -908,18 +933,21 @@ def _summary_from_orders(orders: list, ev: dict, arts: dict, extra: dict) -> dic
     for o in orders:
         payload = json.loads(o.payload_json)
         lines = payload.get("lines") or []
-        line_cents, line_qty = _line_totals(lines, arts)
+        order_discount = payload.get("order_discount")
+        line_cents = order_total_cents(lines, order_discount, ev, arts)
+        _, line_qty = _line_totals(lines, arts)
         total_cents += line_cents
         item_count += line_qty
-        open_orders.append(
-            {
-                "local_order_id": o.id,
-                "client_order_id": o.client_order_id,
-                "created_at": o.created_at.isoformat() if o.created_at else None,
-                "lines": lines,
-                "line_total_cents": line_cents,
-            }
-        )
+        entry = {
+            "local_order_id": o.id,
+            "client_order_id": o.client_order_id,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "lines": lines,
+            "line_total_cents": line_cents,
+        }
+        if order_discount:
+            entry["order_discount"] = order_discount
+        open_orders.append(entry)
     line_groups = _build_line_groups_from_orders(orders, arts)
     return {
         **extra,
@@ -1396,12 +1424,18 @@ def settle_table_partial(
             detail=f"Payment total {paid_total} does not match payable {expected_cents}",
         )
 
-    need: dict[tuple[int, str, str], int] = {}
+    need: dict[tuple, int] = {}
     for s in selections:
-        key = _line_key(s["article_id"], s.get("note", ""), s.get("additions"))
+        key = _line_key(
+            s["article_id"],
+            s.get("note", ""),
+            s.get("additions"),
+            s.get("discount"),
+        )
         need[key] = need.get(key, 0) + int(s["qty"])
 
     paid_lines: list[dict] = []
+    order_discounts_collected: list[dict] = []
     now = datetime.now(timezone.utc).isoformat()
 
     for order in orders:
@@ -1417,7 +1451,7 @@ def settle_table_partial(
                 continue
             note = str(line.get("note") or "")
             adds = _normalize_additions(line.get("additions"))
-            key = _line_key(aid, note, adds)
+            key = _line_key(aid, note, adds, line.get("discount"))
             qty = max(1, int(line.get("qty") or 1))
             take = min(qty, need.get(key, 0))
             if take > 0:
@@ -1448,6 +1482,9 @@ def settle_table_partial(
             payload["settlement_table"] = table_number
             order.payload_json = json.dumps(payload)
             _sync_outbox_payload(db, order, payload)
+            od = normalize_discount(payload.get("order_discount"))
+            if od:
+                order_discounts_collected.append(od)
 
     leftover = sum(v for v in need.values() if v > 0)
     if leftover > 0:
@@ -1472,6 +1509,8 @@ def settle_table_partial(
             "voucher_redemptions": voucher_records,
             "voucher_credit_cents": voucher_credit,
         }
+        if len(order_discounts_collected) == 1:
+            paid_payload["order_discount"] = order_discounts_collected[0]
         order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
         if len(order_nums) == 1:
             paid_payload["order_number"] = order_nums.pop()
@@ -1525,8 +1564,10 @@ def settle_table_partial(
     remaining_cents = 0
     for o in remaining_orders:
         payload = json.loads(o.payload_json)
-        cents, _ = _line_totals(payload.get("lines") or [], arts)
-        remaining_cents += cents
+        lines = payload.get("lines") or []
+        remaining_cents += order_total_cents(
+            lines, payload.get("order_discount"), ev, arts
+        )
 
     return TablePartialSettleResponse(
         paid_cents=expected_cents,
@@ -1925,12 +1966,18 @@ def _settle_orders_partial(
             detail=f"Payment total {paid_total} does not match payable {expected_cents}",
         )
 
-    need: dict[tuple[int, str, str], int] = {}
+    need: dict[tuple, int] = {}
     for s in selections:
-        key = _line_key(s["article_id"], s.get("note", ""), s.get("additions"))
+        key = _line_key(
+            s["article_id"],
+            s.get("note", ""),
+            s.get("additions"),
+            s.get("discount"),
+        )
         need[key] = need.get(key, 0) + int(s["qty"])
 
     paid_lines: list[dict] = []
+    order_discounts_collected: list[dict] = []
     now = datetime.now(timezone.utc).isoformat()
 
     for order in orders:
@@ -1946,7 +1993,7 @@ def _settle_orders_partial(
                 continue
             note = str(line.get("note") or "")
             adds = _normalize_additions(line.get("additions"))
-            key = _line_key(aid, note, adds)
+            key = _line_key(aid, note, adds, line.get("discount"))
             qty = max(1, int(line.get("qty") or 1))
             take = min(qty, need.get(key, 0))
             if take > 0:
@@ -1976,6 +2023,9 @@ def _settle_orders_partial(
             payload.update(settlement_meta)
             order.payload_json = json.dumps(payload)
             _sync_outbox_payload(db, order, payload)
+            od = normalize_discount(payload.get("order_discount"))
+            if od:
+                order_discounts_collected.append(od)
 
     leftover = sum(v for v in need.values() if v > 0)
     if leftover > 0:
@@ -1999,6 +2049,8 @@ def _settle_orders_partial(
             "voucher_credit_cents": voucher_credit,
             **settlement_meta,
         }
+        if len(order_discounts_collected) == 1:
+            paid_payload["order_discount"] = order_discounts_collected[0]
         order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
         if len(order_nums) == 1:
             paid_payload["order_number"] = order_nums.pop()

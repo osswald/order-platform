@@ -25,6 +25,10 @@
               :basket-qty="g.basketQty"
               :total-qty="g.totalQty"
               :unit-cents="g.unitCents"
+              :line-total-cents="g.lineTotalCents"
+              :discount="g.discount"
+              :articles="event?.articles || {}"
+              :event="event"
               @tap-qty="openQtyModal(g)"
               @tap-name="bumpBasket(g, 1)"
               @tap-price="bumpBasket(g, -1)"
@@ -77,6 +81,10 @@
               :basket-qty="g.basketQty"
               :total-qty="g.totalQty"
               :unit-cents="g.unitCents"
+              :line-total-cents="g.lineTotalCents"
+              :discount="g.discount"
+              :articles="event?.articles || {}"
+              :event="event"
               @tap-row="bumpBasket(g, 1)"
             />
           </ul>

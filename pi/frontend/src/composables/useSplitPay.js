@@ -21,8 +21,18 @@ export function useSplitPay({
   const qtyModalGroup = ref(null)
 
   const totalCents = computed(() => summary.value?.total_cents || 0)
+  function groupBasketCents(g) {
+    const qty = Math.max(0, Number(g.basketQty) || 0)
+    const totalQty = Math.max(1, Number(g.totalQty) || 1)
+    const lineTotal = Math.max(0, Number(g.lineTotalCents) || 0)
+    if (lineTotal > 0) {
+      return Math.round((lineTotal / totalQty) * qty)
+    }
+    return Math.max(0, Number(g.unitCents) || 0) * qty
+  }
+
   const rawBasketCents = computed(() =>
-    groups.value.reduce((s, g) => s + g.unitCents * g.basketQty, 0),
+    groups.value.reduce((s, g) => s + groupBasketCents(g), 0),
   )
   const voucherCreditCents = computed(() =>
     (voucherRedemptions.value || []).reduce((s, r) => s + Math.max(0, Number(r.applied_cents) || 0), 0),
@@ -45,14 +55,18 @@ export function useSplitPay({
     const lg = data?.line_groups || []
     groups.value = lg.map((g) => {
       const additions = g.additions || []
-      const line = { article_id: g.article_id, additions }
+      const discount = g.discount || null
+      const line = { article_id: g.article_id, additions, discount, qty: 1 }
+      const discKey = discount ? JSON.stringify(discount) : ''
       return {
-        key: lineKey(g.article_id, g.note, additions),
+        key: `${lineKey(g.article_id, g.note, additions)}:${discKey}`,
         article_id: g.article_id,
         note: g.note || '',
         additions,
+        discount,
         totalQty: g.total_qty,
         unitCents: g.unit_cents,
+        lineTotalCents: g.line_total_cents ?? 0,
         basketQty: g.total_qty,
         name: articleName(g.article_id),
         additionLabels: lineAdditionLabels(line, arts),
@@ -86,15 +100,19 @@ export function useSplitPay({
   }
 
   function selectionsPayload() {
-    return topGroups.value.map((g) => ({
-      article_id: g.article_id,
-      note: g.note,
-      qty: g.basketQty,
-      additions: (g.additions || []).map((a) => ({
-        article_id: a.article_id,
-        qty: a.qty ?? 1,
-      })),
-    }))
+    return topGroups.value.map((g) => {
+      const row = {
+        article_id: g.article_id,
+        note: g.note,
+        qty: g.basketQty,
+        additions: (g.additions || []).map((a) => ({
+          article_id: a.article_id,
+          qty: a.qty ?? 1,
+        })),
+      }
+      if (g.discount) row.discount = g.discount
+      return row
+    })
   }
 
   async function paymentsForAmount(cents) {

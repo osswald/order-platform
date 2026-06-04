@@ -46,9 +46,21 @@ export function lineIdentityKey(articleId, note = '', additions = null) {
   return `${Number(articleId)}:${String(note || '')}:${sig}`
 }
 
-/** @param {{ article_id: number, note?: string, additions?: Array }} item */
+function discountKeyPart(discount) {
+  if (!discount || typeof discount !== 'object') return ''
+  const kind = String(discount.kind || '').toLowerCase()
+  if (kind !== 'percent' && kind !== 'amount') return ''
+  const value = Math.max(0, Number(discount.value) || 0)
+  if (value <= 0) return ''
+  if (kind === 'percent') return JSON.stringify({ kind, value: Math.min(100, value) })
+  return JSON.stringify({ kind, value })
+}
+
+/** @param {{ article_id: number, note?: string, additions?: Array, discount?: object }} item */
 export function lineIdentityKeyFromItem(item) {
-  return lineIdentityKey(item.article_id, item.note, item.additions)
+  const base = lineIdentityKey(item.article_id, item.note, item.additions)
+  const dk = discountKeyPart(item.discount)
+  return dk ? `${base}:${dk}` : base
 }
 
 /**

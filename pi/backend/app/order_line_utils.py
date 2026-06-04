@@ -7,10 +7,24 @@ import json
 FISCAL_LINE_KEYS = ("order_number", "unit_cents", "article_name", "ordered_at")
 
 
+def discount_signature(discount) -> str:
+    from .pricing import normalize_discount
+
+    d = normalize_discount(discount)
+    if not d:
+        return ""
+    return json.dumps(d, sort_keys=True, separators=(",", ":"))
+
+
 def copy_line_fiscal_fields(src: dict, dest: dict) -> None:
     for key in FISCAL_LINE_KEYS:
         if key in src:
             dest[key] = src[key]
+    from .pricing import normalize_discount
+
+    d = normalize_discount(src.get("discount"))
+    if d:
+        dest["discount"] = d
     src_adds = normalize_additions(src.get("additions"))
     if not src_adds:
         return
@@ -46,8 +60,18 @@ def additions_signature(additions: list | None) -> str:
     return json.dumps(items, separators=(",", ":"))
 
 
-def line_key(article_id, note: str, additions: list | None = None) -> tuple[int, str, str]:
-    return (int(article_id), str(note or ""), additions_signature(additions))
+def line_key(
+    article_id,
+    note: str,
+    additions: list | None = None,
+    discount=None,
+) -> tuple[int, str, str, str]:
+    return (
+        int(article_id),
+        str(note or ""),
+        additions_signature(additions),
+        discount_signature(discount),
+    )
 
 
 def take_selections_from_orders(
@@ -59,9 +83,14 @@ def take_selections_from_orders(
     transfer_destination: dict | None = None,
 ) -> list[dict]:
     """Remove selected qty from open orders; return extracted line dicts."""
-    need: dict[tuple[int, str, str], int] = {}
+    need: dict[tuple[int, str, str, str], int] = {}
     for s in selections:
-        key = line_key(s["article_id"], s.get("note", ""), s.get("additions"))
+        key = line_key(
+            s["article_id"],
+            s.get("note", ""),
+            s.get("additions"),
+            s.get("discount"),
+        )
         need[key] = need.get(key, 0) + int(s["qty"])
 
     moved: list[dict] = []
@@ -77,7 +106,7 @@ def take_selections_from_orders(
                 continue
             note = str(line.get("note") or "")
             adds = normalize_additions(line.get("additions"))
-            key = line_key(aid, note, adds)
+            key = line_key(aid, note, adds, line.get("discount"))
             qty = max(1, int(line.get("qty") or 1))
             take = min(qty, need.get(key, 0))
             if take > 0:
@@ -120,7 +149,7 @@ def merge_lines_into_list(lines: list[dict], incoming: list[dict]) -> None:
             continue
         note = str(inc.get("note") or "")
         adds = normalize_additions(inc.get("additions"))
-        key = line_key(aid, note, adds)
+        key = line_key(aid, note, adds, inc.get("discount"))
         qty = max(1, int(inc.get("qty") or 1))
         found = False
         for i, line in enumerate(lines):
@@ -130,6 +159,7 @@ def merge_lines_into_list(lines: list[dict], incoming: list[dict]) -> None:
                 line.get("article_id"),
                 str(line.get("note") or ""),
                 line.get("additions"),
+                line.get("discount"),
             )
             if lk == key:
                 lines[i] = {

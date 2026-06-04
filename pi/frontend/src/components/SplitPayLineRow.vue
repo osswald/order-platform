@@ -5,6 +5,14 @@
       <button type="button" class="cell name" @click.stop="$emit('tap-name')">
         <span class="name-text">{{ name }}</span>
         <span v-for="add in additionLabels" :key="add.id" class="addition">+ {{ add.name }}</span>
+        <template v-if="hasDiscount">
+          <span class="discount-hint">{{ discountHint }}</span>
+          <span class="discount-prices">
+            <span class="price-gross">{{ formatGrossTotal }}</span>
+            <span class="price-arrow" aria-hidden="true">→</span>
+            <span class="price-net">{{ lineTotal }}</span>
+          </span>
+        </template>
       </button>
       <button type="button" class="cell price" @click.stop="$emit('tap-price')">{{ lineTotal }}</button>
     </template>
@@ -14,6 +22,14 @@
         <span class="name-col">
           <span class="name-text">{{ name }}</span>
           <span v-for="add in additionLabels" :key="add.id" class="addition">+ {{ add.name }}</span>
+          <template v-if="hasDiscount">
+            <span class="discount-hint">{{ discountHint }}</span>
+            <span class="discount-prices">
+              <span class="price-gross">{{ formatGrossTotal }}</span>
+              <span class="price-arrow" aria-hidden="true">→</span>
+              <span class="price-net">{{ lineTotal }}</span>
+            </span>
+          </template>
         </span>
         <span class="price">{{ lineTotal }}</span>
       </button>
@@ -23,7 +39,13 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatAmount } from '../utils/money'
+import {
+  discountLabel,
+  formatAmount,
+  lineGrossCents,
+  lineTotalCents,
+  normalizeDiscount,
+} from '../utils/money'
 
 const props = defineProps({
   variant: { type: String, default: 'bottom' },
@@ -32,15 +54,54 @@ const props = defineProps({
   basketQty: { type: Number, default: 0 },
   totalQty: { type: Number, default: 0 },
   unitCents: { type: Number, default: 0 },
+  lineTotalCents: { type: Number, default: 0 },
+  discount: { type: Object, default: null },
+  articles: { type: Object, default: () => ({}) },
+  event: { type: Object, default: null },
 })
 
 defineEmits(['tap-qty', 'tap-name', 'tap-price', 'tap-row'])
 
 const remainingQty = computed(() => Math.max(0, props.totalQty - props.basketQty))
 
-const lineTotal = computed(() => {
-  const q = props.variant === 'top' ? props.basketQty : remainingQty.value
-  return formatAmount(props.unitCents * Math.max(0, q))
+const displayQty = computed(() =>
+  props.variant === 'top' ? props.basketQty : remainingQty.value,
+)
+
+const lineForPricing = computed(() => ({
+  article_id: 0,
+  qty: Math.max(1, displayQty.value),
+  unit_cents: props.unitCents,
+  additions: [],
+  discount: props.discount,
+}))
+
+function netCentsForQty(qty) {
+  const q = Math.max(0, Number(qty) || 0)
+  const totalQty = Math.max(1, Number(props.totalQty) || 1)
+  const lineTotal = Math.max(0, Number(props.lineTotalCents) || 0)
+  if (lineTotal > 0) {
+    return Math.round((lineTotal / totalQty) * q)
+  }
+  const line = {
+    article_id: 0,
+    qty: Math.max(1, q),
+    unit_cents: props.unitCents,
+    additions: [],
+    discount: props.discount,
+  }
+  return lineTotalCents(line, props.articles, props.event)
+}
+
+const lineTotal = computed(() => formatAmount(netCentsForQty(displayQty.value)))
+
+const hasDiscount = computed(() => Boolean(normalizeDiscount(props.discount)))
+
+const discountHint = computed(() => (hasDiscount.value ? discountLabel(props.discount) : ''))
+
+const formatGrossTotal = computed(() => {
+  const gross = lineGrossCents(lineForPricing.value, props.articles, props.event)
+  return formatAmount(gross)
 })
 </script>
 
@@ -111,6 +172,31 @@ const lineTotal = computed(() => {
   font-size: 0.8rem;
   color: #64748b;
   font-weight: 400;
+}
+.discount-hint,
+.discount-prices {
+  display: block;
+  padding-left: 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.discount-hint {
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+.discount-prices {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+.price-gross {
+  text-decoration: line-through;
+}
+.price-arrow {
+  margin: 0 0.2rem;
+}
+.price-net {
+  color: #111;
+  font-weight: 600;
 }
 .price {
   font-variant-numeric: tabular-nums;

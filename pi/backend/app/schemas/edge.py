@@ -52,6 +52,7 @@ class LineSelection(BaseModel):
     note: str = ""
     qty: int = Field(..., ge=1)
     additions: list[dict[str, Any]] = Field(default_factory=list)
+    discount: dict[str, Any] | None = None
 
 
 class TableSettlePartialBody(BaseModel):

@@ -101,8 +101,20 @@ def _additions_signature(additions: list | None) -> str:
     return json.dumps(items, separators=(",", ":"))
 
 
-def _line_key(article_id, note: str, additions: list | None = None) -> tuple[int, str, str]:
-    return (int(article_id), str(note or ""), _additions_signature(additions))
+def _line_key(
+    article_id,
+    note: str,
+    additions: list | None = None,
+    discount=None,
+) -> tuple[int, str, str, str]:
+    from .order_line_utils import discount_signature
+
+    return (
+        int(article_id),
+        str(note or ""),
+        _additions_signature(additions),
+        discount_signature(discount),
+    )
 
 
 def compute_voucher_credits(
@@ -119,10 +131,15 @@ def compute_voucher_credits(
     total_credit = 0
     remaining = gross_cents
 
-    unit_by_key: dict[tuple[int, str, str], int] = {}
+    unit_by_key: dict[tuple, int] = {}
     if line_groups:
         for g in line_groups:
-            key = _line_key(g["article_id"], g.get("note", ""), g.get("additions"))
+            key = _line_key(
+                g["article_id"],
+                g.get("note", ""),
+                g.get("additions"),
+                g.get("discount"),
+            )
             unit_by_key[key] = int(g["unit_cents"])
 
     for raw in redemptions or []:
@@ -153,7 +170,12 @@ def compute_voucher_credits(
                 raise HTTPException(status_code=400, detail="Selection not eligible for voucher")
             line_unit: int | None = None
             if selections and line_groups:
-                key = _line_key(sel.get("article_id"), sel.get("note", ""), sel.get("additions"))
+                key = _line_key(
+                    sel.get("article_id"),
+                    sel.get("note", ""),
+                    sel.get("additions"),
+                    sel.get("discount"),
+                )
                 line_unit = unit_by_key.get(key)
                 if line_unit is None:
                     raise HTTPException(status_code=400, detail="Voucher selection not on open orders")

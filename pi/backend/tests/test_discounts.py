@@ -97,6 +97,117 @@ def test_order_submit_with_discounts(client_session):
         db.close()
 
 
+def test_table_summary_line_groups_include_discount(client_session):
+    c, Session = client_session
+    _seed_discounts_bundle(Session)
+    table_number = 42
+    client_order_id = f"pwa-{uuid.uuid4().hex[:12]}"
+    response = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": client_order_id,
+            "event_id": 1,
+            "table_number": table_number,
+            "lines": [
+                {
+                    "article_id": 10,
+                    "qty": 2,
+                    "station_uuid": None,
+                    "note": "",
+                    "additions": [],
+                    "discount": {"kind": "percent", "value": 10},
+                },
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    summary = c.get(f"/v1/tables/{table_number}", params={"event_id": 1})
+    assert summary.status_code == 200, summary.text
+    data = summary.json()
+    assert data["total_cents"] == 900
+    assert len(data["line_groups"]) == 1
+    group = data["line_groups"][0]
+    assert group["discount"] == {"kind": "percent", "value": 10}
+    assert group["line_total_cents"] == 900
+    assert group["unit_cents"] == 500
+    assert group["total_qty"] == 2
+
+
+def test_settle_partial_keeps_discount_on_receipt(client_session):
+    import json
+
+    from app.models import PaymentReceipt
+    from app.print_worker import build_payment_receipt_text
+    from tests.fixtures_bundles import default_bundle
+
+    c, Session = client_session
+    _seed_discounts_bundle(Session)
+    table_number = 43
+    client_order_id = f"pwa-{uuid.uuid4().hex[:12]}"
+    order_res = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": client_order_id,
+            "event_id": 1,
+            "table_number": table_number,
+            "lines": [
+                {
+                    "article_id": 10,
+                    "qty": 2,
+                    "station_uuid": None,
+                    "note": "",
+                    "additions": [],
+                    "discount": {"kind": "percent", "value": 10},
+                },
+            ],
+        },
+    )
+    assert order_res.status_code == 200, order_res.text
+
+    summary = c.get(f"/v1/tables/{table_number}", params={"event_id": 1})
+    group = summary.json()["line_groups"][0]
+    selection = {
+        "article_id": 10,
+        "qty": 2,
+        "note": "",
+        "additions": [],
+        "discount": group["discount"],
+    }
+    settle = c.post(
+        f"/v1/tables/{table_number}/settle-partial",
+        json={
+            "event_id": 1,
+            "payments": [{"type": "cash", "amount_cents": 900}],
+            "selections": [selection],
+        },
+    )
+    assert settle.status_code == 200, settle.text
+    assert settle.json()["paid_cents"] == 900
+    payment_id = settle.json()["payment_id"]
+    assert payment_id is not None
+
+    db = Session()
+    try:
+        receipt = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).one()
+        payload = json.loads(receipt.payload_json)
+        assert payload["lines"][0]["discount"] == {"kind": "percent", "value": 10}
+    finally:
+        db.close()
+
+    ev = default_bundle()["events"][0]
+    ev["discounts_enabled"] = True
+    raw = build_payment_receipt_text(
+        payload,
+        ev.get("name", "Event"),
+        articles=ev.get("articles"),
+        currency=ev.get("currency", "CHF"),
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Rabatt 10%" in text
+
+
 def test_order_submit_rejects_discounts_when_disabled(client_session):
     c, _ = client_session
     response = c.post(
