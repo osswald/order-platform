@@ -58,10 +58,20 @@ jobs:
       - name: Wait for backends
         run: |
           for i in $(seq 1 60); do
-            curl -sf http://localhost:8000/health >/dev/null && curl -sf http://localhost:8001/health >/dev/null && exit 0
+            if curl -sf http://localhost:8000/health >/dev/null && curl -sf http://localhost:8001/health >/dev/null; then
+              exit 0
+            fi
             sleep 5
           done
           echo "Backends did not become healthy in time"
+          echo "--- cloud compose ps ---"
+          docker compose -f cloud/docker-compose.yml ps -a || true
+          echo "--- pi compose ps ---"
+          docker compose -f pi/docker-compose.yml ps -a || true
+          echo "--- cloud-backend logs ---"
+          docker compose -f cloud/docker-compose.yml logs --tail=200 cloud-backend || true
+          echo "--- pi-backend logs ---"
+          docker compose -f pi/docker-compose.yml logs --tail=200 pi-backend || true
           exit 1
 
       - name: Seed Pi bundle for smoke test
