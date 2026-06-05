@@ -13,7 +13,19 @@
         <strong>{{ receipt.station_name || receipt.job_kind || 'Beleg' }}</strong>
         <span v-if="receipt.created_at" class="muted small">{{ formatReceiptTime(receipt.created_at) }}</span>
       </div>
-      <pre class="receipt-preview">{{ receipt.preview_text || '(leer)' }}</pre>
+      <div v-if="hasStyledPreview(receipt)" class="receipt-preview receipt-preview--styled">
+        <div
+          v-for="(line, index) in receipt.preview_lines"
+          :key="index"
+          class="receipt-line"
+          :class="lineClass(line)"
+          :style="lineStyle(line)"
+        >
+          <span v-if="line.kind === 'logo'" class="receipt-logo">[Logo]</span>
+          <span v-else>{{ line.text }}</span>
+        </div>
+      </div>
+      <pre v-else class="receipt-preview">{{ receipt.preview_text || '(leer)' }}</pre>
     </div>
   </div>
 </template>
@@ -27,6 +39,26 @@ defineProps({
 })
 
 const { receipts, loading } = useEmulatedReceipts()
+
+function hasStyledPreview(receipt) {
+  return Array.isArray(receipt.preview_lines) && receipt.preview_lines.length > 0
+}
+
+function lineClass(line) {
+  return [
+    `receipt-line--align-${line.align || 'left'}`,
+    `receipt-line--size-${line.size || 'normal'}`,
+    line.bold ? 'receipt-line--bold' : '',
+    line.kind === 'logo' ? 'receipt-line--logo' : '',
+  ]
+}
+
+function lineStyle(line) {
+  if (line.size === 'xlarge' && line.scale) {
+    return { fontSize: `calc(1em * ${line.scale} * 0.35)` }
+  }
+  return undefined
+}
 </script>
 
 <style scoped>
@@ -74,5 +106,58 @@ const { receipts, loading } = useEmulatedReceipts()
   font-size: 0.85rem;
   white-space: pre-wrap;
   overflow-x: auto;
+}
+
+.receipt-preview--styled {
+  white-space: normal;
+}
+
+.receipt-line {
+  line-height: 1.25;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.receipt-line--align-left {
+  text-align: left;
+}
+
+.receipt-line--align-center {
+  text-align: center;
+}
+
+.receipt-line--align-right {
+  text-align: right;
+}
+
+.receipt-line--size-small {
+  font-size: 0.75em;
+}
+
+.receipt-line--size-normal {
+  font-size: 1em;
+}
+
+.receipt-line--size-large {
+  font-size: 1.45em;
+  font-weight: 600;
+}
+
+.receipt-line--size-xlarge {
+  font-weight: 700;
+}
+
+.receipt-line--bold {
+  font-weight: 600;
+}
+
+.receipt-line--logo {
+  margin: 0.35rem 0;
+}
+
+.receipt-logo {
+  color: rgba(238, 238, 238, 0.45);
+  font-size: 0.85em;
+  letter-spacing: 0.04em;
 }
 </style>
