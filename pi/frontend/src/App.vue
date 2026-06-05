@@ -112,6 +112,16 @@ const { emulatedPrinter, fetchSetupStatus } = useSetupStatus()
 const isWide = useMediaQuery('(min-width: 900px)')
 const receiptsOpen = ref(false)
 
+function syncHostedDemoBodyClass() {
+  document.body.classList.toggle('hosted-pi-demo', Boolean(emulatedPrinter.value))
+  document.body.classList.toggle(
+    'hosted-pi-demo--wide',
+    Boolean(emulatedPrinter.value && isWide.value),
+  )
+}
+
+watch([emulatedPrinter, isWide], syncHostedDemoBodyClass, { immediate: true })
+
 useBundleRefresh()
 
 watch(
@@ -130,7 +140,10 @@ watch(
   { immediate: true },
 )
 
-onUnmounted(stopWaiterPrintFailurePolling)
+onUnmounted(() => {
+  stopWaiterPrintFailurePolling()
+  document.body.classList.remove('hosted-pi-demo', 'hosted-pi-demo--wide')
+})
 
 if (isAndroidApp()) {
   router.afterEach(() => {

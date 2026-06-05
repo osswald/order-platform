@@ -338,6 +338,20 @@ h2 {
   display: none;
 }
 
+/* Hosted wide layout: bottom sheets teleported to body stay within the Pi column */
+body.hosted-pi-demo--wide .sheet-backdrop,
+body.hosted-pi-demo--wide .sheet {
+  right: auto;
+  width: min(430px, 100vw);
+}
+
+body.hosted-pi-demo--wide .discount-overlay,
+body.hosted-pi-demo--wide .qty-modal-overlay,
+body.hosted-pi-demo--wide .shift-overlay {
+  right: auto;
+  width: min(430px, 100vw);
+}
+
 /* Android WebView: --safe-* set from AndroidInsets bridge; avoid 100dvh (ignores system bars) */
 html.android-app,
 html.android-app body,

@@ -9,7 +9,9 @@ from pathlib import Path
 
 from .caddy import remove_snippet, write_snippet
 from .config import (
+    CADDY_CONTAINER,
     CADDY_NETWORK,
+    HOSTED_PI_BASE_DOMAIN,
     INSTANCES_DIR,
     PI_BACKEND_IMAGE,
     PI_FRONTEND_IMAGE,
@@ -81,6 +83,53 @@ networks:
 """
 
 
+def _caddy_container_ip() -> str:
+    result = subprocess.run(
+        [
+            "docker",
+            "inspect",
+            "-f",
+            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+            CADDY_CONTAINER,
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    ip = result.stdout.strip()
+    if not ip:
+        raise RuntimeError(f"Could not resolve IP for {CADDY_CONTAINER}")
+    return ip
+
+
+def _poll_public_https(slug: str, *, timeout_seconds: int = 90, interval_seconds: float = 2) -> None:
+    """Wait until Caddy serves the instance subdomain over HTTPS."""
+    host = f"{slug}.{HOSTED_PI_BASE_DOMAIN}"
+    url = f"https://{host}/"
+    caddy_ip = _caddy_container_ip()
+    resolve = f"{host}:443:{caddy_ip}"
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            [
+                "curl",
+                "-fsS",
+                "-o",
+                "/dev/null",
+                "--connect-timeout",
+                "5",
+                "--resolve",
+                resolve,
+                url,
+            ],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            return
+        time.sleep(interval_seconds)
+    raise TimeoutError(f"Public URL {url} did not become reachable within {timeout_seconds}s")
+
+
 def _poll_container_http(container: str, *, timeout_seconds: int = 90, interval_seconds: float = 2) -> None:
     """Wait until nginx inside the frontend container serves the SPA."""
     deadline = time.monotonic() + timeout_seconds
@@ -126,8 +175,7 @@ def provision(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_secre
     )
     _poll_container_http(frontend_container)
     write_snippet(slug, frontend_container)
-    # Caddy reload is async; give routing a moment to settle before exposing the URL.
-    _poll_container_http(frontend_container, timeout_seconds=30)
+    _poll_public_https(slug)
     log.info("Provisioned hosted Pi %s", slug)
 
 

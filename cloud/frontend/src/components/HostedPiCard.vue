@@ -9,9 +9,19 @@
 
       <p v-if="error" class="hosted-pi-error">{{ error }}</p>
 
-      <div v-if="loading && !instance" class="hosted-pi-status">
+      <div v-if="loading && !instance && !showStartingMessage" class="hosted-pi-status">
         <v-progress-circular indeterminate size="20" width="2" />
         <span>Laden…</span>
+      </div>
+
+      <div v-else-if="showStartingMessage" class="hosted-pi-starting">
+        <v-progress-circular indeterminate size="24" width="2" />
+        <div>
+          <p class="hosted-pi-starting-title">Cloud-Pi wird gestartet…</p>
+          <p class="hosted-pi-starting-hint">
+            Container, Routing und TLS werden vorbereitet. Das kann bis zu einer Minute dauern.
+          </p>
+        </div>
       </div>
 
       <template v-else-if="isActive">
@@ -59,11 +69,17 @@ const props = defineProps({
   eventId: { type: Number, required: true },
 })
 
-const { instance, loading, error, load, start, stop } = useHostedPi(computed(() => props.eventId))
+const { instance, loading, starting, error, load, start, stop } = useHostedPi(
+  computed(() => props.eventId),
+)
 
 const activeStatuses = new Set(['provisioning', 'running', 'stopping'])
 
 const isActive = computed(() => activeStatuses.has(instance.value?.status))
+
+const showStartingMessage = computed(
+  () => starting.value || instance.value?.status === 'provisioning',
+)
 
 const statusLabel = computed(() => {
   const status = instance.value?.status
@@ -161,5 +177,24 @@ onUnmounted(stopPolling)
 .hosted-pi-error {
   color: rgb(var(--v-theme-error));
   margin-bottom: 0.75rem;
+}
+.hosted-pi-starting {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(var(--v-theme-primary), 0.08);
+}
+.hosted-pi-starting-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+.hosted-pi-starting-hint {
+  margin: 0;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 </style>

@@ -4,6 +4,7 @@ import { apiFetch } from '../api'
 export function useHostedPi(eventIdRef) {
   const instance = ref(null)
   const loading = ref(false)
+  const starting = ref(false)
   const error = ref('')
 
   async function load() {
@@ -37,6 +38,7 @@ export function useHostedPi(eventIdRef) {
     const eventId = eventIdRef?.value ?? eventIdRef
     if (!eventId) return null
     loading.value = true
+    starting.value = true
     error.value = ''
     try {
       const response = await apiFetch(`/events/${eventId}/hosted-pi`, { method: 'POST' })
@@ -50,6 +52,7 @@ export function useHostedPi(eventIdRef) {
       throw err
     } finally {
       loading.value = false
+      starting.value = false
     }
   }
 
@@ -76,6 +79,7 @@ export function useHostedPi(eventIdRef) {
   return {
     instance,
     loading,
+    starting,
     error,
     load,
     start,
