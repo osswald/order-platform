@@ -21,7 +21,7 @@
         </p>
         <div class="hosted-pi-actions">
           <v-btn
-            v-if="instance?.url"
+            v-if="instance?.url && instance?.status === 'running'"
             color="primary"
             variant="flat"
             type="button"

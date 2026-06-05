@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import time
 from pathlib import Path
 
 from .caddy import remove_snippet, write_snippet
@@ -56,6 +57,12 @@ def _compose_yaml(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_s
     restart: unless-stopped
     depends_on:
       - pi-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
     networks:
       - pi-net
       - caddy-net
@@ -72,6 +79,20 @@ networks:
 """
 
 
+def _poll_container_http(container: str, *, timeout_seconds: int = 90, interval_seconds: float = 2) -> None:
+    """Wait until nginx inside the frontend container serves the SPA."""
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            ["docker", "exec", container, "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            return
+        time.sleep(interval_seconds)
+    raise TimeoutError(f"Container {container} did not respond on port 80 within {timeout_seconds}s")
+
+
 def provision(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_secret: str) -> None:
     directory = _instance_dir(slug)
     directory.mkdir(parents=True, exist_ok=True)
@@ -81,13 +102,28 @@ def provision(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_secre
         encoding="utf-8",
     )
     project = _project_name(slug)
+    frontend_container = _frontend_container(slug)
     subprocess.run(
-        ["docker", "compose", "-f", str(compose_file), "-p", project, "up", "-d", "--remove-orphans"],
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(compose_file),
+            "-p",
+            project,
+            "up",
+            "-d",
+            "--wait",
+            "--remove-orphans",
+        ],
         check=True,
         capture_output=True,
         text=True,
     )
-    write_snippet(slug, _frontend_container(slug))
+    _poll_container_http(frontend_container)
+    write_snippet(slug, frontend_container)
+    # Caddy reload is async; give routing a moment to settle before exposing the URL.
+    _poll_container_http(frontend_container, timeout_seconds=30)
     log.info("Provisioned hosted Pi %s", slug)
 
 

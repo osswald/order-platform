@@ -76,7 +76,7 @@ def instance_to_read(row: HostedPiInstance) -> dict:
         "id": row.id,
         "event_id": row.event_id,
         "status": row.status,
-        "url": _public_url(row.subdomain_slug) if row.status in ("provisioning", "running") else None,
+        "url": _public_url(row.subdomain_slug) if row.status == "running" else None,
         "expires_at": row.expires_at,
         "created_at": row.created_at,
         "stopped_at": row.stopped_at,

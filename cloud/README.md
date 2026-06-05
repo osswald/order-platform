@@ -116,6 +116,19 @@ Organisation users can start a temporary browser Pi from the event admin UI whil
 - Pi images: CI builds `linux/amd64,linux/arm64`; hosted instances use the amd64 tags on the VPS.
 - Max **5** concurrent instances globally; each runs up to **24 hours** with emulated printers.
 
+### Pi image updates (layout, receipts, etc.)
+
+Hosted sandboxes do **not** use the cloud admin build. Each instance pulls pre-built Pi images from GHCR (`PI_BACKEND_IMAGE` / `PI_FRONTEND_IMAGE` in `.env`, default `ghcr.io/.../pi-*-amd64-latest`).
+
+After changing `pi/backend` or `pi/frontend`:
+
+1. Push to `main` — the **Pi Docker images** workflow (`.github/workflows/pi-docker.yml`) builds and pushes new `pi-backend-amd64-latest` and `pi-frontend-amd64-latest` tags.
+2. Confirm the workflow succeeded on GitHub Actions.
+3. On the VPS, rebuild only the orchestrator if its code changed: `docker compose -f docker-compose.prod.yml up -d --build hosted-pi-manager cloud-backend cloud-frontend`
+4. **Stop and restart** each hosted Cloud-Pi from the admin UI (or wait for expiry). Running instances keep the images they started with; a new start pulls the updated `:latest` tags.
+
+Rebuilding `cloud-frontend` alone does not update the Pi app inside hosted sandboxes.
+
 ## Troubleshooting
 
 - **502 from Caddy**: check `docker compose -f docker-compose.prod.yml logs cloud-backend cloud-frontend`
