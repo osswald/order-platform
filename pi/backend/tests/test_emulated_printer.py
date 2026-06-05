@@ -23,6 +23,23 @@ def test_escpos_bytes_to_preview_strips_control_codes():
     assert "World" in preview
 
 
+def test_escpos_bytes_to_preview_strips_sized_line_prefix():
+    data = b"\x1b!\x301x Schweinsbratwurst\n"
+    assert escpos_bytes_to_preview(data) == "1x Schweinsbratwurst"
+
+
+def test_escpos_bytes_to_preview_strips_hero_scale_prefix():
+    data = b"\x1d!\x77PICKUP 42\n\x1d!\x00"
+    preview = escpos_bytes_to_preview(data)
+    assert "PICKUP 42" in preview
+    assert "w" not in preview
+
+
+def test_escpos_bytes_to_preview_strips_cut_command():
+    data = b"Thank you\n\x1dV\x42\x00"
+    assert escpos_bytes_to_preview(data) == "Thank you"
+
+
 def test_send_to_printer_stores_emulated_receipt(emulated_mode, db_session: Session):
     assert is_emulated_printer_mode()
 

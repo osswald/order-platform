@@ -681,6 +681,23 @@ html.android-app .split-pay-screen .split-header {
     flex: unset;
     padding: 0;
   }
+
+  /* Hosted Cloud-Pi: app column is phone-width — keep cart above grid */
+  .hosted-demo-app .order-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+  }
+
+  .hosted-demo-app .cart-half {
+    flex: 1 1 50%;
+  }
+
+  .hosted-demo-app .grid-half {
+    flex: 1 1 50%;
+    padding: 0.35rem;
+  }
 }
 
 .cart-panel {
