@@ -1,6 +1,22 @@
 import { ref } from 'vue'
 import { apiFetch } from '../api'
 
+const HOSTED_PI_UNAVAILABLE = 'Diese Funktion steht momentan nicht zur Verfügung.'
+
+function hostedPiErrorMessage(err, fallback = HOSTED_PI_UNAVAILABLE) {
+  const msg = String(err?.message || '').trim()
+  if (
+    !msg ||
+    msg === 'Failed to fetch' ||
+    msg === 'Load failed' ||
+    /NetworkError/i.test(msg) ||
+    /fetch resource/i.test(msg)
+  ) {
+    return HOSTED_PI_UNAVAILABLE
+  }
+  return msg || fallback
+}
+
 export function useHostedPi(eventIdRef) {
   const instance = ref(null)
   const loading = ref(false)
@@ -27,7 +43,7 @@ export function useHostedPi(eventIdRef) {
       const data = await response.json()
       instance.value = data || null
     } catch (err) {
-      error.value = err?.message || 'Cloud-Pi konnte nicht geladen werden.'
+      error.value = hostedPiErrorMessage(err, 'Cloud-Pi konnte nicht geladen werden.')
       instance.value = null
     } finally {
       loading.value = false
@@ -48,7 +64,7 @@ export function useHostedPi(eventIdRef) {
       instance.value = await response.json()
       return instance.value
     } catch (err) {
-      error.value = err?.message || 'Cloud-Pi konnte nicht gestartet werden.'
+      error.value = hostedPiErrorMessage(err, 'Cloud-Pi konnte nicht gestartet werden.')
       throw err
     } finally {
       loading.value = false
@@ -69,7 +85,7 @@ export function useHostedPi(eventIdRef) {
       instance.value = await response.json()
       return instance.value
     } catch (err) {
-      error.value = err?.message || 'Cloud-Pi konnte nicht beendet werden.'
+      error.value = hostedPiErrorMessage(err, 'Cloud-Pi konnte nicht beendet werden.')
       throw err
     } finally {
       loading.value = false
