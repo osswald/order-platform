@@ -105,6 +105,9 @@ function lineStyle(line) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.85rem;
   white-space: pre-wrap;
+  /* Match 80 mm thermal paper (~48 chars); keeps center alignment in-column. */
+  width: 48ch;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -114,8 +117,8 @@ function lineStyle(line) {
 
 .receipt-line {
   line-height: 1.25;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
+  overflow-x: auto;
 }
 
 .receipt-line--align-left {
