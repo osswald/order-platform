@@ -34,6 +34,7 @@ def _compose_yaml(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_s
     return f"""services:
   pi-backend:
     image: {PI_BACKEND_IMAGE}
+    pull_policy: always
     restart: unless-stopped
     environment:
       DATABASE_URL: sqlite:////data/pi.db
@@ -54,6 +55,7 @@ def _compose_yaml(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_s
 
   pi-frontend:
     image: {PI_FRONTEND_IMAGE}
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       - pi-backend
@@ -113,6 +115,8 @@ def provision(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_secre
             project,
             "up",
             "-d",
+            "--pull",
+            "always",
             "--wait",
             "--remove-orphans",
         ],

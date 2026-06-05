@@ -124,10 +124,25 @@ After changing `pi/backend` or `pi/frontend`:
 
 1. Push to `main` — the **Pi Docker images** workflow (`.github/workflows/pi-docker.yml`) builds and pushes new `pi-backend-amd64-latest` and `pi-frontend-amd64-latest` tags.
 2. Confirm the workflow succeeded on GitHub Actions.
-3. On the VPS, rebuild only the orchestrator if its code changed: `docker compose -f docker-compose.prod.yml up -d --build hosted-pi-manager cloud-backend cloud-frontend`
-4. **Stop and restart** each hosted Cloud-Pi from the admin UI (or wait for expiry). Running instances keep the images they started with; a new start pulls the updated `:latest` tags.
+3. On the VPS, rebuild the orchestrator (needed after `hosted-pi-manager` code changes): `docker compose -f docker-compose.prod.yml up -d --build hosted-pi-manager cloud-backend cloud-frontend`
+4. **Stop and restart** each hosted Cloud-Pi from the admin UI. New instances pull fresh images from GHCR (`pull_policy: always`).
 
 Rebuilding `cloud-frontend` alone does not update the Pi app inside hosted sandboxes.
+
+**Stale Pi images on the VPS:** `docker compose up` reuses locally cached `:latest` images unless forced to pull. If a restarted sandbox still shows old behaviour, on the VPS run:
+
+```bash
+docker pull ghcr.io/osswald/order-platform:pi-frontend-amd64-latest
+docker pull ghcr.io/osswald/order-platform:pi-backend-amd64-latest
+```
+
+Then start a new Cloud-Pi from the admin UI. If pulls fail with “denied”, log in to GHCR on the VPS (`docker login ghcr.io`) with a token that has `read:packages`.
+
+Verify the running image digest:
+
+```bash
+docker image inspect ghcr.io/osswald/order-platform:pi-frontend-amd64-latest --format '{{.Id}} {{.Created}}'
+```
 
 ## Troubleshooting
 
