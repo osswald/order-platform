@@ -9,7 +9,7 @@
   >
     <template #detail>
       <h2>{{ editMode ? 'Veranstaltung bearbeiten' : 'Neue Veranstaltung' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <p v-if="!editMode" class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
 
       <EventConfiguration
         v-if="editMode && activeId"
