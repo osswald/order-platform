@@ -36,9 +36,12 @@ def admin_bundle(*, pin_hashes: list[str]) -> dict[str, Any]:
 def kitchen_monitor_bundle() -> dict[str, Any]:
     bundle = default_bundle()
     event = bundle["events"][0]
+    event["kitchen_monitors_enabled"] = True
     event["printer_hosts"] = {
         "st-kitchen": "127.0.0.1:9100",
         "st-bar": "127.0.0.1:9100",
+        "appliance:101": {"host": "127.0.0.1", "port": 9100, "feed_lines": 1},
+        "appliance:102": {"host": "127.0.0.1", "port": 9100, "feed_lines": 1},
     }
     event["articles"] = {
         "10": {"id": 10, "name": "Burger", "price": 12.0, "additions": []},
@@ -50,16 +53,23 @@ def kitchen_monitor_bundle() -> dict[str, Any]:
                 "uuid": "st-kitchen",
                 "name": "Grill",
                 "sort_order": 0,
-                "kitchen_monitor_enabled": True,
+                "printer_appliance_id": 101,
                 "article_ids": [10],
             },
             {
                 "uuid": "st-bar",
                 "name": "Bar",
                 "sort_order": 1,
-                "kitchen_monitor_enabled": False,
+                "printer_appliance_id": 102,
                 "article_ids": [20],
             },
+        ],
+        "kitchen_monitors": [
+            {
+                "printer_appliance_id": 101,
+                "label": "Grill",
+                "sort_order": 0,
+            }
         ],
         "event_waiters": [{"uuid": "w-1", "name": "Anna"}],
     }
@@ -115,6 +125,8 @@ def cash_register_bundle() -> dict[str, Any]:
         "reg-1": "127.0.0.1:9100",
         "st-kitchen": "127.0.0.1:9100",
         "st-bar": "127.0.0.1:9100",
+        "appliance:101": {"host": "127.0.0.1", "port": 9100, "feed_lines": 1},
+        "appliance:102": {"host": "127.0.0.1", "port": 9100, "feed_lines": 1},
     }
     event["configuration"]["event_waiters"] = []
     event["configuration"]["voucher_definitions"] = []

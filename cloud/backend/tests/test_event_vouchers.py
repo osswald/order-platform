@@ -94,8 +94,8 @@ def test_replace_configuration_stores_vouchers_and_layout_cell(db_session):
                 uuid="st-1",
                 name="Bar",
                 printer_appliance_id=None,
-                kitchen_monitor_enabled=False,
                 article_ids=[art.id],
+                printer_rules=[],
             )
         ],
         event_waiters_in=[],
@@ -155,8 +155,8 @@ def test_layout_cell_voucher_and_articles_combined(db_session):
                 uuid="st-1",
                 name="Bar",
                 printer_appliance_id=None,
-                kitchen_monitor_enabled=False,
                 article_ids=[art.id],
+                printer_rules=[],
             )
         ],
         event_waiters_in=[],
@@ -218,8 +218,8 @@ def test_layout_cell_multiple_vouchers(db_session):
                 uuid="st-1",
                 name="Bar",
                 printer_appliance_id=None,
-                kitchen_monitor_enabled=False,
                 article_ids=[art.id],
+                printer_rules=[],
             )
         ],
         event_waiters_in=[],

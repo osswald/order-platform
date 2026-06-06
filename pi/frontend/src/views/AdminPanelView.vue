@@ -171,9 +171,7 @@ const cashRegisters = computed(() => {
   })
 })
 
-const hasKitchenMonitor = computed(() =>
-  (opsEvent.value?.configuration?.stations || []).some((st) => st.kitchen_monitor_enabled),
-)
+const hasKitchenMonitor = computed(() => Boolean(opsEvent.value?.kitchen_monitors_enabled))
 
 const hasCashRegisters = computed(() => cashRegisters.value.length > 0)
 

@@ -175,6 +175,16 @@ class KitchenStationItem(BaseModel):
     sort_order: int
 
 
+class KitchenPrinterItem(BaseModel):
+    printer_appliance_id: int
+    label: str
+    sort_order: int
+
+
+class KitchenPrintersResponse(BaseModel):
+    printers: list[KitchenPrinterItem]
+
+
 class KitchenStationsResponse(BaseModel):
     stations: list[KitchenStationItem]
 

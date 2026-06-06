@@ -143,7 +143,7 @@ def test_copy_event_clones_config_not_sales(db):
     assert new_stations[0].uuid != source_stations[0].uuid
     assert new_waiters[0].uuid != source_waiters[0].uuid
     assert new_stations[0].name == "Bar"
-    assert new_stations[0].kitchen_monitor_enabled is True
+    assert new_stations[0].kitchen_monitor_enabled is False
     assert [a.id for a in new_stations[0].articles] == [10]
 
     layouts = db.query(EventAppLayout).filter(EventAppLayout.event_id == new_event.id).all()

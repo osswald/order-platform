@@ -10,28 +10,28 @@
       </RouterLink>
     </header>
 
-    <section v-if="!kitchenStations.length" class="card">
+    <section v-if="!kitchenPrinters.length" class="card">
       <p>Für dieses Event ist kein Kitchen Monitor aktiv.</p>
       <button type="button" class="btn" @click="router.push({ name: 'events' })">Event wechseln</button>
     </section>
 
     <template v-else>
-      <div v-if="kitchenStations.length > 1" class="station-tabs">
+      <div v-if="kitchenPrinters.length > 1" class="station-tabs">
         <button
-          v-for="st in kitchenStations"
-          :key="st.uuid"
+          v-for="printer in kitchenPrinters"
+          :key="printer.printer_appliance_id"
           type="button"
           class="station-tab"
-          :class="{ active: st.uuid === selectedStationUuid }"
-          @click="selectStation(st.uuid)"
+          :class="{ active: printer.printer_appliance_id === selectedPrinterId }"
+          @click="selectPrinter(printer.printer_appliance_id)"
         >
-          {{ st.name }}
+          {{ printer.label }}
         </button>
       </div>
 
       <div class="toolbar">
         <div>
-          <strong>{{ selectedStation?.name }}</strong>
+          <strong>{{ selectedPrinter?.label }}</strong>
           <span class="muted"> · {{ orders.length }} offen</span>
         </div>
         <button type="button" class="btn small-btn" :disabled="loading" @click="loadOrders">
@@ -101,18 +101,21 @@ import { useEventContext } from '../composables/useEventContext'
 
 const router = useRouter()
 const { event, waiter } = useEventContext()
-const kitchenStations = computed(() =>
-  (event.value?.configuration?.stations || [])
-    .filter((st) => st.kitchen_monitor_enabled && st.uuid)
-    .map((st) => ({
-      uuid: String(st.uuid),
-      name: st.name || `Station ${String(st.uuid).slice(0, 8)}`,
-      sort_order: Number(st.sort_order) || 0,
+const kitchenPrinters = computed(() => {
+  const ev = event.value
+  if (!ev?.kitchen_monitors_enabled) return []
+  const rows = ev?.configuration?.kitchen_monitors || []
+  return rows
+    .map((row) => ({
+      printer_appliance_id: Number(row.printer_appliance_id),
+      label: row.label || `Drucker #${row.printer_appliance_id}`,
+      sort_order: Number(row.sort_order) || 0,
     }))
-    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)),
-)
+    .filter((row) => Number.isFinite(row.printer_appliance_id))
+    .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label))
+})
 
-const selectedStationUuid = ref('')
+const selectedPrinterId = ref(null)
 const orders = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -120,18 +123,20 @@ const busyTicketId = ref(null)
 const busyLineId = ref(null)
 let pollTimer = null
 
-const selectedStation = computed(() =>
-  kitchenStations.value.find((st) => st.uuid === selectedStationUuid.value) || kitchenStations.value[0] || null,
+const selectedPrinter = computed(() =>
+  kitchenPrinters.value.find((row) => row.printer_appliance_id === selectedPrinterId.value)
+    || kitchenPrinters.value[0]
+    || null,
 )
 
 function storageKey() {
-  return `pi_kitchen_station_${event.value?.id || 'none'}`
+  return `pi_kitchen_printer_${event.value?.id || 'none'}`
 }
 
-function restoreStation() {
-  const stations = kitchenStations.value
-  if (!stations.length) {
-    selectedStationUuid.value = ''
+function restorePrinter() {
+  const printers = kitchenPrinters.value
+  if (!printers.length) {
+    selectedPrinterId.value = null
     return
   }
   let saved = ''
@@ -140,14 +145,15 @@ function restoreStation() {
   } catch {
     saved = ''
   }
-  const match = stations.find((st) => st.uuid === saved)
-  selectedStationUuid.value = (match || stations[0]).uuid
+  const savedId = Number(saved)
+  const match = printers.find((row) => row.printer_appliance_id === savedId)
+  selectedPrinterId.value = (match || printers[0]).printer_appliance_id
 }
 
-function selectStation(uuid) {
-  selectedStationUuid.value = uuid
+function selectPrinter(printerId) {
+  selectedPrinterId.value = Number(printerId)
   try {
-    localStorage.setItem(storageKey(), uuid)
+    localStorage.setItem(storageKey(), String(printerId))
   } catch {
     /* ignore private mode */
   }
@@ -176,15 +182,17 @@ function additionText(line) {
 
 async function loadOrders() {
   const ev = event.value
-  const stationUuid = selectedStationUuid.value
-  if (!ev?.id || !stationUuid) {
+  const printerId = selectedPrinterId.value
+  if (!ev?.id || printerId == null) {
     orders.value = []
     return
   }
   loading.value = true
   error.value = ''
   try {
-    const data = await api(`/v1/kitchen/orders?event_id=${encodeURIComponent(ev.id)}&station_uuid=${encodeURIComponent(stationUuid)}`)
+    const data = await api(
+      `/v1/kitchen/orders?event_id=${encodeURIComponent(ev.id)}&printer_appliance_id=${encodeURIComponent(printerId)}`,
+    )
     orders.value = data?.orders || []
   } catch (e) {
     error.value = e.message || 'Kitchen Monitor konnte nicht geladen werden.'
@@ -230,8 +238,8 @@ function startPolling() {
   }, 5000)
 }
 
-watch(kitchenStations, restoreStation, { immediate: true })
-watch(selectedStationUuid, () => {
+watch(kitchenPrinters, restorePrinter, { immediate: true })
+watch(selectedPrinterId, () => {
   loadOrders()
 })
 

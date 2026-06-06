@@ -175,6 +175,8 @@ class Event(Base):
     shift_settlement_enabled = Column(Boolean, nullable=False, default=False)
     vouchers_enabled = Column(Boolean, nullable=False, default=False)
     discounts_enabled = Column(Boolean, nullable=False, default=False)
+    alternative_printers_enabled = Column(Boolean, nullable=False, default=False)
+    kitchen_monitors_enabled = Column(Boolean, nullable=False, default=False)
     offer_payment_receipt = Column(Boolean, nullable=False, default=False)
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
@@ -200,6 +202,12 @@ class Event(Base):
         back_populates="event",
         cascade="all, delete-orphan",
         order_by="EventVoucherDefinition.sort_order",
+    )
+    kitchen_monitor_printers = relationship(
+        "EventKitchenMonitorPrinter",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventKitchenMonitorPrinter.sort_order",
     )
 
 
@@ -291,6 +299,37 @@ class EventStation(Base):
         secondary=event_station_articles,
         back_populates="event_stations",
     )
+    printer_rules = relationship(
+        "EventStationPrinterRule",
+        back_populates="station",
+        cascade="all, delete-orphan",
+        order_by="EventStationPrinterRule.sort_order",
+    )
+
+
+class EventStationPrinterRule(Base):
+    __tablename__ = "event_station_printer_rules"
+    id = Column(Integer, primary_key=True, index=True)
+    station_id = Column(Integer, ForeignKey("event_stations.id", ondelete="CASCADE"), nullable=False, index=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    rule_type = Column(String(32), nullable=False)
+    table_from = Column(Integer, nullable=True)
+    table_to = Column(Integer, nullable=True)
+    pickup_prefix = Column(String(3), nullable=True)
+    printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
+    station = relationship("EventStation", back_populates="printer_rules")
+    printer_appliance = relationship("Appliance", foreign_keys=[printer_appliance_id])
+
+
+class EventKitchenMonitorPrinter(Base):
+    __tablename__ = "event_kitchen_monitor_printers"
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="CASCADE"), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    label = Column(String(128), nullable=True)
+    event = relationship("Event", back_populates="kitchen_monitor_printers")
+    printer_appliance = relationship("Appliance", foreign_keys=[printer_appliance_id])
 
 
 class EventWaiter(Base):

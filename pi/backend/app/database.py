@@ -53,6 +53,14 @@ def _add_column_if_missing(table: str, column: str, ddl: str) -> None:
         log.exception("Failed to add column %s.%s", table, column)
 
 
+def apply_kitchen_ticket_schema_patches() -> None:
+    _add_column_if_missing(
+        "kitchen_tickets",
+        "printer_appliance_id",
+        "ALTER TABLE kitchen_tickets ADD COLUMN printer_appliance_id INTEGER",
+    )
+
+
 def apply_print_job_schema_patches() -> None:
     _add_column_if_missing(
         "print_jobs",
@@ -122,6 +130,10 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
         cols = {c["name"] for c in inspector.get_columns("print_jobs")}
         if "job_kind" in cols:
             return "003_print_job_kind"
+    if "kitchen_tickets" in tables:
+        cols = {c["name"] for c in inspector.get_columns("kitchen_tickets")}
+        if "printer_appliance_id" in cols:
+            return "004_kitchen_ticket_printer"
     if "cash_sessions" in tables:
         cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
         if "subject_type" in cols:
@@ -170,6 +182,7 @@ def init_test_schema() -> None:
     _create_all_tables()
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
+    apply_kitchen_ticket_schema_patches()
 
 
 def _alembic_head_revision(cfg) -> str:
@@ -215,6 +228,7 @@ def run_migrations() -> None:
         log.exception("Alembic upgrade failed; applying schema patches")
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
+    apply_kitchen_ticket_schema_patches()
     _create_all_tables()
 
 

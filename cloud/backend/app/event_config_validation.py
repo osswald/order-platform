@@ -18,7 +18,9 @@ from .models import (
     EventAppLayout,
     EventAppLayoutCell,
     EventCashRegister,
+    EventKitchenMonitorPrinter,
     EventStation,
+    EventStationPrinterRule,
     EventWaiter,
     Waiter,
 )
@@ -187,6 +189,120 @@ def assert_layout_cells_within_grid(layouts_payload: list) -> None:
             seen.add(key)
 
 
+def station_printer_appliance_ids(stations_payload: list) -> set[int]:
+    out: set[int] = set()
+    for st in stations_payload:
+        pid = getattr(st, "printer_appliance_id", None)
+        if pid is not None:
+            out.add(int(pid))
+        for rule in getattr(st, "printer_rules", None) or []:
+            rpid = getattr(rule, "printer_appliance_id", None)
+            if rpid is not None:
+                out.add(int(rpid))
+    return out
+
+
+def assert_station_printer_rules_valid(db: Session, event: Event, stations_payload: list) -> None:
+    if not bool(getattr(event, "alternative_printers_enabled", False)):
+        for st in stations_payload:
+            if getattr(st, "printer_rules", None):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Printer rules require alternative_printers_enabled on the event",
+                )
+        return
+
+    for st in stations_payload:
+        ranges: list[tuple[int, int]] = []
+        prefixes: set[str] = set()
+        rules = sorted(getattr(st, "printer_rules", None) or [], key=lambda r: int(getattr(r, "sort_order", 0) or 0))
+        for idx, rule in enumerate(rules):
+            rtype = str(getattr(rule, "rule_type", "") or "").strip()
+            pid = getattr(rule, "printer_appliance_id", None)
+            assert_printer_eligible(db, event, pid)
+            if rtype == "table_range":
+                t_from = getattr(rule, "table_from", None)
+                t_to = getattr(rule, "table_to", None)
+                if t_from is None or t_to is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Table-range printer rules require table_from and table_to",
+                    )
+                t_from_i, t_to_i = int(t_from), int(t_to)
+                if not (1 <= t_from_i <= 99999 and 1 <= t_to_i <= 99999 and t_from_i <= t_to_i):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Table range must be between 1 and 99999 with table_from <= table_to",
+                    )
+                for existing_from, existing_to in ranges:
+                    if not (t_to_i < existing_from or t_from_i > existing_to):
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Table ranges for one station must not overlap",
+                        )
+                ranges.append((t_from_i, t_to_i))
+            elif rtype == "pickup_prefix":
+                prefix = str(getattr(rule, "pickup_prefix", "") or "").strip().upper()
+                if not PICKUP_PREFIX_RE.match(prefix):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Pickup-prefix printer rules require 1-3 letters A-Z",
+                    )
+                if prefix in prefixes:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Duplicate pickup prefix in station printer rules",
+                    )
+                prefixes.add(prefix)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Unknown printer rule type: {rtype}",
+                )
+
+
+def assert_kitchen_monitors_valid(
+    db: Session,
+    event: Event,
+    kitchen_monitors_payload: list,
+    stations_payload: list,
+    cash_registers_payload: list,
+) -> None:
+    if not bool(getattr(event, "kitchen_monitors_enabled", False)):
+        if kitchen_monitors_payload:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Kitchen monitor printers require kitchen_monitors_enabled on the event",
+            )
+        return
+    allowed = station_printer_appliance_ids(stations_payload)
+    for reg in cash_registers_payload:
+        rpid = getattr(reg, "receipt_printer_appliance_id", None)
+        if rpid is not None:
+            allowed.add(int(rpid))
+    seen: set[int] = set()
+    for idx, row in enumerate(kitchen_monitors_payload):
+        pid = getattr(row, "printer_appliance_id", None)
+        if pid is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Each kitchen monitor entry requires a printer",
+            )
+        pid_int = int(pid)
+        if pid_int in seen:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Duplicate printer in kitchen monitor list",
+            )
+        seen.add(pid_int)
+        assert_printer_eligible(db, event, pid_int)
+        if allowed and pid_int not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Kitchen monitor printer must be assigned to a station or cash register in this event",
+            )
+
+
 def replace_event_configuration(
     db: Session,
     event: Event,
@@ -196,13 +312,17 @@ def replace_event_configuration(
     app_layouts_in: list,
     cash_registers_in: list | None = None,
     voucher_definitions_in: list | None = None,
+    kitchen_monitors_in: list | None = None,
 ) -> None:
     """Replace all configuration children. Caller must commit. Validates before mutating."""
     cash_registers_in = cash_registers_in or []
     voucher_definitions_in = voucher_definitions_in or []
+    kitchen_monitors_in = kitchen_monitors_in or []
     for st in stations_in:
         assert_station_articles_in_org(db, event, list(st.article_ids))
         assert_printer_eligible(db, event, st.printer_appliance_id)
+    assert_station_printer_rules_valid(db, event, stations_in)
+    assert_kitchen_monitors_valid(db, event, kitchen_monitors_in, stations_in, cash_registers_in)
     for ew in event_waiters_in:
         assert_source_waiter_in_org(db, event, ew.source_waiter_id)
 
@@ -236,7 +356,7 @@ def replace_event_configuration(
                 name=st_in.name.strip(),
                 sort_order=idx,
                 printer_appliance_id=st_in.printer_appliance_id,
-                kitchen_monitor_enabled=bool(getattr(st_in, "kitchen_monitor_enabled", False)),
+                kitchen_monitor_enabled=False,
             )
             db.add(st)
             db.flush()
@@ -244,13 +364,30 @@ def replace_event_configuration(
             st.name = st_in.name.strip()
             st.sort_order = idx
             st.printer_appliance_id = st_in.printer_appliance_id
-            st.kitchen_monitor_enabled = bool(getattr(st_in, "kitchen_monitor_enabled", False))
+            st.kitchen_monitor_enabled = False
         kept_station_uuids.add(st.uuid)
         if st_in.article_ids:
             arts = db.query(Article).filter(Article.id.in_(list(set(st_in.article_ids)))).all()
             st.articles = arts
         else:
             st.articles = []
+        db.query(EventStationPrinterRule).filter(EventStationPrinterRule.station_id == st.id).delete()
+        db.flush()
+        if bool(getattr(event, "alternative_printers_enabled", False)):
+            for rule_idx, rule_in in enumerate(getattr(st_in, "printer_rules", None) or []):
+                db.add(
+                    EventStationPrinterRule(
+                        station_id=st.id,
+                        sort_order=rule_idx,
+                        rule_type=str(getattr(rule_in, "rule_type", "") or "").strip(),
+                        table_from=getattr(rule_in, "table_from", None),
+                        table_to=getattr(rule_in, "table_to", None),
+                        pickup_prefix=(
+                            str(getattr(rule_in, "pickup_prefix", "") or "").strip().upper() or None
+                        ),
+                        printer_appliance_id=getattr(rule_in, "printer_appliance_id", None),
+                    )
+                )
 
     for st_uuid, st in list(existing_stations.items()):
         if st_uuid not in kept_station_uuids:
@@ -339,6 +476,19 @@ def replace_event_configuration(
     for reg_uuid, reg in list(existing_registers.items()):
         if reg_uuid not in kept_register_uuids:
             db.delete(reg)
+
+    db.query(EventKitchenMonitorPrinter).filter(EventKitchenMonitorPrinter.event_id == event.id).delete()
+    db.flush()
+    if bool(getattr(event, "kitchen_monitors_enabled", False)):
+        for idx, row_in in enumerate(kitchen_monitors_in):
+            db.add(
+                EventKitchenMonitorPrinter(
+                    event_id=event.id,
+                    printer_appliance_id=int(row_in.printer_appliance_id),
+                    sort_order=idx,
+                    label=(str(getattr(row_in, "label", "") or "").strip() or None),
+                )
+            )
 
 
 def build_station_article_tree(db: Session, event: Event) -> list[dict]:

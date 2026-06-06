@@ -42,16 +42,23 @@ def test_monitored_station_defers_print_until_kitchen_action(client_session):
         ticket = db.query(KitchenTicket).one()
         line = db.query(KitchenTicketLine).filter(KitchenTicketLine.ticket_id == ticket.id).one()
         assert ticket.status == "open"
+        assert ticket.printer_appliance_id == 101
         assert line.qty_total == 2
         assert line.qty_printed == 0
     finally:
         db.close()
 
+    printers = c.get("/v1/kitchen/printers", params={"event_id": 1})
+    assert printers.status_code == 200
+    assert printers.json()["printers"] == [
+        {"printer_appliance_id": 101, "label": "Grill", "sort_order": 0}
+    ]
+
     stations = c.get("/v1/kitchen/stations", params={"event_id": 1})
     assert stations.status_code == 200
-    assert stations.json()["stations"] == [{"uuid": "st-kitchen", "name": "Grill", "sort_order": 0}]
+    assert stations.json()["stations"] == [{"uuid": "101", "name": "Grill", "sort_order": 0}]
 
-    orders = c.get("/v1/kitchen/orders", params={"event_id": 1, "station_uuid": "st-kitchen"})
+    orders = c.get("/v1/kitchen/orders", params={"event_id": 1, "printer_appliance_id": 101})
     assert orders.status_code == 200
     ticket_body = orders.json()["orders"][0]
     ticket_id = ticket_body["id"]
@@ -84,6 +91,6 @@ def test_monitored_station_defers_print_until_kitchen_action(client_session):
     finally:
         db.close()
 
-    empty = c.get("/v1/kitchen/orders", params={"event_id": 1, "station_uuid": "st-kitchen"})
+    empty = c.get("/v1/kitchen/orders", params={"event_id": 1, "printer_appliance_id": 101})
     assert empty.status_code == 200
     assert empty.json()["orders"] == []

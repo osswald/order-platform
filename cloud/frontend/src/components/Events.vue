@@ -20,6 +20,8 @@
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
         :shift-settlement-enabled="form.shiftSettlementEnabled"
+        :alternative-printers-enabled="form.alternativePrintersEnabled"
+        :kitchen-monitors-enabled="form.kitchenMonitorsEnabled"
         :stammdaten-dirty="stammdatenDirty"
       >
         <template #stammdaten>
@@ -216,6 +218,8 @@ const emptyForm = () => ({
   shiftSettlementEnabled: false,
   vouchersEnabled: false,
   discountsEnabled: false,
+  alternativePrintersEnabled: false,
+  kitchenMonitorsEnabled: false,
   offerPaymentReceipt: false,
 })
 
@@ -240,6 +244,8 @@ function stammdatenSnapshot() {
     shiftSettlementEnabled: Boolean(form.value.shiftSettlementEnabled),
     vouchersEnabled: Boolean(form.value.vouchersEnabled),
     discountsEnabled: Boolean(form.value.discountsEnabled),
+    alternativePrintersEnabled: Boolean(form.value.alternativePrintersEnabled),
+    kitchenMonitorsEnabled: Boolean(form.value.kitchenMonitorsEnabled),
     offerPaymentReceipt: Boolean(form.value.offerPaymentReceipt),
   })
 }
@@ -479,6 +485,8 @@ async function applyEventToForm(event) {
     shiftSettlementEnabled: Boolean(event.shift_settlement_enabled),
     vouchersEnabled: Boolean(event.vouchers_enabled),
     discountsEnabled: Boolean(event.discounts_enabled),
+    alternativePrintersEnabled: Boolean(event.alternative_printers_enabled),
+    kitchenMonitorsEnabled: Boolean(event.kitchen_monitors_enabled),
     offerPaymentReceipt: Boolean(event.offer_payment_receipt),
   }
   originalStatus.value = event.status || 'config'
@@ -602,6 +610,8 @@ async function saveEvent() {
     shift_settlement_enabled: Boolean(form.value.shiftSettlementEnabled),
     vouchers_enabled: Boolean(form.value.vouchersEnabled),
     discounts_enabled: Boolean(form.value.discountsEnabled),
+    alternative_printers_enabled: Boolean(form.value.alternativePrintersEnabled),
+    kitchen_monitors_enabled: Boolean(form.value.kitchenMonitorsEnabled),
     offer_payment_receipt: Boolean(form.value.offerPaymentReceipt),
   }
   if (!editMode.value) {

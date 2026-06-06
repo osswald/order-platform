@@ -124,6 +124,8 @@ def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Eve
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
+            joinedload(Event.kitchen_monitor_printers),
+            joinedload(Event.stations).joinedload(EventStation.printer_rules),
         )
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
@@ -141,6 +143,8 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
+            joinedload(Event.kitchen_monitor_printers),
+            joinedload(Event.stations).joinedload(EventStation.printer_rules),
         )
         .filter(
             Event.organisation_id == organisation_id,
@@ -155,10 +159,22 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
 
 def _emulated_printer_hosts(event: Event) -> dict[str, dict]:
     out: dict[str, dict] = {}
+    appliance_ids: set[int] = set()
     for st in event.stations or []:
         out[str(st.uuid)] = {"host": "emulated", "port": 0, "feed_lines": 1}
+        if st.printer_appliance_id:
+            appliance_ids.add(int(st.printer_appliance_id))
+        for rule in st.printer_rules or []:
+            if rule.printer_appliance_id:
+                appliance_ids.add(int(rule.printer_appliance_id))
     for reg in event.cash_registers or []:
         out[str(reg.uuid)] = {"host": "emulated", "port": 0, "feed_lines": 1}
+        if reg.receipt_printer_appliance_id:
+            appliance_ids.add(int(reg.receipt_printer_appliance_id))
+    for row in event.kitchen_monitor_printers or []:
+        appliance_ids.add(int(row.printer_appliance_id))
+    for aid in appliance_ids:
+        out[f"appliance:{aid}"] = {"host": "emulated", "port": 0, "feed_lines": 1}
     return out
 
 
@@ -172,6 +188,8 @@ def _load_event_bundle_row(db: Session, event_id: int, organisation_id: int) -> 
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
+            joinedload(Event.kitchen_monitor_printers),
+            joinedload(Event.stations).joinedload(EventStation.printer_rules),
         )
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
@@ -196,10 +214,11 @@ def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
 
 
 def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, dict]:
-    """Map station/register uuid -> ESC/POS endpoint (host, port, feed_lines from printer appliance)."""
+    """Map station/register/appliance keys -> ESC/POS endpoint (host, port, feed_lines)."""
     from ..printer_appliance_config import PrinterHostEndpoint, feed_lines_for_appliance
 
     out: dict[str, dict] = {}
+    appliance_ids: set[int] = set()
 
     def add_endpoint(key: str, ap: Appliance | None) -> None:
         if not ap or not ap.ip_address:
@@ -212,15 +231,27 @@ def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, dict]:
         out[key] = endpoint.model_dump()
 
     for st in event.stations or []:
+        if st.printer_appliance_id:
+            appliance_ids.add(int(st.printer_appliance_id))
+        for rule in st.printer_rules or []:
+            if rule.printer_appliance_id:
+                appliance_ids.add(int(rule.printer_appliance_id))
         if not st.printer_appliance_id:
             continue
         ap = db.query(Appliance).filter(Appliance.id == st.printer_appliance_id).first()
         add_endpoint(str(st.uuid), ap)
     for reg in event.cash_registers or []:
+        if reg.receipt_printer_appliance_id:
+            appliance_ids.add(int(reg.receipt_printer_appliance_id))
         if not reg.receipt_printer_appliance_id:
             continue
         ap = db.query(Appliance).filter(Appliance.id == reg.receipt_printer_appliance_id).first()
         add_endpoint(str(reg.uuid), ap)
+    for row in event.kitchen_monitor_printers or []:
+        appliance_ids.add(int(row.printer_appliance_id))
+    for aid in sorted(appliance_ids):
+        ap = db.query(Appliance).filter(Appliance.id == aid).first()
+        add_endpoint(f"appliance:{aid}", ap)
     return out
 
 
@@ -233,6 +264,8 @@ class EdgeEventBundle(BaseModel):
     payment_types: list[str] = Field(default_factory=lambda: ["cash"])
     shift_settlement_enabled: bool = False
     discounts_enabled: bool = False
+    alternative_printers_enabled: bool = False
+    kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
     twint_qr_data_url: str | None = None
     start: datetime
@@ -355,6 +388,8 @@ def read_edge_bundle(
                 payment_types=payment_types_from_event(ev),
                 shift_settlement_enabled=bool(getattr(ev, "shift_settlement_enabled", False)),
                 discounts_enabled=bool(getattr(ev, "discounts_enabled", False)),
+                alternative_printers_enabled=bool(getattr(ev, "alternative_printers_enabled", False)),
+                kitchen_monitors_enabled=bool(getattr(ev, "kitchen_monitors_enabled", False)),
                 offer_payment_receipt=bool(getattr(ev, "offer_payment_receipt", False)),
                 twint_qr_data_url=twint_qr_data_url_for_event(ev),
                 start=ev.start,
