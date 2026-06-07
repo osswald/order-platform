@@ -9,14 +9,7 @@
 
       <template v-if="step === 'types'">
         <p v-if="!definitions.length" class="muted">Keine Gutschein-Typen konfiguriert.</p>
-        <ul v-else class="pick-list">
-          <li v-for="vd in definitions" :key="vd.uuid">
-            <button type="button" class="pick-row" @click="pickType(vd)">
-              <span class="name">{{ vd.name }}</span>
-              <span class="meta muted">{{ typeHint(vd) }}</span>
-            </button>
-          </li>
-        </ul>
+        <SheetOptionList v-else :items="typeListItems" max-height="40vh" @pick="onPickType" />
         <button type="button" class="btn" style="width: 100%" @click="close">Abbrechen</button>
       </template>
 
@@ -30,14 +23,7 @@
 
       <template v-else-if="step === 'pick-line'">
         <p class="muted confirm-text">Position für «{{ pendingType?.name }}» wählen:</p>
-        <ul class="pick-list">
-          <li v-for="(sel, idx) in eligibleSelections" :key="idx">
-            <button type="button" class="pick-row" @click="confirmArticle(sel)">
-              <span class="name">{{ sel.label }}</span>
-              <span class="meta muted">{{ formatAmount(sel.unit_cents) }}</span>
-            </button>
-          </li>
-        </ul>
+        <SheetOptionList :items="lineListItems" max-height="40vh" @pick="confirmArticle" />
         <button type="button" class="btn" style="width: 100%" @click="close">Abbrechen</button>
       </template>
     </div>
@@ -49,6 +35,7 @@ import { computed, ref, watch } from 'vue'
 import { useEventContext } from '../composables/useEventContext'
 import { formatAmount, voucherEntitlementCreditCents } from '../utils/money'
 import { lineAdditionLabels, voucherDefinitionsForEvent } from '../utils/bundleHelpers'
+import SheetOptionList from './SheetOptionList.vue'
 
 const { showToast } = useEventContext()
 
@@ -80,6 +67,15 @@ const creditPreview = computed(() => {
   return Math.min(props.grossCents, face)
 })
 
+const typeListItems = computed(() =>
+  definitions.value.map((vd) => ({
+    key: vd.uuid,
+    label: vd.name,
+    meta: typeHint(vd),
+    vd,
+  })),
+)
+
 function typeHint(vd) {
   if (vd.kind === 'fixed_amount') {
     return formatAmount(vd.value_cents || 0)
@@ -110,6 +106,19 @@ const eligibleSelections = computed(() => {
     }))
 })
 
+const lineListItems = computed(() =>
+  eligibleSelections.value.map((sel, idx) => ({
+    key: idx,
+    label: sel.label,
+    meta: formatAmount(sel.unit_cents),
+    sel,
+  })),
+)
+
+function onPickType(item) {
+  pickType(item.vd)
+}
+
 function pickType(vd) {
   pendingType.value = vd
   if (vd.kind === 'fixed_amount') {
@@ -121,7 +130,7 @@ function pickType(vd) {
     return
   }
   if (eligibleSelections.value.length === 1) {
-    confirmArticle(eligibleSelections.value[0])
+    confirmArticle({ sel: eligibleSelections.value[0] })
     return
   }
   step.value = 'pick-line'
@@ -138,7 +147,8 @@ function confirmAmount() {
   close()
 }
 
-function confirmArticle(sel) {
+function confirmArticle(item) {
+  const sel = item.sel ?? item
   const vd = pendingType.value
   if (!vd) return
   const arts = props.event?.articles || {}
@@ -202,35 +212,6 @@ watch(
   color: var(--primary);
   font-size: 0.95rem;
   cursor: pointer;
-}
-
-.pick-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1rem;
-  max-height: 40vh;
-  overflow-y: auto;
-}
-
-.pick-row {
-  width: 100%;
-  text-align: left;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--bg);
-  color: var(--text);
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.pick-row .name {
-  font-weight: 600;
 }
 
 .confirm-text {

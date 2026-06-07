@@ -6,17 +6,17 @@
         <h3>Zusätze</h3>
         <p class="muted">{{ articleName }}</p>
       </header>
-      <ul class="add-list">
-        <li v-for="a in additions" :key="a.article_id" class="add-row">
-          <label class="add-label">
+      <ul class="sheet-option-list">
+        <li v-for="a in additions" :key="a.article_id" class="sheet-option-row">
+          <label class="sheet-option-row__control">
             <input
               type="checkbox"
               :checked="selected.has(a.article_id)"
               :disabled="!canSelect(a)"
               @change="toggle(a)"
             />
-            <span class="name">{{ a.name }}</span>
-            <span class="price-hint">{{ priceHint(a) }}</span>
+            <span class="sheet-option-row__name">{{ a.name }}</span>
+            <span class="sheet-option-row__meta">{{ priceHint(a) }}</span>
             <span v-if="a.monitor_stock && !a.sellable" class="badge">ausverkauft</span>
             <span v-else-if="a.monitor_stock" class="stock-hint">{{ a.in_stock ?? 0 }} Stk.</span>
           </label>
@@ -101,34 +101,13 @@ function confirm() {
 .sheet-header h3 {
   margin: 0;
 }
-.add-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0;
-}
-.add-row {
-  border-bottom: 1px solid var(--border);
-}
-.add-label {
-  display: flex;
+.sheet-option-row__control {
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 0.25rem;
   cursor: pointer;
-  width: 100%;
 }
-.add-label input {
+.sheet-option-row__control input {
   width: 1.25rem;
   height: 1.25rem;
-}
-.name {
-  flex: 1;
-  font-weight: 500;
-}
-.price-hint {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
 }
 .badge {
   font-size: 0.75rem;

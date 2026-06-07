@@ -263,6 +263,43 @@ h2 {
   font-size: 1rem;
 }
 
+.sheet-option-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.sheet-option-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet-option-row__control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 0.25rem;
+  width: 100%;
+}
+
+.sheet-option-row__control--btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: left;
+}
+
+.sheet-option-row__name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.sheet-option-row__meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
 /* Full-screen POS order */
 .app-shell--fullscreen {
   padding-bottom: 0;
