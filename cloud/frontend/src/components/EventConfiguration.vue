@@ -64,63 +64,78 @@
                 :key="'rule-' + idx + '-' + ruleIdx"
                 class="printer-rule-card"
               >
-                <v-select
-                  v-model="rule.rule_type"
-                  :items="printerRuleTypeOptions"
-                  item-title="label"
-                  item-value="value"
-                  label="Regeltyp"
-                  density="compact"
-                  hide-details
-                />
+                <div class="printer-rule-card-header">
+                  <span>Regel {{ ruleIdx + 1 }}</span>
+                  <v-btn
+                    icon="mdi-delete"
+                    variant="text"
+                    color="error"
+                    type="button"
+                    aria-label="Regel entfernen"
+                    @click="removePrinterRule(idx, ruleIdx)"
+                  />
+                </div>
+                <div class="form-field">
+                  <label>Regeltyp</label>
+                  <v-select
+                    v-model="rule.rule_type"
+                    :items="printerRuleTypeOptions"
+                    item-title="label"
+                    item-value="value"
+                    density="compact"
+                    hide-details
+                  />
+                </div>
                 <template v-if="rule.rule_type === 'table_range'">
                   <div class="rule-range-row">
-                    <v-text-field
-                      v-model.number="rule.table_from"
-                      type="number"
-                      label="Tisch von"
-                      min="1"
-                      max="99999"
-                      density="compact"
-                      hide-details
-                    />
-                    <v-text-field
-                      v-model.number="rule.table_to"
-                      type="number"
-                      label="Tisch bis"
-                      min="1"
-                      max="99999"
-                      density="compact"
-                      hide-details
-                    />
+                    <div class="form-field">
+                      <label>Tisch von</label>
+                      <v-text-field
+                        v-model.number="rule.table_from"
+                        type="number"
+                        min="1"
+                        max="99999"
+                        density="compact"
+                        hide-details
+                      />
+                    </div>
+                    <div class="form-field">
+                      <label>Tisch bis</label>
+                      <v-text-field
+                        v-model.number="rule.table_to"
+                        type="number"
+                        min="1"
+                        max="99999"
+                        density="compact"
+                        hide-details
+                      />
+                    </div>
                   </div>
                 </template>
-                <v-text-field
-                  v-else-if="rule.rule_type === 'pickup_prefix'"
-                  v-model="rule.pickup_prefix"
-                  label="Abholcode-Präfix"
-                  maxlength="3"
-                  density="compact"
-                  hide-details
-                  @update:model-value="rule.pickup_prefix = normalizePickupPrefix($event)"
-                />
-                <v-select
-                  v-model="rule.printer_appliance_id"
-                  :items="printerOptions"
-                  item-title="name"
-                  item-value="id"
-                  label="Drucker"
-                  density="compact"
-                  hide-details
-                />
-                <v-btn
-                  icon="mdi-delete"
-                  variant="text"
-                  color="error"
-                  type="button"
-                  aria-label="Regel entfernen"
-                  @click="removePrinterRule(idx, ruleIdx)"
-                />
+                <div v-else-if="rule.rule_type === 'pickup_prefix'" class="form-field">
+                  <label>Abholcode-Präfix</label>
+                  <v-text-field
+                    v-model="rule.pickup_prefix"
+                    placeholder="z. B. A"
+                    maxlength="3"
+                    density="compact"
+                    hide-details
+                    @update:model-value="rule.pickup_prefix = normalizePickupPrefix($event)"
+                  />
+                </div>
+                <div class="form-field">
+                  <label>Drucker</label>
+                  <v-select
+                    v-model="rule.printer_appliance_id"
+                    :items="printerOptions"
+                    item-title="name"
+                    item-value="id"
+                    placeholder="Kein Drucker"
+                    clearable
+                    density="compact"
+                    hide-details
+                  />
+                </div>
               </div>
             </div>
             <div class="form-field">
@@ -1567,6 +1582,40 @@ defineExpose({
   font-weight: 600;
 }
 
+.printer-rules-block {
+  margin-bottom: 0.75rem;
+}
+
+.printer-rules-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.printer-rule-card {
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgb(var(--v-theme-surface));
+}
+
+.printer-rule-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.rule-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 .layout-header-actions {
   display: flex;
   align-items: center;
@@ -1633,7 +1682,8 @@ label {
 }
 
 @media (max-width: 992px) {
-  .field-row {
+  .field-row,
+  .rule-range-row {
     grid-template-columns: 1fr;
   }
 
