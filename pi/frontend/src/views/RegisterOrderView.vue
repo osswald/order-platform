@@ -146,6 +146,7 @@ import {
   cartLineLabelForEvent,
 } from '../utils/bundleHelpers'
 import { resolvePaymentsForAmount } from '../utils/resolvePayment'
+import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
 import { useRoute } from 'vue-router'
 import { useRegisterDisplay } from '../composables/useRegisterDisplay'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
@@ -561,6 +562,14 @@ async function submitOrder() {
     voucherRedemptions.value = []
     clearCart()
     showToast(`Pickup ${res.pickup_code}`, 'ok')
+    if (res.payment_id) {
+      await offerPaymentReceipt({
+        paymentId: res.payment_id,
+        event: event.value,
+        showToast,
+        preferredTargetUuid: register.value.uuid,
+      })
+    }
     await router.push(hubRoute())
   } catch (e) {
     showToast(e.message || 'Fehler', 'err')

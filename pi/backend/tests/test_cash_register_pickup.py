@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.models import KitchenTicket, LocalOrder, PrintJob, RegisterDisplayState
+from app.models import KitchenTicket, LocalOrder, PaymentReceipt, PrintJob, RegisterDisplayState
 from tests.fixtures_bundles import bundle_copy, cash_register_bundle
 
 pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
@@ -35,6 +35,31 @@ def _cash_register_order(c, article_id=20, amount_cents=500):
             "payments": [{"type": "cash", "amount_cents": amount_cents}],
         },
     )
+
+
+def test_cash_register_order_creates_payment_receipt(client):
+    c, Session = client
+    r = _cash_register_order(c)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    payment_id = body["payment_id"]
+    assert payment_id is not None
+
+    db = Session()
+    try:
+        receipt = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).one()
+        payload = json.loads(receipt.payload_json)
+        assert payload["pickup_code"] == "A1"
+        assert payload["order_source"] == "cash_register"
+        assert payload["cash_register_uuid"] == "reg-1"
+    finally:
+        db.close()
+
+    printed = c.post(
+        f"/v1/payments/{payment_id}/receipt/print",
+        json={"station_uuid": "reg-1"},
+    )
+    assert printed.status_code == 200, printed.text
 
 
 def test_cash_register_order_gets_paid_pickup_code_and_customer_print(client):

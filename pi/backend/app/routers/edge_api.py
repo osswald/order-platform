@@ -1244,7 +1244,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     save_bundle(db, bundle)
 
     payment_receipt_id = None
-    if order_source != "cash_register" and payment_status == "paid" and payments:
+    if payment_status == "paid" and payments:
         payment_receipt_id = _create_payment_receipt(
             db,
             ev,

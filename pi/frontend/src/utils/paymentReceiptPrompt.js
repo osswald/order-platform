@@ -76,9 +76,15 @@ export function offerPaymentReceiptEnabled(event) {
 
 /**
  * Ask whether to print a payment receipt; route to Bluetooth or station printer.
- * @param {{ paymentId: number|string, event: object, showToast?: Function, reprint?: boolean }} opts
+ * @param {{ paymentId: number|string, event: object, showToast?: Function, reprint?: boolean, preferredTargetUuid?: string }} opts
  */
-export async function offerPaymentReceipt({ paymentId, event, showToast, reprint = false }) {
+export async function offerPaymentReceipt({
+  paymentId,
+  event,
+  showToast,
+  reprint = false,
+  preferredTargetUuid = null,
+}) {
   if (paymentId == null || paymentId === '') return
   if (!reprint && !offerPaymentReceiptEnabled(event)) return
 
@@ -99,6 +105,12 @@ export async function offerPaymentReceipt({ paymentId, event, showToast, reprint
   const targets = receiptPrintTargets(event)
   if (!targets.length) {
     showToast?.('Kein Drucker konfiguriert.', 'err')
+    return
+  }
+
+  const preferred = String(preferredTargetUuid || '').trim()
+  if (preferred && targets.some((t) => t.uuid === preferred)) {
+    await printToStation(paymentId, preferred, showToast)
     return
   }
 

@@ -269,9 +269,10 @@ Local and production printing use **real printer hosts** from the synced cloud b
 
 ### Payment receipts (Zahlungsbeleg)
 
-After paying (order, table split-pay, or collective bill), the waiter PWA asks **Zahlungsbeleg drucken?** only when the event has **Zahlungsbeleg nach Bezahlung anbieten** enabled in cloud Stammdaten (off by default). If yes:
+After paying (order, table split-pay, collective bill, or cash-register checkout), the Pi PWA asks **Zahlungsbeleg drucken?** only when the event has **Zahlungsbeleg nach Bezahlung anbieten** enabled in cloud Stammdaten (off by default). If yes:
 
 - **Android with a paired Bluetooth printer** — prints on the device (no station list). Paper width is set per device under **Bluetooth Drucker** (80 mm / 58 mm / 53 mm); narrow Bluetooth printers should use **53 mm** so prices align flush right.
+- **Cash register (Kasse)** — prints on the current register's configured Kundendrucker when available (no station list).
 - **Otherwise** — lists stations and cash registers that have an entry in `printer_hosts`; the Pi queues a `PrintJob` to the chosen printer (always 80 mm / `ESCPOS_LINE_WIDTH` default).
 
 Reprints from **Belege** use the same flow. Manual checks:
@@ -279,6 +280,7 @@ Reprints from **Belege** use the same flow. Manual checks:
 | Scenario | Expected |
 |----------|----------|
 | Browser + station printer in cloud | Pay → Drucken → pick station → slip prints on network printer |
+| Cash register + Kundendrucker configured | Checkout → Drucken → prints on current register printer |
 | Android + Bluetooth paired | Pay → Drucken → prints on phone printer, no station list |
 | Android + no Bluetooth | Pay → Drucken → station list |
 | Nein | No print job, normal navigation |
