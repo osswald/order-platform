@@ -29,10 +29,12 @@ def _load_event_for_copy(db: Session, event_id: int) -> Event | None:
         .options(
             joinedload(Event.organisation),
             joinedload(Event.stations).joinedload(EventStation.articles),
+            joinedload(Event.stations).joinedload(EventStation.printer_rules),
             joinedload(Event.event_waiters),
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
+            joinedload(Event.kitchen_monitor_printers),
         )
         .filter(Event.id == event_id)
         .first()
@@ -42,16 +44,39 @@ def _load_event_for_copy(db: Session, event_id: int) -> Event | None:
 def _stations_payload(event: Event) -> list:
     out = []
     for st in sorted(event.stations, key=lambda s: (s.sort_order, s.id)):
+        rules = []
+        for rule in sorted(st.printer_rules or [], key=lambda r: (r.sort_order, r.id)):
+            rules.append(
+                SimpleNamespace(
+                    sort_order=rule.sort_order,
+                    rule_type=rule.rule_type,
+                    table_from=rule.table_from,
+                    table_to=rule.table_to,
+                    pickup_prefix=rule.pickup_prefix,
+                    printer_appliance_id=rule.printer_appliance_id,
+                )
+            )
         out.append(
             SimpleNamespace(
                 uuid=None,
                 name=st.name,
                 printer_appliance_id=st.printer_appliance_id,
-                kitchen_monitor_enabled=bool(getattr(st, "kitchen_monitor_enabled", False)),
                 article_ids=[a.id for a in st.articles],
+                printer_rules=rules,
             )
         )
     return out
+
+
+def _kitchen_monitors_payload(event: Event) -> list:
+    return [
+        SimpleNamespace(
+            printer_appliance_id=row.printer_appliance_id,
+            sort_order=row.sort_order,
+            label=row.label,
+        )
+        for row in sorted(event.kitchen_monitor_printers or [], key=lambda r: (r.sort_order, r.id))
+    ]
 
 
 def _waiters_payload(event: Event) -> list:
@@ -166,6 +191,8 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         shift_settlement_enabled=bool(getattr(source, "shift_settlement_enabled", False)),
         vouchers_enabled=bool(getattr(source, "vouchers_enabled", False)),
         discounts_enabled=bool(getattr(source, "discounts_enabled", False)),
+        alternative_printers_enabled=bool(getattr(source, "alternative_printers_enabled", False)),
+        kitchen_monitors_enabled=bool(getattr(source, "kitchen_monitors_enabled", False)),
         offer_payment_receipt=bool(getattr(source, "offer_payment_receipt", False)),
     )
     if source.twint_qr_mime and source.twint_qr_data:
@@ -194,6 +221,7 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         app_layouts_in=layouts_payload,
         cash_registers_in=_cash_registers_payload(source, layout_uuid_map),
         voucher_definitions_in=vouchers_payload,
+        kitchen_monitors_in=_kitchen_monitors_payload(source),
     )
 
     from .additions import event_stock_article_ids

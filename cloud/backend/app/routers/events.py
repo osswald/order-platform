@@ -68,6 +68,8 @@ class EventBase(BaseModel):
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
     discounts_enabled: bool = False
+    alternative_printers_enabled: bool = False
+    kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
 
     @model_validator(mode="after")
@@ -99,6 +101,8 @@ class EventCreate(BaseModel):
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
     discounts_enabled: bool = False
+    alternative_printers_enabled: bool = False
+    kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
 
     @model_validator(mode="after")
@@ -134,6 +138,8 @@ class EventUpdate(BaseModel):
     shift_settlement_enabled: bool | None = None
     vouchers_enabled: bool | None = None
     discounts_enabled: bool | None = None
+    alternative_printers_enabled: bool | None = None
+    kitchen_monitors_enabled: bool | None = None
     offer_payment_receipt: bool | None = None
 
 
@@ -149,13 +155,28 @@ class PrinterOptionRead(BaseModel):
     name: str
 
 
+class StationPrinterRuleRead(BaseModel):
+    sort_order: int
+    rule_type: str
+    table_from: int | None = None
+    table_to: int | None = None
+    pickup_prefix: str | None = None
+    printer_appliance_id: int | None
+
+
+class KitchenMonitorPrinterRead(BaseModel):
+    printer_appliance_id: int
+    sort_order: int
+    label: str | None = None
+
+
 class StationConfigRead(BaseModel):
     uuid: str
     name: str
     sort_order: int
     printer_appliance_id: int | None
-    kitchen_monitor_enabled: bool = False
     article_ids: List[int]
+    printer_rules: List[StationPrinterRuleRead] = Field(default_factory=list)
 
 
 class EventWaiterConfigRead(BaseModel):
@@ -211,15 +232,31 @@ class EventConfigurationRead(BaseModel):
     app_layouts: List[AppLayoutRead]
     cash_registers: List[CashRegisterRead]
     voucher_definitions: List[VoucherDefinitionRead] = Field(default_factory=list)
+    kitchen_monitors: List[KitchenMonitorPrinterRead] = Field(default_factory=list)
     printer_options: List[PrinterOptionRead]
+
+
+class StationPrinterRuleIn(BaseModel):
+    sort_order: int = 0
+    rule_type: str = Field(..., min_length=1)
+    table_from: int | None = Field(None, ge=1, le=99999)
+    table_to: int | None = Field(None, ge=1, le=99999)
+    pickup_prefix: str | None = Field(None, min_length=1, max_length=3)
+    printer_appliance_id: int | None = None
+
+
+class KitchenMonitorPrinterIn(BaseModel):
+    printer_appliance_id: int
+    sort_order: int = 0
+    label: str | None = Field(None, max_length=128)
 
 
 class StationConfigIn(BaseModel):
     uuid: str | None = None
     name: str = Field(..., min_length=1)
     printer_appliance_id: int | None = None
-    kitchen_monitor_enabled: bool = False
     article_ids: List[int] = Field(default_factory=list)
+    printer_rules: List[StationPrinterRuleIn] = Field(default_factory=list)
 
 
 class EventWaiterConfigIn(BaseModel):
@@ -272,6 +309,7 @@ class EventConfigurationIn(BaseModel):
     app_layouts: List[AppLayoutIn] = Field(default_factory=list)
     cash_registers: List[CashRegisterIn] = Field(default_factory=list)
     voucher_definitions: List[VoucherDefinitionIn] = Field(default_factory=list)
+    kitchen_monitors: List[KitchenMonitorPrinterIn] = Field(default_factory=list)
 
 
 def event_response(event: Event) -> dict:
@@ -291,6 +329,8 @@ def event_response(event: Event) -> dict:
         "shift_settlement_enabled": bool(getattr(event, "shift_settlement_enabled", False)),
         "vouchers_enabled": bool(getattr(event, "vouchers_enabled", False)),
         "discounts_enabled": bool(getattr(event, "discounts_enabled", False)),
+        "alternative_printers_enabled": bool(getattr(event, "alternative_printers_enabled", False)),
+        "kitchen_monitors_enabled": bool(getattr(event, "kitchen_monitors_enabled", False)),
         "offer_payment_receipt": bool(getattr(event, "offer_payment_receipt", False)),
     }
 
@@ -310,6 +350,8 @@ def get_event_for_configuration(
             joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
+            joinedload(Event.kitchen_monitor_printers),
+            joinedload(Event.stations).joinedload(EventStation.printer_rules),
         )
         .filter(Event.id == event_id)
         .first()
@@ -332,8 +374,18 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
                 name=st.name,
                 sort_order=st.sort_order,
                 printer_appliance_id=st.printer_appliance_id,
-                kitchen_monitor_enabled=bool(getattr(st, "kitchen_monitor_enabled", False)),
                 article_ids=[a.id for a in st.articles],
+                printer_rules=[
+                    StationPrinterRuleRead(
+                        sort_order=rule.sort_order,
+                        rule_type=rule.rule_type,
+                        table_from=rule.table_from,
+                        table_to=rule.table_to,
+                        pickup_prefix=rule.pickup_prefix,
+                        printer_appliance_id=rule.printer_appliance_id,
+                    )
+                    for rule in sorted(st.printer_rules or [], key=lambda r: (r.sort_order, r.id))
+                ],
             )
         )
     event_waiters = [
@@ -396,12 +448,21 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
         )
         for vd in sorted(event.voucher_definitions, key=lambda v: (v.sort_order, v.id))
     ]
+    kitchen_monitors = [
+        KitchenMonitorPrinterRead(
+            printer_appliance_id=row.printer_appliance_id,
+            sort_order=row.sort_order,
+            label=row.label,
+        )
+        for row in sorted(event.kitchen_monitor_printers or [], key=lambda r: (r.sort_order, r.id))
+    ]
     return EventConfigurationRead(
         stations=stations,
         event_waiters=event_waiters,
         app_layouts=app_layouts,
         cash_registers=cash_registers,
         voucher_definitions=voucher_definitions,
+        kitchen_monitors=kitchen_monitors,
         printer_options=printer_options,
     )
 
@@ -934,6 +995,7 @@ def put_event_configuration(
             app_layouts_in=body.app_layouts,
             cash_registers_in=body.cash_registers,
             voucher_definitions_in=body.voucher_definitions,
+            kitchen_monitors_in=body.kitchen_monitors,
         )
         db.commit()
     except HTTPException:
@@ -981,6 +1043,8 @@ def create_event(
         shift_settlement_enabled=bool(event_in.shift_settlement_enabled),
         vouchers_enabled=bool(event_in.vouchers_enabled),
         discounts_enabled=bool(event_in.discounts_enabled),
+        alternative_printers_enabled=bool(event_in.alternative_printers_enabled),
+        kitchen_monitors_enabled=bool(event_in.kitchen_monitors_enabled),
         offer_payment_receipt=bool(event_in.offer_payment_receipt),
     )
     db.add(event)
@@ -1081,6 +1145,10 @@ def update_event(
         event.vouchers_enabled = bool(event_in.vouchers_enabled)
     if event_in.discounts_enabled is not None:
         event.discounts_enabled = bool(event_in.discounts_enabled)
+    if event_in.alternative_printers_enabled is not None:
+        event.alternative_printers_enabled = bool(event_in.alternative_printers_enabled)
+    if event_in.kitchen_monitors_enabled is not None:
+        event.kitchen_monitors_enabled = bool(event_in.kitchen_monitors_enabled)
     if event_in.offer_payment_receipt is not None:
         event.offer_payment_receipt = bool(event_in.offer_payment_receipt)
     if event.end < event.start:

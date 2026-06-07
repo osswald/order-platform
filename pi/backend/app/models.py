@@ -97,6 +97,7 @@ class KitchenTicket(Base):
     order_submission_id = Column(Integer, nullable=True, index=True)
     event_id = Column(Integer, nullable=False, index=True)
     station_uuid = Column(String(36), nullable=False, index=True)
+    printer_appliance_id = Column(Integer, nullable=True, index=True)
     status = Column(String(16), nullable=False, default="open")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

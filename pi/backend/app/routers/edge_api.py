@@ -42,6 +42,7 @@ from ..schemas.edge import (
     CollectiveBillCreateBody,
     EscposPayloadResponse,
     KitchenOrdersResponse,
+    KitchenPrintersResponse,
     KitchenStationsResponse,
     KitchenTicketPrintResponse,
     LineSelection,
@@ -107,6 +108,15 @@ from ..models import (
 )
 from ..security import verify_password
 from ..printer_endpoint import parse_printer_host_entry, resolve_printer_endpoint
+from ..printer_routing import (
+    kitchen_monitor_label,
+    kitchen_monitors_enabled,
+    kitchen_monitors_for_event,
+    printer_in_kitchen_monitor,
+    resolve_endpoint_by_appliance,
+    resolve_printer_target,
+    subgroup_lines_by_printer,
+)
 from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
@@ -463,11 +473,6 @@ def _station_config_for_uuid(ev: dict, station_uuid: str | None) -> dict | None:
     return None
 
 
-def _station_has_kitchen_monitor(ev: dict, station_uuid: str | None) -> bool:
-    st = _station_config_for_uuid(ev, station_uuid)
-    return bool(st and st.get("kitchen_monitor_enabled"))
-
-
 def _create_print_job_for_lines(
     db: Session,
     *,
@@ -478,11 +483,23 @@ def _create_print_job_for_lines(
     ev: dict,
     articles: dict,
     job_kind: str = "station_order",
+    printer_appliance_id: int | None = None,
+    table_number: int | None = None,
+    pickup_code: str | None = None,
 ) -> int:
     station_payload = {**payload, "lines": station_lines}
     _add_waiter_name(ev, station_payload)
     station_label = station_name_from_event(ev, station_uuid)
-    host, port, feed_lines = resolve_printer_endpoint(ev, station_uuid)
+    if printer_appliance_id is not None:
+        host, port, feed_lines = resolve_endpoint_by_appliance(ev, printer_appliance_id)
+    else:
+        host, port, feed_lines, resolved_id = resolve_printer_target(
+            ev,
+            station_uuid,
+            table_number=table_number if table_number is not None else payload.get("table_number"),
+            pickup_code=pickup_code if pickup_code is not None else payload.get("pickup_code"),
+        )
+        printer_appliance_id = resolved_id
     esc = build_escpos_receipt_text(
         station_payload,
         ev.get("name", "Event"),
@@ -552,11 +569,13 @@ def _create_kitchen_ticket(
     event_id: int,
     station_uuid: str,
     station_lines: list[dict],
+    printer_appliance_id: int | None = None,
 ) -> int:
     ticket = KitchenTicket(
         local_order_id=order_id,
         event_id=event_id,
         station_uuid=station_uuid,
+        printer_appliance_id=printer_appliance_id,
         status="open",
     )
     db.add(ticket)
@@ -1148,28 +1167,40 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     for station_uuid, station_lines in groups.items():
         if not station_lines:
             continue
-        if _station_has_kitchen_monitor(ev, station_uuid) and station_uuid is not None:
-            kitchen_ticket_ids.append(
-                _create_kitchen_ticket(
-                    db,
-                    order_id=order.id,
-                    event_id=body.event_id,
-                    station_uuid=str(station_uuid),
-                    station_lines=station_lines,
+        order_ctx = {
+            "table_number": payload.get("table_number"),
+            "pickup_code": payload.get("pickup_code"),
+        }
+        printer_groups = subgroup_lines_by_printer(ev, station_uuid, station_lines, order_ctx)
+        for printer_id, printer_lines in printer_groups.items():
+            if not printer_lines:
+                continue
+            if printer_in_kitchen_monitor(ev, printer_id) and station_uuid is not None:
+                kitchen_ticket_ids.append(
+                    _create_kitchen_ticket(
+                        db,
+                        order_id=order.id,
+                        event_id=body.event_id,
+                        station_uuid=str(station_uuid),
+                        station_lines=printer_lines,
+                        printer_appliance_id=printer_id,
+                    )
                 )
-            )
-        else:
-            print_job_ids.append(
-                _create_print_job_for_lines(
-                    db,
-                    order_id=order.id,
-                    station_uuid=station_uuid,
-                    payload=payload,
-                    station_lines=station_lines,
-                    ev=ev,
-                    articles=arts,
+            else:
+                print_job_ids.append(
+                    _create_print_job_for_lines(
+                        db,
+                        order_id=order.id,
+                        station_uuid=station_uuid,
+                        payload=payload,
+                        station_lines=printer_lines,
+                        ev=ev,
+                        articles=arts,
+                        printer_appliance_id=printer_id,
+                        table_number=payload.get("table_number"),
+                        pickup_code=payload.get("pickup_code"),
+                    )
                 )
-            )
         if order_source == "cash_register":
             customer_print_job_ids.append(
                 _create_customer_pickup_print_job_for_lines(
@@ -2300,21 +2331,10 @@ def verify_admin_pin(body: AdminVerifyBody, db: Session = Depends(get_db)) -> Ok
     raise HTTPException(status_code=401, detail="Invalid admin code")
 
 
-def _kitchen_stations_for_event(ev: dict) -> list[dict]:
-    stations = []
-    for st in (ev.get("configuration") or {}).get("stations") or []:
-        if not st.get("kitchen_monitor_enabled"):
-            continue
-        if not st.get("uuid"):
-            continue
-        stations.append(
-            {
-                "uuid": str(st["uuid"]),
-                "name": st.get("name") or f"Station {str(st['uuid'])[:8]}",
-                "sort_order": int(st.get("sort_order") or 0),
-            }
-        )
-    return sorted(stations, key=lambda s: (s["sort_order"], s["name"]))
+def _kitchen_printers_for_event(ev: dict) -> list[dict]:
+    if not kitchen_monitors_enabled(ev):
+        return []
+    return kitchen_monitors_for_event(ev)
 
 
 def _kitchen_line_response(row: KitchenTicketLine, articles: dict) -> dict:
@@ -2350,6 +2370,8 @@ def _serialize_kitchen_ticket(
         "event_id": ticket.event_id,
         "station_uuid": ticket.station_uuid,
         "station_name": station_name_from_event(ev, ticket.station_uuid),
+        "printer_appliance_id": ticket.printer_appliance_id,
+        "printer_label": kitchen_monitor_label(ev, ticket.printer_appliance_id),
         "status": ticket.status,
         "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
         "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
@@ -2390,8 +2412,10 @@ def _enqueue_kitchen_ticket_print(
     ev = _event_from_bundle(bundle, ticket.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
-    if not _station_has_kitchen_monitor(ev, ticket.station_uuid):
-        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this station")
+    if not kitchen_monitors_enabled(ev):
+        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this event")
+    if ticket.printer_appliance_id is not None and not printer_in_kitchen_monitor(ev, ticket.printer_appliance_id):
+        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this printer")
 
     payload = json.loads(order.payload_json)
     printable_lines: list[dict] = []
@@ -2416,6 +2440,9 @@ def _enqueue_kitchen_ticket_print(
         ev=ev,
         articles=_article_map(ev),
         job_kind="kitchen_ticket",
+        printer_appliance_id=ticket.printer_appliance_id,
+        table_number=payload.get("table_number"),
+        pickup_code=payload.get("pickup_code"),
     )
     for line_row, qty in selected_lines:
         line_row.qty_printed = int(line_row.qty_printed or 0) + int(qty)
@@ -2426,33 +2453,73 @@ def _enqueue_kitchen_ticket_print(
     return job_id
 
 
-@router.get("/v1/kitchen/stations", response_model=KitchenStationsResponse)
-def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_db)) -> KitchenStationsResponse:
+@router.get("/v1/kitchen/printers", response_model=KitchenPrintersResponse)
+def list_kitchen_printers(event_id: int = Query(...), db: Session = Depends(get_db)) -> KitchenPrintersResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
-    return KitchenStationsResponse(stations=_kitchen_stations_for_event(ev))
+    printers = [
+        {
+            "printer_appliance_id": int(row["printer_appliance_id"]),
+            "label": str(row.get("label") or f"Drucker #{row['printer_appliance_id']}"),
+            "sort_order": int(row.get("sort_order") or 0),
+        }
+        for row in _kitchen_printers_for_event(ev)
+    ]
+    return KitchenPrintersResponse(printers=printers)
+
+
+@router.get("/v1/kitchen/stations", response_model=KitchenStationsResponse)
+def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_db)) -> KitchenStationsResponse:
+    """Legacy alias: returns printer tabs as pseudo-stations for older clients."""
+    bundle = _get_bundle_dict(db)
+    ev = _event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    stations = [
+        {
+            "uuid": str(row["printer_appliance_id"]),
+            "name": str(row.get("label") or f"Drucker #{row['printer_appliance_id']}"),
+            "sort_order": int(row.get("sort_order") or 0),
+        }
+        for row in _kitchen_printers_for_event(ev)
+    ]
+    return KitchenStationsResponse(stations=stations)
 
 
 @router.get("/v1/kitchen/orders", response_model=KitchenOrdersResponse)
 def list_kitchen_orders(
     event_id: int = Query(...),
-    station_uuid: str = Query(...),
+    station_uuid: str | None = Query(None),
+    printer_appliance_id: int | None = Query(None),
     db: Session = Depends(get_db),
 ) -> KitchenOrdersResponse:
     bundle = _get_bundle_dict(db)
     ev = _event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
-    if not _station_has_kitchen_monitor(ev, station_uuid):
-        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this station")
+    if not kitchen_monitors_enabled(ev):
+        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this event")
+
+    target_printer_id = printer_appliance_id
+    if target_printer_id is None and station_uuid is not None:
+        try:
+            target_printer_id = int(station_uuid)
+        except (TypeError, ValueError):
+            st = _station_config_for_uuid(ev, station_uuid)
+            if st and st.get("printer_appliance_id") is not None:
+                target_printer_id = int(st["printer_appliance_id"])
+    if target_printer_id is None:
+        raise HTTPException(status_code=400, detail="printer_appliance_id is required")
+    if not printer_in_kitchen_monitor(ev, target_printer_id):
+        raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this printer")
 
     tickets = (
         db.query(KitchenTicket)
         .filter(
             KitchenTicket.event_id == event_id,
-            KitchenTicket.station_uuid == station_uuid,
+            KitchenTicket.printer_appliance_id == int(target_printer_id),
             KitchenTicket.status != "done",
         )
         .order_by(KitchenTicket.id.asc())

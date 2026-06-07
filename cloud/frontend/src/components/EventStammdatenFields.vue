@@ -165,6 +165,34 @@
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
+          <label for="alternative-printers-enabled">Alternative Drucker</label>
+          <v-switch
+            id="alternative-printers-enabled"
+            v-model="form.alternativePrintersEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">
+          Aktiviert Drucker-Regeln nach Tischbereich oder Abholcode-Präfix pro Station.
+        </small>
+      </div>
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="kitchen-monitors-enabled">Kitchen Monitor</label>
+          <v-switch
+            id="kitchen-monitors-enabled"
+            v-model="form.kitchenMonitorsEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">
+          Aktiviert Kitchen Monitor pro Drucker (Bestellungen werden am Monitor freigegeben statt sofort gedruckt).
+        </small>
+      </div>
+      <div class="toggle-block">
+        <div class="toggle-row">
           <label for="discounts-enabled">Rabatte aktivieren</label>
           <v-switch
             id="discounts-enabled"

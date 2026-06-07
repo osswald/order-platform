@@ -209,11 +209,108 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_app_layout_cells ADD COLUMN IF NOT EXISTS voucher_definition_uuids JSON NOT NULL DEFAULT '[]'",
     )
     _backfill_layout_cell_voucher_uuids()
+    _add_column_if_missing(
+        "events",
+        "alternative_printers_enabled",
+        "ALTER TABLE events ADD COLUMN alternative_printers_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS alternative_printers_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "events",
+        "kitchen_monitors_enabled",
+        "ALTER TABLE events ADD COLUMN kitchen_monitors_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS kitchen_monitors_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _ensure_event_station_printer_rules_table()
+    _ensure_event_kitchen_monitor_printers_table()
+    _backfill_kitchen_monitors_from_stations()
     _ensure_appliance_pairing_sessions_table()
     _ensure_appliance_edge_credentials_table()
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
     _patch_organisation_stripe_connect()
+
+
+def _ensure_event_station_printer_rules_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_station_printer_rules" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventStationPrinterRule
+
+    EventStationPrinterRule.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_event_kitchen_monitor_printers_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_kitchen_monitor_printers" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventKitchenMonitorPrinter
+
+    EventKitchenMonitorPrinter.__table__.create(bind=engine, checkfirst=True)
+
+
+def _backfill_kitchen_monitors_from_stations() -> None:
+    """Migrate legacy station kitchen_monitor_enabled to event-level kitchen monitors."""
+    try:
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        if "event_stations" not in tables or "event_kitchen_monitor_printers" not in tables:
+            return
+        if "kitchen_monitor_enabled" not in {c["name"] for c in inspector.get_columns("event_stations")}:
+            return
+    except Exception:
+        return
+    from .models import Event, EventKitchenMonitorPrinter, EventStation
+
+    db = SessionLocal()
+    try:
+        stations = (
+            db.query(EventStation)
+            .filter(EventStation.kitchen_monitor_enabled.is_(True))
+            .filter(EventStation.printer_appliance_id.isnot(None))
+            .all()
+        )
+        if not stations:
+            return
+        event_ids = {st.event_id for st in stations}
+        for event_id in event_ids:
+            event = db.query(Event).filter(Event.id == event_id).first()
+            if not event:
+                continue
+            if not bool(getattr(event, "kitchen_monitors_enabled", False)):
+                event.kitchen_monitors_enabled = True
+            existing = {
+                row.printer_appliance_id
+                for row in db.query(EventKitchenMonitorPrinter)
+                .filter(EventKitchenMonitorPrinter.event_id == event_id)
+                .all()
+            }
+            sort_order = len(existing)
+            for st in stations:
+                if st.event_id != event_id or st.printer_appliance_id in existing:
+                    continue
+                db.add(
+                    EventKitchenMonitorPrinter(
+                        event_id=event_id,
+                        printer_appliance_id=st.printer_appliance_id,
+                        sort_order=sort_order,
+                        label=st.name,
+                    )
+                )
+                existing.add(st.printer_appliance_id)
+                sort_order += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        log.exception("Failed to backfill kitchen monitor printers from stations")
+    finally:
+        db.close()
 
 
 def _ensure_appliance_pairing_sessions_table() -> None:

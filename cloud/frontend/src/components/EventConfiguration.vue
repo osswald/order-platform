@@ -52,12 +52,77 @@
                 hide-details
               />
             </div>
-            <v-checkbox
-              v-model="st.kitchen_monitor_enabled"
-              label="Kitchen Monitor aktiv"
-              hide-details
-              density="compact"
-            />
+            <div v-if="alternativePrintersEnabled" class="printer-rules-block">
+              <div class="printer-rules-header">
+                <label>Drucker-Regeln</label>
+                <v-btn size="small" variant="text" type="button" @click="addPrinterRule(idx)">
+                  Regel hinzufügen
+                </v-btn>
+              </div>
+              <div
+                v-for="(rule, ruleIdx) in st.printer_rules"
+                :key="'rule-' + idx + '-' + ruleIdx"
+                class="printer-rule-card"
+              >
+                <v-select
+                  v-model="rule.rule_type"
+                  :items="printerRuleTypeOptions"
+                  item-title="label"
+                  item-value="value"
+                  label="Regeltyp"
+                  density="compact"
+                  hide-details
+                />
+                <template v-if="rule.rule_type === 'table_range'">
+                  <div class="rule-range-row">
+                    <v-text-field
+                      v-model.number="rule.table_from"
+                      type="number"
+                      label="Tisch von"
+                      min="1"
+                      max="99999"
+                      density="compact"
+                      hide-details
+                    />
+                    <v-text-field
+                      v-model.number="rule.table_to"
+                      type="number"
+                      label="Tisch bis"
+                      min="1"
+                      max="99999"
+                      density="compact"
+                      hide-details
+                    />
+                  </div>
+                </template>
+                <v-text-field
+                  v-else-if="rule.rule_type === 'pickup_prefix'"
+                  v-model="rule.pickup_prefix"
+                  label="Abholcode-Präfix"
+                  maxlength="3"
+                  density="compact"
+                  hide-details
+                  @update:model-value="rule.pickup_prefix = normalizePickupPrefix($event)"
+                />
+                <v-select
+                  v-model="rule.printer_appliance_id"
+                  :items="printerOptions"
+                  item-title="name"
+                  item-value="id"
+                  label="Drucker"
+                  density="compact"
+                  hide-details
+                />
+                <v-btn
+                  icon="mdi-delete"
+                  variant="text"
+                  color="error"
+                  type="button"
+                  aria-label="Regel entfernen"
+                  @click="removePrinterRule(idx, ruleIdx)"
+                />
+              </div>
+            </div>
             <div class="form-field">
               <label>Artikel</label>
               <v-select
@@ -75,6 +140,51 @@
             </div>
           </div>
           <p v-if="!stationsLocal.length" class="muted">Noch keine Stationen.</p>
+        </template>
+
+        <template v-if="kitchenMonitorsEnabled" #kitchen-monitors>
+          <div class="section-toolbar">
+            <v-btn color="primary" type="button" @click="addKitchenMonitorPrinter">Drucker hinzufügen</v-btn>
+          </div>
+          <div
+            v-for="(row, idx) in kitchenMonitorsLocal"
+            :key="'km-' + idx"
+            class="config-card"
+          >
+            <div class="config-card-header">
+              <span>{{ kitchenMonitorLabel(row) }}</span>
+              <v-btn
+                icon="mdi-delete"
+                variant="text"
+                color="error"
+                type="button"
+                aria-label="Entfernen"
+                @click="removeKitchenMonitorPrinter(idx)"
+              />
+            </div>
+            <div class="form-field">
+              <label>Drucker</label>
+              <v-select
+                v-model="row.printer_appliance_id"
+                :items="kitchenMonitorPrinterOptions"
+                item-title="name"
+                item-value="id"
+                placeholder="Drucker wählen"
+                density="compact"
+                hide-details
+              />
+            </div>
+            <div class="form-field">
+              <label>Anzeigename (optional)</label>
+              <v-text-field
+                v-model="row.label"
+                placeholder="z. B. Bar West"
+                density="compact"
+                hide-details
+              />
+            </div>
+          </div>
+          <p v-if="!kitchenMonitorsLocal.length" class="muted">Noch keine Kitchen-Monitor-Drucker konfiguriert.</p>
         </template>
 
         <template #kellner>
@@ -522,6 +632,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  alternativePrintersEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  kitchenMonitorsEnabled: {
+    type: Boolean,
+    default: false,
+  },
   stammdatenDirty: {
     type: Boolean,
     default: false,
@@ -551,6 +669,9 @@ const configSections = computed(() => {
     title: 'Stationen',
     defaultOpen: !slots.stammdaten,
   })
+  if (props.kitchenMonitorsEnabled) {
+    list.push({ id: 'kitchen-monitors', title: 'Kitchen Monitor' })
+  }
   list.push({ id: 'kellner', title: 'Event-Kellner' })
   if (props.cashRegistersEnabled) {
     list.push({ id: 'kassen', title: 'Kassen' })
@@ -606,6 +727,7 @@ function onStockStatusChange({ status, errorMessage }) {
 
 const printerOptions = ref([])
 const stationsLocal = ref([])
+const kitchenMonitorsLocal = ref([])
 const waitersLocal = ref([])
 const layoutsLocal = ref([])
 const cashRegistersLocal = ref([])
@@ -616,6 +738,10 @@ const currencyLabel = ref('CHF')
 const voucherKindOptions = [
   { label: 'Betrags-Gutschein', value: 'fixed_amount' },
   { label: 'Artikel-Gutschein (nur Einlösung)', value: 'article_entitlement' },
+]
+const printerRuleTypeOptions = [
+  { label: 'Tischbereich', value: 'table_range' },
+  { label: 'Abholcode-Präfix', value: 'pickup_prefix' },
 ]
 const waitersOrg = ref([])
 
@@ -649,6 +775,56 @@ const articleOptions = computed(() => {
       value: a.id,
     }))
 })
+
+const kitchenMonitorPrinterOptions = computed(() => {
+  const ids = new Set()
+  for (const st of stationsLocal.value) {
+    if (st.printer_appliance_id != null) ids.add(Number(st.printer_appliance_id))
+    for (const rule of st.printer_rules || []) {
+      if (rule.printer_appliance_id != null) ids.add(Number(rule.printer_appliance_id))
+    }
+  }
+  for (const reg of cashRegistersLocal.value) {
+    if (reg.receipt_printer_appliance_id != null) ids.add(Number(reg.receipt_printer_appliance_id))
+  }
+  return printerOptions.value.filter((opt) => ids.has(Number(opt.id)))
+})
+
+function kitchenMonitorLabel(row) {
+  if ((row.label || '').trim()) return row.label.trim()
+  const match = printerOptions.value.find((opt) => Number(opt.id) === Number(row.printer_appliance_id))
+  return match?.name || `Drucker #${row.printer_appliance_id || '?'}`
+}
+
+function addPrinterRule(stationIdx) {
+  const st = stationsLocal.value[stationIdx]
+  if (!st) return
+  if (!Array.isArray(st.printer_rules)) st.printer_rules = []
+  st.printer_rules.push({
+    rule_type: 'table_range',
+    table_from: 1,
+    table_to: 50,
+    pickup_prefix: 'A',
+    printer_appliance_id: null,
+  })
+}
+
+function removePrinterRule(stationIdx, ruleIdx) {
+  const st = stationsLocal.value[stationIdx]
+  if (!st?.printer_rules) return
+  st.printer_rules.splice(ruleIdx, 1)
+}
+
+function addKitchenMonitorPrinter() {
+  kitchenMonitorsLocal.value.push({
+    printer_appliance_id: kitchenMonitorPrinterOptions.value[0]?.id ?? null,
+    label: '',
+  })
+}
+
+function removeKitchenMonitorPrinter(idx) {
+  kitchenMonitorsLocal.value.splice(idx, 1)
+}
 
 const waiterOptions = computed(() =>
   waitersOrg.value.map((w) => ({ label: w.name, value: w.id })),
@@ -910,7 +1086,7 @@ function addStation() {
   stationsLocal.value.push({
     name: `Station ${stationsLocal.value.length + 1}`,
     printer_appliance_id: null,
-    kitchen_monitor_enabled: false,
+    printer_rules: [],
     article_ids: [],
   })
 }
@@ -1022,8 +1198,20 @@ async function loadConfiguration() {
       uuid: s.uuid ?? null,
       name: s.name,
       printer_appliance_id: s.printer_appliance_id,
-      kitchen_monitor_enabled: !!s.kitchen_monitor_enabled,
+      printer_rules: (s.printer_rules || []).map((rule, ruleIdx) => ({
+        sort_order: rule.sort_order ?? ruleIdx,
+        rule_type: rule.rule_type || 'table_range',
+        table_from: rule.table_from ?? null,
+        table_to: rule.table_to ?? null,
+        pickup_prefix: rule.pickup_prefix ? normalizePickupPrefix(rule.pickup_prefix) : '',
+        printer_appliance_id: rule.printer_appliance_id ?? null,
+      })),
       article_ids: [...(s.article_ids || [])],
+    }))
+    kitchenMonitorsLocal.value = (cfg.kitchen_monitors || []).map((row, idx) => ({
+      printer_appliance_id: row.printer_appliance_id ?? null,
+      sort_order: row.sort_order ?? idx,
+      label: row.label || '',
     }))
     waiterKey = 0
     waitersLocal.value = (cfg.event_waiters || []).map((w) => {
@@ -1160,8 +1348,18 @@ function buildPutPayload() {
       const row = {
         name: s.name,
         printer_appliance_id: s.printer_appliance_id ?? null,
-        kitchen_monitor_enabled: !!s.kitchen_monitor_enabled,
         article_ids: Array.isArray(s.article_ids) ? s.article_ids : [],
+        printer_rules: (s.printer_rules || []).map((rule, ruleIdx) => ({
+          sort_order: ruleIdx,
+          rule_type: rule.rule_type,
+          table_from: rule.rule_type === 'table_range' ? Number(rule.table_from) || null : null,
+          table_to: rule.rule_type === 'table_range' ? Number(rule.table_to) || null : null,
+          pickup_prefix:
+            rule.rule_type === 'pickup_prefix'
+              ? normalizePickupPrefix(rule.pickup_prefix || '')
+              : null,
+          printer_appliance_id: rule.printer_appliance_id ?? null,
+        })),
       }
       if (s.uuid != null) row.uuid = s.uuid
       return row
@@ -1220,6 +1418,11 @@ function buildPutPayload() {
       if (reg.uuid != null) row.uuid = reg.uuid
       return row
     }),
+    kitchen_monitors: kitchenMonitorsLocal.value.map((row, idx) => ({
+      printer_appliance_id: Number(row.printer_appliance_id),
+      sort_order: idx,
+      label: (row.label || '').trim() || null,
+    })),
   }
 }
 
