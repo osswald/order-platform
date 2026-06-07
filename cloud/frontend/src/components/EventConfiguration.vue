@@ -446,7 +446,7 @@
                   :key="li + '-' + pos.row + '-' + pos.col"
                   type="button"
                   class="grid-cell"
-                  :style="{ background: displayCell(lo, pos.row, pos.col).color || '#eee' }"
+                  :style="previewCellStyle(displayCell(lo, pos.row, pos.col))"
                   @click="openCellDialog(li, pos.row, pos.col)"
                 >
                   <span class="grid-cell-label">{{ displayCell(lo, pos.row, pos.col).label || '·' }}</span>
@@ -517,6 +517,13 @@
           <div class="form-field">
             <label>Farbe</label>
             <v-color-picker v-model="cellEdit.color" mode="hex" hide-inputs />
+            <v-text-field
+              v-model="cellEdit.color"
+              density="compact"
+              hide-details
+              placeholder="#eeeeee"
+              class="color-hex-input"
+            />
           </div>
           <div v-if="vouchersEnabled" class="form-field">
             <label>Betrags-Gutscheine (Layout-Zelle)</label>
@@ -620,6 +627,7 @@ import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
+import { textColorForBackground } from '../utils/colorContrast.js'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -923,6 +931,14 @@ function displayCell(lo, row, col) {
     article_ids: [],
     voucher_definition_uuid: null,
     voucher_definition_uuids: [],
+  }
+}
+
+function previewCellStyle(cell) {
+  const background = cell.color || '#eeeeee'
+  return {
+    background,
+    color: textColorForBackground(background),
   }
 }
 
@@ -1661,6 +1677,12 @@ label {
   font-size: 0.65rem;
   opacity: 0.65;
   line-height: 1.1;
+}
+
+.color-hex-input {
+  max-width: 10rem;
+  margin-top: 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .vq-data-table.nested {

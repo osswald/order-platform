@@ -11,11 +11,7 @@
       :key="idx"
       type="button"
       class="cell"
-      :style="{
-        gridColumn: cell.col + 1,
-        gridRow: cell.row + 1,
-        background: cell.color || '#334155',
-      }"
+      :style="cellStyle(cell)"
       :disabled="!cellEnabled(cell)"
       @click="onCellClick(cell)"
     >
@@ -32,6 +28,7 @@ import {
   cellVoucherUuids,
   fixedAmountVouchersForCell,
 } from '../utils/bundleHelpers'
+import { textColorForBackground } from '../utils/colorContrast'
 
 const props = defineProps({
   layout: { type: Object, required: true },
@@ -48,6 +45,16 @@ function cellArticleIds(cell) {
 
 function cellEnabled(cell) {
   return fixedAmountVouchersForCell(props.event, cell).length > 0 || cellArticleIds(cell).length > 0
+}
+
+function cellStyle(cell) {
+  const background = cell.color || '#334155'
+  return {
+    gridColumn: cell.col + 1,
+    gridRow: cell.row + 1,
+    background,
+    color: textColorForBackground(background),
+  }
 }
 
 function buildPickItems(cell) {
@@ -102,7 +109,6 @@ function onCellClick(cell) {
 .cell {
   border: none;
   border-radius: 0.5rem;
-  color: #0f172a;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
