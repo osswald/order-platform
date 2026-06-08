@@ -71,6 +71,18 @@ def hosted_pi_for_appliance(db: Session, appliance_id: int) -> HostedPiInstance 
     )
 
 
+def _delete_hosted_appliance(db: Session, instance: HostedPiInstance) -> None:
+    if instance.appliance_id is None:
+        return
+    appliance = db.query(Appliance).filter(Appliance.id == instance.appliance_id).first()
+    if appliance is None or not appliance.is_hosted_virtual:
+        return
+    instance.appliance_id = None
+    instance.edge_credential_id = None
+    db.delete(appliance)
+    db.flush()
+
+
 def instance_to_read(row: HostedPiInstance) -> dict:
     return {
         "id": row.id,
@@ -171,9 +183,11 @@ async def create_hosted_pi(
     except HostedPiManagerError as exc:
         instance.status = "failed"
         instance.last_error = exc.detail[:2000]
+        instance.stopped_at = _utc_now()
         if edge_credential.status == "active":
             edge_credential.status = "revoked"
             edge_credential.revoked_at = _utc_now()
+        _delete_hosted_appliance(db, instance)
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -201,6 +215,7 @@ async def stop_hosted_pi(db: Session, instance: HostedPiInstance) -> HostedPiIns
 
     instance.status = "stopped"
     instance.stopped_at = _utc_now()
+    _delete_hosted_appliance(db, instance)
     db.commit()
     db.refresh(instance)
     return instance
@@ -245,7 +260,33 @@ async def reconcile_stuck_provisioning(db: Session, *, timeout_minutes: int = 5)
             await destroy_instance(row.subdomain_slug)
         except HostedPiManagerError:
             pass
+        _delete_hosted_appliance(db, row)
         failed += 1
     if failed:
         db.commit()
     return failed
+
+
+def cleanup_orphaned_hosted_appliances(db: Session) -> int:
+    """Remove virtual appliances left behind by stopped/failed hosted Pi instances."""
+    active_appliance_ids = (
+        db.query(HostedPiInstance.appliance_id)
+        .filter(
+            HostedPiInstance.appliance_id.isnot(None),
+            HostedPiInstance.status.in_(tuple(ACTIVE_STATUSES)),
+        )
+        .distinct()
+    )
+    orphans = (
+        db.query(Appliance)
+        .filter(
+            Appliance.is_hosted_virtual.is_(True),
+            ~Appliance.id.in_(active_appliance_ids),
+        )
+        .all()
+    )
+    for appliance in orphans:
+        db.delete(appliance)
+    if orphans:
+        db.commit()
+    return len(orphans)

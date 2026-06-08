@@ -72,7 +72,11 @@ def _bootstrap_admin_user() -> None:
 
 async def _hosted_pi_maintenance_loop() -> None:
     from .deps import SessionLocal
-    from .hosted_pi_service import expire_due_instances, reconcile_stuck_provisioning
+    from .hosted_pi_service import (
+        cleanup_orphaned_hosted_appliances,
+        expire_due_instances,
+        reconcile_stuck_provisioning,
+    )
 
     while True:
         try:
@@ -80,6 +84,7 @@ async def _hosted_pi_maintenance_loop() -> None:
             try:
                 await expire_due_instances(db)
                 await reconcile_stuck_provisioning(db)
+                cleanup_orphaned_hosted_appliances(db)
             finally:
                 db.close()
         except Exception:

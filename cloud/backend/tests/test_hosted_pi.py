@@ -1,5 +1,6 @@
 """Hosted Cloud Pi API and provisioning rules."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -7,8 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from app.hosted_pi_manager_client import HostedPiManagerError
+from app.hosted_pi_service import expire_due_instances, reconcile_stuck_provisioning
 from app.main import app
-from app.models import Event, HireCompany, HostedPiInstance, Organisation, User
+from app.models import Appliance, Event, HireCompany, HostedPiInstance, Organisation, User
 from app.roles import ROLE_ORG_ADMIN
 from app.security import get_password_hash
 
@@ -125,6 +128,15 @@ def test_delete_hosted_pi():
     started = client.post(f"/events/{event_id}/hosted-pi", headers=headers)
     assert started.status_code == 201
 
+    db = SessionLocal()
+    try:
+        row = db.query(HostedPiInstance).filter(HostedPiInstance.event_id == event_id).first()
+        assert row is not None
+        appliance_id = row.appliance_id
+        assert appliance_id is not None
+    finally:
+        db.close()
+
     deleted = client.delete(f"/events/{event_id}/hosted-pi", headers=headers)
     assert deleted.status_code == 200
     assert deleted.json()["status"] == "stopped"
@@ -134,5 +146,100 @@ def test_delete_hosted_pi():
         row = db.query(HostedPiInstance).filter(HostedPiInstance.event_id == event_id).first()
         assert row is not None
         assert row.status == "stopped"
+        assert row.appliance_id is None
+        assert db.query(Appliance).filter(Appliance.id == appliance_id).first() is None
+    finally:
+        db.close()
+
+
+def test_expire_due_instances_deletes_appliance():
+    org_id, email = _setup_org_admin()
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    event_id = _create_config_event(org_id, headers)
+    started = client.post(f"/events/{event_id}/hosted-pi", headers=headers)
+    assert started.status_code == 201
+
+    db = SessionLocal()
+    try:
+        row = db.query(HostedPiInstance).filter(HostedPiInstance.event_id == event_id).first()
+        assert row is not None
+        appliance_id = row.appliance_id
+        row.expires_at = _utc_now() - timedelta(minutes=1)
+        db.commit()
+
+        stopped = asyncio.run(expire_due_instances(db))
+        assert stopped == 1
+
+        db.refresh(row)
+        assert row.status == "stopped"
+        assert row.appliance_id is None
+        assert db.query(Appliance).filter(Appliance.id == appliance_id).first() is None
+    finally:
+        db.close()
+
+
+def test_reconcile_stuck_provisioning_deletes_appliance():
+    org_id, email = _setup_org_admin()
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    event_id = _create_config_event(org_id, headers)
+
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter(Event.id == event_id).first()
+        appliance = Appliance(
+            hire_company_id=event.organisation.hire_company_id,
+            type="server",
+            name="Cloud-Pi stuck",
+            is_hosted_virtual=True,
+        )
+        db.add(appliance)
+        db.flush()
+        instance = HostedPiInstance(
+            event_id=event_id,
+            organisation_id=event.organisation_id,
+            hire_company_id=event.organisation.hire_company_id,
+            appliance_id=appliance.id,
+            subdomain_slug=uuid4().hex[:12],
+            status="provisioning",
+            expires_at=_utc_now() + timedelta(hours=24),
+            created_at=_utc_now() - timedelta(minutes=10),
+        )
+        db.add(instance)
+        db.commit()
+        appliance_id = appliance.id
+        instance_id = instance.id
+
+        failed = asyncio.run(reconcile_stuck_provisioning(db))
+        assert failed == 1
+
+        row = db.query(HostedPiInstance).filter(HostedPiInstance.id == instance_id).first()
+        assert row is not None
+        assert row.status == "failed"
+        assert row.appliance_id is None
+        assert db.query(Appliance).filter(Appliance.id == appliance_id).first() is None
+    finally:
+        db.close()
+
+
+def test_provisioning_failure_deletes_appliance(monkeypatch):
+    async def _fail_provision(**kwargs):
+        raise HostedPiManagerError(502, "manager unavailable")
+
+    monkeypatch.setattr("app.hosted_pi_service.provision_instance", _fail_provision)
+
+    org_id, email = _setup_org_admin()
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    event_id = _create_config_event(org_id, headers)
+
+    response = client.post(f"/events/{event_id}/hosted-pi", headers=headers)
+    assert response.status_code == 502
+
+    db = SessionLocal()
+    try:
+        row = db.query(HostedPiInstance).filter(HostedPiInstance.event_id == event_id).first()
+        assert row is not None
+        assert row.status == "failed"
+        assert row.appliance_id is None
+        assert db.query(Appliance).filter(Appliance.is_hosted_virtual.is_(True)).count() == 0
     finally:
         db.close()

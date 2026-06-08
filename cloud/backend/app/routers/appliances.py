@@ -320,7 +320,10 @@ def read_appliances(
     today = _utc_today()
     appliances = (
         db.query(Appliance)
-        .filter(Appliance.hire_company_id == tenant.hire_company_id)
+        .filter(
+            Appliance.hire_company_id == tenant.hire_company_id,
+            Appliance.is_hosted_virtual.is_(False),
+        )
         .order_by(Appliance.id)
         .all()
     )
