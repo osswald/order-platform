@@ -64,7 +64,11 @@ const router = useRouter()
 const route = useRoute()
 const { selectedEvent, setWaiter } = useWaiterSession()
 const event = selectedEvent
-const waiters = computed(() => event.value?.configuration?.event_waiters || [])
+const waiters = computed(() =>
+  (event.value?.configuration?.event_waiters || [])
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de')),
+)
 const waiterId = ref(null)
 const waiterListOpen = ref(false)
 const pin = ref('')

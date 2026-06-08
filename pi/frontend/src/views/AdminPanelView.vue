@@ -165,10 +165,9 @@ const opsEvent = computed(() => events.value.find((e) => Number(e.id) === Number
 
 const cashRegisters = computed(() => {
   const regs = opsEvent.value?.configuration?.cash_registers || []
-  return regs.slice().sort((a, b) => {
-    const so = (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
-    return so || String(a.name || '').localeCompare(String(b.name || ''))
-  })
+  return regs
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de'))
 })
 
 const hasKitchenMonitor = computed(() => Boolean(opsEvent.value?.kitchen_monitors_enabled))

@@ -68,10 +68,9 @@ const { event } = useEventContext()
 const { setRegisterSession } = useRegisterSession()
 
 const registers = computed(() =>
-  (event.value?.configuration?.cash_registers || []).slice().sort((a, b) => {
-    const so = (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
-    return so || String(a.name || '').localeCompare(String(b.name || ''))
-  }),
+  (event.value?.configuration?.cash_registers || [])
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de')),
 )
 
 const registerId = ref(null)

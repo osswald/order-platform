@@ -81,7 +81,11 @@ function buildPickItems(cell) {
       priceLabel: formatAmount(unit),
     })
   }
-  return items
+  return items.sort((a, b) => {
+    const nameA = a.type === 'voucher' ? (a.voucher?.name || 'Gutschein') : (a.label || '')
+    const nameB = b.type === 'voucher' ? (b.voucher?.name || 'Gutschein') : (b.label || '')
+    return String(nameA).localeCompare(String(nameB), 'de')
+  })
 }
 
 function onCellClick(cell) {

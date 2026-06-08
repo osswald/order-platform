@@ -7,7 +7,7 @@
         <p class="muted">{{ articleName }}</p>
       </header>
       <ul class="sheet-option-list">
-        <li v-for="a in additions" :key="a.article_id" class="sheet-option-row">
+        <li v-for="a in sortedAdditions" :key="a.article_id" class="sheet-option-row">
           <label class="sheet-option-row__control">
             <input
               type="checkbox"
@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { formatMoney } from '../utils/money'
 
 const props = defineProps({
@@ -42,6 +42,12 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['cancel', 'confirm'])
+
+const sortedAdditions = computed(() =>
+  props.additions
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de')),
+)
 
 const selected = ref(new Set())
 
