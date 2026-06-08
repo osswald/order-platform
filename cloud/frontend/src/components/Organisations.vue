@@ -174,11 +174,12 @@
         </div>
       </div>
       <VqDataTable
+        v-model:page="currentPage"
         :headers="tableHeaders"
-        :items="paginatedOrganisations"
+        :items="filteredOrganisations"
+        :items-per-page="pageSize"
         item-value="id"
         class="vq-data-table list-table"
-        hide-default-footer
         hover
         @click:row="(_, { item }) => editOrganisation(item)"
       >
@@ -193,10 +194,6 @@
         </template>
         <template #no-data>Keine Organisationen gefunden.</template>
       </VqDataTable>
-      <div v-if="filteredOrganisations.length" class="pagination">
-        <span>{{ paginationLabel }}</span>
-        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
-      </div>
     </template>
   </ListDetailLayout>
 </template>
@@ -213,6 +210,7 @@ import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { cancelPlannedLending } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import { useClientPagination } from '../composables/useClientPagination'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
@@ -238,8 +236,6 @@ const messageType = ref('')
 const searchQuery = ref('')
 const countryFilter = ref('')
 const userFilter = ref('')
-const currentPage = ref(1)
-const pageSize = 20
 const orgApplianceLendings = ref(null)
 const lendingDialogVisible = ref(false)
 const cancellingLendingId = ref(null)
@@ -335,26 +331,8 @@ const filteredOrganisations = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredOrganisations.value.length / pageSize)))
-
-const paginatedOrganisations = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredOrganisations.value.slice(start, start + pageSize)
-})
-
-const paginationLabel = computed(() => {
-  if (!filteredOrganisations.value.length) return '0 Einträge'
-  const start = (currentPage.value - 1) * pageSize + 1
-  const end = Math.min(currentPage.value * pageSize, filteredOrganisations.value.length)
-  return `${start}-${end} von ${filteredOrganisations.value.length}`
-})
-
-watch([searchQuery, countryFilter, userFilter], () => {
-  currentPage.value = 1
-})
-
-watch(totalPages, (pages) => {
-  if (currentPage.value > pages) currentPage.value = pages
+const { currentPage, pageSize } = useClientPagination(filteredOrganisations, {
+  resetOn: [searchQuery, countryFilter, userFilter],
 })
 
 function parseUserIds(value) {
@@ -596,8 +574,7 @@ small {
   margin: 0;
 }
 
-.table-header span,
-.pagination {
+.table-header span {
   color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
@@ -622,14 +599,6 @@ small {
   overflow: hidden;
 }
 
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .org-lendings-toolbar {
   margin-top: 1.5rem;
 }
@@ -652,13 +621,6 @@ small {
   .field-row,
   .list-controls {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>

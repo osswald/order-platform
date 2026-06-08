@@ -128,11 +128,12 @@
         </div>
       </div>
       <VqDataTable
+        v-model:page="currentPage"
         :headers="tableHeaders"
-        :items="paginatedUsers"
+        :items="filteredUsers"
+        :items-per-page="pageSize"
         item-value="id"
         class="vq-data-table list-table"
-        hide-default-footer
         hover
         @click:row="(_, { item }) => editUser(item)"
       >
@@ -156,10 +157,6 @@
         </template>
         <template #no-data>Keine Benutzer gefunden.</template>
       </VqDataTable>
-      <div v-if="filteredUsers.length" class="pagination">
-        <span>{{ paginationLabel }}</span>
-        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
-      </div>
     </template>
   </ListDetailLayout>
 </template>
@@ -175,6 +172,7 @@ import OrganisationPicker from './OrganisationPicker.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import { useClientPagination } from '../composables/useClientPagination'
 
 const props = defineProps({
   isAdmin: { type: Boolean, default: false },
@@ -198,8 +196,6 @@ const messageType = ref('')
 const searchQuery = ref('')
 const roleFilter = ref('')
 const organisationFilter = ref('')
-const currentPage = ref(1)
-const pageSize = 20
 const showPassword = ref(false)
 
 const tableHeaders = [
@@ -305,26 +301,8 @@ const filteredUsers = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / pageSize)))
-
-const paginatedUsers = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredUsers.value.slice(start, start + pageSize)
-})
-
-const paginationLabel = computed(() => {
-  if (!filteredUsers.value.length) return '0 Einträge'
-  const start = (currentPage.value - 1) * pageSize + 1
-  const end = Math.min(currentPage.value * pageSize, filteredUsers.value.length)
-  return `${start}-${end} von ${filteredUsers.value.length}`
-})
-
-watch([searchQuery, roleFilter, organisationFilter], () => {
-  currentPage.value = 1
-})
-
-watch(totalPages, (pages) => {
-  if (currentPage.value > pages) currentPage.value = pages
+const { currentPage, pageSize } = useClientPagination(filteredUsers, {
+  resetOn: [searchQuery, roleFilter, organisationFilter],
 })
 
 async function fetchUsers() {
@@ -520,8 +498,7 @@ small {
   margin: 0;
 }
 
-.table-header span,
-.pagination {
+.table-header span {
   color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
@@ -555,14 +532,6 @@ small {
   white-space: nowrap;
 }
 
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .success,
 .error {
   margin-top: 1rem;
@@ -571,13 +540,6 @@ small {
 @media (max-width: 1000px) {
   .list-controls {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>

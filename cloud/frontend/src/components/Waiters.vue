@@ -90,6 +90,7 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
 
@@ -123,8 +124,6 @@ const waiters = ref([])
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
-const currentPage = ref(1)
-const pageSize = 20
 
 const emptyForm = () => ({
   name: '',
@@ -157,15 +156,15 @@ const filteredWaiters = computed(() => {
   })
 })
 
+const { currentPage, pageSize } = useClientPagination(filteredWaiters, {
+  resetOn: [searchQuery, () => props.activeOrganisationId],
+})
+
 const waitersInActiveOrganisation = computed(() =>
   waiters.value.filter((waiter) =>
     matchesActiveOrganisation(props.activeOrganisationId, waiter.organisation_id),
   ),
 )
-
-watch([searchQuery, () => props.activeOrganisationId], () => {
-  currentPage.value = 1
-})
 
 watch(
   () => props.activeOrganisationId,

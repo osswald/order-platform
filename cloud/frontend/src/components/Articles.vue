@@ -225,11 +225,12 @@
       </div>
 
       <VqDataTable
+        v-model:page="currentPage"
         :headers="tableHeaders"
-        :items="paginatedArticles"
+        :items="filteredArticles"
+        :items-per-page="pageSize"
         item-value="id"
         class="vq-data-table list-table"
-        hide-default-footer
         hover
         @click:row="(_, { item }) => editArticle(item)"
       >
@@ -252,11 +253,6 @@
         </template>
         <template #no-data>Keine Artikel gefunden.</template>
       </VqDataTable>
-
-      <div v-if="filteredArticles.length" class="pagination">
-        <span>{{ paginationLabel }}</span>
-        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
-      </div>
     </template>
   </ListDetailLayout>
 </template>
@@ -267,6 +263,7 @@ import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
 import VqDataTable from './VqDataTable.vue'
@@ -297,12 +294,10 @@ const messageType = ref('')
 const searchQuery = ref('')
 const categoryFilter = ref(null)
 const typeFilter = ref('articles')
-const currentPage = ref(1)
 const additionsLocal = ref([])
 const additionPickIds = ref([])
 const additionsMessage = ref('')
 const additionsMessageType = ref('')
-const pageSize = 20
 
 const tableHeaders = [
   { title: 'ID', key: 'id' },
@@ -438,22 +433,11 @@ const filteredArticles = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredArticles.value.length / pageSize)))
-
-const paginatedArticles = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredArticles.value.slice(start, start + pageSize)
-})
-
-const paginationLabel = computed(() => {
-  if (!filteredArticles.value.length) return '0 Einträge'
-  const start = (currentPage.value - 1) * pageSize + 1
-  const end = Math.min(currentPage.value * pageSize, filteredArticles.value.length)
-  return `${start}-${end} von ${filteredArticles.value.length}`
+const { currentPage, pageSize } = useClientPagination(filteredArticles, {
+  resetOn: [searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId],
 })
 
 watch([searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId], () => {
-  currentPage.value = 1
   if (
     categoryFilter.value != null &&
     !visibleCategories.value.some((category) => Number(category.id) === Number(categoryFilter.value))
@@ -468,10 +452,6 @@ watch(
     if (showDetail.value) goToList()
   },
 )
-
-watch(totalPages, (pages) => {
-  if (currentPage.value > pages) currentPage.value = pages
-})
 
 async function fetchArticles() {
   try {
@@ -756,8 +736,7 @@ label {
 }
 
 small,
-.table-header span,
-.pagination {
+.table-header span {
   color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
@@ -801,14 +780,6 @@ small,
   overflow: hidden;
 }
 
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .success,
 .error {
   margin-top: 1rem;
@@ -818,13 +789,6 @@ small,
   .field-row,
   .list-controls {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>

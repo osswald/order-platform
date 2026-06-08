@@ -111,11 +111,12 @@
       </div>
 
       <VqDataTable
+        v-model:page="currentPage"
         :headers="tableHeaders"
-        :items="paginatedEvents"
+        :items="filteredEvents"
+        :items-per-page="pageSize"
         item-value="id"
         class="vq-data-table list-table"
-        hide-default-footer
         hover
         @click:row="(_, { item }) => editEvent(item)"
       >
@@ -133,11 +134,6 @@
         </template>
         <template #no-data>Keine Veranstaltungen gefunden.</template>
       </VqDataTable>
-
-      <div v-if="filteredEvents.length" class="pagination">
-        <span>{{ paginationLabel }}</span>
-        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
-      </div>
     </template>
   </ListDetailLayout>
 </template>
@@ -151,6 +147,7 @@ import EventStammdatenFields from './EventStammdatenFields.vue'
 import HostedPiCard from './HostedPiCard.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { validateForm } from '../utils/formRules.js'
 import VqDataTable from './VqDataTable.vue'
@@ -183,8 +180,6 @@ const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
 const statusFilter = ref('')
-const currentPage = ref(1)
-const pageSize = 20
 
 const statusOptions = [
   { value: 'config', label: 'Konfiguration' },
@@ -351,22 +346,8 @@ const eventsInActiveOrganisation = computed(() =>
   )
 )
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredEvents.value.length / pageSize)))
-
-const paginatedEvents = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredEvents.value.slice(start, start + pageSize)
-})
-
-const paginationLabel = computed(() => {
-  if (!filteredEvents.value.length) return '0 Einträge'
-  const start = (currentPage.value - 1) * pageSize + 1
-  const end = Math.min(currentPage.value * pageSize, filteredEvents.value.length)
-  return `${start}-${end} von ${filteredEvents.value.length}`
-})
-
-watch([searchQuery, statusFilter, () => props.activeOrganisationId], () => {
-  currentPage.value = 1
+const { currentPage, pageSize } = useClientPagination(filteredEvents, {
+  resetOn: [searchQuery, statusFilter, () => props.activeOrganisationId],
 })
 
 watch(
@@ -375,10 +356,6 @@ watch(
     if (showDetail.value) goToList()
   },
 )
-
-watch(totalPages, (pages) => {
-  if (currentPage.value > pages) currentPage.value = pages
-})
 
 async function fetchEvents() {
   try {
@@ -707,8 +684,7 @@ h2 {
   margin: 0;
 }
 
-.table-header span,
-.pagination {
+.table-header span {
   color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
@@ -733,14 +709,6 @@ h2 {
   overflow: hidden;
 }
 
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .success,
 .error {
   margin-top: 1rem;
@@ -749,13 +717,6 @@ h2 {
 @media (max-width: 1000px) {
   .list-controls {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>

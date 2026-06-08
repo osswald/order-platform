@@ -1,6 +1,7 @@
 <template>
   <v-data-table
     v-bind="attrs"
+    :items-per-page="resolvedItemsPerPage"
     :mobile-breakpoint="TABLE_MOBILE_BREAKPOINT"
     :class="tableClass"
   >
@@ -24,5 +25,11 @@ const tableClass = computed(() => {
   if (!extra) return 'vq-data-table'
   if (Array.isArray(extra)) return ['vq-data-table', ...extra]
   return ['vq-data-table', extra]
+})
+
+const resolvedItemsPerPage = computed(() => {
+  if (attrs['items-per-page'] != null) return attrs['items-per-page']
+  if (attrs.itemsPerPage != null) return attrs.itemsPerPage
+  return -1
 })
 </script>

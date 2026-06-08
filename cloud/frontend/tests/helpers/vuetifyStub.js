@@ -34,5 +34,13 @@ export function vuetifyStubs() {
       template: '<button type="submit"><slot /></button>',
       props: ['loading', 'color', 'block', 'size'],
     },
+    VDataTable: {
+      template: '<div data-testid="v-data-table"><slot /></div>',
+      props: ['items', 'itemsPerPage', 'headers', 'mobileBreakpoint'],
+    },
+    'v-data-table': {
+      template: '<div data-testid="v-data-table"><slot /></div>',
+      props: ['items', 'itemsPerPage', 'headers', 'mobileBreakpoint'],
+    },
   }
 }

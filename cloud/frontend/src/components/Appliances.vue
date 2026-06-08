@@ -270,11 +270,12 @@
         </div>
       </div>
       <VqDataTable
+        v-model:page="currentPage"
         :headers="tableHeaders"
-        :items="paginatedAppliances"
+        :items="filteredAppliances"
+        :items-per-page="pageSize"
         item-value="id"
         class="vq-data-table list-table"
-        hide-default-footer
         hover
         @click:row="(_, { item }) => editAppliance(item)"
       >
@@ -306,10 +307,6 @@
         </template>
         <template #no-data>Keine Geräte gefunden.</template>
       </VqDataTable>
-      <div v-if="filteredAppliances.length" class="pagination">
-        <span>{{ paginationLabel }}</span>
-        <v-pagination v-model="currentPage" :length="totalPages" :total-visible="7" density="compact" />
-      </div>
     </template>
   </ListDetailLayout>
 </template>
@@ -331,6 +328,7 @@ import {
   toIsoDate,
 } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
 
 const route = useRoute()
@@ -351,8 +349,6 @@ const messageType = ref('')
 const searchQuery = ref('')
 const typeFilter = ref('')
 const ipFilter = ref('')
-const currentPage = ref(1)
-const pageSize = 20
 const tableHeaders = [
   { title: 'ID', key: 'id' },
   { title: 'Name', key: 'name', sortable: false },
@@ -514,26 +510,8 @@ const filteredAppliances = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredAppliances.value.length / pageSize)))
-
-const paginatedAppliances = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredAppliances.value.slice(start, start + pageSize)
-})
-
-const paginationLabel = computed(() => {
-  if (!filteredAppliances.value.length) return '0 Einträge'
-  const start = (currentPage.value - 1) * pageSize + 1
-  const end = Math.min(currentPage.value * pageSize, filteredAppliances.value.length)
-  return `${start}-${end} von ${filteredAppliances.value.length}`
-})
-
-watch([searchQuery, typeFilter, ipFilter], () => {
-  currentPage.value = 1
-})
-
-watch(totalPages, (pages) => {
-  if (currentPage.value > pages) currentPage.value = pages
+const { currentPage, pageSize } = useClientPagination(filteredAppliances, {
+  resetOn: [searchQuery, typeFilter, ipFilter],
 })
 
 async function fetchAppliances() {
@@ -1005,8 +983,7 @@ textarea {
   margin: 0;
 }
 
-.table-header span,
-.pagination {
+.table-header span {
   color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.9rem;
 }
@@ -1040,14 +1017,6 @@ textarea {
   white-space: nowrap;
 }
 
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .success,
 .error {
   margin-top: 1rem;
@@ -1056,13 +1025,6 @@ textarea {
 @media (max-width: 1000px) {
   .list-controls {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 </style>
