@@ -8,7 +8,10 @@
     @open-create="openCreateForm"
   >
     <template #detail>
-      <h2>{{ editMode ? 'Veranstaltung bearbeiten' : 'Neue Veranstaltung' }}</h2>
+      <div class="detail-header-row">
+        <h2>{{ editMode ? 'Veranstaltung bearbeiten' : 'Neue Veranstaltung' }}</h2>
+        <HelpLink v-if="editMode" slug="event-setup" variant="icon" />
+      </div>
       <p v-if="!editMode" class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
 
       <EventConfiguration
@@ -142,6 +145,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
+import HelpLink from './HelpLink.vue'
 import EventConfiguration from './EventConfiguration.vue'
 import EventStammdatenFields from './EventStammdatenFields.vue'
 import HostedPiCard from './HostedPiCard.vue'
@@ -653,8 +657,16 @@ onUnmounted(() => {
   margin: 0 0 1rem;
 }
 
-h2 {
-  margin: 0 0 1.5rem;
+.detail-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-header-row h2 {
+  margin: 0;
   color: rgb(var(--v-theme-on-surface));
 }
 

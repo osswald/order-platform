@@ -6,6 +6,9 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <HelpLink slug="appliance-pairing" variant="icon" />
+    </template>
     <template #detail>
       <h2>{{ editMode ? 'Gerät bearbeiten' : 'Neues Gerät' }}</h2>
       <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
@@ -315,6 +318,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ListDetailLayout from './ListDetailLayout.vue'
+import HelpLink from './HelpLink.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { parseApiErrorDetail } from '../utils/apiError'

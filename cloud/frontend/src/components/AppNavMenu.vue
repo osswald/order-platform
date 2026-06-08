@@ -119,6 +119,18 @@
         />
       </v-list>
     </div>
+
+    <div class="nav-section">
+      <h3 class="section-title">HILFE</h3>
+      <v-list density="compact" nav>
+        <v-list-item
+          :to="{ name: 'help' }"
+          prepend-icon="mdi-help-circle-outline"
+          title="Hilfe"
+          @click="onNavigate"
+        />
+      </v-list>
+    </div>
   </nav>
 </template>
 

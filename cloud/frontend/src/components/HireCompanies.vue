@@ -6,6 +6,9 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <HelpLink slug="roles-and-access" variant="icon" />
+    </template>
     <template #detail>
       <h2>{{ editMode ? 'Verleiher bearbeiten' : 'Neuer Verleiher' }}</h2>
       <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
@@ -85,6 +88,7 @@ import { inject, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
+import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'

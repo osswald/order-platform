@@ -15,6 +15,7 @@ import AccountSettings from '../components/AccountSettings.vue'
 import StripeConnectReturn from '../components/StripeConnectReturn.vue'
 import LoginPage from '../components/LoginPage.vue'
 import SectionPlaceholder from '../components/SectionPlaceholder.vue'
+import HelpCenter from '../components/HelpCenter.vue'
 
 const orgScoped = { requiresAuth: true, organisationScoped: true }
 const platformOnly = { requiresAuth: true, platformOnly: true }
@@ -88,6 +89,18 @@ const routes = [
     name: 'stripe-connect-refresh',
     component: StripeConnectReturn,
     meta: tenantAdminOnly,
+  },
+  {
+    path: '/help',
+    name: 'help',
+    component: HelpCenter,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/help/:slug',
+    name: 'help-article',
+    component: HelpCenter,
+    meta: { requiresAuth: true },
   },
   {
     path: '/no-access/:section',

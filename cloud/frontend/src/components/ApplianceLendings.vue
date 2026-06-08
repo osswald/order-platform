@@ -5,6 +5,9 @@
     :showCreate="false"
     :showDetail="false"
   >
+    <template #header-actions>
+      <HelpLink slug="appliance-lending" variant="icon" />
+    </template>
     <template #table>
       <p v-if="activeOrganisationId == null" class="empty-hint">
         Bitte wählen Sie links eine Organisation.
@@ -88,6 +91,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import ListDetailLayout from './ListDetailLayout.vue'
+import HelpLink from './HelpLink.vue'
 import { apiFetch } from '../api'
 import { cancelPlannedLending } from '../utils/applianceLending'
 import VqDataTable from './VqDataTable.vue'

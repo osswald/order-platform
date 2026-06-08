@@ -1,6 +1,9 @@
 <template>
   <div v-if="organisationId" class="org-stripe-block">
-    <h3>Kartenzahlung (Stripe)</h3>
+    <div class="stripe-header-row">
+      <h3>Kartenzahlung (Stripe)</h3>
+      <HelpLink slug="stripe-connect" variant="icon" />
+    </div>
     <p class="muted small">
       Verbinden Sie ein Stripe-Konto für diese Organisation. Danach können Sie bei Veranstaltungen
       «Karte (Stripe Terminal)» aktivieren (Android-App mit Internet).
@@ -53,6 +56,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import HelpLink from './HelpLink.vue'
 import {
   createStripeAccountLink,
   fetchStripeConnectStatus,
@@ -145,8 +149,16 @@ defineExpose({ loadStatus, refreshStatus })
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
-.org-stripe-block h3 {
-  margin: 0 0 0.5rem;
+.stripe-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.stripe-header-row h3 {
+  margin: 0;
 }
 .stripe-chips {
   display: flex;

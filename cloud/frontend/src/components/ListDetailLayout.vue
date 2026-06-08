@@ -5,9 +5,12 @@
         <h1>{{ title }}</h1>
         <p>{{ subtitle }}</p>
       </div>
-      <v-btn v-if="showCreate" color="primary" @click="$emit('open-create')">
-        {{ createLabel }}
-      </v-btn>
+      <div class="vq-page-header-actions">
+        <slot name="header-actions" />
+        <v-btn v-if="showCreate" color="primary" @click="$emit('open-create')">
+          {{ createLabel }}
+        </v-btn>
+      </div>
     </div>
 
     <div class="form-grid" :class="{ 'detail-open': showDetail }">
@@ -56,5 +59,12 @@ defineEmits(['open-create'])
 
 .content-card {
   overflow: visible;
+}
+
+.vq-page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 </style>
