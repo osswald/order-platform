@@ -2,8 +2,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app/pi/frontend
 
-ARG VITE_APP_VERSION=dev
-ARG VITE_BUILD_TIME=dev
+# Leave version args unset by default; vite.config.js reads VERSION at build time.
+ARG VITE_APP_VERSION
+ARG VITE_BUILD_TIME
 ENV VITE_APP_VERSION=$VITE_APP_VERSION
 ENV VITE_BUILD_TIME=$VITE_BUILD_TIME
 
