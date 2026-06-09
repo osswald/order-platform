@@ -300,6 +300,59 @@ h2 {
   color: var(--muted);
 }
 
+/* Article/addon picker sheets: full-height flex layout with pinned footer */
+.sheet--picker {
+  display: flex;
+  flex-direction: column;
+  max-height: min(100dvh, 100%);
+  overflow: hidden;
+}
+
+.sheet--picker .sheet-header {
+  flex-shrink: 0;
+}
+
+.sheet--picker .sheet__footer,
+.sheet--picker .sheet__actions {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.sheet--picker .sheet-option-list {
+  margin: 0;
+}
+
+.sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.sheet-scroll--above::before,
+.sheet-scroll--below::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sheet-scroll--above::before {
+  top: 0;
+  background: linear-gradient(to bottom, var(--card), transparent);
+}
+
+.sheet-scroll--below::after {
+  bottom: 0;
+  background: linear-gradient(to top, var(--card), transparent);
+}
+
 /* Full-screen POS order */
 .app-shell--fullscreen {
   padding-bottom: 0;

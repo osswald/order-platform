@@ -1,28 +1,30 @@
 <template>
   <Teleport to="body">
     <div v-if="open" class="sheet-backdrop" @click.self="$emit('cancel')" />
-    <div v-if="open" class="sheet" role="dialog" aria-modal="true">
+    <div v-if="open" class="sheet sheet--picker" role="dialog" aria-modal="true">
       <header class="sheet-header">
         <h3>Zusätze</h3>
         <p class="muted">{{ articleName }}</p>
       </header>
-      <ul class="sheet-option-list">
-        <li v-for="a in sortedAdditions" :key="a.article_id" class="sheet-option-row">
-          <label class="sheet-option-row__control">
-            <input
-              type="checkbox"
-              :checked="selected.has(a.article_id)"
-              :disabled="!canSelect(a)"
-              @change="toggle(a)"
-            />
-            <span class="sheet-option-row__name">{{ a.name }}</span>
-            <span class="sheet-option-row__meta">{{ priceHint(a) }}</span>
-            <span v-if="a.monitor_stock && !a.sellable" class="badge">ausverkauft</span>
-            <span v-else-if="a.monitor_stock" class="stock-hint">{{ a.in_stock ?? 0 }} Stk.</span>
-          </label>
-        </li>
-      </ul>
-      <div class="sheet-actions">
+      <SheetScrollBody :active="open">
+        <ul class="sheet-option-list">
+          <li v-for="a in sortedAdditions" :key="a.article_id" class="sheet-option-row">
+            <label class="sheet-option-row__control">
+              <input
+                type="checkbox"
+                :checked="selected.has(a.article_id)"
+                :disabled="!canSelect(a)"
+                @change="toggle(a)"
+              />
+              <span class="sheet-option-row__name">{{ a.name }}</span>
+              <span class="sheet-option-row__meta">{{ priceHint(a) }}</span>
+              <span v-if="a.monitor_stock && !a.sellable" class="badge">ausverkauft</span>
+              <span v-else-if="a.monitor_stock" class="stock-hint">{{ a.in_stock ?? 0 }} Stk.</span>
+            </label>
+          </li>
+        </ul>
+      </SheetScrollBody>
+      <div class="sheet__actions">
         <button type="button" class="btn" @click="$emit('cancel')">Abbrechen</button>
         <button type="button" class="btn primary" @click="confirm">Übernehmen</button>
       </div>
@@ -33,6 +35,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { formatMoney } from '../utils/money'
+import SheetScrollBody from './SheetScrollBody.vue'
 
 const props = defineProps({
   open: Boolean,
@@ -101,8 +104,6 @@ function confirm() {
   background: var(--card);
   border-radius: 1rem 1rem 0 0;
   padding: 1rem 1rem calc(1rem + var(--safe-bottom));
-  max-height: 70vh;
-  overflow: auto;
 }
 .sheet-header h3 {
   margin: 0;
@@ -123,11 +124,11 @@ function confirm() {
   font-size: 0.75rem;
   color: var(--muted);
 }
-.sheet-actions {
+.sheet__actions {
   display: flex;
   gap: 0.5rem;
 }
-.sheet-actions .btn {
+.sheet__actions .btn {
   flex: 1;
 }
 </style>
