@@ -1,9 +1,9 @@
 <template>
   <div class="form-field twint-qr-field">
-    <label>TWINT QR-Code</label>
+    <label>{{ t('twint.label') }}</label>
     <template v-if="editMode && activeId">
       <div v-if="previewUrl" class="twint-qr-preview">
-        <img :src="previewUrl" alt="TWINT QR-Code" />
+        <img :src="previewUrl" :alt="t('twint.alt')" />
       </div>
       <input
         ref="fileInput"
@@ -19,7 +19,7 @@
           :disabled="busy"
           @click="fileInput?.click()"
         >
-          QR hochladen
+          {{ t('twint.upload') }}
         </v-btn>
         <v-btn
           v-if="hasTwintQr || previewUrl"
@@ -29,17 +29,20 @@
           :disabled="busy"
           @click="$emit('remove')"
         >
-          Entfernen
+          {{ t('twint.remove') }}
         </v-btn>
       </div>
-      <small>PNG oder SVG, max. 500 KB. Wird sofort gespeichert (nicht über «Speichern»).</small>
+      <small>{{ t('twint.hint') }}</small>
     </template>
-    <small v-else>Veranstaltung zuerst speichern, dann QR-Code hochladen.</small>
+    <small v-else>{{ t('twint.saveFirst') }}</small>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps({
   editMode: Boolean,

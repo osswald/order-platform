@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import status
+from .i18n.errors import api_error
 from sqlalchemy.orm import Session, joinedload
 
 from .models import Article, ArticleAdditionLink, ArticleCategory, Event
@@ -84,12 +85,9 @@ def validate_base_article(db: Session, article_id: int) -> Article:
         .first()
     )
     if not art:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
     if art.is_addition:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Additions cannot be configured on a Zusatz article",
-        )
+        raise api_error("additions_on_zusatz_forbidden", status.HTTP_400_BAD_REQUEST)
     return art
 
 
@@ -115,12 +113,9 @@ def replace_addition_links(db: Session, base: Article, items: list[dict]) -> lis
             .first()
         )
         if not add_art:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Addition article {add_id} not found")
+            raise api_error("addition_article_not_found", status.HTTP_400_BAD_REQUEST, article_id=add_id)
         if not add_art.is_addition:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Article {add_id} is not marked as Zusatz (is_addition)",
-            )
+            raise api_error("article_not_marked_zusatz", status.HTTP_400_BAD_REQUEST, article_id=add_id)
         sort_order = int(item.get("sort_order") if item.get("sort_order") is not None else idx)
         row = ArticleAdditionLink(
             base_article_id=base.id,

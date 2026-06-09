@@ -1,6 +1,7 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -65,7 +66,7 @@ def read_hire_company(
 ):
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verleiher not found")
+        raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
     return hire_company_response(company)
 
 
@@ -97,7 +98,7 @@ def update_hire_company(
 ):
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verleiher not found")
+        raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
     if company_in.name is not None:
         company.name = company_in.name
     if company_in.address is not None:
@@ -121,20 +122,14 @@ def delete_hire_company(
 ):
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verleiher not found")
+        raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
     if (
         db.query(Organisation.id).filter(Organisation.hire_company_id == hire_company_id).first()
         is not None
     ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verleiher has organisations and cannot be deleted",
-        )
+        raise api_error("verleiher_has_organisations", status.HTTP_400_BAD_REQUEST)
     if db.query(Appliance.id).filter(Appliance.hire_company_id == hire_company_id).first() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verleiher has appliances and cannot be deleted",
-        )
+        raise api_error("verleiher_has_appliances", status.HTTP_400_BAD_REQUEST)
     db.delete(company)
     db.commit()
     return None

@@ -1,18 +1,20 @@
 <template>
   <div class="dashboard vq-page">
     <div class="dashboard-header">
-      <h1>Dashboard</h1>
-      <p v-if="summary" class="subtitle">Übersicht für {{ summary.organisation_name }}</p>
-      <p v-else class="subtitle">Willkommen bei Vendiqo</p>
+      <h1>{{ $t('dashboard.title') }}</h1>
+      <p v-if="summary" class="subtitle">
+        {{ $t('dashboard.subtitleFor', { name: summary.organisation_name }) }}
+      </p>
+      <p v-else class="subtitle">{{ $t('dashboard.welcome') }}</p>
     </div>
 
     <p v-if="activeOrganisationId == null" class="empty-hint">
-      Bitte wählen Sie links eine Organisation.
+      {{ $t('common.noOrganisation') }}
     </p>
 
     <p v-else-if="loadError" class="error">{{ loadError }}</p>
 
-    <p v-else-if="loading" class="muted">Laden…</p>
+    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
 
     <template v-else-if="summary">
       <div class="toolbar">
@@ -23,7 +25,7 @@
           :disabled="loading"
           @click="reload"
         >
-          Aktualisieren
+          {{ $t('common.refresh') }}
         </v-btn>
       </div>
 
@@ -31,7 +33,7 @@
         <div class="stat-card">
           <div class="card-icon"><v-icon icon="mdi-calendar" /></div>
           <div class="card-content">
-            <h3>Veranstaltungen</h3>
+            <h3>{{ $t('dashboard.events') }}</h3>
             <p class="card-value">{{ summary.events_total }}</p>
             <p class="card-detail">{{ eventsDetail }}</p>
           </div>
@@ -40,41 +42,47 @@
         <div class="stat-card">
           <div class="card-icon"><v-icon icon="mdi-card-account-details" /></div>
           <div class="card-content">
-            <h3>Kellner</h3>
+            <h3>{{ $t('dashboard.waiters') }}</h3>
             <p class="card-value">{{ summary.catalog.waiters }}</p>
-            <p class="card-detail">Für diese Organisation</p>
+            <p class="card-detail">{{ $t('dashboard.forOrganisation') }}</p>
           </div>
         </div>
 
         <div class="stat-card">
           <div class="card-icon"><v-icon icon="mdi-tag-multiple" /></div>
           <div class="card-content">
-            <h3>Artikel</h3>
+            <h3>{{ $t('dashboard.articles') }}</h3>
             <p class="card-value">{{ summary.catalog.articles }}</p>
-            <p class="card-detail">{{ summary.catalog.categories }} Kategorien</p>
+            <p class="card-detail">
+              {{ $t('dashboard.categories', { count: summary.catalog.categories }) }}
+            </p>
           </div>
         </div>
 
         <div class="stat-card">
           <div class="card-icon"><v-icon icon="mdi-calendar-plus" /></div>
           <div class="card-content">
-            <h3>Geräteausleihen</h3>
+            <h3>{{ $t('dashboard.lendings') }}</h3>
             <p class="card-value">{{ summary.lendings.current }}</p>
-            <p class="card-detail">{{ summary.lendings.planned }} geplant</p>
+            <p class="card-detail">
+              {{ $t('dashboard.planned', { count: summary.lendings.planned }) }}
+            </p>
           </div>
         </div>
       </div>
 
       <div class="quick-links">
-        <RouterLink :to="routeTo('events')" class="quick-link">Veranstaltungen</RouterLink>
-        <RouterLink :to="routeTo('waiters')" class="quick-link">Kellner</RouterLink>
-        <RouterLink :to="routeTo('articles')" class="quick-link">Artikel</RouterLink>
-        <RouterLink :to="routeTo('appliance-lendings')" class="quick-link">Geräteausleihen</RouterLink>
+        <RouterLink :to="routeTo('events')" class="quick-link">{{ $t('nav.events') }}</RouterLink>
+        <RouterLink :to="routeTo('waiters')" class="quick-link">{{ $t('nav.waiters') }}</RouterLink>
+        <RouterLink :to="routeTo('articles')" class="quick-link">{{ $t('nav.articles') }}</RouterLink>
+        <RouterLink :to="routeTo('appliance-lendings')" class="quick-link">
+          {{ $t('nav.applianceLendings') }}
+        </RouterLink>
       </div>
 
       <div class="content-section">
         <div class="section-card">
-          <h2>Veranstaltungen nach Status</h2>
+          <h2>{{ $t('dashboard.eventsByStatus') }}</h2>
           <div class="status-chips">
             <v-chip
               v-for="status in statusOrder"
@@ -88,12 +96,12 @@
           </div>
           <p v-if="summary.running_events_count > 0" class="running-hint">
             <v-icon icon="mdi-play-circle" size="small" />
-            {{ summary.running_events_count }} Veranstaltung(en) laufen gerade (Test oder Produktiv).
+            {{ $t('dashboard.runningEventsHint', { count: summary.running_events_count }) }}
           </p>
         </div>
 
         <div class="section-card">
-          <h2>Aufmerksamkeit</h2>
+          <h2>{{ $t('dashboard.attention') }}</h2>
           <div v-if="summary.attention.length" class="activity-list">
             <RouterLink
               v-for="(item, idx) in summary.attention"
@@ -109,42 +117,42 @@
                 />
               </span>
               <div class="activity-text">
-                <p class="activity-title">{{ item.message }}</p>
+                <p class="activity-title">{{ attentionMessage(item) }}</p>
                 <p class="activity-time">{{ item.event_name }}</p>
               </div>
             </RouterLink>
           </div>
-          <p v-else class="muted">Alles bereit — keine offenen Hinweise.</p>
+          <p v-else class="muted">{{ $t('dashboard.attentionEmpty') }}</p>
         </div>
       </div>
 
       <div v-if="hasSalesSection" class="section-card sales-section">
-        <h2>Umsatz (Produktivbetrieb)</h2>
+        <h2>{{ $t('dashboard.salesTitle') }}</h2>
         <p class="muted small footnote">
-          Aggregiert aus Pi-synchronisierten Bestellungen. Nur Veranstaltungen im Status Produktivbetrieb.
+          {{ $t('dashboard.salesFootnote') }}
         </p>
 
         <div class="summary-grid">
           <div class="summary-card">
-            <span class="summary-label">Bestellungen</span>
+            <span class="summary-label">{{ $t('dashboard.salesOrders') }}</span>
             <span class="summary-value">{{ summary.sales.totals.distinct_orders_count }}</span>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Positionen</span>
+            <span class="summary-label">{{ $t('dashboard.salesLineItems') }}</span>
             <span class="summary-value">{{ formatAmount(summary.sales.totals.line_cents) }} {{ summary.sales.currency }}</span>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Bezahlt</span>
+            <span class="summary-label">{{ $t('dashboard.salesPaid') }}</span>
             <span class="summary-value">{{ formatAmount(summary.sales.totals.paid_cents) }} {{ summary.sales.currency }}</span>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Offen</span>
+            <span class="summary-label">{{ $t('dashboard.salesOpen') }}</span>
             <span class="summary-value">{{ formatAmount(summary.sales.totals.open_cents) }} {{ summary.sales.currency }}</span>
           </div>
         </div>
 
-        <h3 class="subsection-title">Veranstaltungen mit Umsatz</h3>
-        <p v-if="!summary.sales.by_event.length" class="muted">Noch keine Produktiv-Veranstaltungen oder keine synchronisierten Bestellungen.</p>
+        <h3 class="subsection-title">{{ $t('dashboard.salesEventsTitle') }}</h3>
+        <p v-if="!summary.sales.by_event.length" class="muted">{{ $t('dashboard.salesNoEvents') }}</p>
         <VqDataTable
           v-else
           :headers="salesEventHeaders"
@@ -165,11 +173,14 @@
 
 <script setup>
 import { computed, toRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useDashboardSummary } from '../composables/useDashboardSummary'
-import { eventsStatDetail, formatEventDateRange, statusLabel } from '../utils/dashboardMetrics'
+import { attentionMessage, eventsStatDetail, formatEventDateRange, statusLabel } from '../utils/dashboardMetrics'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   activeOrganisationId: {
@@ -178,13 +189,13 @@ const props = defineProps({
   },
 })
 
-const salesEventHeaders = [
-  { title: 'Veranstaltung', key: 'name' },
-  { title: 'Zeitraum', key: 'period', sortable: false },
-  { title: 'Bestellungen', key: 'distinct_orders_count', align: 'end' },
-  { title: 'Positionen', key: 'line_cents', align: 'end' },
-  { title: 'Offen', key: 'open_cents', align: 'end' },
-]
+const salesEventHeaders = computed(() => [
+  { title: t('dashboard.salesTable.event'), key: 'name' },
+  { title: t('dashboard.salesTable.period'), key: 'period', sortable: false },
+  { title: t('dashboard.salesTable.orders'), key: 'distinct_orders_count', align: 'end' },
+  { title: t('dashboard.salesTable.lineItems'), key: 'line_cents', align: 'end' },
+  { title: t('dashboard.salesTable.open'), key: 'open_cents', align: 'end' },
+])
 
 const orgIdRef = toRef(props, 'activeOrganisationId')
 const { summary, loading, loadError, reload } = useDashboardSummary(orgIdRef)

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from fastapi import status
+from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from .models import EdgeSubmittedOrder, Event, EventCollectiveBill
@@ -11,13 +12,6 @@ from .stock import reset_event_stock_to_baseline
 ALLOWED_STATUSES = frozenset({"config", "test", "prod", "archive"})
 PI_VISIBLE_STATUSES = frozenset({"test", "prod"})
 ORDER_ACCEPT_STATUSES = frozenset({"test", "prod"})
-
-STATUS_LABELS = {
-    "config": "Konfiguration",
-    "test": "Testbetrieb",
-    "prod": "Produktivbetrieb",
-    "archive": "Archiviert",
-}
 
 ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "config": frozenset({"test"}),
@@ -46,10 +40,7 @@ def selectable_statuses(current: str) -> list[str]:
 def assert_create_status(value: str) -> str:
     st = normalize_status(value)
     if st != "config":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="New events must have status config",
-        )
+        raise api_error("new_event_must_config", status.HTTP_422_UNPROCESSABLE_ENTITY)
     return st
 
 
@@ -59,16 +50,10 @@ def validate_status_transition(old: str, new: str) -> None:
     if old_n == new_n:
         return
     if new_n not in ALLOWED_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}",
-        )
+        raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_ENTITY, statuses=", ".join(sorted(ALLOWED_STATUSES)))
     allowed = ALLOWED_TRANSITIONS.get(old_n, frozenset())
     if new_n not in allowed:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Cannot transition from {old_n} to {new_n}",
-        )
+        raise api_error("cannot_transition_status", status.HTTP_422_UNPROCESSABLE_ENTITY, old_status=old_n, new_status=new_n)
 
 
 def purge_event_operational_data(db: Session, event: Event) -> None:

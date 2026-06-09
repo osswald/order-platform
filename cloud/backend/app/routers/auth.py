@@ -1,7 +1,7 @@
 from datetime import timedelta
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from ..models import HireCompany, User
 from ..user_access import is_org_admin, is_platform_admin, user_hire_company_id, user_role
 from ..schemas import MessageResponse
 from ..auth_deps import get_current_user
+from ..i18n.errors import api_error
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -108,11 +109,9 @@ def login_for_access_token(
 ) -> Token:
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        exc = api_error("incorrect_email_or_password", status.HTTP_401_UNAUTHORIZED)
+        exc.headers = {"WWW-Authenticate": "Bearer"}
+        raise exc
     access_token, _refresh = _issue_session_tokens(user, response)
     flags = _token_for_user(user)
     return Token(
@@ -151,17 +150,17 @@ def refresh_access_token(
 ) -> Token:
     token = request.cookies.get("refresh_token")
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+        raise api_error("missing_refresh_token", status.HTTP_401_UNAUTHORIZED)
     try:
         payload = decode_refresh_token(token)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise api_error("invalid_refresh_token", status.HTTP_401_UNAUTHORIZED)
     email = payload.get("sub")
     if not email:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise api_error("invalid_refresh_token", status.HTTP_401_UNAUTHORIZED)
     user = db.query(User).filter(User.email == email).first()
     if not user or not token_version_matches(user, payload):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        raise api_error("invalid_refresh_token", status.HTTP_401_UNAUTHORIZED)
     invalidate_user_sessions(user, db)
     access_token, _refresh = _issue_session_tokens(user, response)
     flags = _token_for_user(user)
@@ -199,7 +198,7 @@ def change_password(
 ) -> MessageResponse:
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user or not verify_password(password_in.current_password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+        raise api_error("current_password_incorrect", status.HTTP_400_BAD_REQUEST)
     user.hashed_password = get_password_hash(password_in.new_password)
     invalidate_user_sessions(user, db)
     _clear_refresh_cookie(response)

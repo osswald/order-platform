@@ -1,8 +1,8 @@
 <template>
   <ListDetailLayout
-    title="Geräte"
-    subtitle="Server, Drucker, mobile Geräte und weitere Installationen verwalten."
-    createLabel="Neues Gerät"
+    :title="t('appliances.title')"
+    :subtitle="t('appliances.subtitle')"
+    :createLabel="t('appliances.createLabel')"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
@@ -10,8 +10,8 @@
       <HelpLink slug="appliance-pairing" variant="icon" />
     </template>
     <template #detail>
-      <h2>{{ editMode ? 'Gerät bearbeiten' : 'Neues Gerät' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? t('appliances.editTitle') : t('appliances.createTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveAppliance">
       <div class="form-field">
@@ -20,8 +20,8 @@
           :items="typeOptions"
           item-title="label"
           item-value="value"
-          label="Typ"
-          placeholder="Typ wählen"
+          :label="t('appliances.type')"
+          :placeholder="t('appliances.typePlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
@@ -30,8 +30,8 @@
 
       <div v-if="isAutoNamed" class="form-field">
         <v-text-field
-          :model-value="form.name || 'Wird beim Speichern automatisch vergeben'"
-          label="Name"
+          :model-value="form.name || t('appliances.autoNamePlaceholder')"
+          :label="t('appliances.name')"
           disabled
           hide-details="auto"
         />
@@ -39,11 +39,11 @@
       </div>
 
       <div v-else-if="form.type" class="form-field">
-        <v-text-field v-model="form.name" label="Name (optional)" placeholder="Anzeigename" hide-details="auto" />
+        <v-text-field v-model="form.name" :label="t('appliances.nameOptional')" :placeholder="t('appliances.displayNamePlaceholder')" hide-details="auto" />
       </div>
 
       <div v-if="isPrinter" class="form-field">
-        <v-text-field v-model="form.ip_address" label="IP-Adresse" placeholder="192.168.1.10" hide-details="auto" />
+        <v-text-field v-model="form.ip_address" :label="t('appliances.ipAddress')" :placeholder="t('appliances.ipPlaceholder')" hide-details="auto" />
       </div>
       <div v-if="isPrinter" class="form-field">
         <v-text-field
@@ -51,45 +51,46 @@
           type="number"
           :min="0"
           :max="10"
-          label="Zeilenvorschub vor Schnitt"
-          hint="0 = direkt am letzten Text schneiden, 1–2 üblich"
+          :label="t('appliances.escposFeedLines')"
+          :hint="t('appliances.escposFeedHint')"
           persistent-hint
           hide-details="auto"
         />
       </div>
 
       <div class="form-field">
-        <v-text-field v-model="form.model" label="Modell (optional)" placeholder="z. B. HP LaserJet Pro" hide-details="auto" />
+        <v-text-field v-model="form.model" :label="t('appliances.modelOptional')" :placeholder="t('appliances.modelPlaceholder')" hide-details="auto" />
       </div>
 
       <div class="form-field">
-        <v-textarea v-model="form.comment" label="Bemerkung (optional)" rows="3" placeholder="Notizen zum Gerät" hide-details="auto" />
+        <v-textarea v-model="form.comment" :label="t('appliances.commentOptional')" rows="3" :placeholder="t('appliances.commentPlaceholder')" hide-details="auto" />
       </div>
 
       <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" type="submit">Speichern</v-btn>
+        <v-btn variant="outlined" type="button" @click="resetForm">{{ t('appliances.back') }}</v-btn>
+        <v-btn color="primary" type="submit">{{ t('common.save') }}</v-btn>
       </div>
       </v-form>
 
       <template v-if="editMode && applianceDetail">
         <div v-if="applianceDetail.type === 'server'" class="lending-section edge-server-section">
-          <h3>Edge-Anbindung (On-Prem / Pi)</h3>
+          <h3>{{ t('appliances.edge.title') }}</h3>
 
           <div class="pairing-panel">
-            <h4>Raspberry Pi SD-Karten</h4>
+            <h4>{{ t('appliances.edge.sdCardsTitle') }}</h4>
             <p class="edge-credentials-hint">
-              Jede gekoppelte SD-Karte erhält eigene Zugangsdaten. Es darf immer nur eine Karte pro Server aktiv laufen.
+              {{ t('appliances.edge.hint') }}
             </p>
             <v-btn color="primary" type="button" :disabled="pairingLoading" @click="createPairingSession">
-              Kopplungscode für weitere SD-Karte erzeugen
+              {{ t('appliances.edge.createPairingCode') }}
             </v-btn>
             <div v-if="pairingSession" class="pairing-code-card">
-              <span class="pairing-code-label">Kopplungscode</span>
+              <span class="pairing-code-label">{{ t('appliances.edge.pairingCodeLabel') }}</span>
               <strong>{{ pairingSession.pairing_code_display }}</strong>
               <p>
-                Öffnen Sie <code>{{ pairingSession.setup_url }}</code> auf der neuen SD-Karte und geben Sie diesen Code ein.
-                Gültig bis {{ formatDeDateTime(pairingSession.expires_at) }}.
+                {{ t('appliances.edge.pairingInstructionsBefore') }}
+                <code>{{ pairingSession.setup_url }}</code>
+                {{ t('appliances.edge.pairingInstructionsAfter', { expiresAt: formatDeDateTime(pairingSession.expires_at) }) }}
               </p>
             </div>
             <p v-if="pairingMessage" :class="pairingMessageType">{{ pairingMessage }}</p>
@@ -101,7 +102,7 @@
               class="vq-data-table edge-installations-table"
               hide-default-footer
             >
-              <template #item.label="{ item }">{{ item.label || `SD-Karte ${item.id}` }}</template>
+              <template #item.label="{ item }">{{ item.label || t('appliances.edge.sdCardLabel', { id: item.id }) }}</template>
               <template #item.edge_client_id="{ item }">
                 <span class="cell-truncate" :title="item.edge_client_id">{{ item.edge_client_id }}</span>
               </template>
@@ -111,7 +112,7 @@
                   size="small"
                   variant="tonal"
                 >
-                  {{ item.status === 'active' ? 'Aktiv' : 'Gesperrt' }}
+                  {{ item.status === 'active' ? t('appliances.edge.statusActive') : t('appliances.edge.statusBlocked') }}
                 </v-chip>
               </template>
               <template #item.last_seen_at="{ item }">{{ formatDeDateTime(item.last_seen_at) }}</template>
@@ -123,7 +124,7 @@
                   type="button"
                   @click="revokeEdgeCredential(item.id)"
                 >
-                  Sperren
+                  {{ t('appliances.edge.revoke') }}
                 </v-btn>
                 <v-btn
                   v-else
@@ -133,18 +134,18 @@
                   type="button"
                   @click="deleteEdgeCredential(item.id)"
                 >
-                  Löschen
+                  {{ t('common.delete') }}
                 </v-btn>
               </template>
-              <template #no-data>Keine gekoppelten SD-Karten.</template>
+              <template #no-data>{{ t('appliances.edge.noSdCards') }}</template>
             </VqDataTable>
           </div>
         </div>
 
         <div class="lending-section">
-          <h3>Ausleihen</h3>
+          <h3>{{ t('appliances.lending.title') }}</h3>
           <p v-if="lendingStatusLent" class="lending-hint">
-            Dieses Gerät ist aktuell ausgeliehen. Weitere Ausleihen sind nur möglich, wenn sich die Zeiträume nicht mit einer offenen Ausleihe überschneiden (z. B. geplante Ausleihe nach Ende der aktuellen Periode).
+            {{ t('appliances.lending.lentHint') }}
           </p>
           <div class="lending-form">
             <div class="form-field">
@@ -153,8 +154,8 @@
                 :items="organisationOptions"
                 item-title="label"
                 item-value="value"
-                label="Organisation"
-                placeholder="Organisation wählen"
+                :label="t('appliances.lending.organisation')"
+                :placeholder="t('appliances.lending.organisationPlaceholder')"
                 :disabled="!organisationOptions.length"
                 hide-details="auto"
               />
@@ -162,8 +163,8 @@
             <div class="form-field">
               <v-date-input
                 v-model="lendForm.startDate"
-                label="Startdatum"
-                placeholder="Startdatum"
+                :label="t('appliances.lending.startDate')"
+                :placeholder="t('appliances.lending.startDate')"
                 prepend-icon=""
                 prepend-inner-icon="mdi-calendar"
                 hide-details="auto"
@@ -174,8 +175,8 @@
             <div class="form-field">
               <v-date-input
                 v-model="lendForm.endDate"
-                label="Enddatum"
-                placeholder="Enddatum"
+                :label="t('appliances.lending.endDate')"
+                :placeholder="t('appliances.lending.endDate')"
                 prepend-icon=""
                 prepend-inner-icon="mdi-calendar"
                 hide-details="auto"
@@ -185,14 +186,14 @@
             </div>
             <small v-if="lendRangeHint" class="lend-range-hint">{{ lendRangeHint }}</small>
             <v-btn color="primary" type="button" :disabled="!canSubmitLend" @click="submitLend">
-              Ausleihen
+              {{ t('appliances.lending.lend') }}
             </v-btn>
           </div>
           <p v-if="lendingMessage" :class="lendingMessageType">{{ lendingMessage }}</p>
         </div>
 
         <div class="lending-section">
-          <h3>Historie</h3>
+          <h3>{{ t('appliances.lending.history') }}</h3>
           <VqDataTable
             :headers="lendingHistoryHeaders"
             :items="applianceDetail.lendings || []"
@@ -211,7 +212,7 @@
                 type="button"
                 @click="returnLending(item.id)"
               >
-                Zurückgeben
+                {{ t('appliances.lending.return') }}
               </v-btn>
               <v-btn
                 v-else-if="item.segment === 'future'"
@@ -221,11 +222,11 @@
                 :disabled="cancellingLendingId === item.id"
                 @click="cancelPlannedLendingRow(item.id)"
               >
-                Stornieren
+                {{ t('appliances.lending.cancel') }}
               </v-btn>
-              <span v-else>—</span>
+              <span v-else>{{ t('common.emDash') }}</span>
             </template>
-            <template #no-data>Keine Ausleihen.</template>
+            <template #no-data>{{ t('appliances.lending.noLendings') }}</template>
           </VqDataTable>
         </div>
       </template>
@@ -235,16 +236,16 @@
 
     <template #table>
       <div class="table-header">
-        <h2>Alle Geräte</h2>
-        <span>{{ filteredAppliances.length }} von {{ appliances.length }} Einträgen</span>
+        <h2>{{ t('appliances.table.all') }}</h2>
+        <span>{{ t('appliances.table.entryCount', { filtered: filteredAppliances.length, total: appliances.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
           <v-text-field
             v-model="searchQuery"
-            label="Suche"
+            :label="t('common.search')"
             prepend-inner-icon="mdi-magnify"
-            placeholder="Name, Typ, IP, Modell oder Bemerkung suchen..."
+            :placeholder="t('appliances.table.searchPlaceholder')"
             hide-details
             density="compact"
           />
@@ -255,7 +256,7 @@
             :items="typeFilterOptions"
             item-title="label"
             item-value="value"
-            label="Typ"
+            :label="t('appliances.type')"
             hide-details
             density="compact"
           />
@@ -266,7 +267,7 @@
             :items="ipFilterOptions"
             item-title="label"
             item-value="value"
-            label="IP-Adresse"
+            :label="t('appliances.ipAddress')"
             hide-details
             density="compact"
           />
@@ -293,22 +294,22 @@
             {{ lendingStatusLabel(item.lending_status) }}
           </v-chip>
         </template>
-        <template #item.organisation="{ item }">{{ item.current_lending?.organisation_name || '—' }}</template>
+        <template #item.organisation="{ item }">{{ item.current_lending?.organisation_name || t('common.emDash') }}</template>
         <template #item.end_date="{ item }">
-          {{ item.current_lending?.end_date ? formatDeDate(item.current_lending.end_date) : '—' }}
+          {{ item.current_lending?.end_date ? formatDeDate(item.current_lending.end_date) : t('common.emDash') }}
         </template>
         <template #item.ip_address="{ item }">
-          {{ item.type === 'printer' ? item.ip_address || '—' : '—' }}
+          {{ item.type === 'printer' ? item.ip_address || t('common.emDash') : t('common.emDash') }}
         </template>
         <template #item.model="{ item }">
-          <span class="cell-truncate" :title="item.model || ''">{{ item.model || '—' }}</span>
+          <span class="cell-truncate" :title="item.model || ''">{{ item.model || t('common.emDash') }}</span>
         </template>
         <template #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteAppliance(item.id)">
-            Löschen
+            {{ t('common.delete') }}
           </v-btn>
         </template>
-        <template #no-data>Keine Geräte gefunden.</template>
+        <template #no-data>{{ t('appliances.table.noResults') }}</template>
       </VqDataTable>
     </template>
   </ListDetailLayout>
@@ -317,6 +318,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import { apiFetch } from '../api'
@@ -334,6 +336,8 @@ import {
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const {
@@ -353,33 +357,36 @@ const messageType = ref('')
 const searchQuery = ref('')
 const typeFilter = ref('')
 const ipFilter = ref('')
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Name', key: 'name', sortable: false },
-  { title: 'Typ', key: 'type', sortable: false },
-  { title: 'Status', key: 'lending_status', sortable: false },
-  { title: 'Organisation', key: 'organisation', sortable: false },
-  { title: 'Bis', key: 'end_date', sortable: false },
-  { title: 'IP', key: 'ip_address', sortable: false },
-  { title: 'Modell', key: 'model', sortable: false },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
 
-const edgeCredentialsHeaders = [
-  { title: 'SD-Karte', key: 'label', sortable: false },
-  { title: 'Client-ID', key: 'edge_client_id', sortable: false },
-  { title: 'Status', key: 'status', sortable: false },
-  { title: 'Zuletzt online', key: 'last_seen_at', sortable: false },
-  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
-]
+const APPLIANCE_TYPES = ['server', 'printer', 'mobile', 'tablet', 'router', 'ap']
 
-const lendingHistoryHeaders = [
-  { title: 'Organisation', key: 'organisation_name' },
-  { title: 'Von', key: 'start_date', sortable: false },
-  { title: 'Bis', key: 'end_date', sortable: false },
-  { title: 'Status', key: 'status', sortable: false },
-  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
-]
+const tableHeaders = computed(() => [
+  { title: t('appliances.table.id'), key: 'id' },
+  { title: t('appliances.table.name'), key: 'name', sortable: false },
+  { title: t('appliances.table.type'), key: 'type', sortable: false },
+  { title: t('appliances.table.status'), key: 'lending_status', sortable: false },
+  { title: t('appliances.table.organisation'), key: 'organisation', sortable: false },
+  { title: t('appliances.table.until'), key: 'end_date', sortable: false },
+  { title: t('appliances.table.ip'), key: 'ip_address', sortable: false },
+  { title: t('appliances.table.model'), key: 'model', sortable: false },
+  { title: t('appliances.table.actions'), key: 'actions', sortable: false, align: 'end' },
+])
+
+const edgeCredentialsHeaders = computed(() => [
+  { title: t('appliances.table.sdCard'), key: 'label', sortable: false },
+  { title: t('appliances.table.clientId'), key: 'edge_client_id', sortable: false },
+  { title: t('appliances.table.status'), key: 'status', sortable: false },
+  { title: t('appliances.table.lastSeen'), key: 'last_seen_at', sortable: false },
+  { title: t('appliances.table.action'), key: 'actions', sortable: false, align: 'end' },
+])
+
+const lendingHistoryHeaders = computed(() => [
+  { title: t('appliances.table.organisation'), key: 'organisation_name' },
+  { title: t('appliances.table.from'), key: 'start_date', sortable: false },
+  { title: t('appliances.table.to'), key: 'end_date', sortable: false },
+  { title: t('appliances.table.status'), key: 'status', sortable: false },
+  { title: t('appliances.table.action'), key: 'actions', sortable: false, align: 'end' },
+])
 
 const organisations = ref([])
 const applianceDetail = ref(null)
@@ -413,30 +420,26 @@ const isAutoNamed = computed(() => form.value.type === 'server' || form.value.ty
 
 const autoNameHint = computed(() => {
   if (form.value.type === 'server') {
-    return 'Server erhalten automatisch den Namen eines griechischen Gottes.'
+    return t('appliances.autoNameHint.server')
   }
   if (form.value.type === 'printer') {
-    return 'Drucker erhalten automatisch den Namen einer Hauptstadt.'
+    return t('appliances.autoNameHint.printer')
   }
   return ''
 })
 
-const TYPE_LABELS = {
-  server: 'Server',
-  printer: 'Drucker',
-  mobile: 'Mobil',
-  tablet: 'Tablet',
-  router: 'Router',
-  ap: 'Access Point',
-}
-
-const typeOptions = Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))
-const typeFilterOptions = [{ value: '', label: 'Alle Typen' }, ...typeOptions]
-const ipFilterOptions = [
-  { value: '', label: 'Alle' },
-  { value: 'with-ip', label: 'Mit IP' },
-  { value: 'without-ip', label: 'Ohne IP' },
-]
+const typeOptions = computed(() =>
+  APPLIANCE_TYPES.map((value) => ({ value, label: t(`applianceType.${value}`) })),
+)
+const typeFilterOptions = computed(() => [
+  { value: '', label: t('appliances.table.allTypes') },
+  ...typeOptions.value,
+])
+const ipFilterOptions = computed(() => [
+  { value: '', label: t('appliances.table.allIp') },
+  { value: 'with-ip', label: t('appliances.table.withIp') },
+  { value: 'without-ip', label: t('appliances.table.withoutIp') },
+])
 
 const organisationOptions = computed(() =>
   organisations.value.map((o) => ({ label: o.name, value: o.id })),
@@ -446,7 +449,7 @@ const lendingStatusLent = computed(() => applianceDetail.value?.lending_status =
 
 const lendEndDateRule = (value) =>
   isValidLendingRange(lendForm.value.startDate, value) ||
-  'Enddatum muss am oder nach dem Startdatum liegen'
+  t('appliances.lending.endDateAfterStart')
 
 const lendRangeHint = computed(() =>
   lendingRangeHint(lendForm.value.startDate, lendForm.value.endDate),
@@ -458,7 +461,9 @@ const canSubmitLend = computed(() => {
 })
 
 function typeLabel(type) {
-  return TYPE_LABELS[type] || type
+  const key = `applianceType.${type}`
+  const translated = t(key)
+  return translated !== key ? translated : type
 }
 
 function matchesSearch(device, term) {
@@ -478,25 +483,25 @@ function matchesSearch(device, term) {
 }
 
 function lendingStatusLabel(status) {
-  return status === 'lent' ? 'Ausgeliehen' : 'Verfügbar'
+  return status === 'lent' ? t('appliances.lending.statusLent') : t('appliances.lending.statusAvailable')
 }
 
 function lendingHistoryStatusLabel(row) {
-  if (row.returned_at) return 'Zurückgegeben'
-  if (row.segment === 'current') return 'Aktiv'
-  if (row.segment === 'future') return 'Geplant'
-  return 'Abgelaufen'
+  if (row.returned_at) return t('appliances.lending.historyReturned')
+  if (row.segment === 'current') return t('appliances.lending.historyActive')
+  if (row.segment === 'future') return t('appliances.lending.historyPlanned')
+  return t('appliances.lending.historyExpired')
 }
 
 function formatDeDate(iso) {
-  if (!iso) return '—'
+  if (!iso) return t('common.emDash')
   const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
   if (!y || !m || !d) return iso
   return new Date(y, m - 1, d).toLocaleDateString('de-DE')
 }
 
 function formatDeDateTime(iso) {
-  if (!iso) return '—'
+  if (!iso) return t('common.emDash')
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('de-DE')
@@ -523,7 +528,7 @@ async function fetchAppliances() {
     const response = await apiFetch('/appliances/')
     appliances.value = await response.json()
   } catch (error) {
-    message.value = 'Geräte konnten nicht geladen werden.'
+    message.value = t('appliances.messages.loadFailed')
     messageType.value = 'error'
   }
 }
@@ -545,7 +550,7 @@ async function fetchApplianceDetail(id) {
     applianceDetail.value = await response.json()
   } catch {
     applianceDetail.value = null
-    lendingMessage.value = 'Ausleihen-Details konnten nicht geladen werden.'
+    lendingMessage.value = t('appliances.lending.detailsLoadFailed')
     lendingMessageType.value = 'error'
   }
 }
@@ -605,7 +610,7 @@ async function syncRouteToForm() {
       if (!response.ok) throw new Error(await response.text())
       row = await response.json()
     } catch {
-      message.value = 'Gerät nicht gefunden.'
+      message.value = t('appliances.messages.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -671,15 +676,15 @@ async function saveAppliance() {
     await fetchAppliances()
     if (wasEdit && savedId) {
       await fetchApplianceDetail(savedId)
-      message.value = 'Gerät aktualisiert.'
+      message.value = t('appliances.messages.updated')
       messageType.value = 'success'
     } else {
-      message.value = 'Gerät erstellt.'
+      message.value = t('appliances.messages.created')
       messageType.value = 'success'
       await goToList()
     }
   } catch (error) {
-    message.value = 'Fehler beim Speichern des Geräts.'
+    message.value = t('appliances.messages.saveFailed')
     messageType.value = 'error'
   }
 }
@@ -697,10 +702,10 @@ async function createPairingSession() {
       return
     }
     pairingSession.value = await response.json()
-    pairingMessage.value = 'Kopplungscode erzeugt.'
+    pairingMessage.value = t('appliances.edge.pairingCreated')
     pairingMessageType.value = 'success'
   } catch {
-    pairingMessage.value = 'Kopplungscode konnte nicht erzeugt werden.'
+    pairingMessage.value = t('appliances.edge.pairingCreateFailed')
     pairingMessageType.value = 'error'
   } finally {
     pairingLoading.value = false
@@ -709,7 +714,7 @@ async function createPairingSession() {
 
 async function revokeEdgeCredential(credentialId) {
   if (!activeId.value || !credentialId) return
-  if (!confirm('Diese SD-Karte wirklich sperren? Sie kann danach nicht mehr mit der Cloud synchronisieren.')) return
+  if (!confirm(t('appliances.edge.confirmRevoke'))) return
   try {
     const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials/${credentialId}/revoke`, {
       method: 'POST',
@@ -721,17 +726,17 @@ async function revokeEdgeCredential(credentialId) {
     }
     applianceDetail.value = await response.json()
     await fetchAppliances()
-    message.value = 'SD-Karte wurde gesperrt.'
+    message.value = t('appliances.edge.revoked')
     messageType.value = 'success'
   } catch {
-    message.value = 'SD-Karte konnte nicht gesperrt werden.'
+    message.value = t('appliances.edge.revokeFailed')
     messageType.value = 'error'
   }
 }
 
 async function deleteEdgeCredential(credentialId) {
   if (!activeId.value || !credentialId) return
-  if (!confirm('Diese gesperrte SD-Karte wirklich löschen? Der Eintrag wird dauerhaft entfernt.')) return
+  if (!confirm(t('appliances.edge.confirmDelete'))) return
   try {
     const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials/${credentialId}`, {
       method: 'DELETE',
@@ -743,16 +748,16 @@ async function deleteEdgeCredential(credentialId) {
     }
     await fetchApplianceDetail(activeId.value)
     await fetchAppliances()
-    message.value = 'SD-Karte wurde gelöscht.'
+    message.value = t('appliances.edge.deleted')
     messageType.value = 'success'
   } catch {
-    message.value = 'SD-Karte konnte nicht gelöscht werden.'
+    message.value = t('appliances.edge.deleteFailed')
     messageType.value = 'error'
   }
 }
 
 async function deleteAppliance(id) {
-  if (!confirm('Gerät wirklich löschen?')) {
+  if (!confirm(t('appliances.messages.confirmDelete'))) {
     return
   }
   try {
@@ -763,13 +768,13 @@ async function deleteAppliance(id) {
       throw new Error(await response.text())
     }
     await fetchAppliances()
-    message.value = 'Gerät gelöscht.'
+    message.value = t('appliances.messages.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Gerät konnte nicht gelöscht werden.'
+    message.value = t('appliances.messages.deleteFailed')
     messageType.value = 'error'
   }
 }
@@ -795,10 +800,10 @@ async function submitLend() {
     applianceDetail.value = await response.json()
     await fetchAppliances()
     resetLendForm()
-    lendingMessage.value = 'Ausleihe angelegt.'
+    lendingMessage.value = t('appliances.lending.lentCreated')
     lendingMessageType.value = 'success'
   } catch {
-    lendingMessage.value = 'Ausleihe konnte nicht angelegt werden.'
+    lendingMessage.value = t('appliances.lending.lendFailed')
     lendingMessageType.value = 'error'
   }
 }
@@ -816,27 +821,27 @@ async function returnLending(lendingId) {
     }
     applianceDetail.value = await response.json()
     await fetchAppliances()
-    lendingMessage.value = 'Gerät zurückgenommen.'
+    lendingMessage.value = t('appliances.lending.returned')
     lendingMessageType.value = 'success'
   } catch {
-    lendingMessage.value = 'Rückgabe fehlgeschlagen.'
+    lendingMessage.value = t('appliances.lending.returnFailed')
     lendingMessageType.value = 'error'
   }
 }
 
 async function cancelPlannedLendingRow(lendingId) {
   if (!activeId.value) return
-  if (!confirm('Geplante Ausleihe wirklich stornieren?')) return
+  if (!confirm(t('appliances.lending.confirmCancel'))) return
   cancellingLendingId.value = lendingId
   lendingMessage.value = ''
   try {
     await cancelPlannedLendingForAppliance(activeId.value, lendingId)
     await fetchApplianceDetail(activeId.value)
     await fetchAppliances()
-    lendingMessage.value = 'Geplante Ausleihe storniert.'
+    lendingMessage.value = t('appliances.lending.cancelled')
     lendingMessageType.value = 'success'
   } catch (e) {
-    lendingMessage.value = e.message || 'Stornierung fehlgeschlagen.'
+    lendingMessage.value = e.message || t('appliances.lending.cancelFailed')
     lendingMessageType.value = 'error'
   } finally {
     cancellingLendingId.value = null

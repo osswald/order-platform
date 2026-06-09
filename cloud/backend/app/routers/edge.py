@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, Request, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -64,10 +65,7 @@ def get_edge_server_appliance(
     x_edge_secret: str | None = Header(None, alias="X-Edge-Secret"),
 ) -> ApplianceEdgeContext:
     if not x_edge_client_id or not x_edge_secret:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing X-Edge-Client-Id or X-Edge-Secret",
-        )
+        raise api_error("missing_edge_headers", status.HTTP_401_UNAUTHORIZED)
     edge_credential = (
         db.query(ApplianceEdgeCredential)
         .join(Appliance, Appliance.id == ApplianceEdgeCredential.appliance_id)
@@ -80,10 +78,10 @@ def get_edge_server_appliance(
         .first()
     )
     if edge_credential is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
+        raise api_error("invalid_device", status.HTTP_401_UNAUTHORIZED)
     appliance = edge_credential.appliance
     if not verify_password(x_edge_secret, edge_credential.edge_secret_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credentials")
+        raise api_error("invalid_device_credentials", status.HTTP_401_UNAUTHORIZED)
 
     today = _utc_today()
     lending = (
@@ -98,16 +96,10 @@ def get_edge_server_appliance(
         .first()
     )
     if not lending:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No active appliance lending for this device today",
-        )
+        raise api_error("no_active_lending_today", status.HTTP_403_FORBIDDEN)
     org = lending.organisation
     if not org or org.hire_company_id != appliance.hire_company_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Lending organisation does not match appliance Verleiher",
-        )
+        raise api_error("lending_org_mismatch", status.HTTP_403_FORBIDDEN)
     if edge_credential is not None:
         edge_credential.last_seen_at = datetime.now(timezone.utc)
         db.commit()
@@ -306,7 +298,7 @@ def _normalize_pairing_code(code: str) -> str:
 def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depends(get_db)):
     code = _normalize_pairing_code(body.pairing_code)
     if len(code) != 6:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Pairing code must have 6 digits")
+        raise api_error("pairing_code_must_6_digits", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
     now = datetime.now(timezone.utc)
     sessions = (
@@ -321,7 +313,7 @@ def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depe
     )
     matched = next((session for session in sessions if verify_password(code, session.code_hash)), None)
     if matched is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired pairing code")
+        raise api_error("invalid_or_expired_pairing_code", status.HTTP_401_UNAUTHORIZED)
 
     appliance = matched.appliance
     secret = secrets.token_urlsafe(32)
@@ -444,7 +436,7 @@ def unpair_edge_device(
 ):
     credential = ctx.edge_credential
     if credential is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device")
+        raise api_error("invalid_device", status.HTTP_401_UNAUTHORIZED)
     if credential.status != "revoked" or credential.revoked_at is None:
         credential.status = "revoked"
         credential.revoked_at = datetime.now(timezone.utc)
@@ -464,14 +456,11 @@ def submit_edge_order(
 
     event = _load_event_for_org(db, body.event_id, ctx.organisation_id)
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
+        raise api_error("event_not_found_for_organisation", status.HTTP_404_NOT_FOUND)
 
     ev_status = (event.status or "config").lower()
     if ev_status not in ORDER_ACCEPT_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Event status {ev_status} does not accept orders",
-        )
+        raise api_error("event_status_does_not_accept_orders", status.HTTP_403_FORBIDDEN, status=ev_status)
 
     lines = (body.payload or {}).get("lines") or []
     stock_lines = [
@@ -535,7 +524,7 @@ def submit_operational_chunk(
 ):
     event = _load_event_for_org(db, body.event_id, ctx.organisation_id)
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
+        raise api_error("event_not_found_for_organisation", status.HTTP_404_NOT_FOUND)
 
     payload = body.payload or {}
     entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()

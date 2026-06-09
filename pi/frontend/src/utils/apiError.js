@@ -1,12 +1,21 @@
+function extractDetailMessage(detail) {
+  if (typeof detail === 'string') return detail
+  if (detail && typeof detail === 'object') {
+    if (typeof detail.message === 'string') return detail.message
+    return JSON.stringify(detail)
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((entry) => (entry && typeof entry.msg === 'string' ? entry.msg : JSON.stringify(entry)))
+      .join('; ')
+  }
+  return null
+}
+
 export function parseApiErrorDetail(data, fallbackText = '') {
   if (typeof data === 'object' && data !== null) {
-    if (typeof data.detail === 'string') return data.detail
-    if (Array.isArray(data.detail)) {
-      return data.detail
-        .map((entry) => (entry && typeof entry.msg === 'string' ? entry.msg : JSON.stringify(entry)))
-        .join('; ')
-    }
-    if (data.detail) return JSON.stringify(data.detail)
+    const message = extractDetailMessage(data.detail)
+    if (message) return message
   }
   if (typeof data === 'string' && data) return data
   return fallbackText

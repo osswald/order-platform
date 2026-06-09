@@ -1,3 +1,5 @@
+import { currentLocale } from './i18n'
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 export function apiBaseUrl() {
@@ -33,6 +35,7 @@ export async function refreshAccessToken() {
   const res = await fetch(apiUrl('/auth/refresh'), {
     method: 'POST',
     credentials: 'include',
+    headers: { 'Accept-Language': currentLocale() },
   })
   if (!res.ok) return false
   const data = await res.json().catch(() => null)
@@ -59,6 +62,9 @@ export async function apiFetch(path, options = {}) {
   const { _retry, ...rest } = options
   const url = path.startsWith('http') ? path : apiUrl(path)
   const headers = new Headers(rest.headers || {})
+  if (!headers.has('Accept-Language')) {
+    headers.set('Accept-Language', currentLocale())
+  }
   const token = localStorage.getItem('access_token')
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`)

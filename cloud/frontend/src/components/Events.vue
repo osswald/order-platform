@@ -1,18 +1,18 @@
 <template>
   <ListDetailLayout
-    title="Veranstaltungen"
-    subtitle="Events verwalten und nach Organisation sichtbar machen."
-    createLabel="Neue Veranstaltung"
+    :title="t('events.title')"
+    :subtitle="t('events.subtitle')"
+    :createLabel="t('events.createLabel')"
     :showCreate="canCreateEvents"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
     <template #detail>
       <div class="detail-header-row">
-        <h2>{{ editMode ? 'Veranstaltung bearbeiten' : 'Neue Veranstaltung' }}</h2>
+        <h2>{{ editMode ? t('events.editTitle') : t('events.createTitle') }}</h2>
         <HelpLink v-if="editMode" slug="event-setup" variant="icon" />
       </div>
-      <p v-if="!editMode" class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <p v-if="!editMode" class="form-required-legend"><span class="vq-asterisk">*</span> {{ t('common.requiredLegend') }}</p>
 
       <EventConfiguration
         v-if="editMode && activeId"
@@ -46,11 +46,11 @@
               @remove="removeTwintQr"
             />
             <div class="actions">
-              <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
+              <v-btn variant="outlined" type="button" @click="resetForm">{{ t('appliances.back') }}</v-btn>
               <v-btn variant="outlined" type="button" :disabled="copyBusy" @click="copyEvent">
-                Event kopieren
+                {{ t('events.copyEvent') }}
               </v-btn>
-              <v-btn color="primary" type="submit">Speichern</v-btn>
+              <v-btn color="primary" type="submit">{{ t('common.save') }}</v-btn>
             </div>
             <p v-if="message" :class="messageType">{{ message }}</p>
           </v-form>
@@ -74,8 +74,8 @@
           @remove="removeTwintQr"
         />
         <div class="actions">
-          <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-          <v-btn color="primary" type="submit">Speichern</v-btn>
+          <v-btn variant="outlined" type="button" @click="resetForm">{{ t('appliances.back') }}</v-btn>
+          <v-btn color="primary" type="submit">{{ t('common.save') }}</v-btn>
         </div>
         <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -83,19 +83,19 @@
 
     <template #table>
       <p v-if="activeOrganisationId == null" class="empty-hint">
-        Bitte wählen Sie links eine Organisation.
+        {{ t('common.noOrganisation') }}
       </p>
       <div class="table-header">
-        <h2>Alle Veranstaltungen</h2>
-        <span>{{ filteredEvents.length }} von {{ eventsInActiveOrganisation.length }} Einträgen</span>
+        <h2>{{ t('events.allEvents') }}</h2>
+        <span>{{ t('events.entryCount', { filtered: filteredEvents.length, total: eventsInActiveOrganisation.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
           <v-text-field
             v-model="searchQuery"
-            label="Suche"
+            :label="t('common.search')"
             prepend-inner-icon="mdi-magnify"
-            placeholder="Name, Organisation oder Währung suchen..."
+            :placeholder="t('events.searchPlaceholder')"
             hide-details
             density="compact"
           />
@@ -106,7 +106,7 @@
             :items="statusFilterOptions"
             item-title="label"
             item-value="value"
-            label="Status"
+            :label="t('events.table.status')"
             hide-details
             density="compact"
           />
@@ -132,10 +132,10 @@
         <template #item.end="{ item }">{{ formatDateTime(item.end) }}</template>
         <template v-if="isAdmin" #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteEvent(item.id)">
-            Löschen
+            {{ t('common.delete') }}
           </v-btn>
         </template>
-        <template #no-data>Keine Veranstaltungen gefunden.</template>
+        <template #no-data>{{ t('events.noResults') }}</template>
       </VqDataTable>
     </template>
   </ListDetailLayout>
@@ -144,6 +144,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import EventConfiguration from './EventConfiguration.vue'
@@ -154,7 +155,10 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { validateForm } from '../utils/formRules.js'
+import { statusLabel } from '../utils/dashboardMetrics'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   isAdmin: {
@@ -185,25 +189,24 @@ const messageType = ref('')
 const searchQuery = ref('')
 const statusFilter = ref('')
 
-const statusOptions = [
-  { value: 'config', label: 'Konfiguration' },
-  { value: 'test', label: 'Testbetrieb' },
-  { value: 'prod', label: 'Produktivbetrieb' },
-  { value: 'archive', label: 'Archiviert' },
-]
-const statusFilterOptions = [{ value: '', label: 'Alle Status' }, ...statusOptions]
+const STATUS_VALUES = ['config', 'test', 'prod', 'archive']
+const PAYMENT_MODE_VALUES = ['instant', 'pay_now', 'pay_later']
+const PAYMENT_TYPE_VALUES = ['cash', 'twint', 'sumup', 'stripe_terminal']
+
+const statusOptions = computed(() =>
+  STATUS_VALUES.map((value) => ({ value, label: t(`eventStatus.${value}`) })),
+)
+const statusFilterOptions = computed(() => [
+  { value: '', label: t('events.allStatus') },
+  ...statusOptions.value,
+])
 const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
-const paymentModeOptions = [
-  { value: 'instant', label: 'Sofort bezahlt' },
-  { value: 'pay_now', label: 'Jetzt bezahlen' },
-  { value: 'pay_later', label: 'Später bezahlen' },
-]
-const paymentTypeOptions = [
-  { value: 'cash', label: 'Bargeld' },
-  { value: 'twint', label: 'TWINT' },
-  { value: 'sumup', label: 'SumUp' },
-  { value: 'stripe_terminal', label: 'Karte (Stripe Terminal)' },
-]
+const paymentModeOptions = computed(() =>
+  PAYMENT_MODE_VALUES.map((value) => ({ value, label: t(`events.paymentMode.${value}`) })),
+)
+const paymentTypeOptions = computed(() =>
+  PAYMENT_TYPE_VALUES.map((value) => ({ value, label: t(`events.paymentType.${value}`) })),
+)
 
 const emptyForm = () => ({
   name: '',
@@ -266,18 +269,14 @@ const canCreateEvents = computed(() => props.activeOrganisationId != null)
 
 const selectableStatusOptions = computed(() => {
   if (!editMode.value) {
-    return statusOptions.filter((o) => o.value === 'config')
+    return statusOptions.value.filter((o) => o.value === 'config')
   }
   const cur = originalStatus.value || form.value.status || 'config'
   const allowed = new Set([cur])
   const next = { config: ['test'], test: ['prod'], prod: ['archive'], archive: [] }[cur] || []
   for (const s of next) allowed.add(s)
-  return statusOptions.filter((o) => allowed.has(o.value))
+  return statusOptions.value.filter((o) => allowed.has(o.value))
 })
-
-function statusLabel(status) {
-  return statusOptions.find((item) => item.value === status)?.label || status
-}
 
 function statusChipColor(status) {
   return {
@@ -290,22 +289,22 @@ function statusChipColor(status) {
 
 const tableHeaders = computed(() => {
   const headers = [
-    { title: 'ID', key: 'id' },
-    { title: 'Name', key: 'name' },
-    { title: 'Status', key: 'status', sortable: false },
-    { title: 'Organisation', key: 'organisation_name' },
-    { title: 'Start', key: 'start', sortable: false },
-    { title: 'Ende', key: 'end', sortable: false },
-    { title: 'Währung', key: 'currency' },
+    { title: t('events.table.id'), key: 'id' },
+    { title: t('events.table.name'), key: 'name' },
+    { title: t('events.table.status'), key: 'status', sortable: false },
+    { title: t('events.table.organisation'), key: 'organisation_name' },
+    { title: t('events.table.start'), key: 'start', sortable: false },
+    { title: t('events.table.end'), key: 'end', sortable: false },
+    { title: t('events.table.currency'), key: 'currency' },
   ]
   if (props.isAdmin) {
-    headers.push({ title: 'Aktionen', key: 'actions', sortable: false, align: 'end' })
+    headers.push({ title: t('events.table.actions'), key: 'actions', sortable: false, align: 'end' })
   }
   return headers
 })
 
 function formatDateTime(value) {
-  if (!value) return '—'
+  if (!value) return t('common.emDash')
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -367,7 +366,7 @@ async function fetchEvents() {
     if (!response.ok) throw new Error(await response.text())
     events.value = await response.json()
   } catch (error) {
-    message.value = 'Veranstaltungen konnten nicht geladen werden.'
+    message.value = t('events.messages.loadFailed')
     messageType.value = 'error'
   }
 }
@@ -410,10 +409,10 @@ async function uploadTwintQr(file) {
     await loadTwintQrPreview()
     const idx = events.value.findIndex((e) => e.id === activeId.value)
     if (idx >= 0) events.value[idx] = { ...events.value[idx], has_twint_qr: true }
-    message.value = 'TWINT QR-Code gespeichert.'
+    message.value = t('events.messages.twintQrSaved')
     messageType.value = 'success'
   } catch {
-    message.value = 'TWINT QR-Code konnte nicht hochgeladen werden.'
+    message.value = t('events.messages.twintQrUploadFailed')
     messageType.value = 'error'
   } finally {
     twintQrBusy.value = false
@@ -430,10 +429,10 @@ async function removeTwintQr() {
     revokeTwintQrPreview()
     const idx = events.value.findIndex((e) => e.id === activeId.value)
     if (idx >= 0) events.value[idx] = { ...events.value[idx], has_twint_qr: false }
-    message.value = 'TWINT QR-Code entfernt.'
+    message.value = t('events.messages.twintQrRemoved')
     messageType.value = 'success'
   } catch {
-    message.value = 'TWINT QR-Code konnte nicht entfernt werden.'
+    message.value = t('events.messages.twintQrRemoveFailed')
     messageType.value = 'error'
   } finally {
     twintQrBusy.value = false
@@ -497,7 +496,7 @@ async function syncRouteToForm() {
       if (!response.ok) throw new Error(await response.text())
       row = await response.json()
     } catch {
-      message.value = 'Veranstaltung nicht gefunden.'
+      message.value = t('events.messages.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -522,8 +521,8 @@ async function editEvent(event) {
 }
 
 function defaultCopyName(name) {
-  const base = (name || '').trim() || 'Event'
-  const suffix = ' (Kopie)'
+  const base = (name || '').trim() || t('events.copy.defaultName')
+  const suffix = t('events.copy.defaultSuffix')
   return base.endsWith(suffix) ? base : `${base}${suffix}`
 }
 
@@ -531,11 +530,11 @@ async function copyEvent() {
   if (!activeId.value) return
   if (!(await validateForm(stammdatenFormRef))) return
   const suggested = defaultCopyName(form.value.name)
-  const entered = window.prompt('Name der kopierten Veranstaltung', suggested)
+  const entered = window.prompt(t('events.copy.prompt'), suggested)
   if (entered === null) return
   const name = entered.trim()
   if (!name) {
-    message.value = 'Name ist erforderlich.'
+    message.value = t('events.copy.nameRequired')
     messageType.value = 'error'
     return
   }
@@ -549,12 +548,12 @@ async function copyEvent() {
     if (!response.ok) throw new Error(await response.text())
     const created = await response.json()
     await fetchEvents()
-    message.value = `Veranstaltung «${created.name}» erstellt.`
+    message.value = t('events.copy.created', { name: created.name })
     messageType.value = 'success'
     await goToDetail(created.id)
     await applyEventToForm(created)
   } catch {
-    message.value = 'Event konnte nicht kopiert werden.'
+    message.value = t('events.copy.failed')
     messageType.value = 'error'
   } finally {
     copyBusy.value = false
@@ -563,7 +562,7 @@ async function copyEvent() {
 
 async function saveEvent() {
   if (props.activeOrganisationId == null) {
-    message.value = 'Bitte wählen Sie links eine Organisation.'
+    message.value = t('common.noOrganisation')
     messageType.value = 'error'
     return
   }
@@ -572,9 +571,7 @@ async function saveEvent() {
     editMode.value &&
     originalStatus.value === 'test' &&
     form.value.status === 'prod' &&
-    !confirm(
-      'Wechsel zu Produktivbetrieb: Alle Testbestellungen auf dem Pi, Statistiken in der Cloud und Bestandsänderungen aus dem Testbetrieb werden gelöscht bzw. zurückgesetzt. Fortfahren?'
-    )
+    !confirm(t('events.confirmProd'))
   ) {
     return
   }
@@ -616,30 +613,30 @@ async function saveEvent() {
       await eventConfigurationRef.value?.loadConfiguration?.()
     }
     await fetchEvents()
-    message.value = wasEdit ? 'Veranstaltung aktualisiert.' : 'Veranstaltung erstellt.'
+    message.value = wasEdit ? t('events.messages.updated') : t('events.messages.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern der Veranstaltung.'
+    message.value = t('events.messages.saveFailed')
     messageType.value = 'error'
   }
 }
 
 async function deleteEvent(id) {
-  if (!confirm('Veranstaltung wirklich löschen?')) return
+  if (!confirm(t('events.confirmDelete'))) return
   try {
     const response = await apiFetch(`/events/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) throw new Error(await response.text())
     await fetchEvents()
-    message.value = 'Veranstaltung gelöscht.'
+    message.value = t('events.messages.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Veranstaltung konnte nicht gelöscht werden.'
+    message.value = t('events.messages.deleteFailed')
     messageType.value = 'error'
   }
 }

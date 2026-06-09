@@ -6,7 +6,8 @@ import uuid
 import re
 from datetime import date, datetime, timezone
 
-from fastapi import HTTPException, status
+from fastapi import status
+from .i18n.errors import api_error
 from sqlalchemy.orm import Session, joinedload
 
 from .models import (
@@ -62,10 +63,7 @@ def assert_printer_eligible(db: Session, event: Event, appliance_id: int | None)
         return
     allowed = {a.id for a in event_printer_candidates(db, event)}
     if appliance_id not in allowed:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Selected printer is not available via a current or planned lending for this organisation",
-        )
+        raise api_error("printer_not_available_via_lending", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def article_ids_in_event_organisation(db: Session, event: Event, article_ids: list[int]) -> bool:
@@ -89,17 +87,11 @@ def assert_station_articles_in_org(db: Session, event: Event, article_ids: list[
     if not article_ids:
         return
     if not article_ids_in_event_organisation(db, event, article_ids):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="One or more articles are not in this event's organisation",
-        )
+        raise api_error("articles_not_in_organisation", status.HTTP_422_UNPROCESSABLE_ENTITY)
     rows = db.query(Article.id, Article.is_addition).filter(Article.id.in_(list(set(article_ids)))).all()
     for aid, is_addition in rows:
         if is_addition:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Zusatz article {aid} cannot be assigned to a station",
-            )
+            raise api_error("zusatz_cannot_assign_station", status.HTTP_422_UNPROCESSABLE_ENTITY, article_id=aid)
 
 
 def station_article_union_from_payload(stations_payload: list) -> set[int]:
@@ -119,13 +111,7 @@ def assert_cell_articles_subset_of_stations(
         for cell in layout.cells:
             for aid in cell.article_ids:
                 if aid not in allowed:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail=(
-                            f"Layout cell ({cell.row},{cell.col}) references article {aid} "
-                            "that is not linked to any station for this event"
-                        ),
-                    )
+                    raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def assert_source_waiter_in_org(db: Session, event: Event, source_waiter_id: int | None) -> None:
@@ -133,19 +119,13 @@ def assert_source_waiter_in_org(db: Session, event: Event, source_waiter_id: int
         return
     w = db.query(Waiter).filter(Waiter.id == source_waiter_id).first()
     if not w or w.organisation_id != event.organisation_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="source_waiter_id must reference a waiter in the same organisation as the event",
-        )
+        raise api_error("source_waiter_wrong_organisation", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def assert_exactly_one_default_layout(layouts_payload: list) -> None:
     defaults = [lo for lo in layouts_payload if lo.is_default]
     if len(defaults) != 1:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Exactly one app layout must have is_default=true",
-        )
+        raise api_error("exactly_one_default_layout", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def assert_cash_registers_valid(db: Session, event: Event, registers_payload: list, layouts_payload: list) -> None:
@@ -157,16 +137,10 @@ def assert_cash_registers_valid(db: Session, event: Event, registers_payload: li
     for reg in registers_payload:
         prefix = str(getattr(reg, "pickup_code_prefix", "") or "").strip().upper()
         if not PICKUP_PREFIX_RE.match(prefix):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Cash-register pickup prefix must contain 1-3 letters A-Z",
-            )
+            raise api_error("pickup_prefix_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
         layout_uuid = str(getattr(reg, "layout_uuid", "") or "").strip()
         if layout_uuid not in layout_uuids:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Cash register must reference an app layout from this event",
-            )
+            raise api_error("cash_register_layout_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
         assert_printer_eligible(db, event, getattr(reg, "receipt_printer_appliance_id", None))
 
 
@@ -176,16 +150,10 @@ def assert_layout_cells_within_grid(layouts_payload: list) -> None:
         seen: set[tuple[int, int]] = set()
         for cell in layout.cells:
             if not (0 <= cell.row < h and 0 <= cell.col < w):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Cell ({cell.row},{cell.col}) out of bounds for grid {w}x{h}",
-                )
+                raise api_error("cell_out_of_bounds", status.HTTP_422_UNPROCESSABLE_ENTITY, row=cell.row, col=cell.col, width=w, height=h)
             key = (cell.row, cell.col)
             if key in seen:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Duplicate cell position ({cell.row},{cell.col}) in one layout",
-                )
+                raise api_error("duplicate_cell_position", status.HTTP_422_UNPROCESSABLE_ENTITY, row=cell.row, col=cell.col)
             seen.add(key)
 
 
@@ -206,10 +174,7 @@ def assert_station_printer_rules_valid(db: Session, event: Event, stations_paylo
     if not bool(getattr(event, "alternative_printers_enabled", False)):
         for st in stations_payload:
             if getattr(st, "printer_rules", None):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Printer rules require alternative_printers_enabled on the event",
-                )
+                raise api_error("alternative_printers_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
         return
 
     for st in stations_payload:
@@ -224,41 +189,23 @@ def assert_station_printer_rules_valid(db: Session, event: Event, stations_paylo
                 t_from = getattr(rule, "table_from", None)
                 t_to = getattr(rule, "table_to", None)
                 if t_from is None or t_to is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Table-range printer rules require table_from and table_to",
-                    )
+                    raise api_error("table_range_fields_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
                 t_from_i, t_to_i = int(t_from), int(t_to)
                 if not (1 <= t_from_i <= 99999 and 1 <= t_to_i <= 99999 and t_from_i <= t_to_i):
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Table range must be between 1 and 99999 with table_from <= table_to",
-                    )
+                    raise api_error("table_range_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
                 for existing_from, existing_to in ranges:
                     if not (t_to_i < existing_from or t_from_i > existing_to):
-                        raise HTTPException(
-                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail="Table ranges for one station must not overlap",
-                        )
+                        raise api_error("table_ranges_overlap", status.HTTP_422_UNPROCESSABLE_ENTITY)
                 ranges.append((t_from_i, t_to_i))
             elif rtype == "pickup_prefix":
                 prefix = str(getattr(rule, "pickup_prefix", "") or "").strip().upper()
                 if not PICKUP_PREFIX_RE.match(prefix):
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Pickup-prefix printer rules require 1-3 letters A-Z",
-                    )
+                    raise api_error("pickup_prefix_rule_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
                 if prefix in prefixes:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Duplicate pickup prefix in station printer rules",
-                    )
+                    raise api_error("duplicate_pickup_prefix", status.HTTP_422_UNPROCESSABLE_ENTITY)
                 prefixes.add(prefix)
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Unknown printer rule type: {rtype}",
-                )
+                raise api_error("unknown_printer_rule_type", status.HTTP_422_UNPROCESSABLE_ENTITY, rule_type=rtype)
 
 
 def assert_kitchen_monitors_valid(
@@ -270,10 +217,7 @@ def assert_kitchen_monitors_valid(
 ) -> None:
     if not bool(getattr(event, "kitchen_monitors_enabled", False)):
         if kitchen_monitors_payload:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Kitchen monitor printers require kitchen_monitors_enabled on the event",
-            )
+            raise api_error("kitchen_monitors_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
         return
     allowed = station_printer_appliance_ids(stations_payload)
     for reg in cash_registers_payload:
@@ -284,23 +228,14 @@ def assert_kitchen_monitors_valid(
     for idx, row in enumerate(kitchen_monitors_payload):
         pid = getattr(row, "printer_appliance_id", None)
         if pid is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Each kitchen monitor entry requires a printer",
-            )
+            raise api_error("kitchen_monitor_printer_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
         pid_int = int(pid)
         if pid_int in seen:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Duplicate printer in kitchen monitor list",
-            )
+            raise api_error("duplicate_kitchen_monitor_printer", status.HTTP_422_UNPROCESSABLE_ENTITY)
         seen.add(pid_int)
         assert_printer_eligible(db, event, pid_int)
         if allowed and pid_int not in allowed:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Kitchen monitor printer must be assigned to a station or cash register in this event",
-            )
+            raise api_error("kitchen_monitor_printer_unassigned", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def replace_event_configuration(

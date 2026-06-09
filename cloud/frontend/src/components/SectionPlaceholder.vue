@@ -11,15 +11,16 @@
 </template>
 
 <script setup>
+import { i18n } from '../i18n'
+
 defineProps({
   title: {
     type: String,
-    default: 'Bereich in Arbeit',
+    default: () => i18n.global.t('layout.placeholder.title'),
   },
   description: {
     type: String,
-    default:
-      'Diese Sektion ist bereits geplant und wird in Kürze mit Echtzeitdaten aus dem Vendiqo ERP erweitert.',
+    default: () => i18n.global.t('layout.placeholder.description'),
   },
 })
 </script>

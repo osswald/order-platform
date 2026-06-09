@@ -1,7 +1,7 @@
 <template>
   <div class="event-cash-sessions-tab">
     <div class="section-toolbar">
-      <v-btn variant="outlined" type="button" :disabled="loading" @click="load">Aktualisieren</v-btn>
+      <v-btn variant="outlined" type="button" :disabled="loading" @click="load">{{ $t('common.refresh') }}</v-btn>
     </div>
     <p v-if="loadError" class="error">{{ loadError }}</p>
     <v-data-table-server
@@ -17,15 +17,17 @@
       @update:options="onOptionsUpdate"
     >
       <template #item.subject_type="{ item }">
-        {{ item.subject_type === 'cash_register' ? 'Kasse' : 'Kellner' }}
+        {{ item.subject_type === 'cash_register'
+          ? $t('events.tabs.subjectTypeCashRegister')
+          : $t('events.tabs.subjectTypeWaiter') }}
       </template>
       <template #item.opening_balance_cents="{ item }">{{ formatMoney(item.opening_balance_cents) }}</template>
       <template #item.wallet_cents="{ item }">{{ formatMoney(item.wallet_cents) }}</template>
       <template #item.counted_cash_cents="{ item }">
-        {{ item.counted_cash_cents != null ? formatMoney(item.counted_cash_cents) : '—' }}
+        {{ item.counted_cash_cents != null ? formatMoney(item.counted_cash_cents) : $t('common.emDash') }}
       </template>
       <template #item.variance_cents="{ item }">
-        {{ item.variance_cents != null ? formatMoney(item.variance_cents) : '—' }}
+        {{ item.variance_cents != null ? formatMoney(item.variance_cents) : $t('common.emDash') }}
       </template>
       <template #expanded-row="{ columns, item }">
         <tr v-if="item.ledger?.length">
@@ -33,15 +35,15 @@
             <table class="lines-nested">
               <thead>
                 <tr>
-                  <th>Typ</th>
-                  <th>Details</th>
-                  <th class="num">Betrag</th>
+                  <th>{{ $t('events.tabs.ledgerType') }}</th>
+                  <th>{{ $t('events.tabs.ledgerDetails') }}</th>
+                  <th class="num">{{ $t('events.tabs.amount') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(row, idx) in item.ledger" :key="`${item.id}-l-${idx}`">
                   <td>{{ row.entry_type }}</td>
-                  <td>{{ row.method || row.voucher_name || '—' }}</td>
+                  <td>{{ row.method || row.voucher_name || $t('common.emDash') }}</td>
                   <td class="num">{{ formatMoney(row.amount_cents) }}</td>
                 </tr>
               </tbody>
@@ -54,24 +56,27 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { formatAmount } from '../utils/money'
 
+const { t } = useI18n()
+
 const props = defineProps({ eventId: { type: Number, required: true } })
 
-const headers = [
-  { title: 'Art', key: 'subject_type', sortable: true },
-  { title: 'Name', key: 'subject_name', sortable: true },
-  { title: 'Kellner', key: 'operator_waiter_name', sortable: false },
-  { title: 'Status', key: 'status', sortable: true },
-  { title: 'Eröffnet', key: 'started_at', sortable: true },
-  { title: 'Geschlossen', key: 'ended_at', sortable: true },
-  { title: 'Wechselgeld', key: 'opening_balance_cents', sortable: true, align: 'end' },
-  { title: 'Wallet Soll', key: 'wallet_cents', sortable: true, align: 'end' },
-  { title: 'Gezählt', key: 'counted_cash_cents', sortable: true, align: 'end' },
-  { title: 'Differenz', key: 'variance_cents', sortable: true, align: 'end' },
-]
+const headers = computed(() => [
+  { title: t('events.tabs.subjectType'), key: 'subject_type', sortable: true },
+  { title: t('events.tabs.subjectName'), key: 'subject_name', sortable: true },
+  { title: t('events.tabs.operatorWaiter'), key: 'operator_waiter_name', sortable: false },
+  { title: t('events.tabs.status'), key: 'status', sortable: true },
+  { title: t('events.tabs.openedAt'), key: 'started_at', sortable: true },
+  { title: t('events.tabs.closedAtShort'), key: 'ended_at', sortable: true },
+  { title: t('events.tabs.openingBalance'), key: 'opening_balance_cents', sortable: true, align: 'end' },
+  { title: t('events.tabs.walletExpected'), key: 'wallet_cents', sortable: true, align: 'end' },
+  { title: t('events.tabs.counted'), key: 'counted_cash_cents', sortable: true, align: 'end' },
+  { title: t('events.tabs.variance'), key: 'variance_cents', sortable: true, align: 'end' },
+])
 
 const loading = ref(false)
 const loadError = ref('')
@@ -108,7 +113,7 @@ async function load() {
     items.value = data.items || []
     totalItems.value = data.total ?? 0
   } catch (e) {
-    loadError.value = e.message || 'Laden fehlgeschlagen'
+    loadError.value = e.message || t('events.tabs.loadFailed')
     items.value = []
     totalItems.value = 0
   } finally {

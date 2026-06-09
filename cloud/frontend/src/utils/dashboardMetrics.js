@@ -1,14 +1,16 @@
-/** Event status labels (aligned with cloud/backend/app/event_status.py). */
-export const EVENT_STATUS_LABELS = {
-  config: 'Konfiguration',
-  test: 'Testbetrieb',
-  prod: 'Produktivbetrieb',
-  archive: 'Archiviert',
+import { i18n } from '../i18n'
+import { formatDateRange } from './localeFormat'
+
+function t(key, params) {
+  return i18n.global.t(key, params)
 }
 
 export function statusLabel(status) {
   const key = String(status || '').toLowerCase()
-  return EVENT_STATUS_LABELS[key] || status || '—'
+  const labelKey = `eventStatus.${key}`
+  const translated = t(labelKey)
+  if (translated !== labelKey) return translated
+  return status || t('common.emDash')
 }
 
 export function eventsByStatus(events) {
@@ -21,14 +23,19 @@ export function eventsByStatus(events) {
 }
 
 export function runningEvents(events, now = new Date()) {
-  const t = now.getTime()
+  const tMs = now.getTime()
   return (events || []).filter((event) => {
     const status = String(event.status || '').toLowerCase()
     if (status !== 'test' && status !== 'prod') return false
     const start = event.start ? new Date(event.start).getTime() : NaN
     const end = event.end ? new Date(event.end).getTime() : NaN
-    return !Number.isNaN(start) && !Number.isNaN(end) && start <= t && t <= end
+    return !Number.isNaN(start) && !Number.isNaN(end) && start <= tMs && tMs <= end
   })
+}
+
+export function attentionMessage(item) {
+  if (!item?.type) return ''
+  return t(`dashboard.attentionMessages.${item.type}`, { name: item.event_name ?? '' })
 }
 
 /**
@@ -47,7 +54,6 @@ export function attentionItems(events, now = new Date()) {
         type: 'config_starting_soon',
         event_id: event.id,
         event_name: event.name,
-        message: `„${event.name}" startet bald und ist noch in Konfiguration.`,
       })
     }
 
@@ -56,7 +62,6 @@ export function attentionItems(events, now = new Date()) {
         type: 'missing_twint_qr',
         event_id: event.id,
         event_name: event.name,
-        message: `„${event.name}": TWINT aktiv, aber kein QR-Code hinterlegt.`,
       })
     }
   }
@@ -65,23 +70,15 @@ export function attentionItems(events, now = new Date()) {
 }
 
 export function formatEventDateRange(startIso, endIso) {
-  if (!startIso || !endIso) return '—'
-  try {
-    const opts = { dateStyle: 'short', timeStyle: 'short' }
-    const start = new Date(startIso).toLocaleString('de-CH', opts)
-    const end = new Date(endIso).toLocaleString('de-CH', opts)
-    return `${start} – ${end}`
-  } catch {
-    return '—'
-  }
+  return formatDateRange(startIso, endIso, i18n.global.locale.value)
 }
 
 export function eventsStatDetail(statusCounts, runningCount) {
   const active = (statusCounts?.test || 0) + (statusCounts?.prod || 0)
   const config = statusCounts?.config || 0
   const parts = []
-  if (runningCount > 0) parts.push(`${runningCount} läuft jetzt`)
-  if (active > 0) parts.push(`${active} aktiv`)
-  if (config > 0) parts.push(`${config} in Konfiguration`)
-  return parts.length ? parts.join(' · ') : 'Keine Veranstaltungen'
+  if (runningCount > 0) parts.push(t('dashboard.eventsDetail.runningNow', { count: runningCount }))
+  if (active > 0) parts.push(t('dashboard.eventsDetail.active', { count: active }))
+  if (config > 0) parts.push(t('dashboard.eventsDetail.inConfig', { count: config }))
+  return parts.length ? parts.join(' · ') : t('dashboard.noEvents')
 }

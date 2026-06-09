@@ -2,25 +2,25 @@
   <div class="receipt-profile-fields">
     <v-checkbox
       v-model="model.logo_enabled"
-      label="Logo drucken"
+      :label="$t('receipts.printLogo')"
       hide-details
       density="compact"
     />
     <v-checkbox
       v-model="model.show_event_title"
-      label="Event-Titel anzeigen"
+      :label="$t('receipts.showEventTitle')"
       hide-details
       density="compact"
     />
     <v-checkbox
       v-if="showPriceOption"
       v-model="model.show_price"
-      label="Preise anzeigen"
+      :label="$t('receipts.showPrices')"
       hide-details
       density="compact"
     />
     <div class="form-field">
-      <label>{{ pickupLabel }} — Schriftgröße</label>
+      <label>{{ $t('receipts.fontSizeLabel', { field: resolvedPickupLabel }) }}</label>
       <v-select
         v-model="model.size_table_or_pickup"
         :items="tableSizeOptions"
@@ -31,7 +31,7 @@
       />
     </div>
     <div class="form-field">
-      <label>Bestellpositionen — Schriftgröße</label>
+      <label>{{ $t('receipts.orderLinesFontSize') }}</label>
       <v-select
         v-model="model.size_order_lines"
         :items="lineSizeOptions"
@@ -42,12 +42,12 @@
       />
     </div>
     <div class="form-field">
-      <label>Fußzeile (zentriert, mehrzeilig)</label>
+      <label>{{ $t('receipts.footerLabel') }}</label>
       <v-textarea
         v-model="model.bottom_line"
         rows="3"
         auto-grow
-        placeholder="Optional"
+        :placeholder="$t('receipts.optionalPlaceholder')"
         density="compact"
         hide-details
       />
@@ -56,24 +56,31 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const model = defineModel({ type: Object, required: true })
 
-defineProps({
-  pickupLabel: { type: String, default: 'Tisch / Pickup' },
+const props = defineProps({
+  pickupLabel: { type: String, default: '' },
   /** Kitchen station slips never print prices; only shown for customer pickup profile. */
   showPriceOption: { type: Boolean, default: true },
 })
 
-const tableSizeOptions = [
-  { label: 'Normal', value: 'normal' },
-  { label: 'Groß', value: 'large' },
-  { label: 'Sehr groß', value: 'xlarge' },
-]
+const resolvedPickupLabel = computed(() => props.pickupLabel || t('receipts.tablePickup'))
 
-const lineSizeOptions = [
-  { label: 'Normal', value: 'normal' },
-  { label: 'Groß', value: 'large' },
-]
+const tableSizeOptions = computed(() => [
+  { label: t('receipts.sizeNormal'), value: 'normal' },
+  { label: t('receipts.sizeLarge'), value: 'large' },
+  { label: t('receipts.sizeXLarge'), value: 'xlarge' },
+])
+
+const lineSizeOptions = computed(() => [
+  { label: t('receipts.sizeNormal'), value: 'normal' },
+  { label: t('receipts.sizeLarge'), value: 'large' },
+])
 </script>
 
 <style scoped>

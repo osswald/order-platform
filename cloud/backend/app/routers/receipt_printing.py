@@ -1,7 +1,8 @@
 """Receipt printing configuration and logo upload endpoints."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.responses import Response
+from ..i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
@@ -37,11 +38,11 @@ def _ensure_hire_company_access(
 ) -> HireCompany:
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verleiher not found")
+        raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
     if is_platform_admin(user):
         return company
     if tenant is None or tenant.hire_company_id != hire_company_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this Verleiher")
+        raise api_error("not_allowed_for_verleiher", status.HTTP_403_FORBIDDEN)
     return company
 
 
@@ -81,7 +82,7 @@ def get_hire_company_receipt_logo(
     company = _ensure_hire_company_access(db, hire_company_id, current_user, tenant)
     payload = receipt_logo_bytes(company)
     if not payload:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No receipt logo")
+        raise api_error("no_receipt_logo", status.HTTP_404_NOT_FOUND)
     mime, raw = payload
     return Response(content=raw, media_type=mime)
 
@@ -100,7 +101,7 @@ async def put_hire_company_receipt_logo(
     try:
         store_receipt_logo(company, mime, raw)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
     db.commit()
     return {"ok": True, "has_receipt_logo": True}
 
@@ -150,7 +151,7 @@ def get_organisation_receipt_logo(
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     payload = receipt_logo_bytes(org)
     if not payload:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No receipt logo")
+        raise api_error("no_receipt_logo", status.HTTP_404_NOT_FOUND)
     mime, raw = payload
     return Response(content=raw, media_type=mime)
 
@@ -168,7 +169,7 @@ async def put_organisation_receipt_logo(
     try:
         store_receipt_logo(org, mime, raw)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
     db.commit()
     return {"ok": True, "has_receipt_logo": True}
 
@@ -226,7 +227,7 @@ def get_event_receipt_logo(
     event = _get_event_for_printing(db, current_user, event_id, tenant.hire_company_id)
     payload = receipt_logo_bytes(event)
     if not payload:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No receipt logo")
+        raise api_error("no_receipt_logo", status.HTTP_404_NOT_FOUND)
     mime, raw = payload
     return Response(content=raw, media_type=mime)
 
@@ -245,7 +246,7 @@ async def put_event_receipt_logo(
     try:
         store_receipt_logo(event, mime, raw)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
     db.commit()
     return {"ok": True, "has_receipt_logo": True}
 

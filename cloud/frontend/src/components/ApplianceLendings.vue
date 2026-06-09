@@ -1,7 +1,7 @@
 <template>
   <ListDetailLayout
-    title="Geräteausleihen"
-    subtitle="Ausleihen für die aktive Organisation (nur Lesen)."
+    :title="$t('lending.pageTitle')"
+    :subtitle="$t('lending.pageSubtitle')"
     :showCreate="false"
     :showDetail="false"
   >
@@ -10,26 +10,26 @@
     </template>
     <template #table>
       <p v-if="activeOrganisationId == null" class="empty-hint">
-        Bitte wählen Sie links eine Organisation.
+        {{ $t('common.noOrganisation') }}
       </p>
 
       <template v-else>
         <p v-if="message" :class="messageType">{{ message }}</p>
 
-        <p v-else-if="!lendings" class="muted-hint">Laden…</p>
+        <p v-else-if="!lendings" class="muted-hint">{{ $t('common.loading') }}</p>
 
         <div v-else class="lend-sections">
           <div class="lend-section">
-            <h3>Aktuell ausgeliehene Geräte</h3>
+            <h3>{{ $t('lending.currentTitle') }}</h3>
             <VqDataTable
               :headers="lendingHeaders"
               :items="lendings.current"
               item-value="lending_id"
               hide-default-footer
-              no-data-text="Keine aktiven Ausleihen."
+              :no-data-text="$t('lending.noCurrent')"
               class="vq-data-table list-table lending-table"
             >
-              <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+              <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
               <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
@@ -38,16 +38,16 @@
           </div>
 
           <div class="lend-section">
-            <h3>Geplante Ausleihen</h3>
+            <h3>{{ $t('lending.plannedTitle') }}</h3>
             <VqDataTable
               :headers="plannedLendingHeaders"
               :items="lendings.planned"
               item-value="lending_id"
               hide-default-footer
-              no-data-text="Keine geplanten Ausleihen."
+              :no-data-text="$t('lending.noPlanned')"
               class="vq-data-table list-table lending-table lending-table--planned"
             >
-              <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+              <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
               <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
@@ -59,23 +59,23 @@
                   :disabled="cancellingLendingId === item.lending_id"
                   @click="cancelPlannedLendingRow(item)"
                 >
-                  Stornieren
+                  {{ $t('common.cancelLending') }}
                 </v-btn>
               </template>
             </VqDataTable>
           </div>
 
           <div class="lend-section">
-            <h3>Vergangene Ausleihen</h3>
+            <h3>{{ $t('lending.pastTitle') }}</h3>
             <VqDataTable
               :headers="lendingHeaders"
               :items="lendings.past"
               item-value="lending_id"
               hide-default-footer
-              no-data-text="Keine vergangenen Ausleihen."
+              :no-data-text="$t('lending.noPast')"
               class="vq-data-table list-table lending-table"
             >
-              <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+              <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
               <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
@@ -89,12 +89,19 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import { apiFetch } from '../api'
-import { cancelPlannedLending } from '../utils/applianceLending'
+import {
+  cancelPlannedLending,
+  applianceTypeLabel,
+  formatDeDate,
+} from '../utils/applianceLending'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   activeOrganisationId: {
@@ -109,42 +116,22 @@ const COL_TYPE = { width: '8rem', sortable: false }
 const COL_PERIOD = { width: '14rem', sortable: false }
 const COL_ACTIONS = { align: 'end', width: '9rem', sortable: false }
 
-const lendingHeaders = [
-  { title: 'ID', key: 'appliance_id', ...COL_ID },
-  { title: 'Gerät', key: 'appliance_name', ...COL_NAME, sortable: false },
-  { title: 'Typ', key: 'appliance_type', ...COL_TYPE },
-  { title: 'Zeitraum', key: 'period', ...COL_PERIOD },
-]
+const lendingHeaders = computed(() => [
+  { title: t('common.id'), key: 'appliance_id', ...COL_ID },
+  { title: t('common.appliance'), key: 'appliance_name', ...COL_NAME, sortable: false },
+  { title: t('common.type'), key: 'appliance_type', ...COL_TYPE },
+  { title: t('common.period'), key: 'period', ...COL_PERIOD },
+])
 
-const plannedLendingHeaders = [
-  ...lendingHeaders,
-  { title: 'Aktion', key: 'actions', ...COL_ACTIONS },
-]
+const plannedLendingHeaders = computed(() => [
+  ...lendingHeaders.value,
+  { title: t('common.action'), key: 'actions', ...COL_ACTIONS },
+])
 
 const lendings = ref(null)
 const message = ref('')
 const messageType = ref('')
 const cancellingLendingId = ref(null)
-
-const APPLIANCE_TYPE_LABELS = {
-  server: 'Server',
-  printer: 'Drucker',
-  mobile: 'Mobil',
-  tablet: 'Tablet',
-  router: 'Router',
-  ap: 'Access Point',
-}
-
-function applianceTypeLabel(type) {
-  return APPLIANCE_TYPE_LABELS[type] || type
-}
-
-function formatDeDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Date(y, m - 1, d).toLocaleDateString('de-DE')
-}
 
 async function fetchLendings() {
   message.value = ''
@@ -156,30 +143,30 @@ async function fetchLendings() {
       `/organisations/${props.activeOrganisationId}/appliance-lendings`,
     )
     if (!response.ok) {
-      message.value = 'Ausleihen konnten nicht geladen werden.'
+      message.value = t('lending.loadError')
       messageType.value = 'error'
       return
     }
     lendings.value = await response.json()
   } catch {
-    message.value = 'Ausleihen konnten nicht geladen werden.'
+    message.value = t('lending.loadError')
     messageType.value = 'error'
   }
 }
 
 async function cancelPlannedLendingRow(row) {
   if (props.activeOrganisationId == null || !row?.lending_id) return
-  const label = row.appliance_name || `Gerät #${row.appliance_id}`
-  if (!confirm(`Geplante Ausleihe für „${label}“ wirklich stornieren?`)) return
+  const label = row.appliance_name || t('lending.deviceFallback', { id: row.appliance_id })
+  if (!confirm(t('lending.cancelConfirm', { label }))) return
   cancellingLendingId.value = row.lending_id
   message.value = ''
   try {
     await cancelPlannedLending(props.activeOrganisationId, row.lending_id)
-    message.value = 'Geplante Ausleihe storniert.'
+    message.value = t('lending.cancelSuccess')
     messageType.value = 'success'
     await fetchLendings()
   } catch (e) {
-    message.value = e.message || 'Stornierung fehlgeschlagen.'
+    message.value = e.message || t('lending.cancelFailed')
     messageType.value = 'error'
   } finally {
     cancellingLendingId.value = null

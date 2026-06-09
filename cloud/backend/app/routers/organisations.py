@@ -1,7 +1,8 @@
 from datetime import date, datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -189,9 +190,9 @@ def cancel_organisation_planned_lending(
         .first()
     )
     if not lending:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lending not found")
+        raise api_error("lending_not_found", status.HTTP_404_NOT_FOUND)
     if lending.appliance and lending.appliance.hire_company_id != tenant.hire_company_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Lending not in this Verleiher")
+        raise api_error("lending_not_in_verleiher", status.HTTP_403_FORBIDDEN)
 
     _assert_lending_is_planned(lending, _utc_today())
     db.delete(lending)

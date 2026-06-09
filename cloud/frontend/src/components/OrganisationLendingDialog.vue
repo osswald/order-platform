@@ -5,22 +5,22 @@
     @update:model-value="$emit('update:visible', $event)"
   >
     <v-card class="org-lending-dialog">
-      <v-card-title>Geräte ausleihen</v-card-title>
+      <v-card-title>{{ $t('lending.title') }}</v-card-title>
       <v-card-text>
-        <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+        <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
         <v-form ref="formRef" @submit.prevent="submit">
           <div class="form-field">
-            <FormLabel>Organisation</FormLabel>
-            <p class="org-readonly">{{ organisationName || '—' }}</p>
+            <FormLabel>{{ $t('common.organisation') }}</FormLabel>
+            <p class="org-readonly">{{ organisationName || $t('common.emDash') }}</p>
           </div>
           <div class="field-row">
             <div class="form-field">
-              <FormLabel required>Startdatum</FormLabel>
+              <FormLabel required>{{ $t('lending.startDate') }}</FormLabel>
               <v-menu v-model="startDateMenuOpen" :close-on-content-click="false">
                 <template #activator="{ props: menuProps }">
                   <v-text-field
                     :model-value="startDateDisplay"
-                    placeholder="Startdatum"
+                    :placeholder="$t('lending.startDate')"
                     density="compact"
                     hide-details="auto"
                     readonly
@@ -36,12 +36,12 @@
               </v-menu>
             </div>
             <div class="form-field">
-              <FormLabel required>Enddatum</FormLabel>
+              <FormLabel required>{{ $t('lending.endDate') }}</FormLabel>
               <v-menu v-model="endDateMenuOpen" :close-on-content-click="false">
                 <template #activator="{ props: menuProps }">
                   <v-text-field
                     :model-value="endDateDisplay"
-                    placeholder="Enddatum"
+                    :placeholder="$t('lending.endDate')"
                     density="compact"
                     hide-details="auto"
                     readonly
@@ -60,13 +60,13 @@
           </div>
           <small v-if="rangeHint" class="range-hint">{{ rangeHint }}</small>
           <div class="form-field">
-            <FormLabel required>Geräte</FormLabel>
+            <FormLabel required>{{ $t('common.appliances') }}</FormLabel>
             <v-select
               v-model="selectedIds"
               :items="applianceSelectItems"
               item-title="title"
               item-value="value"
-              placeholder="Geräte wählen"
+              :placeholder="$t('lending.selectAppliances')"
               multiple
               chips
               closable-chips
@@ -77,10 +77,10 @@
               :loading="loadingAppliances"
               :disabled="!canPickAppliances"
             />
-            <small v-if="loadingAppliances">Geräte werden geladen…</small>
-            <small v-else-if="!canPickAppliances">Bitte Start- und Enddatum angeben.</small>
+            <small v-if="loadingAppliances">{{ $t('lending.loadingAppliances') }}</small>
+            <small v-else-if="!canPickAppliances">{{ $t('lending.pickDatesFirst') }}</small>
             <small v-else-if="noAppliancesAvailable" class="muted-hint">
-              Im gewählten Zeitraum sind keine Geräte verfügbar.
+              {{ $t('lending.noAppliancesAvailable') }}
             </small>
           </div>
           <p v-if="submitMessage" :class="submitMessageType">{{ submitMessage }}</p>
@@ -94,7 +94,7 @@
       <v-card-actions class="dialog-actions">
         <v-spacer />
         <v-btn variant="outlined" :disabled="submitting" @click="close">
-          Abbrechen
+          {{ $t('common.cancel') }}
         </v-btn>
         <v-btn
           color="primary"
@@ -102,7 +102,7 @@
           :disabled="submitting"
           @click="submit"
         >
-          Ausleihen
+          {{ $t('common.lend') }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -111,10 +111,13 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { rules, validateForm } from '../utils/formRules.js'
+import { currentLocale } from '../i18n'
+import { collatorLocale } from '../utils/localeFormat'
 import {
   applianceDisplayName,
   applianceTypeLabel,
@@ -126,6 +129,8 @@ import {
   toIsoDate,
   toLocalCalendarDate,
 } from '../utils/applianceLending'
+
+const { t } = useI18n()
 
 const props = defineProps({
   visible: {
@@ -166,7 +171,7 @@ const startDateRule = () => rules.requiredDate(startDate.value)
 const endDateRequiredRule = () => rules.requiredDate(endDate.value)
 const endDateRangeRule = () =>
   isValidLendingRange(startDate.value, endDate.value) ||
-  'Enddatum muss am oder nach dem Startdatum liegen'
+  t('lending.endDateRangeError')
 
 const canPickAppliances = computed(() => isValidLendingRange(startDate.value, endDate.value))
 
@@ -185,6 +190,7 @@ const lendableAppliances = computed(() =>
 )
 
 const applianceOptionGroups = computed(() => {
+  const locale = collatorLocale(currentLocale())
   const byType = new Map()
   for (const a of lendableAppliances.value) {
     const type = a.type || 'other'
@@ -195,10 +201,10 @@ const applianceOptionGroups = computed(() => {
     })
   }
   return [...byType.entries()]
-    .sort(([a], [b]) => applianceTypeLabel(a).localeCompare(applianceTypeLabel(b), 'de'))
+    .sort(([a], [b]) => applianceTypeLabel(a).localeCompare(applianceTypeLabel(b), locale))
     .map(([type, items]) => ({
       label: applianceTypeLabel(type),
-      items: items.sort((x, y) => x.label.localeCompare(y.label, 'de')),
+      items: items.sort((x, y) => x.label.localeCompare(y.label, locale)),
     }))
 })
 
@@ -270,7 +276,7 @@ async function fetchAppliances() {
     selectedIds.value = selectedIds.value.filter((id) => allowed.has(id))
   } catch {
     appliances.value = []
-    submitMessage.value = 'Geräte konnten nicht geladen werden.'
+    submitMessage.value = t('lending.loadAppliancesError')
     submitMessageType.value = 'error'
   } finally {
     loadingAppliances.value = false
@@ -313,7 +319,7 @@ async function submit() {
         ok += 1
       }
     } catch {
-      failures.push({ name, detail: 'Anfrage fehlgeschlagen' })
+      failures.push({ name, detail: t('lending.requestFailed') })
       failedIds.push(applianceId)
     }
   }
@@ -321,18 +327,20 @@ async function submit() {
   submitFailures.value = failures
   const total = selectedIds.value.length
   if (ok === total) {
-    submitMessage.value = `${ok} Ausleihe${ok === 1 ? '' : 'n'} angelegt.`
+    submitMessage.value = ok === 1
+      ? t('lending.createdOne', { count: ok })
+      : t('lending.createdMany', { count: ok })
     submitMessageType.value = 'success'
     emit('completed')
     close()
   } else if (ok > 0) {
-    submitMessage.value = `${ok} von ${total} Ausleihen angelegt.`
+    submitMessage.value = t('lending.partialSuccess', { ok, total })
     submitMessageType.value = 'warn'
     emit('completed')
     selectedIds.value = failedIds
     await fetchAppliances()
   } else {
-    submitMessage.value = 'Keine Ausleihe konnte angelegt werden.'
+    submitMessage.value = t('lending.createFailed')
     submitMessageType.value = 'error'
   }
   submitting.value = false

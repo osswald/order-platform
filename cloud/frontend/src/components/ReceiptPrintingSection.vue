@@ -1,15 +1,15 @@
 <template>
   <div class="receipt-printing-section">
-    <h3>{{ title }}</h3>
-    <p v-if="hint" class="muted hint">{{ hint }}</p>
-    <p v-if="!entityId" class="muted">Zuerst speichern, dann Beleg-Einstellungen bearbeiten.</p>
+    <h3>{{ displayTitle }}</h3>
+    <p v-if="displayHint" class="muted hint">{{ displayHint }}</p>
+    <p v-if="!entityId" class="muted">{{ $t('receipts.saveFirst') }}</p>
     <p v-else-if="loadError" class="error">{{ loadError }}</p>
-    <p v-else-if="loading" class="muted">Laden…</p>
+    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else>
       <div class="form-field logo-field">
-        <label>Logo (Station, Kunde &amp; Zahlungsbeleg)</label>
+        <label>{{ $t('receipts.logoLabel') }}</label>
         <div v-if="logoPreviewUrl" class="logo-preview">
-          <img :src="logoPreviewUrl" alt="Beleg-Logo" />
+          <img :src="logoPreviewUrl" :alt="$t('receipts.logoAlt')" />
         </div>
         <input
           ref="fileInput"
@@ -25,7 +25,7 @@
             :disabled="logoBusy"
             @click="fileInput?.click()"
           >
-            Logo hochladen
+            {{ $t('receipts.uploadLogo') }}
           </v-btn>
           <v-btn
             v-if="hasReceiptLogo || logoPreviewUrl"
@@ -35,38 +35,38 @@
             :disabled="logoBusy"
             @click="removeLogo"
           >
-            Logo entfernen
+            {{ $t('receipts.removeLogo') }}
           </v-btn>
         </div>
-        <small>PNG oder JPEG, max. 200 KB. Upload wird sofort gespeichert.</small>
+        <small>{{ $t('receipts.logoHint') }}</small>
       </div>
 
       <div v-if="isEvent" class="form-field">
-        <label>Event-Titel (Label)</label>
+        <label>{{ $t('receipts.eventTitleLabel') }}</label>
         <v-text-field
           v-model="config.label_event_title"
-          placeholder="Leer = Veranstaltungsname"
+          :placeholder="$t('receipts.eventTitlePlaceholder')"
           density="compact"
           hide-details
         />
-        <small>Nur für diese Veranstaltung. Wird gedruckt, wenn «Event-Titel anzeigen» aktiv ist.</small>
+        <small>{{ $t('receipts.eventTitleHint') }}</small>
       </div>
 
       <v-tabs v-model="receiptTab" density="comfortable" class="receipt-tabs">
-        <v-tab value="station">Station / Küche</v-tab>
-        <v-tab value="customer">Kunde (Abholbeleg)</v-tab>
-        <v-tab value="payment">Belege</v-tab>
+        <v-tab value="station">{{ $t('receipts.tabStation') }}</v-tab>
+        <v-tab value="customer">{{ $t('receipts.tabCustomer') }}</v-tab>
+        <v-tab value="payment">{{ $t('receipts.tabPayment') }}</v-tab>
       </v-tabs>
       <v-window v-model="receiptTab" class="receipt-tab-panels">
         <v-window-item value="station">
           <ReceiptProfileFields
             v-model="config.station_receipt"
-            pickup-label="Tisch / Pickup"
+            :pickup-label="$t('receipts.tablePickup')"
             :show-price-option="false"
           />
         </v-window-item>
         <v-window-item value="customer">
-          <ReceiptProfileFields v-model="config.customer_receipt" pickup-label="Pickup-Code" />
+          <ReceiptProfileFields v-model="config.customer_receipt" :pickup-label="$t('receipts.pickupCode')" />
         </v-window-item>
         <v-window-item value="payment">
           <PaymentReceiptProfileFields v-model="config.payment_receipt" />
@@ -75,7 +75,7 @@
 
       <div v-if="!autosave" class="actions">
         <v-btn color="primary" type="button" :disabled="saving" @click="save">
-          Beleg-Einstellungen speichern
+          {{ $t('receipts.saveSettings') }}
         </v-btn>
       </div>
       <p v-if="saveMessage" class="muted" :class="{ 'error-text': saveMessage && !autosave }">{{ saveMessage }}</p>
@@ -85,19 +85,25 @@
 
 <script setup>
 import { ref, toRef, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import PaymentReceiptProfileFields from './PaymentReceiptProfileFields.vue'
 import ReceiptProfileFields from './ReceiptProfileFields.vue'
 import { useReceiptPrinting } from '../composables/useReceiptPrinting'
+
+const { t } = useI18n()
 
 const props = defineProps({
   apiBasePath: { type: String, default: '' },
   entityId: { type: [Number, String], default: null },
   isEvent: { type: Boolean, default: false },
-  title: { type: String, default: 'Belege' },
+  title: { type: String, default: '' },
   hint: { type: String, default: '' },
 })
 
 const emit = defineEmits(['status-change'])
+
+const displayTitle = computed(() => props.title || t('receipts.title'))
+const displayHint = computed(() => props.hint)
 
 const autosave = computed(() => props.isEvent)
 

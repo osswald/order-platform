@@ -7,6 +7,7 @@ from typing import Any
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -55,11 +56,10 @@ class TerminalPaymentIntentRead(BaseModel):
 
 def _stripe_error(exc: Exception) -> HTTPException:
     if isinstance(exc, StripeConfigError):
-        return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+        return api_error("validation_failed", status.HTTP_503_SERVICE_UNAVAILABLE)
     if isinstance(exc, stripe.error.StripeError):
-        message = getattr(exc, "user_message", None) or str(exc)
-        return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
-    return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Stripe request failed")
+        return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
+    return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
 
 
 def _stripe_attr(obj: Any, key: str, default: Any = None) -> Any:
@@ -81,20 +81,20 @@ def _intent_response(intent) -> TerminalPaymentIntentRead:
 def _terminal_organisation_for_event(db: Session, ctx: ApplianceEdgeContext, event_id: int) -> tuple[Event, Organisation]:
     event = _load_event_for_org(db, event_id, ctx.organisation_id)
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found for organisation")
+        raise api_error("event_not_found_for_organisation", status.HTTP_404_NOT_FOUND)
 
     ev_status = (event.status or "config").lower()
     if ev_status not in ORDER_ACCEPT_STATUSES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Event status {ev_status} does not accept payments")
+        raise api_error("event_status_does_not_accept_payments", status.HTTP_403_FORBIDDEN, status=ev_status)
 
     if STRIPE_TERMINAL_PAYMENT_TYPE not in payment_types_from_event(event):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Stripe Terminal is not enabled for this event")
+        raise api_error("stripe_terminal_not_enabled", status.HTTP_403_FORBIDDEN)
 
     organisation = event.organisation
     if not organisation or not organisation.stripe_account_id:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Organisation has no connected Stripe account")
+        raise api_error("no_stripe_account", status.HTTP_409_CONFLICT)
     if not organisation.stripe_charges_enabled:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Connected Stripe account is not ready for charges")
+        raise api_error("stripe_account_not_ready", status.HTTP_409_CONFLICT)
     return event, organisation
 
 
@@ -150,7 +150,7 @@ def read_terminal_payment_intent(
     db: Session = Depends(get_db),
 ) -> TerminalPaymentIntentRead:
     if not PAYMENT_INTENT_ID_PATTERN.match(payment_intent_id):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid PaymentIntent id")
+        raise api_error("invalid_payment_intent_id", status.HTTP_422_UNPROCESSABLE_ENTITY)
     _, organisation = _terminal_organisation_for_event(db, ctx, event_id)
     try:
         intent = stripe_client.retrieve_terminal_payment_intent(

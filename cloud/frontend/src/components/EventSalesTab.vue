@@ -1,34 +1,34 @@
 <template>
   <div class="event-sales-tab">
     <div class="section-toolbar">
-      <v-btn variant="outlined" type="button" :disabled="loading" @click="loadReport">Aktualisieren</v-btn>
+      <v-btn variant="outlined" type="button" :disabled="loading" @click="loadReport">{{ $t('common.refresh') }}</v-btn>
     </div>
     <p v-if="loadError" class="error">{{ loadError }}</p>
-    <p v-else-if="loading" class="muted">Laden…</p>
+    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else-if="report">
       <div class="sales-summary-section">
         <div class="summary-grid">
           <div class="summary-card">
-            <span class="summary-label">Bestellungen</span>
+            <span class="summary-label">{{ $t('events.tabs.orders') }}</span>
             <span class="summary-value">{{ report.totals.distinct_orders_count }}</span>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Positionswert</span>
+            <span class="summary-label">{{ $t('events.tabs.lineValue') }}</span>
             <span class="summary-value">{{ formatMoney(report.totals.line_cents) }}</span>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Bezahlt</span>
+            <span class="summary-label">{{ $t('events.tabs.paid') }}</span>
             <span class="summary-value">{{ formatMoney(report.totals.paid_cents) }}</span>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Offen</span>
+            <span class="summary-label">{{ $t('events.tabs.open') }}</span>
             <span class="summary-value">{{ formatMoney(report.totals.open_cents) }}</span>
           </div>
         </div>
       </div>
 
       <div class="sales-table-block">
-        <h3 class="section-title">Umsatz nach Kellner</h3>
+        <h3 class="section-title">{{ $t('events.tabs.salesByWaiter') }}</h3>
         <VqDataTable
           :headers="waiterHeaders"
           :items="report.by_waiter"
@@ -41,7 +41,7 @@
       </div>
 
       <div class="sales-table-block">
-        <h3 class="section-title">Umsatz nach Station</h3>
+        <h3 class="section-title">{{ $t('events.tabs.salesByStation') }}</h3>
         <VqDataTable
           :headers="stationHeaders"
           :items="report.by_station"
@@ -53,7 +53,7 @@
       </div>
 
       <div class="sales-table-block">
-        <h3 class="section-title">Umsatz nach Artikel</h3>
+        <h3 class="section-title">{{ $t('events.tabs.salesByArticle') }}</h3>
         <VqDataTable
           :headers="articleHeaders"
           :items="report.by_article"
@@ -65,7 +65,7 @@
       </div>
 
       <div class="sales-table-block">
-        <h3 class="section-title">Umsatz nach Zahlungsart</h3>
+        <h3 class="section-title">{{ $t('events.tabs.salesByPayment') }}</h3>
         <VqDataTable
           :headers="paymentHeaders"
           :items="report.by_payment_type"
@@ -80,10 +80,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({ eventId: { type: Number, required: true } })
 const loading = ref(true)
@@ -96,30 +99,30 @@ const COL_LINE = { align: 'end', width: '10.5rem' }
 const COL_PAID = { align: 'end', width: '10.5rem' }
 const COL_PAD = { title: '', key: '_pad', align: 'end', width: '10.5rem', sortable: false }
 
-const waiterHeaders = [
-  { title: 'Kellner', key: 'name', ...COL_LABEL },
-  { title: 'Bestellungen', key: 'order_count', ...COL_MID, sortable: true },
-  { title: 'Positionswert', key: 'line_cents', ...COL_LINE },
-  { title: 'Bezahlt', key: 'paid_cents', ...COL_PAID },
-]
-const stationHeaders = [
-  { title: 'Station', key: 'name', ...COL_LABEL },
-  { title: 'Menge', key: 'qty', ...COL_MID, sortable: true },
-  { title: 'Positionswert', key: 'line_cents', ...COL_LINE },
+const waiterHeaders = computed(() => [
+  { title: t('events.tabs.waiter'), key: 'name', ...COL_LABEL },
+  { title: t('events.tabs.orders'), key: 'order_count', ...COL_MID, sortable: true },
+  { title: t('events.tabs.lineValue'), key: 'line_cents', ...COL_LINE },
+  { title: t('events.tabs.paid'), key: 'paid_cents', ...COL_PAID },
+])
+const stationHeaders = computed(() => [
+  { title: t('events.tabs.station'), key: 'name', ...COL_LABEL },
+  { title: t('events.tabs.quantity'), key: 'qty', ...COL_MID, sortable: true },
+  { title: t('events.tabs.lineValue'), key: 'line_cents', ...COL_LINE },
   { ...COL_PAD },
-]
-const articleHeaders = [
-  { title: 'Artikel', key: 'name', ...COL_LABEL },
-  { title: 'Menge', key: 'qty', ...COL_MID, sortable: true },
-  { title: 'Positionswert', key: 'line_cents', ...COL_LINE },
+])
+const articleHeaders = computed(() => [
+  { title: t('events.tabs.article'), key: 'name', ...COL_LABEL },
+  { title: t('events.tabs.quantity'), key: 'qty', ...COL_MID, sortable: true },
+  { title: t('events.tabs.lineValue'), key: 'line_cents', ...COL_LINE },
   { ...COL_PAD },
-]
-const paymentHeaders = [
-  { title: 'Zahlungsart', key: 'label', ...COL_LABEL },
+])
+const paymentHeaders = computed(() => [
+  { title: t('events.tabs.paymentType'), key: 'label', ...COL_LABEL },
   { title: '', key: '_pad_mid', ...COL_MID, sortable: false },
   { title: '', key: '_pad_line', ...COL_LINE, sortable: false },
-  { title: 'Betrag', key: 'amount_cents', ...COL_PAID },
-]
+  { title: t('events.tabs.amount'), key: 'amount_cents', ...COL_PAID },
+])
 
 function formatMoney(cents) {
   const currency = report.value?.currency || 'CHF'
@@ -135,7 +138,7 @@ async function loadReport() {
     if (!resp.ok) throw new Error(await resp.text())
     report.value = await resp.json()
   } catch (e) {
-    loadError.value = e.message || 'Laden fehlgeschlagen'
+    loadError.value = e.message || t('events.tabs.loadFailed')
     report.value = null
   } finally {
     loading.value = false

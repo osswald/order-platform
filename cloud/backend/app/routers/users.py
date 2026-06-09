@@ -1,7 +1,8 @@
 import re
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
@@ -32,15 +33,9 @@ def _apply_event_admin_pin(user: User, pin: str | None, *, has_orgs: bool) -> No
         user.event_admin_pin_hash = None
         return
     if not _EVENT_ADMIN_PIN_RE.fullmatch(pin):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="event_admin_pin must be exactly 6 digits",
-        )
+        raise api_error("event_admin_pin_digits", status.HTTP_400_BAD_REQUEST)
     if not has_orgs:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="event_admin_pin requires at least one organisation",
-        )
+        raise api_error("event_admin_pin_requires_org", status.HTTP_400_BAD_REQUEST)
     user.event_admin_pin_hash = get_password_hash(pin)
 
 
@@ -143,7 +138,7 @@ def _apply_role_on_create(
 ) -> None:
     if role == ROLE_PLATFORM_ADMIN:
         if not is_platform_admin(acting_user):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot create platform administrators")
+            raise api_error("cannot_create_platform_admin", status.HTTP_403_FORBIDDEN)
         db_user.role = ROLE_PLATFORM_ADMIN
         db_user.is_superuser = True
         db_user.hire_company_id = None
@@ -153,7 +148,7 @@ def _apply_role_on_create(
         db_user.is_superuser = False
         db_user.hire_company_id = hire_company_id or tenant_hire_company_id
         if db_user.hire_company_id != tenant_hire_company_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Verleiher for org admin")
+            raise api_error("invalid_verleiher_for_org_admin", status.HTTP_400_BAD_REQUEST)
         return
     db_user.role = ROLE_MEMBER
     db_user.is_superuser = False
@@ -192,7 +187,7 @@ def create_user(
 ):
     existing = db.query(User).filter(User.email == user_in.email).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+        raise api_error("email_already_registered", status.HTTP_400_BAD_REQUEST)
     db_user = User(
         email=user_in.email,
         name=user_in.name,
@@ -228,17 +223,17 @@ def update_user(
         db, user_id, tenant.hire_company_id, load_organisations=True
     )
     if u.is_superuser and not is_platform_admin(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot modify platform administrators")
+        raise api_error("cannot_modify_platform_admin", status.HTTP_403_FORBIDDEN)
     if user_in.email is not None and user_in.email != u.email:
         taken = db.query(User).filter(User.email == user_in.email).first()
         if taken:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+            raise api_error("email_already_registered", status.HTTP_400_BAD_REQUEST)
         u.email = user_in.email
     if user_in.name is not None:
         u.name = user_in.name
     if user_in.role is not None:
         if user_in.role == ROLE_PLATFORM_ADMIN and not is_platform_admin(current_user):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot assign platform administrator")
+            raise api_error("cannot_assign_platform_admin", status.HTTP_403_FORBIDDEN)
         _apply_role_on_create(u, user_in.role, user_in.hire_company_id, tenant.hire_company_id, current_user)
     elif user_in.hire_company_id is not None and user_role(u) == ROLE_ORG_ADMIN:
         u.hire_company_id = user_in.hire_company_id
@@ -268,14 +263,11 @@ def delete_user(
 ):
     u = ensure_user_in_tenant(db, user_id, tenant.hire_company_id)
     if u.id == current_user.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+        raise api_error("cannot_delete_own_account", status.HTTP_400_BAD_REQUEST)
     if u.is_superuser:
         other_super = db.query(User).filter(User.is_superuser.is_(True), User.id != u.id).first()
         if not other_super:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot delete the last administrator",
-            )
+            raise api_error("cannot_delete_last_admin", status.HTTP_400_BAD_REQUEST)
     db.delete(u)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

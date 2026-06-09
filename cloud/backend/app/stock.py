@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import status
+from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from .models import Article, ArticleCategory, Event, EventArticleStock
@@ -161,10 +162,7 @@ def apply_stock_deductions(
         available = row.in_stock if row.in_stock is not None else 0
         if need > available:
             name = (article_names or {}).get(aid) or f"Artikel #{aid}"
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Nur noch {available} Stück von «{name}» verfügbar",
-            )
+            raise api_error("stock_insufficient", status.HTTP_409_CONFLICT, available=available, name=name)
 
     for aid, need in totals.items():
         row = by_id.get(aid)
@@ -233,20 +231,14 @@ def upsert_stock_rows(
 
     allowed = event_stock_article_ids(db, event)
     if not allowed and items:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No stock-managed articles for this event",
-        )
+        raise api_error("no_stock_managed_articles", status.HTTP_400_BAD_REQUEST)
 
     org_id = event.organisation_id
     by_article: dict[int, tuple[bool, int | None]] = {}
     for item in items:
         aid = int(item["article_id"])
         if aid not in allowed:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Article {aid} is not linked to this event (station or Zusatz)",
-            )
+            raise api_error("article_not_linked_to_event", status.HTTP_400_BAD_REQUEST, article_id=aid)
         monitor, in_stock = normalize_stock_fields(
             bool(item.get("monitor_stock")),
             item.get("in_stock"),
@@ -265,7 +257,7 @@ def upsert_stock_rows(
     }
     for aid in by_article:
         if aid not in valid_ids:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Article {aid} not in organisation")
+            raise api_error("article_not_in_organisation", status.HTTP_400_BAD_REQUEST, article_id=aid)
 
     existing = load_stock_map(db, event.id, set(by_article.keys()))
     out: list[EventArticleStock] = []

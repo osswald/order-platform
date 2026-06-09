@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { helpCategories } from '../content/help/helpIndex.js'
+import { getHelpCategories } from '../content/help/helpIndex.js'
 import {
   getAllArticles,
   getArticle,
@@ -17,7 +17,7 @@ describe('helpArticles index consistency', () => {
   })
 
   it('covers every category article from helpIndex', () => {
-    const indexedSlugs = helpCategories.flatMap((category) =>
+    const indexedSlugs = getHelpCategories().flatMap((category) =>
       category.articles.map((article) => article.slug),
     )
     const loadedSlugs = getAllArticles().map((article) => article.slug)

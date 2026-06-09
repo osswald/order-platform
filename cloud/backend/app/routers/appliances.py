@@ -3,7 +3,8 @@ import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
@@ -35,15 +36,9 @@ def _intervals_overlap(a_start: date, a_end: date, b_start: date, b_end: date) -
 
 def _assert_lending_is_planned(lending: ApplianceLending, today: date) -> None:
     if lending.returned_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Lending already returned",
-        )
+        raise api_error("lending_already_returned", status.HTTP_400_BAD_REQUEST)
     if lending.start_date <= today:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only planned lendings can be cancelled",
-        )
+        raise api_error("only_planned_lendings_cancelled", status.HTTP_400_BAD_REQUEST)
 
 
 def _lending_segment(l: ApplianceLending, today: date) -> str:
@@ -262,10 +257,7 @@ def _validate_ip_for_type(ip: str | None, appliance_type: str | None) -> str | N
 def validate_type(value: str) -> str:
     lower_value = value.lower()
     if lower_value not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Appliance type must be one of: {', '.join(sorted(ALLOWED_TYPES))}",
-        )
+        raise api_error("appliance_type_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY, types=", ".join(sorted(ALLOWED_TYPES)))
     return lower_value
 
 
@@ -297,9 +289,9 @@ def _normalize_printer_feed_lines(value: int | None) -> int | None:
 def _get_appliance_in_tenant(db: Session, appliance_id: int, hire_company_id: int) -> Appliance:
     appliance = db.query(Appliance).filter(Appliance.id == appliance_id).first()
     if not appliance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appliance not found")
+        raise api_error("appliance_not_found", status.HTTP_404_NOT_FOUND)
     if appliance.hire_company_id != hire_company_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Appliance not in this Verleiher")
+        raise api_error("appliance_not_in_verleiher", status.HTTP_403_FORBIDDEN)
     return appliance
 
 def _generate_pairing_code() -> str:
@@ -495,10 +487,7 @@ def create_appliance_pairing_session(
 ):
     appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     if appliance.type != "server":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Pairing sessions are only for server appliances",
-        )
+        raise api_error("pairing_sessions_server_only", status.HTTP_400_BAD_REQUEST)
 
     now = datetime.now(timezone.utc)
     db.query(AppliancePairingSession).filter(
@@ -546,7 +535,7 @@ def revoke_appliance_edge_credential(
         .first()
     )
     if credential is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edge credential not found")
+        raise api_error("edge_credential_not_found", status.HTTP_404_NOT_FOUND)
     now = datetime.now(timezone.utc)
     credential.status = "revoked"
     credential.revoked_at = now
@@ -584,12 +573,9 @@ def delete_appliance_edge_credential(
         .first()
     )
     if credential is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edge credential not found")
+        raise api_error("edge_credential_not_found", status.HTTP_404_NOT_FOUND)
     if credential.status != "revoked":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only revoked SD cards can be deleted",
-        )
+        raise api_error("only_revoked_sd_cards_deleted", status.HTTP_400_BAD_REQUEST)
     db.delete(credential)
     db.commit()
     return None
@@ -637,10 +623,7 @@ def create_appliance_lending(
         .first()
     )
     if open_overlap:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Appliance already has an open lending overlapping this period",
-        )
+        raise api_error("lending_overlap", status.HTTP_400_BAD_REQUEST)
 
     lending = ApplianceLending(
         appliance_id=appliance_id,
@@ -685,13 +668,10 @@ def return_appliance_lending(
         .first()
     )
     if not lending:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lending not found")
+        raise api_error("lending_not_found", status.HTTP_404_NOT_FOUND)
     # 400 if already returned (not idempotent) — documented choice.
     if lending.returned_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Lending already returned",
-        )
+        raise api_error("lending_already_returned", status.HTTP_400_BAD_REQUEST)
 
     lending.returned_at = datetime.now(timezone.utc)
     db.commit()
@@ -729,7 +709,7 @@ def cancel_planned_appliance_lending(
         .first()
     )
     if not lending:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lending not found")
+        raise api_error("lending_not_found", status.HTTP_404_NOT_FOUND)
 
     _assert_lending_is_planned(lending, _utc_today())
     db.delete(lending)

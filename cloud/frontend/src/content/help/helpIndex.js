@@ -1,80 +1,10 @@
-export const helpCategories = [
-  {
-    id: 'getting-started',
-    title: 'Erste Schritte',
-    articles: [
-      {
-        slug: 'dashboard-overview',
-        title: 'Dashboard',
-        summary: 'Was die Übersicht anzeigt und wie Sie sie nutzen.',
-        relatedRoutes: ['dashboard'],
-      },
-    ],
-  },
-  {
-    id: 'events',
-    title: 'Veranstaltungen',
-    articles: [
-      {
-        slug: 'event-setup',
-        title: 'Event einrichten',
-        summary: 'Stammdaten, Stationen, Kellner, Kassen und weitere Konfiguration.',
-        relatedRoutes: ['events', 'events-detail', 'events-new'],
-      },
-    ],
-  },
-  {
-    id: 'catalog',
-    title: 'Katalog',
-    articles: [
-      {
-        slug: 'articles-and-categories',
-        title: 'Artikel und Kategorien',
-        summary: 'Artikel anlegen, Kategorien strukturieren und für Events bereitstellen.',
-        relatedRoutes: ['articles', 'articles-detail', 'article-categories', 'article-categories-detail'],
-      },
-    ],
-  },
-  {
-    id: 'appliances',
-    title: 'Geräte',
-    articles: [
-      {
-        slug: 'appliance-pairing',
-        title: 'Raspberry Pi koppeln',
-        summary: 'Server-Gerät anlegen und Pi mit Pairing-Code verbinden.',
-        relatedRoutes: ['appliances', 'appliances-detail', 'appliances-new'],
-      },
-      {
-        slug: 'appliance-lending',
-        title: 'Geräteausleihen',
-        summary: 'Aktive und geplante Ausleihen für Ihre Organisation einsehen.',
-        relatedRoutes: ['appliance-lendings'],
-      },
-    ],
-  },
-  {
-    id: 'payments',
-    title: 'Zahlungen',
-    articles: [
-      {
-        slug: 'stripe-connect',
-        title: 'Stripe Connect',
-        summary: 'Stripe-Konto verbinden und Kartenzahlung per Terminal aktivieren.',
-        relatedRoutes: ['organisations', 'organisations-detail', 'stripe-connect-return', 'stripe-connect-refresh'],
-      },
-    ],
-  },
-  {
-    id: 'administration',
-    title: 'Verwaltung',
-    articles: [
-      {
-        slug: 'roles-and-access',
-        title: 'Rollen und Zugriff',
-        summary: 'Plattform-Admin, Organisations-Admin und Mitglied — wer darf was?',
-        relatedRoutes: ['hire-companies', 'hire-companies-detail', 'users', 'users-detail', 'no-access'],
-      },
-    ],
-  },
-]
+import { helpCategories as deCategories } from './helpIndex.de.js'
+import { helpCategories as enCategories } from './helpIndex.en.js'
+import { currentLocale } from '../../i18n'
+
+export function getHelpCategories() {
+  return currentLocale() === 'en' ? enCategories : deCategories
+}
+
+/** @deprecated Use getHelpCategories() for locale-aware index. */
+export const helpCategories = deCategories

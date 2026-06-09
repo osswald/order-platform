@@ -1,6 +1,7 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -88,7 +89,7 @@ def read_article_category(
         .first()
     )
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
+        raise api_error("article_category_not_found", status.HTTP_404_NOT_FOUND)
     return category_response(category)
 
 
@@ -123,14 +124,11 @@ def update_article_category(
         .first()
     )
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
+        raise api_error("article_category_not_found", status.HTTP_404_NOT_FOUND)
 
     if category_in.organisation_id is not None:
         if db.query(Article).filter(Article.article_category_id == category.id).count():
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Cannot move category while articles are linked",
-            )
+            raise api_error("cannot_move_category_with_articles", status.HTTP_422_UNPROCESSABLE_ENTITY)
         organisation = ensure_user_can_use_organisation(
             db, current_user, category_in.organisation_id, tenant.hire_company_id
         )
@@ -156,12 +154,9 @@ def delete_article_category(
         .first()
     )
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
+        raise api_error("article_category_not_found", status.HTTP_404_NOT_FOUND)
     if db.query(Article).filter(Article.article_category_id == category.id).count():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Cannot delete category while articles are linked",
-        )
+        raise api_error("cannot_delete_category_with_articles", status.HTTP_422_UNPROCESSABLE_ENTITY)
     db.delete(category)
     db.commit()
     return None

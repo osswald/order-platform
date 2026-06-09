@@ -1,9 +1,9 @@
 <template>
   <div class="event-config" :class="{ 'event-config--unified': !!$slots.stammdaten }">
     <p v-if="loadError" class="error">{{ loadError }}</p>
-    <p v-else-if="loading" class="muted">Laden…</p>
+    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else>
-      <p class="form-required-legend config-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <p class="form-required-legend config-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
       <EventConfigLayout
         :mobile="isMobile"
         v-model:active-tab="activeConfigTab"
@@ -14,25 +14,25 @@
         </template>
         <template #stationen>
           <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addStation">Station hinzufügen</v-btn>
+            <v-btn color="primary" type="button" @click="addStation">{{ $t('events.config.addStation') }}</v-btn>
           </div>
           <div v-for="(st, idx) in stationsLocal" :key="'st-' + idx" class="config-card">
             <div class="config-card-header">
-              <span>{{ st.name || 'Unbenannte Station' }}</span>
+              <span>{{ st.name || $t('events.config.unnamedStation') }}</span>
               <v-btn
                 icon="mdi-delete"
                 variant="text"
                 color="error"
                 type="button"
-                aria-label="Entfernen"
+                :aria-label="$t('events.config.remove')"
                 @click="removeStation(idx)"
               />
             </div>
             <div class="form-field">
-              <FormLabel required>Name</FormLabel>
+              <FormLabel required>{{ $t('events.config.name') }}</FormLabel>
               <v-text-field
                 v-model="st.name"
-                placeholder="z. B. Bar"
+                :placeholder="$t('events.config.stationNamePlaceholder')"
                 density="compact"
                 hide-details="auto"
                 required
@@ -40,13 +40,13 @@
               />
             </div>
             <div class="form-field">
-              <label>Drucker</label>
+              <label>{{ $t('events.config.printer') }}</label>
               <v-select
                 v-model="st.printer_appliance_id"
                 :items="printerOptions"
                 item-title="name"
                 item-value="id"
-                placeholder="Kein Drucker"
+                :placeholder="$t('events.config.noPrinter')"
                 clearable
                 density="compact"
                 hide-details
@@ -54,9 +54,9 @@
             </div>
             <div v-if="alternativePrintersEnabled" class="printer-rules-block">
               <div class="printer-rules-header">
-                <label>Drucker-Regeln</label>
+                <label>{{ $t('events.config.printerRules') }}</label>
                 <v-btn size="small" variant="text" type="button" @click="addPrinterRule(idx)">
-                  Regel hinzufügen
+                  {{ $t('events.config.addRule') }}
                 </v-btn>
               </div>
               <div
@@ -65,18 +65,18 @@
                 class="printer-rule-card"
               >
                 <div class="printer-rule-card-header">
-                  <span>Regel {{ ruleIdx + 1 }}</span>
+                  <span>{{ $t('events.config.ruleN', { n: ruleIdx + 1 }) }}</span>
                   <v-btn
                     icon="mdi-delete"
                     variant="text"
                     color="error"
                     type="button"
-                    aria-label="Regel entfernen"
+                    :aria-label="$t('events.config.removeRule')"
                     @click="removePrinterRule(idx, ruleIdx)"
                   />
                 </div>
                 <div class="form-field">
-                  <label>Regeltyp</label>
+                  <label>{{ $t('events.config.ruleType') }}</label>
                   <v-select
                     v-model="rule.rule_type"
                     :items="printerRuleTypeOptions"
@@ -89,7 +89,7 @@
                 <template v-if="rule.rule_type === 'table_range'">
                   <div class="rule-range-row">
                     <div class="form-field">
-                      <label>Tisch von</label>
+                      <label>{{ $t('events.config.tableFrom') }}</label>
                       <v-text-field
                         v-model.number="rule.table_from"
                         type="number"
@@ -100,7 +100,7 @@
                       />
                     </div>
                     <div class="form-field">
-                      <label>Tisch bis</label>
+                      <label>{{ $t('events.config.tableTo') }}</label>
                       <v-text-field
                         v-model.number="rule.table_to"
                         type="number"
@@ -113,10 +113,10 @@
                   </div>
                 </template>
                 <div v-else-if="rule.rule_type === 'pickup_prefix'" class="form-field">
-                  <label>Abholcode-Präfix</label>
+                  <label>{{ $t('events.config.pickupPrefix') }}</label>
                   <v-text-field
                     v-model="rule.pickup_prefix"
-                    placeholder="z. B. A"
+                    :placeholder="$t('events.config.pickupPrefixPlaceholder')"
                     maxlength="3"
                     density="compact"
                     hide-details
@@ -124,13 +124,13 @@
                   />
                 </div>
                 <div class="form-field">
-                  <label>Drucker</label>
+                  <label>{{ $t('events.config.printer') }}</label>
                   <v-select
                     v-model="rule.printer_appliance_id"
                     :items="printerOptions"
                     item-title="name"
                     item-value="id"
-                    placeholder="Kein Drucker"
+                    :placeholder="$t('events.config.noPrinter')"
                     clearable
                     density="compact"
                     hide-details
@@ -139,13 +139,13 @@
               </div>
             </div>
             <div class="form-field">
-              <label>Artikel</label>
+              <label>{{ $t('events.config.articles') }}</label>
               <v-select
                 v-model="st.article_ids"
                 :items="articleOptions"
                 item-title="name"
                 item-value="value"
-                placeholder="Artikel wählen"
+                :placeholder="$t('events.config.selectArticles')"
                 multiple
                 chips
                 closable-chips
@@ -154,12 +154,12 @@
               />
             </div>
           </div>
-          <p v-if="!stationsLocal.length" class="muted">Noch keine Stationen.</p>
+          <p v-if="!stationsLocal.length" class="muted">{{ $t('events.config.noStations') }}</p>
         </template>
 
         <template v-if="kitchenMonitorsEnabled" #kitchen-monitors>
           <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addKitchenMonitorPrinter">Drucker hinzufügen</v-btn>
+            <v-btn color="primary" type="button" @click="addKitchenMonitorPrinter">{{ $t('events.config.addPrinter') }}</v-btn>
           </div>
           <div
             v-for="(row, idx) in kitchenMonitorsLocal"
@@ -173,39 +173,39 @@
                 variant="text"
                 color="error"
                 type="button"
-                aria-label="Entfernen"
+                :aria-label="$t('events.config.remove')"
                 @click="removeKitchenMonitorPrinter(idx)"
               />
             </div>
             <div class="form-field">
-              <label>Drucker</label>
+              <label>{{ $t('events.config.printer') }}</label>
               <v-select
                 v-model="row.printer_appliance_id"
                 :items="kitchenMonitorPrinterOptions"
                 item-title="name"
                 item-value="id"
-                placeholder="Drucker wählen"
+                :placeholder="$t('events.config.selectPrinter')"
                 density="compact"
                 hide-details
               />
             </div>
             <div class="form-field">
-              <label>Anzeigename (optional)</label>
+              <label>{{ $t('events.config.displayNameOptional') }}</label>
               <v-text-field
                 v-model="row.label"
-                placeholder="z. B. Bar West"
+                :placeholder="$t('events.config.displayNamePlaceholder')"
                 density="compact"
                 hide-details
               />
             </div>
           </div>
-          <p v-if="!kitchenMonitorsLocal.length" class="muted">Noch keine Kitchen-Monitor-Drucker konfiguriert.</p>
+          <p v-if="!kitchenMonitorsLocal.length" class="muted">{{ $t('events.config.noKitchenMonitors') }}</p>
         </template>
 
         <template #kellner>
           <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addWaiterRow">Kellner hinzufügen</v-btn>
-            <v-btn variant="outlined" type="button" @click="openWaiterPick">Aus Organisation übernehmen</v-btn>
+            <v-btn color="primary" type="button" @click="addWaiterRow">{{ $t('events.config.addWaiter') }}</v-btn>
+            <v-btn variant="outlined" type="button" @click="openWaiterPick">{{ $t('events.config.importFromOrg') }}</v-btn>
           </div>
           <VqDataTable
             :items="waitersLocal"
@@ -246,19 +246,19 @@
 
         <template v-if="cashRegistersEnabled" #kassen>
           <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addCashRegister">Kasse hinzufügen</v-btn>
+            <v-btn color="primary" type="button" @click="addCashRegister">{{ $t('events.config.addCashRegister') }}</v-btn>
           </div>
           <div v-for="(reg, ri) in cashRegistersLocal" :key="'reg-' + ri" class="config-card">
             <div class="config-card-header">
-              <span>{{ reg.name || 'Unbenannte Kasse' }}</span>
+              <span>{{ reg.name || $t('events.config.unnamedCashRegister') }}</span>
               <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeCashRegister(ri)" />
             </div>
             <div class="field-row">
               <div class="form-field">
-                <FormLabel required>Name</FormLabel>
+                <FormLabel required>{{ $t('events.config.name') }}</FormLabel>
                 <v-text-field
                   v-model="reg.name"
-                  placeholder="z. B. Hauptkasse"
+                  :placeholder="$t('events.config.cashRegisterPlaceholder')"
                   density="compact"
                   hide-details="auto"
                   required
@@ -266,7 +266,7 @@
                 />
               </div>
               <div class="form-field">
-                <label>Pickup-Code Buchstaben</label>
+                <label>{{ $t('events.config.pickupCodeLetters') }}</label>
                 <v-text-field
                   :model-value="reg.pickup_code_prefix"
                   maxlength="3"
@@ -279,31 +279,31 @@
             </div>
             <div class="field-row">
               <div class="form-field">
-                <label>PIN</label>
+                <label>{{ $t('events.config.pin') }}</label>
                 <v-text-field v-model="reg.pin" maxlength="4" placeholder="0000" density="compact" hide-details />
               </div>
             </div>
             <div class="field-row">
               <div class="form-field">
-                <label>Layout</label>
+                <label>{{ $t('events.config.layout') }}</label>
                 <v-select
                   v-model="reg.layout_uuid"
                   :items="layoutOptions"
                   item-title="name"
                   item-value="value"
-                  placeholder="Layout wählen"
+                  :placeholder="$t('events.config.selectLayout')"
                   density="compact"
                   hide-details
                 />
               </div>
               <div class="form-field">
-                <label>Kundendrucker</label>
+                <label>{{ $t('events.config.customerPrinter') }}</label>
                 <v-select
                   v-model="reg.receipt_printer_appliance_id"
                   :items="printerOptions"
                   item-title="name"
                   item-value="id"
-                  placeholder="Kein Drucker"
+                  :placeholder="$t('events.config.noPrinter')"
                   clearable
                   density="compact"
                   hide-details
@@ -311,24 +311,24 @@
               </div>
             </div>
           </div>
-          <p v-if="!cashRegistersLocal.length" class="muted">Noch keine Kassen.</p>
+          <p v-if="!cashRegistersLocal.length" class="muted">{{ $t('events.config.noCashRegisters') }}</p>
         </template>
 
         <template v-if="vouchersEnabled" #gutscheine>
           <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addVoucher">Gutschein hinzufügen</v-btn>
+            <v-btn color="primary" type="button" @click="addVoucher">{{ $t('events.config.addVoucher') }}</v-btn>
           </div>
-          <p v-if="!vouchersLocal.length" class="muted">Noch keine Gutschein-Typen.</p>
+          <p v-if="!vouchersLocal.length" class="muted">{{ $t('events.config.noVouchers') }}</p>
           <div v-for="(vd, vi) in vouchersLocal" :key="'vd-' + vi" class="config-card">
             <div class="config-card-header">
-              <span>{{ vd.name || 'Unbenannter Gutschein' }}</span>
+              <span>{{ vd.name || $t('events.config.unnamedVoucher') }}</span>
               <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeVoucher(vi)" />
             </div>
             <div class="form-field">
-              <FormLabel required>Name</FormLabel>
+              <FormLabel required>{{ $t('events.config.name') }}</FormLabel>
               <v-text-field
                 v-model="vd.name"
-                placeholder="z. B. 20.- Gutschein"
+                :placeholder="$t('events.config.voucherPlaceholder')"
                 density="compact"
                 hide-details="auto"
                 required
@@ -336,7 +336,7 @@
               />
             </div>
             <div class="form-field">
-              <label>Art</label>
+              <label>{{ $t('events.config.kind') }}</label>
               <v-select
                 v-model="vd.kind"
                 :items="voucherKindOptions"
@@ -347,7 +347,7 @@
               />
             </div>
             <div v-if="vd.kind === 'fixed_amount'" class="form-field">
-              <label>Betrag ({{ currencyLabel }})</label>
+              <label>{{ $t('events.config.amountWithCurrency', { currency: currencyLabel }) }}</label>
               <v-number-input
                 v-model="vd.value_amount"
                 :min="0.01"
@@ -360,13 +360,13 @@
             </div>
             <template v-else>
               <div class="form-field">
-                <label>Berechtigte Artikel</label>
+                <label>{{ $t('events.config.eligibleArticles') }}</label>
                 <v-select
                   v-model="vd.allowed_article_ids"
                   :items="articleOptions"
                   item-title="name"
                   item-value="value"
-                  placeholder="Artikel wählen"
+                  :placeholder="$t('events.config.selectArticles')"
                   multiple
                   chips
                   closable-chips
@@ -376,7 +376,7 @@
               </div>
               <v-checkbox
                 v-model="vd.include_additions"
-                label="Zusätze inklusive"
+                :label="$t('events.config.includeAdditions')"
                 hide-details
                 density="compact"
               />
@@ -386,15 +386,15 @@
 
         <template #layouts>
           <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addLayout">Layout hinzufügen</v-btn>
+            <v-btn color="primary" type="button" @click="addLayout">{{ $t('events.config.addLayout') }}</v-btn>
           </div>
           <div v-for="(lo, li) in layoutsLocal" :key="'lo-' + li" class="config-card">
             <div class="config-card-header">
-              <span>Layout {{ li + 1 }}</span>
+              <span>{{ $t('events.config.layoutN', { n: li + 1 }) }}</span>
               <div class="layout-header-actions">
                 <v-checkbox
                   :model-value="lo.is_default"
-                  label="Standard"
+                  :label="$t('events.config.default')"
                   hide-details
                   density="compact"
                   @update:model-value="(v) => onDefaultLayoutChange(li, v)"
@@ -404,11 +404,11 @@
             </div>
             <div class="field-row">
               <div class="form-field">
-                <label>Name</label>
-                <v-text-field v-model="lo.name" placeholder="optional" density="compact" hide-details />
+                <label>{{ $t('events.config.name') }}</label>
+                <v-text-field v-model="lo.name" :placeholder="$t('events.config.optional')" density="compact" hide-details />
               </div>
               <div class="form-field">
-                <label>Breite</label>
+                <label>{{ $t('events.config.width') }}</label>
                 <v-number-input
                   :model-value="lo.grid_width"
                   :min="1"
@@ -420,7 +420,7 @@
                 />
               </div>
               <div class="form-field">
-                <label>Höhe</label>
+                <label>{{ $t('events.config.height') }}</label>
                 <v-number-input
                   :model-value="lo.grid_height"
                   :min="1"
@@ -432,7 +432,7 @@
                 />
               </div>
             </div>
-            <p class="muted small">Zellen anklicken zum Bearbeiten.</p>
+            <p class="muted small">{{ $t('events.config.clickCellsToEdit') }}</p>
             <div class="layout-grid-wrap">
               <div
                 class="layout-grid"
@@ -464,8 +464,8 @@
             :api-base-path="`/events/${eventId}`"
             :entity-id="eventId"
             is-event
-            title="Beleg-Druck"
-            hint="Gilt für Station- und Kundenbelege dieser Veranstaltung (Pi-Sync)."
+            :title="$t('events.config.receiptPrintTitle')"
+            :hint="$t('events.config.receiptPrintHint')"
             @status-change="onReceiptStatusChange"
           />
         </template>
@@ -508,14 +508,14 @@
 
     <v-dialog v-model="cellDialogVisible" max-width="32rem" class="cell-dialog">
       <v-card>
-        <v-card-title>Zelle bearbeiten</v-card-title>
+        <v-card-title>{{ $t('events.config.editCell') }}</v-card-title>
         <v-card-text>
           <div class="form-field">
-            <label>Bezeichnung</label>
+            <label>{{ $t('events.config.label') }}</label>
             <v-text-field v-model="cellEdit.label" density="compact" hide-details />
           </div>
           <div class="form-field">
-            <label>Farbe</label>
+            <label>{{ $t('events.config.color') }}</label>
             <v-color-picker v-model="cellEdit.color" mode="hex" hide-inputs />
             <v-text-field
               v-model="cellEdit.color"
@@ -526,13 +526,13 @@
             />
           </div>
           <div v-if="vouchersEnabled" class="form-field">
-            <label>Betrags-Gutscheine (Layout-Zelle)</label>
+            <label>{{ $t('events.config.fixedAmountVouchers') }}</label>
             <v-select
               v-model="cellEdit.voucher_definition_uuids"
               :items="fixedAmountVoucherOptions"
               item-title="label"
               item-value="value"
-              placeholder="Gutscheine wählen"
+              :placeholder="$t('events.config.selectVouchers')"
               multiple
               chips
               closable-chips
@@ -541,10 +541,10 @@
             />
           </div>
           <div class="form-field">
-            <label>Artikel (nur Stationen-Artikel)</label>
+            <label>{{ $t('events.config.stationArticlesOnly') }}</label>
             <v-text-field
               v-model="cellTreeFilter"
-              placeholder="Artikel filtern…"
+              :placeholder="$t('events.config.filterArticles')"
               prepend-inner-icon="mdi-magnify"
               density="compact"
               hide-details
@@ -568,24 +568,24 @@
         </v-card-text>
         <v-card-actions class="dialog-actions">
           <v-spacer />
-          <v-btn variant="outlined" type="button" @click="cellDialogVisible = false">Abbrechen</v-btn>
-          <v-btn color="primary" type="button" @click="applyCellDialog">Übernehmen</v-btn>
+          <v-btn variant="outlined" type="button" @click="cellDialogVisible = false">{{ $t('common.cancel') }}</v-btn>
+          <v-btn color="primary" type="button" @click="applyCellDialog">{{ $t('events.config.apply') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="showWaiterPick" max-width="32rem">
       <v-card>
-        <v-card-title>Kellner übernehmen</v-card-title>
+        <v-card-title>{{ $t('events.config.importWaiter') }}</v-card-title>
         <v-card-text>
           <div class="form-field">
-            <label>Kellner</label>
+            <label>{{ $t('events.config.waiter') }}</label>
             <v-select
               v-model="pickedWaiterIds"
               :items="waiterOptions"
               item-title="label"
               item-value="value"
-              placeholder="Kellner wählen"
+              :placeholder="$t('events.config.selectWaiters')"
               multiple
               chips
               closable-chips
@@ -596,14 +596,14 @@
         </v-card-text>
         <v-card-actions class="dialog-actions">
           <v-spacer />
-          <v-btn variant="outlined" type="button" @click="closeWaiterPick">Abbrechen</v-btn>
+          <v-btn variant="outlined" type="button" @click="closeWaiterPick">{{ $t('common.cancel') }}</v-btn>
           <v-btn
             color="primary"
             type="button"
             :disabled="!pickedWaiterIds.length"
             @click="confirmPickWaiter"
           >
-            Übernehmen
+            {{ $t('events.config.apply') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -613,6 +613,7 @@
 
 <script setup>
 import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { useBreakpoint } from '../composables/useBreakpoint'
@@ -670,50 +671,51 @@ const props = defineProps({
 })
 
 const slots = useSlots()
+const { t } = useI18n()
 const { matches: isMobile } = useBreakpoint(768)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
   ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),
 )
 
-const waiterHeaders = [
-  { title: 'Name *', key: 'name', sortable: false },
-  { title: 'PIN *', key: 'pin', sortable: false },
+const waiterHeaders = computed(() => [
+  { title: t('events.config.waiterNameHeader'), key: 'name', sortable: false },
+  { title: t('events.config.waiterPinHeader'), key: 'pin', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end', width: '4rem' },
-]
+])
 
 const configSections = computed(() => {
   const list = []
   if (slots.stammdaten) {
-    list.push({ id: 'stammdaten', title: 'Stammdaten', defaultOpen: true })
+    list.push({ id: 'stammdaten', title: t('events.config.sectionStammdaten'), defaultOpen: true })
   }
   list.push({
     id: 'stationen',
-    title: 'Stationen',
+    title: t('events.config.sectionStationen'),
     defaultOpen: !slots.stammdaten,
   })
   if (props.kitchenMonitorsEnabled) {
-    list.push({ id: 'kitchen-monitors', title: 'Kitchen Monitor' })
+    list.push({ id: 'kitchen-monitors', title: t('events.config.sectionKitchenMonitors') })
   }
-  list.push({ id: 'kellner', title: 'Event-Kellner' })
+  list.push({ id: 'kellner', title: t('events.config.sectionKellner') })
   if (props.cashRegistersEnabled) {
-    list.push({ id: 'kassen', title: 'Kassen' })
+    list.push({ id: 'kassen', title: t('events.config.sectionKassen') })
   }
   if (props.vouchersEnabled) {
-    list.push({ id: 'gutscheine', title: 'Gutscheine' })
+    list.push({ id: 'gutscheine', title: t('events.config.sectionGutscheine') })
   }
-  list.push({ id: 'layouts', title: 'App-Layouts' })
-  list.push({ id: 'belege', title: 'Belege' })
-  list.push({ id: 'lager', title: 'Lagerartikel' })
+  list.push({ id: 'layouts', title: t('events.config.sectionLayouts') })
+  list.push({ id: 'belege', title: t('events.config.sectionBelege') })
+  list.push({ id: 'lager', title: t('events.config.sectionLager') })
   if (showOperationalTabs.value) {
-    list.push({ id: 'umsatz', title: 'Umsatz' })
-    list.push({ id: 'sammelrechnungen', title: 'Sammelrechnungen' })
+    list.push({ id: 'umsatz', title: t('events.config.sectionUmsatz') })
+    list.push({ id: 'sammelrechnungen', title: t('events.config.sectionSammelrechnungen') })
   }
   if (showTransactionsTab.value) {
-    list.push({ id: 'transaktionen', title: 'Transaktionen' })
+    list.push({ id: 'transaktionen', title: t('events.config.sectionTransaktionen') })
   }
   if (showTransactionsTab.value && props.shiftSettlementEnabled) {
-    list.push({ id: 'schichten', title: 'Kassenschichten' })
+    list.push({ id: 'schichten', title: t('events.config.sectionSchichten') })
   }
   return list
 })
@@ -758,14 +760,14 @@ const vouchersLocal = ref([])
 const articlesRaw = ref([])
 const currencyLabel = ref('CHF')
 
-const voucherKindOptions = [
-  { label: 'Betrags-Gutschein', value: 'fixed_amount' },
-  { label: 'Artikel-Gutschein (nur Einlösung)', value: 'article_entitlement' },
-]
-const printerRuleTypeOptions = [
-  { label: 'Tischbereich', value: 'table_range' },
-  { label: 'Abholcode-Präfix', value: 'pickup_prefix' },
-]
+const voucherKindOptions = computed(() => [
+  { label: t('events.config.voucherKindFixedAmount'), value: 'fixed_amount' },
+  { label: t('events.config.voucherKindArticleEntitlement'), value: 'article_entitlement' },
+])
+const printerRuleTypeOptions = computed(() => [
+  { label: t('events.config.ruleTypeTableRange'), value: 'table_range' },
+  { label: t('events.config.ruleTypePickupPrefix'), value: 'pickup_prefix' },
+])
 const waitersOrg = ref([])
 
 const cellDialogVisible = ref(false)
@@ -816,7 +818,7 @@ const kitchenMonitorPrinterOptions = computed(() => {
 function kitchenMonitorLabel(row) {
   if ((row.label || '').trim()) return row.label.trim()
   const match = printerOptions.value.find((opt) => Number(opt.id) === Number(row.printer_appliance_id))
-  return match?.name || `Drucker #${row.printer_appliance_id || '?'}`
+  return match?.name || t('events.config.printerFallback', { id: row.printer_appliance_id || '?' })
 }
 
 function addPrinterRule(stationIdx) {
@@ -855,7 +857,7 @@ const waiterOptions = computed(() =>
 
 const layoutOptions = computed(() =>
   layoutsLocal.value.map((lo, idx) => ({
-    name: lo.name?.trim() || `Layout ${idx + 1}`,
+    name: lo.name?.trim() || t('events.config.layoutN', { n: idx + 1 }),
     value: lo.uuid,
   })),
 )
@@ -864,7 +866,7 @@ const fixedAmountVoucherOptions = computed(() =>
   vouchersLocal.value
     .filter((vd) => vd.kind === 'fixed_amount' && vd.uuid)
     .map((vd) => ({
-      label: vd.name || 'Gutschein',
+      label: vd.name || t('events.config.voucherFallback'),
       value: vd.uuid,
     })),
 )
@@ -992,13 +994,13 @@ function applyGridSizeChange(lo, nextW, nextH) {
   if (oobWithData.length) {
     const examples = oobWithData
       .slice(0, 3)
-      .map((c) => `Zeile ${c.row + 1}, Spalte ${c.col + 1}`)
+      .map((c) => t('events.config.gridRowCol', { row: c.row + 1, col: c.col + 1 }))
       .join('; ')
-    const more = oobWithData.length > 3 ? ' …' : ''
+    const more = oobWithData.length > 3 ? t('events.config.gridConfirmMore') : ''
     const msg =
       oobWithData.length === 1
-        ? `1 Zelle mit Inhalt liegt ausserhalb des neuen Rasters (${examples}) und wird entfernt. Fortfahren?`
-        : `${oobWithData.length} Zellen mit Inhalt liegen ausserhalb des neuen Rasters (z. B. ${examples}${more}) und werden entfernt. Fortfahren?`
+        ? t('events.config.gridConfirmSingle', { examples })
+        : t('events.config.gridConfirmMultiple', { count: oobWithData.length, examples, more })
     if (!confirm(msg)) return false
     lo.cells = lo.cells.filter((c) => isCellInGrid(c, nextW, nextH))
   }
@@ -1021,8 +1023,8 @@ function cellPreviewMeta(lo, row, col) {
   const vCount = cellVoucherUuids(c).length
   const aCount = c.article_ids?.length || 0
   const parts = []
-  if (vCount) parts.push(`${vCount} Gutschein${vCount > 1 ? 'e' : ''}`)
-  if (aCount) parts.push(`${aCount} Artikel`)
+  if (vCount) parts.push(t('events.config.voucherCount', vCount, { count: vCount }))
+  if (aCount) parts.push(t('events.config.articleCount', { count: aCount }))
   return parts.join(' · ')
 }
 
@@ -1085,7 +1087,7 @@ function ensureDefaultLayout() {
   if (!layoutsLocal.value.length) {
     layoutsLocal.value.push({
       uuid: newUuid(),
-      name: 'Standard',
+      name: t('events.config.defaultLayoutName'),
       is_default: true,
       grid_width: 4,
       grid_height: 4,
@@ -1115,7 +1117,7 @@ function onDefaultLayoutChange(layoutIndex, checked) {
 
 function addStation() {
   stationsLocal.value.push({
-    name: `Station ${stationsLocal.value.length + 1}`,
+    name: t('events.config.stationFallback', { n: stationsLocal.value.length + 1 }),
     printer_appliance_id: null,
     printer_rules: [],
     article_ids: [],
@@ -1138,28 +1140,28 @@ function removeWaiterByIndex(ix) {
 function configurationValidationError() {
   for (const s of stationsLocal.value) {
     if (!(s.name || '').trim()) {
-      return 'Bitte einen Namen für jede Station angeben.'
+      return t('events.config.validationStationName')
     }
   }
   for (const w of waitersLocal.value) {
     if (!(w.name || '').trim()) {
-      return 'Bitte einen Namen für jeden Event-Kellner angeben.'
+      return t('events.config.validationWaiterName')
     }
     if (!(String(w.pin || '')).trim()) {
-      return 'Bitte eine PIN für jeden Event-Kellner angeben.'
+      return t('events.config.validationWaiterPin')
     }
   }
   if (props.cashRegistersEnabled) {
     for (const reg of cashRegistersLocal.value) {
       if (!(reg.name || '').trim()) {
-        return 'Bitte einen Namen für jede Kasse angeben.'
+        return t('events.config.validationCashRegisterName')
       }
     }
   }
   if (props.vouchersEnabled) {
     for (const vd of vouchersLocal.value) {
       if (!(vd.name || '').trim()) {
-        return 'Bitte einen Namen für jeden Gutschein angeben.'
+        return t('events.config.validationVoucherName')
       }
     }
   }
@@ -1169,7 +1171,7 @@ function configurationValidationError() {
 function addLayout() {
   layoutsLocal.value.push({
     uuid: newUuid(),
-    name: `Layout ${layoutsLocal.value.length + 1}`,
+    name: t('events.config.layoutN', { n: layoutsLocal.value.length + 1 }),
     is_default: false,
     grid_width: 4,
     grid_height: 4,
@@ -1193,7 +1195,7 @@ function removeLayout(idx) {
 
 function addCashRegister() {
   cashRegistersLocal.value.push({
-    name: `Kasse ${cashRegistersLocal.value.length + 1}`,
+    name: t('events.config.cashRegisterFallback', { n: cashRegistersLocal.value.length + 1 }),
     pickup_code_prefix: String.fromCharCode(65 + (cashRegistersLocal.value.length % 26)),
     pin: '0000',
     layout_uuid: layoutsLocal.value[0]?.uuid || '',
@@ -1289,7 +1291,7 @@ async function loadConfiguration() {
       receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
     }))
   } catch {
-    loadError.value = 'Konfiguration konnte nicht geladen werden.'
+    loadError.value = t('events.config.loadFailed')
   } finally {
     loading.value = false
     if (!loadError.value && markConfigSaved) {
@@ -1477,7 +1479,7 @@ async function persistConfiguration() {
     printerOptions.value = cfg.printer_options || []
     return true
   } catch {
-    setConfigAutosaveError('Konfiguration konnte nicht gespeichert werden.')
+    setConfigAutosaveError(t('events.config.saveFailed'))
     return false
   }
 }

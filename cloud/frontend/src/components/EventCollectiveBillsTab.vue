@@ -1,12 +1,12 @@
 <template>
   <div class="event-collective-tab">
     <div class="section-toolbar">
-      <v-btn variant="outlined" type="button" :disabled="loading" @click="load">Aktualisieren</v-btn>
+      <v-btn variant="outlined" type="button" :disabled="loading" @click="load">{{ $t('common.refresh') }}</v-btn>
     </div>
     <p v-if="loadError" class="error">{{ loadError }}</p>
-    <p v-else-if="loading" class="muted">Laden…</p>
+    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else-if="data">
-      <p v-if="!data.collective_bills.length" class="muted">Noch keine Sammelrechnungen synchronisiert.</p>
+      <p v-if="!data.collective_bills.length" class="muted">{{ $t('events.tabs.noCollectiveBills') }}</p>
       <v-expansion-panels v-else class="collective-panels" variant="accordion">
         <v-expansion-panel v-for="bill in data.collective_bills" :key="bill.uuid" :value="bill.uuid">
           <v-expansion-panel-title>
@@ -16,8 +16,10 @@
                 {{ statusLabel(bill.status) }}
               </v-chip>
               <span class="panel-meta muted">
-                {{ bill.order_count }} Bestellung(en) · {{ formatMoney(bill.line_cents) }}
-                <template v-if="bill.open_cents > 0"> · offen {{ formatMoney(bill.open_cents) }}</template>
+                {{ $t('events.tabs.orderCountMeta', { count: bill.order_count, total: formatMoney(bill.line_cents) }) }}
+                <template v-if="bill.open_cents > 0">
+                  · {{ $t('events.tabs.openAmount', { amount: formatMoney(bill.open_cents) }) }}
+                </template>
               </span>
             </div>
           </v-expansion-panel-title>
@@ -25,29 +27,29 @@
             <div class="bill-summary">
               <div class="summary-grid">
                 <div class="summary-card">
-                  <span class="summary-label">Bestellungen</span>
+                  <span class="summary-label">{{ $t('events.tabs.orders') }}</span>
                   <span class="summary-value">{{ bill.order_count }}</span>
                 </div>
                 <div class="summary-card">
-                  <span class="summary-label">Gesamtbetrag</span>
+                  <span class="summary-label">{{ $t('events.tabs.totalAmount') }}</span>
                   <span class="summary-value">{{ formatMoney(bill.line_cents) }}</span>
                 </div>
                 <div class="summary-card">
-                  <span class="summary-label">Offen</span>
+                  <span class="summary-label">{{ $t('events.tabs.open') }}</span>
                   <span class="summary-value">{{ formatMoney(bill.open_cents) }}</span>
                 </div>
                 <div class="summary-card">
-                  <span class="summary-label">Bezahlt</span>
+                  <span class="summary-label">{{ $t('events.tabs.paid') }}</span>
                   <span class="summary-value">{{ formatMoney(bill.paid_cents) }}</span>
                 </div>
               </div>
               <p v-if="bill.created_at || bill.closed_at" class="bill-times muted">
-                <span v-if="bill.created_at">Erstellt: {{ formatTime(bill.created_at) }}</span>
-                <span v-if="bill.closed_at"> · Abgeschlossen: {{ formatTime(bill.closed_at) }}</span>
+                <span v-if="bill.created_at">{{ $t('events.tabs.createdAt', { time: formatTime(bill.created_at) }) }}</span>
+                <span v-if="bill.closed_at"> · {{ $t('events.tabs.closedAt', { time: formatTime(bill.closed_at) }) }}</span>
               </p>
             </div>
 
-            <p v-if="!positionRows(bill).length" class="muted">Noch keine Posten.</p>
+            <p v-if="!positionRows(bill).length" class="muted">{{ $t('events.tabs.noPositions') }}</p>
             <VqDataTable
               v-else
               :headers="positionHeaders"
@@ -75,18 +77,21 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 
+const { t } = useI18n()
+
 const props = defineProps({ eventId: { type: Number, required: true } })
 
-const positionHeaders = [
-  { title: 'Artikel', key: 'name' },
-  { title: 'Menge', key: 'qty', align: 'end' },
-  { title: 'Betrag', key: 'line_cents', align: 'end' },
-]
+const positionHeaders = computed(() => [
+  { title: t('events.tabs.article'), key: 'name' },
+  { title: t('events.tabs.quantity'), key: 'qty', align: 'end' },
+  { title: t('events.tabs.amount'), key: 'line_cents', align: 'end' },
+])
 
 const loading = ref(false)
 const loadError = ref('')
@@ -97,7 +102,7 @@ function formatMoney(cents) {
 }
 
 function formatTime(iso) {
-  if (!iso) return '—'
+  if (!iso) return t('common.emDash')
   try {
     return new Date(iso).toLocaleString('de-CH')
   } catch {
@@ -107,9 +112,9 @@ function formatTime(iso) {
 
 function statusLabel(v) {
   const s = String(v || '').toLowerCase()
-  if (s === 'closed' || s === 'paid') return 'Abgeschlossen'
-  if (s === 'open') return 'Offen'
-  return v || '—'
+  if (s === 'closed' || s === 'paid') return t('events.tabs.statusClosed')
+  if (s === 'open') return t('events.tabs.statusOpen')
+  return v || t('common.emDash')
 }
 
 function statusChipColor(v) {
@@ -122,7 +127,7 @@ function statusChipColor(v) {
 function positionRows(bill) {
   return (bill.line_groups || []).map((g, i) => ({
     rowKey: `${g.article_id}-${i}`,
-    name: g.name || '—',
+    name: g.name || t('common.emDash'),
     additions: g.additions || [],
     qty: g.total_qty ?? 1,
     line_cents: g.line_total_cents ?? 0,
@@ -137,7 +142,7 @@ async function load() {
     if (!resp.ok) throw new Error(await resp.text())
     data.value = await resp.json()
   } catch (e) {
-    loadError.value = e.message || 'Laden fehlgeschlagen'
+    loadError.value = e.message || t('events.tabs.loadFailed')
     data.value = null
   } finally {
     loading.value = false

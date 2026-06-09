@@ -7,17 +7,19 @@
             <img src="/apple-touch-icon.png" alt="" class="logo-icon" width="64" height="64" />
           </div>
           <h1>Vendiqo</h1>
-          <p class="tagline">Enterprise Resource Planning</p>
+          <p class="tagline">{{ $t('login.tagline') }}</p>
         </div>
 
-        <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+        <p class="form-required-legend">
+          <span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}
+        </p>
         <v-form ref="formRef" @submit.prevent="submit" class="login-form">
           <v-text-field
             id="email"
             v-model="email"
             type="email"
-            label="E-Mail Adresse"
-            placeholder="admin@example.com"
+            :label="$t('login.emailAddress')"
+            :placeholder="$t('login.emailPlaceholder')"
             required
             :rules="[rules.required, rules.email]"
             hide-details="auto"
@@ -27,15 +29,15 @@
             id="password"
             v-model="password"
             type="password"
-            label="Passwort"
-            placeholder="••••••••"
+            :label="$t('login.password')"
+            :placeholder="$t('login.passwordPlaceholder')"
             required
             :rules="[rules.required]"
             hide-details="auto"
           />
 
           <v-btn type="submit" color="primary" block size="large" :loading="isLoading">
-            Anmelden
+            {{ $t('login.submit') }}
           </v-btn>
         </v-form>
 
@@ -44,7 +46,7 @@
         </div>
 
         <div class="login-footer">
-          <p class="version">Vendiqo ERP {{ label }}</p>
+          <p class="version">{{ $t('login.version', { version: label }) }}</p>
         </div>
       </div>
 
@@ -52,23 +54,23 @@
         <div class="feature-list">
           <div class="feature">
             <span class="feature-icon">📊</span>
-            <h3>Zentrale Verwaltung</h3>
-            <p>Verwalten Sie Ihre gesamte Organisation an einem Ort</p>
+            <h3>{{ $t('login.features.centralManagement.title') }}</h3>
+            <p>{{ $t('login.features.centralManagement.description') }}</p>
           </div>
           <div class="feature">
             <span class="feature-icon">📦</span>
-            <h3>Bestandsverwaltung</h3>
-            <p>Echtzeit-Bestandsverfolgung und Optimierung</p>
+            <h3>{{ $t('login.features.inventory.title') }}</h3>
+            <p>{{ $t('login.features.inventory.description') }}</p>
           </div>
           <div class="feature">
             <span class="feature-icon">💰</span>
-            <h3>Finanzmanagement</h3>
-            <p>Umfassende Finanzberichte und Analysen</p>
+            <h3>{{ $t('login.features.finance.title') }}</h3>
+            <p>{{ $t('login.features.finance.description') }}</p>
           </div>
           <div class="feature">
             <span class="feature-icon">👥</span>
-            <h3>Kundenbeziehungen</h3>
-            <p>Effektive Verwaltung Ihrer Kundenbeziehungen</p>
+            <h3>{{ $t('login.features.crm.title') }}</h3>
+            <p>{{ $t('login.features.crm.description') }}</p>
           </div>
         </div>
       </div>
@@ -79,10 +81,12 @@
 <script setup>
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { apiUrl } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
 import { rules, validateForm } from '../utils/formRules.js'
 
+const { t } = useI18n()
 const { label } = useAppVersion()
 
 const route = useRoute()
@@ -114,7 +118,7 @@ async function submit() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }))
-      message.value = err.detail || 'Anmeldung fehlgeschlagen'
+      message.value = err.detail || t('login.failed')
       messageType.value = 'error'
       isLoading.value = false
       return
@@ -135,7 +139,7 @@ async function submit() {
     if (data.user_id != null) {
       localStorage.setItem('user_id', String(data.user_id))
     }
-    message.value = 'Anmeldung erfolgreich!'
+    message.value = t('login.success')
     messageType.value = 'success'
 
     const redirect = route.query.redirect
@@ -145,7 +149,7 @@ async function submit() {
       window.location.href = target
     }, 500)
   } catch (e) {
-    message.value = 'Netzwerkfehler - bitte versuchen Sie es später erneut'
+    message.value = t('login.networkError')
     messageType.value = 'error'
   } finally {
     isLoading.value = false

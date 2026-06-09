@@ -1,25 +1,36 @@
 import MarkdownIt from 'markdown-it'
-import { helpCategories } from '../content/help/helpIndex.js'
+import { getHelpCategories } from '../content/help/helpIndex.js'
+import { currentLocale } from '../i18n'
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
-const markdownModules = import.meta.glob('../content/help/*.md', {
+const markdownModules = import.meta.glob('../content/help/*/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 })
 
+function helpLocale() {
+  const locale = currentLocale()
+  return locale === 'en' ? 'en' : 'de'
+}
+
 function markdownPathForSlug(slug) {
-  return `../content/help/${slug}.md`
+  return `../content/help/${helpLocale()}/${slug}.md`
 }
 
 function rawMarkdownForSlug(slug) {
-  return markdownModules[markdownPathForSlug(slug)] ?? null
+  const localized = markdownModules[markdownPathForSlug(slug)]
+  if (localized) return localized
+  if (helpLocale() !== 'de') {
+    return markdownModules[`../content/help/de/${slug}.md`] ?? null
+  }
+  return null
 }
 
 function flattenArticles() {
   const articles = []
-  for (const category of helpCategories) {
+  for (const category of getHelpCategories()) {
     for (const article of category.articles) {
       articles.push({
         ...article,
@@ -32,7 +43,7 @@ function flattenArticles() {
 }
 
 export function getCategories() {
-  return helpCategories
+  return getHelpCategories()
 }
 
 export function getAllArticles() {
@@ -72,7 +83,7 @@ export function getArticlesForRoute(routeName) {
 }
 
 export function getArticlesInCategory(categoryId) {
-  const category = helpCategories.find((entry) => entry.id === categoryId)
+  const category = getHelpCategories().find((entry) => entry.id === categoryId)
   if (!category) return []
 
   return category.articles.map((article) => ({

@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, status
+from .i18n.errors import api_error
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -31,32 +32,20 @@ def resolve_hire_company_id(
 ) -> int:
     if is_org_admin(user):
         if user.hire_company_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Organisation admin has no Verleiher assigned",
-            )
+            raise api_error("org_admin_no_verleiher", status.HTTP_403_FORBIDDEN)
         return user.hire_company_id
     if is_platform_admin(user):
         if header_hire_company_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="X-Hire-Company-Id header required for platform administrators",
-            )
+            raise api_error("hire_company_header_required", status.HTTP_400_BAD_REQUEST)
         return header_hire_company_id
     if user.hire_company_id is not None:
         return user.hire_company_id
     orgs = user.organisations or []
     if not orgs:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Active Verleiher context could not be determined",
-        )
+        raise api_error("verleiher_context_undetermined", status.HTTP_400_BAD_REQUEST)
     tenant_ids = {o.hire_company_id for o in orgs}
     if len(tenant_ids) != 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is linked to multiple Verleiher; contact an administrator",
-        )
+        raise api_error("user_multiple_verleiher", status.HTTP_400_BAD_REQUEST)
     return next(iter(tenant_ids))
 
 
@@ -68,11 +57,11 @@ def get_tenant_context(
     hire_company_id = resolve_hire_company_id(user, header_hire_company_id)
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verleiher not found")
+        raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
     if is_org_admin(user) and user.hire_company_id != hire_company_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this Verleiher")
+        raise api_error("not_allowed_for_verleiher", status.HTTP_403_FORBIDDEN)
     if is_platform_admin(user) and header_hire_company_id is not None and header_hire_company_id != hire_company_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this Verleiher")
+        raise api_error("not_allowed_for_verleiher", status.HTTP_403_FORBIDDEN)
     return TenantContext(hire_company_id=hire_company_id, hire_company=company)
 
 
@@ -84,10 +73,7 @@ def parse_hire_company_header(
     try:
         return int(x_hire_company_id.strip())
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid X-Hire-Company-Id",
-        ) from exc
+        raise api_error("invalid_hire_company_id", status.HTTP_400_BAD_REQUEST) from exc
 
 
 def get_current_tenant(
@@ -103,28 +89,22 @@ def get_current_tenant_admin(
     current_user: User = Depends(get_current_user),
 ) -> TenantContext:
     if not can_manage_tenant(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Requires Verleiher administrator privileges",
-        )
+        raise api_error("requires_verleiher_admin", status.HTTP_403_FORBIDDEN)
     return tenant
 
 
 def get_current_platform_admin(current_user: User = Depends(get_current_user)) -> User:
     if not is_platform_admin(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Requires platform administrator privileges",
-        )
+        raise api_error("requires_platform_admin", status.HTTP_403_FORBIDDEN)
     return current_user
 
 
 def ensure_org_in_tenant(db: Session, organisation_id: int, hire_company_id: int) -> Organisation:
     org = db.query(Organisation).filter(Organisation.id == organisation_id).first()
     if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found")
+        raise api_error("organisation_not_found", status.HTTP_404_NOT_FOUND)
     if org.hire_company_id != hire_company_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organisation not in this Verleiher")
+        raise api_error("organisation_not_in_verleiher", status.HTTP_403_FORBIDDEN)
     return org
 
 
@@ -168,15 +148,12 @@ def ensure_user_can_use_organisation(
     if organisation_id is None:
         if len(organisations) == 1:
             return organisations[0]
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Organisation is required when the user is linked to multiple organisations",
-        )
+        raise api_error("organisation_required_multi", status.HTTP_422_UNPROCESSABLE_ENTITY)
     organisation = ensure_org_in_tenant(db, organisation_id, hire_company_id)
     if can_manage_tenant(current_user):
         return organisation
     if not any(org.id == organisation.id for org in organisations):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this organisation")
+        raise api_error("not_allowed_for_organisation", status.HTTP_403_FORBIDDEN)
     return organisation
 
 
@@ -215,7 +192,7 @@ def ensure_user_in_tenant(
         db, user_id, hire_company_id, load_organisations=load_organisations
     )
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise api_error("user_not_found", status.HTTP_404_NOT_FOUND)
     return user
 
 
@@ -235,13 +212,10 @@ def ensure_users_in_tenant(
     found = {u.id for u in users}
     missing = set(user_ids) - found
     if missing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown user id(s)")
+        raise api_error("unknown_user_ids", status.HTTP_400_BAD_REQUEST)
     for user in users:
         if not user_belongs_to_tenant(user, hire_company_id):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User belongs to another Verleiher",
-            )
+            raise api_error("user_wrong_verleiher", status.HTTP_400_BAD_REQUEST)
     return users
 
 
@@ -256,13 +230,10 @@ def ensure_organisation_ids_in_tenant(
     found = {o.id for o in orgs}
     missing = set(organisation_ids) - found
     if missing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown organisation id(s)")
+        raise api_error("unknown_organisation_ids", status.HTTP_400_BAD_REQUEST)
     for org in orgs:
         if org.hire_company_id != hire_company_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Organisation belongs to another Verleiher",
-            )
+            raise api_error("organisation_wrong_verleiher", status.HTTP_400_BAD_REQUEST)
     return orgs
 
 

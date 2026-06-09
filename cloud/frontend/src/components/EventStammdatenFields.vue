@@ -1,12 +1,12 @@
 <template>
   <div class="event-stammdaten">
     <section class="field-group">
-      <h3 class="field-group-title">Basis</h3>
+      <h3 class="field-group-title">{{ t('events.stammdaten.basis') }}</h3>
       <div class="form-field">
-        <FormLabel required>Name</FormLabel>
+        <FormLabel required>{{ t('events.stammdaten.name') }}</FormLabel>
         <v-text-field
           v-model="form.name"
-          placeholder="Sommerfest 2026"
+          :placeholder="t('events.stammdaten.namePlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
@@ -14,24 +14,24 @@
       </div>
       <div class="field-row">
         <div class="form-field">
-          <FormLabel required>Status</FormLabel>
+          <FormLabel required>{{ t('events.stammdaten.status') }}</FormLabel>
           <v-select
             v-model="form.status"
             :items="selectableStatusOptions"
             item-title="label"
             item-value="value"
-            placeholder="Status wählen"
+            :placeholder="t('events.stammdaten.statusPlaceholder')"
             hide-details="auto"
             required
             :rules="[rules.required]"
           />
         </div>
         <div class="form-field">
-          <FormLabel required>Währung</FormLabel>
+          <FormLabel required>{{ t('events.stammdaten.currency') }}</FormLabel>
           <v-select
             v-model="form.currency"
             :items="currencyOptions"
-            placeholder="Währung wählen"
+            :placeholder="t('events.stammdaten.currencyPlaceholder')"
             hide-details="auto"
             required
             :rules="[rules.required]"
@@ -40,11 +40,11 @@
       </div>
       <div class="field-row">
         <div class="form-field">
-          <FormLabel required>Start</FormLabel>
+          <FormLabel required>{{ t('events.stammdaten.start') }}</FormLabel>
           <v-text-field
             :model-value="formatLocalDatetime(form.start)"
             type="datetime-local"
-            placeholder="Startdatum wählen"
+            :placeholder="t('events.stammdaten.startPlaceholder')"
             hide-details="auto"
             required
             :rules="[() => rules.requiredDate(props.form.start)]"
@@ -52,11 +52,11 @@
           />
         </div>
         <div class="form-field">
-          <FormLabel required>Ende</FormLabel>
+          <FormLabel required>{{ t('events.stammdaten.end') }}</FormLabel>
           <v-text-field
             :model-value="formatLocalDatetime(form.end)"
             type="datetime-local"
-            placeholder="Enddatum wählen"
+            :placeholder="t('events.stammdaten.endPlaceholder')"
             hide-details="auto"
             required
             :rules="[() => rules.requiredDate(props.form.end)]"
@@ -67,27 +67,27 @@
     </section>
 
     <section class="field-group">
-      <h3 class="field-group-title">Zahlung</h3>
+      <h3 class="field-group-title">{{ t('events.stammdaten.payment') }}</h3>
       <div class="form-field">
-        <FormLabel>Zahlungsmodus (Pi / Kellner)</FormLabel>
+        <FormLabel>{{ t('events.stammdaten.paymentMode') }}</FormLabel>
         <v-select
           v-model="form.paymentMode"
           :items="paymentModeOptions"
           item-title="label"
           item-value="value"
-          placeholder="Modus wählen"
+          :placeholder="t('events.stammdaten.paymentModePlaceholder')"
           hide-details="auto"
         />
-        <small>Sofort bezahlt = Position als bezahlt beim Absenden; Jetzt bezahlen = Bezahlen beim Abschicken der Bestellung; Später = Bezahlung erfolgt zu einem späteren Zeitpunkt.</small>
+        <small>{{ t('events.stammdaten.paymentModeHint') }}</small>
       </div>
       <div class="form-field">
-        <FormLabel required>Zahlungsarten (Pi)</FormLabel>
+        <FormLabel required>{{ t('events.stammdaten.paymentTypes') }}</FormLabel>
         <v-select
           v-model="form.paymentTypes"
           :items="paymentTypeOptions"
           item-title="label"
           item-value="value"
-          placeholder="Zahlungsarten wählen"
+          :placeholder="t('events.stammdaten.paymentTypesPlaceholder')"
           multiple
           chips
           closable-chips
@@ -95,11 +95,11 @@
           required
           :rules="[rules.requiredArray]"
         />
-        <small>Bei Abrechnung wählt der Kellner eine Art (Popup erscheintnur bei mehreren Zahlungsarten).</small>
+        <small>{{ t('events.stammdaten.paymentTypesHint') }}</small>
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="offer-payment-receipt">Zahlungsbeleg nach Bezahlung anbieten</label>
+          <label for="offer-payment-receipt">{{ t('events.stammdaten.offerPaymentReceipt') }}</label>
           <v-switch
             id="offer-payment-receipt"
             v-model="form.offerPaymentReceipt"
@@ -107,7 +107,7 @@
             density="compact"
           />
         </div>
-        <small class="toggle-hint">Nach Bezahlung fragt die App, ob ein Zahlungsbeleg gedruckt werden soll.</small>
+        <small class="toggle-hint">{{ t('events.stammdaten.offerPaymentReceiptHint') }}</small>
       </div>
       <TwintQrField
         v-if="showTwintQrSection"
@@ -122,10 +122,10 @@
     </section>
 
     <section class="field-group">
-      <h3 class="field-group-title">Config</h3>
+      <h3 class="field-group-title">{{ t('events.stammdaten.config') }}</h3>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="cash-registers-enabled">Kassen</label>
+          <label for="cash-registers-enabled">{{ t('events.stammdaten.cashRegisters') }}</label>
           <v-switch
             id="cash-registers-enabled"
             v-model="form.cashRegistersEnabled"
@@ -133,11 +133,11 @@
             density="compact"
           />
         </div>
-        <small class="toggle-hint">Aktiviert Kassen. Kassen sind stationäre Geräte, an denen Bestellungen aufgenommen werden können.</small>
+        <small class="toggle-hint">{{ t('events.stammdaten.cashRegistersHint') }}</small>
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="shift-settlement-enabled">Kellner-/Kassenabrechnung</label>
+          <label for="shift-settlement-enabled">{{ t('events.stammdaten.shiftSettlement') }}</label>
           <v-switch
             id="shift-settlement-enabled"
             v-model="form.shiftSettlementEnabled"
@@ -146,13 +146,12 @@
           />
         </div>
         <small class="toggle-hint">
-          Aktiviert die Schichtabrechnung für Kellner und Kassen. Zu Beginn einer Schicht wird der Kassenbestand erfasst und am Ende
-          der Schicht wird abgerechnet.
+          {{ t('events.stammdaten.shiftSettlementHint') }}
         </small>
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="vouchers-enabled">Gutscheine</label>
+          <label for="vouchers-enabled">{{ t('events.stammdaten.vouchers') }}</label>
           <v-switch
             id="vouchers-enabled"
             v-model="form.vouchersEnabled"
@@ -160,12 +159,12 @@
             density="compact"
           />
         </div>
-        <small class="toggle-hint">Aktiviert die Verwendung von Gutscheinen die bei der Bezahlung angerechnet werden können.<br>
-        Gutscheine können auch an Kassen verkauft werden.</small>
+        <small class="toggle-hint">{{ t('events.stammdaten.vouchersHintLine1') }}<br>
+        {{ t('events.stammdaten.vouchersHintLine2') }}</small>
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="alternative-printers-enabled">Alternative Drucker</label>
+          <label for="alternative-printers-enabled">{{ t('events.stammdaten.alternativePrinters') }}</label>
           <v-switch
             id="alternative-printers-enabled"
             v-model="form.alternativePrintersEnabled"
@@ -174,12 +173,12 @@
           />
         </div>
         <small class="toggle-hint">
-          Aktiviert Drucker-Regeln nach Tischbereich oder Abholcode-Präfix pro Station.
+          {{ t('events.stammdaten.alternativePrintersHint') }}
         </small>
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="kitchen-monitors-enabled">Kitchen Monitor</label>
+          <label for="kitchen-monitors-enabled">{{ t('events.stammdaten.kitchenMonitors') }}</label>
           <v-switch
             id="kitchen-monitors-enabled"
             v-model="form.kitchenMonitorsEnabled"
@@ -188,12 +187,12 @@
           />
         </div>
         <small class="toggle-hint">
-          Aktiviert Kitchen Monitor pro Drucker (Bestellungen werden am Monitor freigegeben statt sofort gedruckt).
+          {{ t('events.stammdaten.kitchenMonitorsHint') }}
         </small>
       </div>
       <div class="toggle-block">
         <div class="toggle-row">
-          <label for="discounts-enabled">Rabatte aktivieren</label>
+          <label for="discounts-enabled">{{ t('events.stammdaten.discounts') }}</label>
           <v-switch
             id="discounts-enabled"
             v-model="form.discountsEnabled"
@@ -202,8 +201,8 @@
           />
         </div>
         <small class="toggle-hint">
-          Aktiviert die Verwendung von Rabatten.<br>
-          Rabatte können bei einer Bestellung pro Position oder für die gesamte Bestellung angewendet werden. (% oder Betrag)
+          {{ t('events.stammdaten.discountsHintLine1') }}<br>
+          {{ t('events.stammdaten.discountsHintLine2') }}
         </small>
       </div>
     </section>
@@ -211,9 +210,12 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import TwintQrField from './TwintQrField.vue'
 import { rules } from '../utils/formRules.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   form: {

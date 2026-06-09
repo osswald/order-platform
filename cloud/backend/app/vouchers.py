@@ -5,7 +5,8 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import status
+from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from .models import Article, ArticleCategory, Event, EventVoucherDefinition, EventVoucherRedemption
@@ -18,30 +19,18 @@ VOUCHER_KINDS = {VOUCHER_KIND_FIXED, VOUCHER_KIND_ARTICLE}
 def assert_voucher_definition_in(event: Event, vd: Any) -> None:
     kind = str(getattr(vd, "kind", "") or "").strip()
     if kind not in VOUCHER_KINDS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid voucher kind: {kind}",
-        )
+        raise api_error("invalid_voucher_kind", status.HTTP_422_UNPROCESSABLE_ENTITY, kind=kind)
     name = str(getattr(vd, "name", "") or "").strip()
     if not name:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Voucher name is required",
-        )
+        raise api_error("voucher_name_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
     value_cents = getattr(vd, "value_cents", None)
     if kind == VOUCHER_KIND_FIXED:
         if value_cents is None or int(value_cents) < 1:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="fixed_amount vouchers require value_cents >= 1",
-            )
+            raise api_error("voucher_fixed_amount_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
     else:
         allowed = list(getattr(vd, "allowed_article_ids", None) or [])
         if not allowed:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="article_entitlement vouchers require allowed_article_ids",
-            )
+            raise api_error("voucher_article_entitlement_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def assert_voucher_articles_in_org(db: Session, event: Event, article_ids: list[int]) -> None:
@@ -60,10 +49,7 @@ def assert_voucher_articles_in_org(db: Session, event: Event, article_ids: list[
         .count()
     )
     if count != len(set(article_ids)):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="One or more voucher articles are invalid for this organisation",
-        )
+        raise api_error("voucher_articles_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def normalize_cell_voucher_uuids(cell) -> list[str]:
@@ -116,22 +102,13 @@ def assert_layout_cells_vouchers(
             article_ids = list(getattr(cell, "article_ids", None) or [])
             v_uuids = normalize_cell_voucher_uuids(cell)
             if not v_uuids and not article_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Layout cell ({cell.row},{cell.col}) must have articles and/or vouchers",
-                )
+                raise api_error("layout_cell_requires_content", status.HTTP_422_UNPROCESSABLE_ENTITY, row=cell.row, col=cell.col)
             for v_uuid in v_uuids:
                 vd = by_uuid.get(v_uuid)
                 if not vd:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail=f"Unknown voucher_definition_uuid on cell ({cell.row},{cell.col})",
-                    )
+                    raise api_error("unknown_voucher_on_cell", status.HTTP_422_UNPROCESSABLE_ENTITY, row=cell.row, col=cell.col)
                 if str(getattr(vd, "kind", "")) != VOUCHER_KIND_FIXED:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Only fixed_amount vouchers may be placed on layout cells",
-                    )
+                    raise api_error("only_fixed_amount_on_cell", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def persist_voucher_redemptions_from_payload(

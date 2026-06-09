@@ -19,7 +19,7 @@
   </div>
 
   <div v-else class="event-config-split">
-    <nav class="event-config-nav" aria-label="Event-Konfiguration">
+    <nav class="event-config-nav" :aria-label="$t('events.configNavAria')">
       <button
         v-for="section in sections"
         :key="section.id"

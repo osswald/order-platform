@@ -1,10 +1,10 @@
 <template>
   <div class="event-stock-tab">
     <p v-if="loadError" class="error">{{ loadError }}</p>
-    <p v-else-if="loading" class="muted">Laden…</p>
+    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else>
       <p v-if="!itemsLocal.length" class="muted">
-        Keine Artikel an Stationen dieses Events verknüpft. Artikel zuerst unter „Stationen“ zuweisen.
+        {{ $t('events.tabs.noStockArticles') }}
       </p>
       <template v-else>
         <section v-for="group in stockGroups" :key="group.key" class="stock-group">
@@ -39,10 +39,13 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { stockGroupsForItems } from '../utils/stockByStation'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   eventId: {
@@ -61,11 +64,11 @@ const COL_NAME = { minWidth: '12rem' }
 const COL_MONITOR = { width: '9rem', sortable: false, align: 'center' }
 const COL_QTY = { width: '8rem', sortable: false, align: 'end' }
 
-const stockHeaders = [
-  { title: 'Artikel', key: 'name', ...COL_NAME },
-  { title: 'Bestand führen', key: 'monitor_stock', ...COL_MONITOR },
-  { title: 'Bestand', key: 'in_stock', ...COL_QTY },
-]
+const stockHeaders = computed(() => [
+  { title: t('events.tabs.article'), key: 'name', ...COL_NAME },
+  { title: t('events.tabs.monitorStock'), key: 'monitor_stock', ...COL_MONITOR },
+  { title: t('events.tabs.stock'), key: 'in_stock', ...COL_QTY },
+])
 
 const loading = ref(true)
 const loadError = ref('')
@@ -121,7 +124,7 @@ const {
     try {
       return await persistStock()
     } catch (e) {
-      setError(e.message || 'Speichern fehlgeschlagen')
+      setError(e.message || t('events.tabs.saveFailed'))
       return false
     }
   },
@@ -148,7 +151,7 @@ async function loadStock() {
     applyStockItems(data)
     markSaved()
   } catch (e) {
-    loadError.value = e.message || 'Laden fehlgeschlagen'
+    loadError.value = e.message || t('events.tabs.loadFailed')
     itemsLocal.value = []
   } finally {
     loading.value = false

@@ -38,7 +38,7 @@
         location="left"
         width="280"
       >
-        <v-toolbar density="compact" title="Menü" />
+        <v-toolbar density="compact" :title="$t('common.menu')" />
         <div class="pa-3">
           <AppNavMenu
             :is-platform-admin="isPlatformAdmin"

@@ -1,32 +1,31 @@
 <template>
   <div v-if="organisationId" class="org-stripe-block">
     <div class="stripe-header-row">
-      <h3>Kartenzahlung (Stripe)</h3>
+      <h3>{{ t('stripe.sectionTitle') }}</h3>
       <HelpLink slug="stripe-connect" variant="icon" />
     </div>
     <p class="muted small">
-      Verbinden Sie ein Stripe-Konto für diese Organisation. Danach können Sie bei Veranstaltungen
-      «Karte (Stripe Terminal)» aktivieren (Android-App mit Internet).
+      {{ t('stripe.sectionDescription') }}
     </p>
 
-    <p v-if="loading" class="muted small">Stripe-Status wird geladen…</p>
+    <p v-if="loading" class="muted small">{{ t('stripe.loadingStatus') }}</p>
     <p v-else-if="loadError" class="error-text">{{ loadError }}</p>
     <template v-else-if="status">
       <p v-if="!status.configured" class="error-text">{{ status.error }}</p>
       <template v-else>
         <div class="stripe-chips">
           <v-chip size="small" :color="status.charges_enabled ? 'success' : 'default'" variant="tonal">
-            Zahlungen: {{ status.charges_enabled ? 'aktiv' : 'ausstehend' }}
+            {{ t('stripe.charges') }}: {{ status.charges_enabled ? t('stripe.active') : t('stripe.pending') }}
           </v-chip>
           <v-chip size="small" :color="status.payouts_enabled ? 'success' : 'default'" variant="tonal">
-            Auszahlungen: {{ status.payouts_enabled ? 'aktiv' : 'ausstehend' }}
+            {{ t('stripe.payouts') }}: {{ status.payouts_enabled ? t('stripe.active') : t('stripe.pending') }}
           </v-chip>
           <v-chip size="small" :color="status.details_submitted ? 'success' : 'default'" variant="tonal">
-            Angaben: {{ status.details_submitted ? 'vollständig' : 'offen' }}
+            {{ t('stripe.details') }}: {{ status.details_submitted ? t('stripe.complete') : t('stripe.open') }}
           </v-chip>
         </div>
         <p v-if="status.stripe_account_id" class="muted small mono">
-          Konto: {{ truncateAccount(status.stripe_account_id) }}
+          {{ t('stripe.account') }}: {{ truncateAccount(status.stripe_account_id) }}
         </p>
         <div class="stripe-actions">
           <v-btn
@@ -36,7 +35,7 @@
             :loading="busy && busyAction === 'link'"
             @click="startOnboarding"
           >
-            {{ status.stripe_account_id && !status.charges_enabled ? 'Onboarding fortsetzen' : 'Mit Stripe verbinden' }}
+            {{ status.stripe_account_id && !status.charges_enabled ? t('stripe.continueOnboarding') : t('stripe.connect') }}
           </v-btn>
           <v-btn
             variant="outlined"
@@ -45,7 +44,7 @@
             :loading="busy && busyAction === 'refresh'"
             @click="refreshStatus"
           >
-            Status aktualisieren
+            {{ t('stripe.refreshStatus') }}
           </v-btn>
         </div>
         <p v-if="actionMessage" :class="actionMessageType">{{ actionMessage }}</p>
@@ -56,12 +55,15 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import HelpLink from './HelpLink.vue'
 import {
   createStripeAccountLink,
   fetchStripeConnectStatus,
   refreshStripeConnectStatus,
 } from '../utils/stripeConnect'
+
+const { t } = useI18n()
 
 const props = defineProps({
   organisationId: { type: [Number, String], default: null },
@@ -94,7 +96,7 @@ async function loadStatus() {
     status.value = await fetchStripeConnectStatus(id)
   } catch (e) {
     status.value = null
-    loadError.value = e.message || 'Stripe-Status konnte nicht geladen werden.'
+    loadError.value = e.message || t('stripe.statusLoadFailed')
   } finally {
     loading.value = false
   }
@@ -110,10 +112,10 @@ async function startOnboarding() {
       window.location.href = result.url
       return
     }
-    actionMessage.value = 'Kein Onboarding-Link erhalten.'
+    actionMessage.value = t('stripe.noOnboardingLink')
     actionMessageType.value = 'error-text'
   } catch (e) {
-    actionMessage.value = e.message || 'Onboarding fehlgeschlagen.'
+    actionMessage.value = e.message || t('stripe.onboardingFailed')
     actionMessageType.value = 'error-text'
   } finally {
     busy.value = false
@@ -127,10 +129,10 @@ async function refreshStatus() {
   actionMessage.value = ''
   try {
     status.value = { configured: true, ...(await refreshStripeConnectStatus(props.organisationId)) }
-    actionMessage.value = 'Status aktualisiert.'
+    actionMessage.value = t('stripe.statusUpdated')
     actionMessageType.value = 'success-text'
   } catch (e) {
-    actionMessage.value = e.message || 'Aktualisierung fehlgeschlagen.'
+    actionMessage.value = e.message || t('stripe.refreshFailed')
     actionMessageType.value = 'error-text'
   } finally {
     busy.value = false

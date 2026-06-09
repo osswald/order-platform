@@ -1,3 +1,8 @@
+import { createI18n } from 'vue-i18n'
+import { config } from '@vue/test-utils'
+import de from '../src/locales/de.json'
+import en from '../src/locales/en.json'
+
 function createStorage() {
   let data = {}
   return {
@@ -18,3 +23,12 @@ function createStorage() {
 
 globalThis.localStorage = createStorage()
 globalThis.sessionStorage = createStorage()
+
+export const testI18n = createI18n({
+  legacy: false,
+  locale: 'de',
+  fallbackLocale: 'de',
+  messages: { de, en },
+})
+
+config.global.plugins = [testI18n]

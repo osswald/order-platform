@@ -28,6 +28,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   configurationStatus: { type: String, default: 'idle' },
@@ -67,13 +70,13 @@ const aggregate = computed(() => {
 const label = computed(() => {
   switch (aggregate.value.kind) {
     case 'saving':
-      return 'Wird gespeichert…'
+      return t('events.saveStatus.saving')
     case 'error':
-      return 'Speichern fehlgeschlagen'
+      return t('events.saveStatus.error')
     case 'dirty':
-      return 'Ungespeicherte Änderungen'
+      return t('events.saveStatus.dirty')
     case 'saved':
-      return 'Alle Änderungen gespeichert'
+      return t('events.saveStatus.saved')
     default:
       return ''
   }

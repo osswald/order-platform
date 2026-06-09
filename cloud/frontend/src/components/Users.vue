@@ -1,21 +1,21 @@
 <template>
   <ListDetailLayout
-    title="Benutzer"
-    subtitle="Benutzer verwalten und Berechtigungen setzen."
-    createLabel="Neuen Benutzer"
+    :title="$t('users.title')"
+    :subtitle="$t('users.subtitle')"
+    :createLabel="$t('users.createLabel')"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
     <template #detail>
-      <h2>{{ editMode ? 'Benutzer bearbeiten' : 'Neuen Benutzer' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? $t('users.editTitle') : $t('users.newTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveUser">
       <div class="form-field">
         <v-text-field
           v-model="form.name"
-          label="Name"
-          placeholder="Max Mustermann"
+          :label="$t('common.name')"
+          :placeholder="$t('users.namePlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
@@ -24,9 +24,9 @@
       <div class="form-field">
         <v-text-field
           v-model="form.email"
-          label="Email"
+          :label="$t('common.email')"
           type="email"
-          placeholder="max@example.com"
+          :placeholder="$t('users.emailPlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required, rules.email]"
@@ -38,7 +38,7 @@
           :items="roleOptions"
           item-title="label"
           item-value="value"
-          label="Rolle"
+          :label="$t('common.role')"
           hide-details="auto"
         />
       </div>
@@ -46,8 +46,8 @@
         <v-text-field
           v-model="form.password"
           :type="showPassword ? 'text' : 'password'"
-          label="Passwort"
-          placeholder="Passwort setzen"
+          :label="$t('common.password')"
+          :placeholder="$t('users.passwordPlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
@@ -56,33 +56,33 @@
         />
       </div>
       <div class="form-field">
-        <label>Organisationen</label>
+        <label>{{ $t('common.organisations') }}</label>
         <OrganisationPicker v-model="form.organisationIdsArray" />
-        <small>Keine, eine oder mehrere Organisationen zuordnen.</small>
+        <small>{{ $t('users.organisationsHint') }}</small>
       </div>
       <div v-if="hasOrganisations" class="form-field">
         <v-text-field
           v-model="form.eventAdminPin"
-          label="Pi Admin-Code (6 Ziffern)"
-          placeholder="Optional"
+          :label="$t('users.eventAdminPin')"
+          :placeholder="$t('common.optional')"
           maxlength="6"
           inputmode="numeric"
           :disabled="form.clearEventAdminPin"
           hide-details="auto"
         />
-        <small>Freischaltung der Admin-Funktionen auf dem Pi (Sync, Konfiguration).</small>
+        <small>{{ $t('users.eventAdminPinHint') }}</small>
         <v-checkbox
           v-if="editMode && form.hasEventAdminPin"
           v-model="form.clearEventAdminPin"
-          label="Pi Admin-Code entfernen"
+          :label="$t('users.clearEventAdminPin')"
           hide-details
           density="compact"
           class="mt-2"
         />
       </div>
       <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" type="submit">Speichern</v-btn>
+        <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+        <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -90,16 +90,16 @@
 
     <template #table>
       <div class="table-header">
-        <h2>Alle Benutzer</h2>
-        <span>{{ filteredUsers.length }} von {{ users.length }} Einträgen</span>
+        <h2>{{ $t('users.allTitle') }}</h2>
+        <span>{{ $t('common.entriesCount', { filtered: filteredUsers.length, total: users.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
           <v-text-field
             v-model="searchQuery"
-            label="Suche"
+            :label="$t('common.search')"
             prepend-inner-icon="mdi-magnify"
-            placeholder="Name, E-Mail oder Organisation suchen..."
+            :placeholder="$t('users.searchPlaceholder')"
             hide-details
             density="compact"
           />
@@ -110,7 +110,7 @@
             :items="roleFilterOptions"
             item-title="label"
             item-value="value"
-            label="Rolle"
+            :label="$t('common.role')"
             hide-details
             density="compact"
           />
@@ -121,7 +121,7 @@
             :items="organisationFilterOptions"
             item-title="label"
             item-value="value"
-            label="Organisation"
+            :label="$t('common.organisation')"
             hide-details
             density="compact"
           />
@@ -139,7 +139,7 @@
       >
         <template #item.role="{ item }">{{ roleLabel(item.role) }}</template>
         <template #item.has_event_admin_pin="{ item }">
-          {{ item.has_event_admin_pin ? 'Ja' : 'Nein' }}
+          {{ item.has_event_admin_pin ? $t('common.yes') : $t('common.no') }}
         </template>
         <template #item.organisations="{ item }">
           <span class="cell-orgs" :title="organisationsTitle(item)">{{ formatOrgs(item) }}</span>
@@ -152,10 +152,10 @@
             size="small"
             @click.stop="deleteUser(item.id)"
           >
-            Löschen
+            {{ $t('common.delete') }}
           </v-btn>
         </template>
-        <template #no-data>Keine Benutzer gefunden.</template>
+        <template #no-data>{{ $t('users.noData') }}</template>
       </VqDataTable>
     </template>
   </ListDetailLayout>
@@ -164,6 +164,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import VqDataTable from './VqDataTable.vue'
 
 // isAdmin prop = platform administrator (from App.vue)
@@ -173,6 +174,8 @@ import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
+
+const { t } = useI18n()
 
 const props = defineProps({
   isAdmin: { type: Boolean, default: false },
@@ -198,42 +201,44 @@ const roleFilter = ref('')
 const organisationFilter = ref('')
 const showPassword = ref(false)
 
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Name', key: 'name' },
-  { title: 'Email', key: 'email' },
-  { title: 'Rolle', key: 'role', sortable: false },
-  { title: 'Pi-Code', key: 'has_event_admin_pin', sortable: false },
-  { title: 'Organisationen', key: 'organisations', sortable: false },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
-const roleFilterOptions = [
-  { value: '', label: 'Alle Rollen' },
-  { value: 'org_admin', label: 'Organisations-Admins' },
-  { value: 'member', label: 'Mitglieder' },
-]
+const tableHeaders = computed(() => [
+  { title: t('common.id'), key: 'id' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.email'), key: 'email' },
+  { title: t('common.role'), key: 'role', sortable: false },
+  { title: t('users.piCode'), key: 'has_event_admin_pin', sortable: false },
+  { title: t('common.organisations'), key: 'organisations', sortable: false },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
+])
+
+const roleFilterOptions = computed(() => [
+  { value: '', label: t('users.allRoles') },
+  { value: 'org_admin', label: t('users.roleOrgAdmin') },
+  { value: 'member', label: t('users.roleMember') },
+])
 
 const roleOptions = computed(() => {
   const opts = [
-    { value: 'member', label: 'Mitglied' },
-    { value: 'org_admin', label: 'Organisations-Admin' },
+    { value: 'member', label: t('users.roleMemberSingular') },
+    { value: 'org_admin', label: t('users.roleOrgAdminSingular') },
   ]
   if (props.isAdmin) {
-    opts.push({ value: 'platform_admin', label: 'Plattform-Admin' })
+    opts.push({ value: 'platform_admin', label: t('users.rolePlatformAdmin') })
   }
   return opts
 })
 
 function roleLabel(role) {
-  if (role === 'platform_admin') return 'Plattform-Admin'
-  if (role === 'org_admin') return 'Organisations-Admin'
-  return 'Mitglied'
+  if (role === 'platform_admin') return t('users.rolePlatformAdmin')
+  if (role === 'org_admin') return t('users.roleOrgAdminSingular')
+  return t('users.roleMemberSingular')
 }
-const organisationFilterOptions = [
-  { value: '', label: 'Alle' },
-  { value: 'with-orgs', label: 'Mit Organisationen' },
-  { value: 'without-orgs', label: 'Ohne Organisation' },
-]
+
+const organisationFilterOptions = computed(() => [
+  { value: '', label: t('common.all') },
+  { value: 'with-orgs', label: t('users.withOrganisations') },
+  { value: 'without-orgs', label: t('users.withoutOrganisation') },
+])
 
 const form = ref({
   name: '',
@@ -263,12 +268,12 @@ function formatOrgs(u) {
   if (u.organisation_ids?.length) {
     return u.organisation_ids.map((id) => `#${id}`).join(', ')
   }
-  return '—'
+  return t('common.emDash')
 }
 
 function organisationsTitle(u) {
-  const t = formatOrgs(u)
-  return t === '—' ? '' : t
+  const text = formatOrgs(u)
+  return text === t('common.emDash') ? '' : text
 }
 
 function organisationCount(u) {
@@ -314,7 +319,7 @@ async function fetchUsers() {
     }
     users.value = await resp.json()
   } catch (e) {
-    message.value = 'Benutzer konnten nicht geladen werden.'
+    message.value = t('users.loadError')
     messageType.value = 'error'
   }
 }
@@ -365,7 +370,7 @@ async function syncRouteToForm() {
   }
   const row = users.value.find((u) => Number(u.id) === Number(id))
   if (!row) {
-    message.value = 'Benutzer nicht gefunden.'
+    message.value = t('users.notFound')
     messageType.value = 'error'
     goToList()
     return
@@ -419,17 +424,17 @@ async function saveUser() {
     if (!resp.ok) throw new Error(await resp.text())
     const wasEdit = editMode.value
     await fetchUsers()
-    message.value = wasEdit ? 'Benutzer aktualisiert.' : 'Benutzer erstellt.'
+    message.value = wasEdit ? t('users.updated') : t('users.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern des Benutzers.'
+    message.value = t('users.saveError')
     messageType.value = 'error'
   }
 }
 
 async function deleteUser(id) {
-  if (!confirm('Benutzer wirklich löschen?')) {
+  if (!confirm(t('users.deleteConfirm'))) {
     return
   }
   try {
@@ -438,13 +443,13 @@ async function deleteUser(id) {
     })
     if (!resp.ok) throw new Error(await resp.text())
     await fetchUsers()
-    message.value = 'Benutzer gelöscht.'
+    message.value = t('users.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Benutzer konnte nicht gelöscht werden.'
+    message.value = t('users.deleteError')
     messageType.value = 'error'
   }
 }

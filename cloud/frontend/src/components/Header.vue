@@ -5,7 +5,7 @@
         v-if="isMobile"
         icon="mdi-menu"
         variant="text"
-        aria-label="Menü"
+        :aria-label="$t('common.menu')"
         class="menu-toggle"
         @click="toggleNav"
       />
@@ -24,7 +24,7 @@
           variant="outlined"
           @click="logout"
         >
-          <span v-if="!isMobile">Logout</span>
+          <span v-if="!isMobile">{{ $t('common.logout') }}</span>
         </v-btn>
       </div>
     </div>

@@ -1,8 +1,8 @@
 <template>
   <ListDetailLayout
-    title="Verleiher"
-    subtitle="Verleiher (Mandanten) verwalten — nur Plattform-Administratoren."
-    createLabel="Neuer Verleiher"
+    :title="$t('hireCompanies.title')"
+    :subtitle="$t('hireCompanies.subtitle')"
+    :createLabel="$t('hireCompanies.createLabel')"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
@@ -10,48 +10,48 @@
       <HelpLink slug="roles-and-access" variant="icon" />
     </template>
     <template #detail>
-      <h2>{{ editMode ? 'Verleiher bearbeiten' : 'Neuer Verleiher' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? $t('hireCompanies.editTitle') : $t('hireCompanies.newTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveCompany">
       <div class="form-field">
-        <FormLabel required>Name</FormLabel>
+        <FormLabel required>{{ $t('common.name') }}</FormLabel>
         <v-text-field
           v-model="form.name"
-          placeholder="Vendiqo"
+          :placeholder="$t('hireCompanies.namePlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
         />
       </div>
       <div class="form-field">
-        <label>Adresse</label>
-        <v-text-field v-model="form.address" placeholder="Musterstraße 12" hide-details="auto" />
+        <label>{{ $t('common.address') }}</label>
+        <v-text-field v-model="form.address" :placeholder="$t('hireCompanies.addressPlaceholder')" hide-details="auto" />
       </div>
       <div class="field-row">
         <div class="form-field">
-          <label>PLZ</label>
-          <v-text-field v-model="form.zip" placeholder="8000" hide-details="auto" />
+          <label>{{ $t('common.zip') }}</label>
+          <v-text-field v-model="form.zip" :placeholder="$t('hireCompanies.zipPlaceholder')" hide-details="auto" />
         </div>
         <div class="form-field">
-          <label>Stadt</label>
-          <v-text-field v-model="form.city" placeholder="Zürich" hide-details="auto" />
+          <label>{{ $t('common.city') }}</label>
+          <v-text-field v-model="form.city" :placeholder="$t('hireCompanies.cityPlaceholder')" hide-details="auto" />
         </div>
       </div>
       <div class="form-field">
-        <label>Land</label>
-        <v-text-field v-model="form.country" placeholder="Schweiz" hide-details="auto" />
+        <label>{{ $t('common.country') }}</label>
+        <v-text-field v-model="form.country" :placeholder="$t('hireCompanies.countryPlaceholder')" hide-details="auto" />
       </div>
       <ReceiptPrintingSection
         v-if="editMode && routeEntityId"
         :api-base-path="`/hire-companies/${routeEntityId}`"
         :entity-id="routeEntityId"
-        title="Beleg-Vorlagen (Verleiher)"
-        hint="Standard für neue Organisationen. Wird bei Organisationserstellung übernommen."
+        :title="$t('hireCompanies.receiptTemplatesTitle')"
+        :hint="$t('hireCompanies.receiptTemplatesHint')"
       />
       <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" type="submit">Speichern</v-btn>
+        <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+        <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -59,8 +59,8 @@
 
     <template #table>
       <div class="table-header">
-        <h2>Alle Verleiher</h2>
-        <span>{{ companies.length }} Einträge</span>
+        <h2>{{ $t('hireCompanies.allTitle') }}</h2>
+        <span>{{ $t('common.entriesCountTotal', { total: companies.length }) }}</span>
       </div>
       <VqDataTable
         :headers="tableHeaders"
@@ -68,15 +68,15 @@
         item-value="id"
         hover
         hide-default-footer
-        no-data-text="Keine Verleiher gefunden."
+        :no-data-text="$t('hireCompanies.noData')"
         class="vq-data-table list-table"
         @click:row="(_e, { item }) => editCompany(item)"
       >
         <template #item.standort="{ item }">
-          {{ item.address || '—' }}<span v-if="item.city"> · {{ item.city }}</span>
+          {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
         </template>
         <template #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteCompany(item.id)">Löschen</v-btn>
+          <v-btn color="error" variant="text" @click.stop="deleteCompany(item.id)">{{ $t('common.delete') }}</v-btn>
         </template>
       </VqDataTable>
     </template>
@@ -84,8 +84,9 @@
 </template>
 
 <script setup>
-import { inject, onMounted, ref, watch } from 'vue'
+import { inject, onMounted, ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
@@ -95,6 +96,8 @@ import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
@@ -109,13 +112,13 @@ const {
   goToDetail,
 } = useListDetailRouting('hire-companies')
 
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Name', key: 'name' },
-  { title: 'Standort', key: 'standort', sortable: false },
-  { title: 'Land', key: 'country' },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
+const tableHeaders = computed(() => [
+  { title: t('common.id'), key: 'id' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.location'), key: 'standort', sortable: false },
+  { title: t('common.country'), key: 'country' },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
+])
 
 const companies = ref([])
 const message = ref('')
@@ -135,7 +138,7 @@ async function fetchCompanies() {
     if (!resp.ok) throw new Error(await resp.text())
     companies.value = await resp.json()
   } catch {
-    message.value = 'Verleiher konnten nicht geladen werden.'
+    message.value = t('hireCompanies.loadError')
     messageType.value = 'error'
   }
 }
@@ -185,7 +188,7 @@ async function syncRouteToForm() {
       if (!resp.ok) throw new Error(await resp.text())
       row = await resp.json()
     } catch {
-      message.value = 'Verleiher nicht gefunden.'
+      message.value = t('hireCompanies.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -237,28 +240,28 @@ async function saveCompany() {
     if (!wasEdit && sessionContext) {
       await sessionContext.reloadHireCompaniesAndSelect(saved.id)
     }
-    message.value = wasEdit ? 'Verleiher aktualisiert.' : 'Verleiher erstellt.'
+    message.value = wasEdit ? t('hireCompanies.updated') : t('hireCompanies.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern.'
+    message.value = t('hireCompanies.saveError')
     messageType.value = 'error'
   }
 }
 
 async function deleteCompany(id) {
-  if (!confirm('Verleiher wirklich löschen? Nur möglich ohne Organisationen.')) return
+  if (!confirm(t('hireCompanies.deleteConfirm'))) return
   try {
     const resp = await apiFetch(`/hire-companies/${id}`, { method: 'DELETE' })
     if (!resp.ok) throw new Error(await resp.text())
     await fetchCompanies()
-    message.value = 'Verleiher gelöscht.'
+    message.value = t('hireCompanies.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Verleiher konnte nicht gelöscht werden.'
+    message.value = t('hireCompanies.deleteError')
     messageType.value = 'error'
   }
 }

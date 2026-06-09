@@ -1,13 +1,13 @@
 <template>
   <div class="event-transactions-tab">
     <div class="section-toolbar filters-toolbar">
-      <v-btn variant="outlined" type="button" :disabled="loading" @click="reload">Aktualisieren</v-btn>
+      <v-btn variant="outlined" type="button" :disabled="loading" @click="reload">{{ $t('common.refresh') }}</v-btn>
       <v-select
         v-model="filterPaymentStatus"
         :items="paymentStatusOptions"
         item-title="label"
         item-value="value"
-        label="Status"
+        :label="$t('events.tabs.status')"
         density="compact"
         hide-details
         clearable
@@ -19,7 +19,7 @@
         :items="kindOptions"
         item-title="label"
         item-value="value"
-        label="Art"
+        :label="$t('events.tabs.kind')"
         density="compact"
         hide-details
         clearable
@@ -51,29 +51,29 @@
         <span class="mono">{{ shortId(item.client_order_id) }}</span>
       </template>
       <template #item.table_number="{ item }">
-        {{ item.table_number != null ? item.table_number : '—' }}
+        {{ item.table_number != null ? item.table_number : $t('common.emDash') }}
       </template>
       <template #item.collective_bill_name="{ item }">
-        {{ item.collective_bill_name || '—' }}
+        {{ item.collective_bill_name || $t('common.emDash') }}
       </template>
       <template #item.payment_status="{ item }">{{ paymentStatusLabel(item.payment_status) }}</template>
       <template #item.line_cents="{ item }">
         <div class="amount-cell">
           <span>{{ formatMoney(item.line_cents) }}</span>
           <span v-if="item.moved_line_cents" class="moved-hint muted">
-            {{ formatMoney(item.moved_line_cents) }} verschoben
+            {{ formatMoney(item.moved_line_cents) }} {{ $t('events.tabs.moved') }}
           </span>
         </div>
       </template>
       <template #item.paid_cents="{ item }">
-        {{ item.paid_cents ? formatMoney(item.paid_cents) : '—' }}
+        {{ item.paid_cents ? formatMoney(item.paid_cents) : $t('common.emDash') }}
       </template>
       <template #item.line_count="{ item }">
-        <span v-if="item.line_count">{{ item.line_count }} Position(en)</span>
+        <span v-if="item.line_count">{{ $t('events.tabs.lineCount', { count: item.line_count }) }}</span>
         <span v-else-if="item.moved_lines?.length" class="muted">
-          {{ item.moved_lines.length }} verschoben
+          {{ item.moved_lines.length }} {{ $t('events.tabs.moved') }}
         </span>
-        <span v-else class="muted">—</span>
+        <span v-else class="muted">{{ $t('common.emDash') }}</span>
       </template>
       <template #expanded-row="{ columns, item }">
         <tr v-if="item.lines?.length || item.moved_lines?.length">
@@ -81,9 +81,9 @@
             <table v-if="item.lines?.length" class="lines-nested">
               <thead>
                 <tr>
-                  <th>Artikel</th>
-                  <th class="num">Menge</th>
-                  <th class="num">Betrag</th>
+                  <th>{{ $t('events.tabs.article') }}</th>
+                  <th class="num">{{ $t('events.tabs.quantity') }}</th>
+                  <th class="num">{{ $t('events.tabs.amount') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -108,12 +108,12 @@
             <table v-if="item.moved_lines?.length" class="lines-nested moved-lines">
               <thead>
                 <tr>
-                  <th colspan="3">Verschobene Positionen</th>
+                  <th colspan="3">{{ $t('events.tabs.movedLines') }}</th>
                 </tr>
                 <tr>
-                  <th>Artikel</th>
-                  <th class="num">Menge</th>
-                  <th class="num">Betrag</th>
+                  <th>{{ $t('events.tabs.article') }}</th>
+                  <th class="num">{{ $t('events.tabs.quantity') }}</th>
+                  <th class="num">{{ $t('events.tabs.amount') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,37 +144,40 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { formatAmount } from '../utils/money'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 
+const { t } = useI18n()
+
 const props = defineProps({ eventId: { type: Number, required: true } })
 
-const headers = [
-  { title: 'Zeit', key: 'created_at', sortable: true },
-  { title: 'Art', key: 'kind', sortable: true },
-  { title: 'Bestellung', key: 'client_order_id', sortable: true },
-  { title: 'Tisch', key: 'table_number', sortable: true, align: 'end' },
-  { title: 'Sammelrechnung', key: 'collective_bill_name', sortable: true },
-  { title: 'Kellner', key: 'waiter_name', sortable: true },
-  { title: 'Status', key: 'payment_status', sortable: true },
-  { title: 'Betrag', key: 'line_cents', sortable: true, align: 'end' },
-  { title: 'Zahlung', key: 'payment_methods', sortable: false },
-  { title: 'Bezahlt', key: 'paid_cents', sortable: true, align: 'end' },
-  { title: 'Positionen', key: 'line_count', sortable: true },
-]
+const headers = computed(() => [
+  { title: t('events.tabs.time'), key: 'created_at', sortable: true },
+  { title: t('events.tabs.kind'), key: 'kind', sortable: true },
+  { title: t('events.tabs.order'), key: 'client_order_id', sortable: true },
+  { title: t('events.tabs.table'), key: 'table_number', sortable: true, align: 'end' },
+  { title: t('events.tabs.collectiveBill'), key: 'collective_bill_name', sortable: true },
+  { title: t('events.tabs.waiter'), key: 'waiter_name', sortable: true },
+  { title: t('events.tabs.status'), key: 'payment_status', sortable: true },
+  { title: t('events.tabs.amount'), key: 'line_cents', sortable: true, align: 'end' },
+  { title: t('events.tabs.payment'), key: 'payment_methods', sortable: false },
+  { title: t('events.tabs.paid'), key: 'paid_cents', sortable: true, align: 'end' },
+  { title: t('events.tabs.lineItems'), key: 'line_count', sortable: true },
+])
 
-const paymentStatusOptions = [
-  { value: 'open', label: 'Offen' },
-  { value: 'paid', label: 'Bezahlt' },
-]
+const paymentStatusOptions = computed(() => [
+  { value: 'open', label: t('events.tabs.paymentStatusOpen') },
+  { value: 'paid', label: t('events.tabs.paymentStatusPaid') },
+])
 
-const kindOptions = [
-  { value: 'bestellung', label: 'Bestellung' },
-  { value: 'teilzahlung', label: 'Teilzahlung' },
-  { value: 'zahlung', label: 'Zahlung' },
-]
+const kindOptions = computed(() => [
+  { value: 'bestellung', label: t('events.tabs.kindOrder') },
+  { value: 'teilzahlung', label: t('events.tabs.kindPartialPayment') },
+  { value: 'zahlung', label: t('events.tabs.kindPayment') },
+])
 
 const loading = ref(false)
 const loadError = ref('')
@@ -195,7 +198,7 @@ function formatMoney(cents) {
 }
 
 function formatTime(iso) {
-  if (!iso) return '—'
+  if (!iso) return t('common.emDash')
   try {
     return new Date(iso).toLocaleString('de-CH')
   } catch {
@@ -206,11 +209,15 @@ function formatTime(iso) {
 function shortId(id) {
   const s = String(id || '')
   if (s.length > 14) return `${s.slice(0, 10)}…`
-  return s || '—'
+  return s || t('common.emDash')
 }
 
 function kindLabel(k) {
-  const map = { bestellung: 'Bestellung', teilzahlung: 'Teilzahlung', zahlung: 'Zahlung' }
+  const map = {
+    bestellung: t('events.tabs.kindOrder'),
+    teilzahlung: t('events.tabs.kindPartialPayment'),
+    zahlung: t('events.tabs.kindPayment'),
+  }
   return map[k] || k
 }
 
@@ -222,9 +229,9 @@ function kindChipColor(k) {
 
 function paymentStatusLabel(s) {
   const v = String(s || '').toLowerCase()
-  if (v === 'paid') return 'Bezahlt'
-  if (v === 'open') return 'Offen'
-  return s || '—'
+  if (v === 'paid') return t('events.tabs.paymentStatusPaid')
+  if (v === 'open') return t('events.tabs.paymentStatusOpen')
+  return s || t('common.emDash')
 }
 
 function buildQuery() {
@@ -249,7 +256,7 @@ async function load() {
     items.value = data.items || []
     totalItems.value = data.total ?? 0
   } catch (e) {
-    loadError.value = e.message || 'Laden fehlgeschlagen'
+    loadError.value = e.message || t('events.tabs.loadFailed')
     items.value = []
     totalItems.value = 0
   } finally {

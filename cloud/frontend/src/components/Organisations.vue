@@ -1,62 +1,62 @@
 <template>
   <ListDetailLayout
-    title="Organisationen"
-    subtitle="Veranstalter verwalten und Benutzer zuordnen."
-    createLabel="Neue Organisation"
+    :title="$t('organisations.title')"
+    :subtitle="$t('organisations.subtitle')"
+    :createLabel="$t('organisations.createLabel')"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
     <template #detail>
-      <h2>{{ editMode ? 'Organisation bearbeiten' : 'Neue Organisation' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? $t('organisations.editTitle') : $t('organisations.newTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveOrganisation">
       <div class="form-field">
         <v-text-field
           v-model="form.name"
-          label="Name"
-          placeholder="Vendiqo GmbH"
+          :label="$t('common.name')"
+          :placeholder="$t('organisations.namePlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
         />
       </div>
       <div class="form-field">
-        <v-text-field v-model="form.address" label="Adresse" placeholder="Musterstraße 12" hide-details="auto" />
+        <v-text-field v-model="form.address" :label="$t('common.address')" :placeholder="$t('organisations.addressPlaceholder')" hide-details="auto" />
       </div>
       <div class="field-row">
         <div class="form-field">
-          <v-text-field v-model="form.zip" label="PLZ" placeholder="12345" hide-details="auto" />
+          <v-text-field v-model="form.zip" :label="$t('common.zip')" :placeholder="$t('organisations.zipPlaceholder')" hide-details="auto" />
         </div>
         <div class="form-field">
-          <v-text-field v-model="form.city" label="Stadt" placeholder="Berlin" hide-details="auto" />
+          <v-text-field v-model="form.city" :label="$t('common.city')" :placeholder="$t('organisations.cityPlaceholder')" hide-details="auto" />
         </div>
       </div>
       <div class="form-field">
         <v-select
           v-model="form.country"
           :items="countryOptions"
-          label="Land"
-          placeholder="Land wählen"
+          :label="$t('common.country')"
+          :placeholder="$t('organisations.selectCountry')"
           hide-details="auto"
           required
           :rules="[rules.required]"
         />
       </div>
       <div class="form-field">
-        <label>Benutzer</label>
+        <label>{{ $t('common.users') }}</label>
         <UserPicker v-model="form.userIdsArray" />
-        <small>Feld anklicken für die Liste; tippen zum Filtern.</small>
+        <small>{{ $t('organisations.usersHint') }}</small>
       </div>
 
       <template v-if="editMode && orgApplianceLendings">
         <div class="org-lendings-toolbar">
           <v-btn color="primary" type="button" @click="lendingDialogVisible = true">
-            Geräte ausleihen
+            {{ $t('organisations.lendAppliances') }}
           </v-btn>
         </div>
         <div class="org-lendings-block">
-          <h3>Aktuell ausgeliehene Geräte</h3>
+          <h3>{{ $t('lending.currentTitle') }}</h3>
           <VqDataTable
             :headers="lendingHeaders"
             :items="orgApplianceLendings.current"
@@ -64,16 +64,16 @@
             class="vq-data-table list-table nested-table"
             hide-default-footer
           >
-            <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+            <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
             <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
             <template #item.period="{ item }">
               {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
             </template>
-            <template #no-data>Keine aktiven Ausleihen.</template>
+            <template #no-data>{{ $t('lending.noCurrent') }}</template>
           </VqDataTable>
         </div>
         <div class="org-lendings-block">
-          <h3>Geplante Ausleihen</h3>
+          <h3>{{ $t('lending.plannedTitle') }}</h3>
           <VqDataTable
             :headers="plannedLendingHeaders"
             :items="orgApplianceLendings.planned"
@@ -81,7 +81,7 @@
             class="vq-data-table list-table nested-table"
             hide-default-footer
           >
-            <template #item.appliance_name="{ item }">{{ item.appliance_name || '—' }}</template>
+            <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
             <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
             <template #item.period="{ item }">
               {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
@@ -94,10 +94,10 @@
                 :disabled="cancellingLendingId === item.lending_id"
                 @click="cancelPlannedLendingRow(item)"
               >
-                Stornieren
+                {{ $t('common.cancelLending') }}
               </v-btn>
             </template>
-            <template #no-data>Keine geplanten Ausleihen.</template>
+            <template #no-data>{{ $t('lending.noPlanned') }}</template>
           </VqDataTable>
         </div>
       </template>
@@ -108,12 +108,12 @@
         v-if="editMode && activeId"
         :api-base-path="`/organisations/${activeId}`"
         :entity-id="activeId"
-        title="Beleg-Vorlagen (Organisation)"
-        hint="Standard für neue Veranstaltungen dieser Organisation."
+        :title="$t('organisations.receiptTemplatesOrgTitle')"
+        :hint="$t('organisations.receiptTemplatesOrgHint')"
       />
       <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" type="submit">Speichern</v-btn>
+        <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+        <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -132,20 +132,20 @@
         v-if="tenantHireCompanyId && canManageTenant"
         :api-base-path="`/hire-companies/${tenantHireCompanyId}`"
         :entity-id="tenantHireCompanyId"
-        title="Beleg-Vorlagen (Verleiher)"
-        hint="Gilt als Vorlage für neu angelegte Organisationen."
+        :title="$t('organisations.receiptTemplatesTenantTitle')"
+        :hint="$t('organisations.receiptTemplatesTenantHint')"
       />
       <div class="table-header">
-        <h2>Alle Organisationen</h2>
-        <span>{{ filteredOrganisations.length }} von {{ organisations.length }} Einträgen</span>
+        <h2>{{ $t('organisations.allTitle') }}</h2>
+        <span>{{ $t('common.entriesCount', { filtered: filteredOrganisations.length, total: organisations.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
           <v-text-field
             v-model="searchQuery"
-            label="Suche"
+            :label="$t('common.search')"
             prepend-inner-icon="mdi-magnify"
-            placeholder="Name, Adresse, Stadt oder Land suchen..."
+            :placeholder="$t('organisations.searchPlaceholder')"
             hide-details
             density="compact"
           />
@@ -156,7 +156,7 @@
             :items="countryFilterOptions"
             item-title="label"
             item-value="value"
-            label="Land"
+            :label="$t('common.country')"
             hide-details
             density="compact"
           />
@@ -167,7 +167,7 @@
             :items="userFilterOptions"
             item-title="label"
             item-value="value"
-            label="Benutzer"
+            :label="$t('common.users')"
             hide-details
             density="compact"
           />
@@ -184,15 +184,15 @@
         @click:row="(_, { item }) => editOrganisation(item)"
       >
         <template #item.location="{ item }">
-          {{ item.address || '—' }}<span v-if="item.city"> · {{ item.city }}</span>
+          {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
         </template>
         <template #item.user_ids="{ item }">{{ item.user_ids.length }}</template>
         <template #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteOrganisation(item.id)">
-            Löschen
+            {{ $t('common.delete') }}
           </v-btn>
         </template>
-        <template #no-data>Keine Organisationen gefunden.</template>
+        <template #no-data>{{ $t('organisations.noData') }}</template>
       </VqDataTable>
     </template>
   </ListDetailLayout>
@@ -201,6 +201,7 @@
 <script setup>
 import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import OrganisationStripeSection from './OrganisationStripeSection.vue'
@@ -208,11 +209,17 @@ import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import UserPicker from './UserPicker.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
-import { cancelPlannedLending } from '../utils/applianceLending'
+import {
+  cancelPlannedLending,
+  applianceTypeLabel,
+  formatDeDate,
+} from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 const tenantHireCompanyId = computed(() => sessionContext?.activeHireCompanyId?.value ?? null)
@@ -240,52 +247,33 @@ const orgApplianceLendings = ref(null)
 const lendingDialogVisible = ref(false)
 const cancellingLendingId = ref(null)
 const countryOptions = ['Deutschland', 'Österreich', 'Schweiz', 'Frankreich', 'Italien', 'Belgien', 'Niederlande']
-const userFilterOptions = [
-  { value: '', label: 'Alle' },
-  { value: 'with-users', label: 'Mit Benutzern' },
-  { value: 'without-users', label: 'Ohne Benutzer' },
-]
 
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Name', key: 'name' },
-  { title: 'Standort', key: 'location', sortable: false },
-  { title: 'Land', key: 'country' },
-  { title: 'Benutzer', key: 'user_ids', sortable: false },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
+const userFilterOptions = computed(() => [
+  { value: '', label: t('common.all') },
+  { value: 'with-users', label: t('organisations.withUsers') },
+  { value: 'without-users', label: t('organisations.withoutUsers') },
+])
 
-const lendingHeaders = [
-  { title: 'ID', key: 'appliance_id' },
-  { title: 'Gerät', key: 'appliance_name', sortable: false },
-  { title: 'Typ', key: 'appliance_type', sortable: false },
-  { title: 'Zeitraum', key: 'period', sortable: false },
-]
+const tableHeaders = computed(() => [
+  { title: t('common.id'), key: 'id' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.location'), key: 'location', sortable: false },
+  { title: t('common.country'), key: 'country' },
+  { title: t('common.users'), key: 'user_ids', sortable: false },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
+])
 
-const plannedLendingHeaders = [
-  ...lendingHeaders,
-  { title: 'Aktion', key: 'actions', sortable: false, align: 'end' },
-]
+const lendingHeaders = computed(() => [
+  { title: t('common.id'), key: 'appliance_id' },
+  { title: t('common.appliance'), key: 'appliance_name', sortable: false },
+  { title: t('common.type'), key: 'appliance_type', sortable: false },
+  { title: t('common.period'), key: 'period', sortable: false },
+])
 
-const APPLIANCE_TYPE_LABELS = {
-  server: 'Server',
-  printer: 'Drucker',
-  mobile: 'Mobil',
-  tablet: 'Tablet',
-  router: 'Router',
-  ap: 'Access Point',
-}
-
-function applianceTypeLabel(type) {
-  return APPLIANCE_TYPE_LABELS[type] || type
-}
-
-function formatDeDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Date(y, m - 1, d).toLocaleDateString('de-DE')
-}
+const plannedLendingHeaders = computed(() => [
+  ...lendingHeaders.value,
+  { title: t('common.action'), key: 'actions', sortable: false, align: 'end' },
+])
 
 const form = ref({
   name: '',
@@ -315,7 +303,7 @@ const availableCountries = computed(() => {
 })
 
 const countryFilterOptions = computed(() => [
-  { value: '', label: 'Alle Länder' },
+  { value: '', label: t('common.allCountries') },
   ...availableCountries.value.map((country) => ({ value: country, label: country })),
 ])
 
@@ -349,7 +337,7 @@ async function fetchOrganisations() {
     const response = await apiFetch('/organisations/')
     organisations.value = await response.json()
   } catch (error) {
-    message.value = 'Organisationen konnten nicht geladen werden.'
+    message.value = t('organisations.loadError')
     messageType.value = 'error'
   }
 }
@@ -367,17 +355,17 @@ async function fetchOrgApplianceLendings(orgId) {
 
 async function cancelPlannedLendingRow(row) {
   if (!activeId.value || !row?.lending_id) return
-  const label = row.appliance_name || `Gerät #${row.appliance_id}`
-  if (!confirm(`Geplante Ausleihe für „${label}“ wirklich stornieren?`)) return
+  const label = row.appliance_name || t('lending.deviceFallback', { id: row.appliance_id })
+  if (!confirm(t('lending.cancelConfirm', { label }))) return
   cancellingLendingId.value = row.lending_id
   message.value = ''
   try {
     await cancelPlannedLending(activeId.value, row.lending_id)
-    message.value = 'Geplante Ausleihe storniert.'
+    message.value = t('lending.cancelSuccess')
     messageType.value = 'success'
     await fetchOrgApplianceLendings(activeId.value)
   } catch (e) {
-    message.value = e.message || 'Stornierung fehlgeschlagen.'
+    message.value = e.message || t('lending.cancelFailed')
     messageType.value = 'error'
   } finally {
     cancellingLendingId.value = null
@@ -433,7 +421,7 @@ async function syncRouteToForm() {
       if (!response.ok) throw new Error(await response.text())
       row = await response.json()
     } catch {
-      message.value = 'Organisation nicht gefunden.'
+      message.value = t('organisations.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -491,17 +479,17 @@ async function saveOrganisation() {
     if (!wasEdit && sessionContext) {
       await sessionContext.reloadOrganisationsAndSelect(saved.id)
     }
-    message.value = wasEdit ? 'Organisation aktualisiert.' : 'Organisation erstellt.'
+    message.value = wasEdit ? t('organisations.updated') : t('organisations.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern der Organisation.'
+    message.value = t('organisations.saveError')
     messageType.value = 'error'
   }
 }
 
 async function deleteOrganisation(id) {
-  if (!confirm('Organisation wirklich löschen?')) {
+  if (!confirm(t('organisations.deleteConfirm'))) {
     return
   }
   try {
@@ -512,13 +500,13 @@ async function deleteOrganisation(id) {
       throw new Error(await response.text())
     }
     await fetchOrganisations()
-    message.value = 'Organisation gelöscht.'
+    message.value = t('organisations.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Organisation konnte nicht gelöscht werden.'
+    message.value = t('organisations.deleteError')
     messageType.value = 'error'
   }
 }

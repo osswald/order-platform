@@ -1,22 +1,22 @@
 <template>
   <ListDetailLayout
-    title="Artikelkategorien"
-    subtitle="Artikelkategorien pro Organisation verwalten."
-    createLabel="Neue Kategorie"
+    :title="$t('articleCategories.title')"
+    :subtitle="$t('articleCategories.subtitle')"
+    :createLabel="$t('articleCategories.createLabel')"
     :showCreate="canCreateCategories"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
     <template #detail>
-      <h2>{{ editMode ? 'Kategorie bearbeiten' : 'Neue Kategorie' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? $t('articleCategories.editTitle') : $t('articleCategories.newTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveCategory">
         <div class="form-field">
-          <FormLabel required>Name</FormLabel>
+          <FormLabel required>{{ $t('common.name') }}</FormLabel>
           <v-text-field
             v-model="form.name"
-            placeholder="Getränke"
+            :placeholder="$t('articleCategories.namePlaceholder')"
             hide-details="auto"
             required
             :rules="[rules.required]"
@@ -24,8 +24,8 @@
         </div>
 
         <div class="actions">
-          <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-          <v-btn color="primary" type="submit">Speichern</v-btn>
+          <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+          <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
         </div>
         <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -33,18 +33,18 @@
 
     <template #table>
       <p v-if="activeOrganisationId == null" class="empty-hint">
-        Bitte wählen Sie links eine Organisation.
+        {{ $t('common.noOrganisation') }}
       </p>
       <div class="table-header">
-        <h2>Alle Kategorien</h2>
-        <span>{{ filteredCategories.length }} von {{ categoriesInActiveOrganisation.length }} Einträge</span>
+        <h2>{{ $t('articleCategories.allTitle') }}</h2>
+        <span>{{ $t('common.entriesCount', { filtered: filteredCategories.length, total: categoriesInActiveOrganisation.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
+          <label>{{ $t('common.search') }}</label>
           <v-text-field
             v-model="searchQuery"
-            placeholder="Name oder Organisation suchen..."
+            :placeholder="$t('articleCategories.searchPlaceholder')"
             prepend-inner-icon="mdi-magnify"
             hide-details="auto"
           />
@@ -58,7 +58,7 @@
         :items-per-page="pageSize"
         item-value="id"
         hover
-        no-data-text="Keine Artikelkategorien gefunden."
+        :no-data-text="$t('articleCategories.noData')"
         class="vq-data-table list-table"
         @click:row="(_e, { item }) => editCategory(item)"
       >
@@ -69,7 +69,7 @@
             :disabled="item.article_count > 0"
             @click.stop="deleteCategory(item.id)"
           >
-            Löschen
+            {{ $t('common.delete') }}
           </v-btn>
         </template>
       </VqDataTable>
@@ -80,6 +80,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
@@ -88,6 +89,8 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   activeOrganisationId: {
@@ -107,13 +110,13 @@ const {
   goToDetail,
 } = useListDetailRouting('article-categories')
 
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Name', key: 'name' },
-  { title: 'Organisation', key: 'organisation_name' },
-  { title: 'Artikel', key: 'article_count' },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
+const tableHeaders = computed(() => [
+  { title: t('common.id'), key: 'id' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.organisation'), key: 'organisation_name' },
+  { title: t('articleCategories.articlesCount'), key: 'article_count' },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
+])
 
 const categories = ref([])
 const message = ref('')
@@ -168,7 +171,7 @@ async function fetchCategories() {
     if (!response.ok) throw new Error(await response.text())
     categories.value = await response.json()
   } catch (error) {
-    message.value = 'Artikelkategorien konnten nicht geladen werden.'
+    message.value = t('articleCategories.loadError')
     messageType.value = 'error'
   }
 }
@@ -204,7 +207,7 @@ async function syncRouteToForm() {
       if (!response.ok) throw new Error(await response.text())
       row = await response.json()
     } catch {
-      message.value = 'Kategorie nicht gefunden.'
+      message.value = t('articleCategories.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -230,7 +233,7 @@ function editCategory(category) {
 
 async function saveCategory() {
   if (props.activeOrganisationId == null) {
-    message.value = 'Bitte wählen Sie links eine Organisation.'
+    message.value = t('common.noOrganisation')
     messageType.value = 'error'
     return
   }
@@ -257,30 +260,30 @@ async function saveCategory() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchCategories()
-    message.value = wasEdit ? 'Kategorie aktualisiert.' : 'Kategorie erstellt.'
+    message.value = wasEdit ? t('articleCategories.updated') : t('articleCategories.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern der Kategorie.'
+    message.value = t('articleCategories.saveError')
     messageType.value = 'error'
   }
 }
 
 async function deleteCategory(id) {
-  if (!confirm('Artikelkategorie wirklich löschen?')) return
+  if (!confirm(t('articleCategories.deleteConfirm'))) return
   try {
     const response = await apiFetch(`/article-categories/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) throw new Error(await response.text())
     await fetchCategories()
-    message.value = 'Kategorie gelöscht.'
+    message.value = t('articleCategories.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Kategorie kann nur gelöscht werden, wenn keine Artikel verknüpft sind.'
+    message.value = t('articleCategories.deleteError')
     messageType.value = 'error'
   }
 }

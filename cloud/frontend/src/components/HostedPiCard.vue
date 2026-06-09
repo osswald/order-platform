@@ -1,25 +1,24 @@
 <template>
   <v-card class="hosted-pi-card" variant="outlined">
-    <v-card-title>Cloud-Pi (Test)</v-card-title>
+    <v-card-title>{{ t('hostedPi.title') }}</v-card-title>
     <v-card-text>
       <p class="hosted-pi-desc">
-        Starten Sie eine temporäre Pi-Instanz im Browser, um die Konfiguration zu testen.
-        Läuft maximal 24 Stunden; emulierte Belege erscheinen neben der App (Desktop) oder über den Belege-Button (Mobil).
+        {{ t('hostedPi.description') }}
       </p>
 
       <p v-if="error" class="hosted-pi-error">{{ error }}</p>
 
       <div v-if="loading && !instance && !showStartingMessage" class="hosted-pi-status">
         <v-progress-circular indeterminate size="20" width="2" />
-        <span>Laden…</span>
+        <span>{{ t('common.loading') }}</span>
       </div>
 
       <div v-else-if="showStartingMessage" class="hosted-pi-starting">
         <v-progress-circular indeterminate size="24" width="2" />
         <div>
-          <p class="hosted-pi-starting-title">Cloud-Pi wird gestartet…</p>
+          <p class="hosted-pi-starting-title">{{ t('hostedPi.startingTitle') }}</p>
           <p class="hosted-pi-starting-hint">
-            Container, Routing und TLS werden vorbereitet. Das kann bis zu einer Minute dauern.
+            {{ t('hostedPi.startingHint') }}
           </p>
         </div>
       </div>
@@ -37,24 +36,24 @@
             type="button"
             @click="openInstance"
           >
-            Öffnen
+            {{ t('hostedPi.open') }}
           </v-btn>
           <v-btn variant="outlined" type="button" :disabled="loading" @click="onStop">
-            Beenden
+            {{ t('hostedPi.stop') }}
           </v-btn>
         </div>
       </template>
 
       <template v-else-if="instance?.status === 'failed'">
-        <p class="hosted-pi-error">{{ instance.last_error || 'Start fehlgeschlagen.' }}</p>
+        <p class="hosted-pi-error">{{ instance.last_error || t('hostedPi.startFailed') }}</p>
         <v-btn color="primary" variant="flat" type="button" :disabled="loading" @click="onStart">
-          Erneut starten
+          {{ t('hostedPi.restart') }}
         </v-btn>
       </template>
 
       <template v-else>
         <v-btn color="primary" variant="flat" type="button" :disabled="loading" @click="onStart">
-          Starten
+          {{ t('hostedPi.start') }}
         </v-btn>
       </template>
     </v-card-text>
@@ -63,7 +62,10 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useHostedPi } from '../composables/useHostedPi'
+
+const { t } = useI18n()
 
 const props = defineProps({
   eventId: { type: Number, required: true },
@@ -83,21 +85,21 @@ const showStartingMessage = computed(
 
 const statusLabel = computed(() => {
   const status = instance.value?.status
-  if (status === 'provisioning') return 'Wird gestartet…'
-  if (status === 'running') return 'Läuft'
-  if (status === 'stopping') return 'Wird beendet…'
-  return status || 'Unbekannt'
+  if (status === 'provisioning') return t('hostedPi.status.provisioning')
+  if (status === 'running') return t('hostedPi.status.running')
+  if (status === 'stopping') return t('hostedPi.status.stopping')
+  return status || t('hostedPi.status.unknown')
 })
 
 const expiresLabel = computed(() => {
   const expires = instance.value?.expires_at
   if (!expires) return ''
   const diffMs = new Date(expires).getTime() - Date.now()
-  if (diffMs <= 0) return 'läuft ab'
+  if (diffMs <= 0) return t('hostedPi.expires.expired')
   const hours = Math.floor(diffMs / (60 * 60 * 1000))
   const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000))
-  if (hours > 0) return `noch ${hours}h ${minutes}m`
-  return `noch ${minutes}m`
+  if (hours > 0) return t('hostedPi.expires.remaining', { hours, minutes })
+  return t('hostedPi.expires.remainingMinutes', { minutes })
 })
 
 let pollTimer = null

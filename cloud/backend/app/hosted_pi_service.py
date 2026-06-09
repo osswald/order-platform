@@ -7,7 +7,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from fastapi import HTTPException, status
+from fastapi import status
+from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from .event_status import normalize_status
@@ -105,20 +106,11 @@ async def create_hosted_pi(
     created_by_user_id: int | None,
 ) -> HostedPiInstance:
     if normalize_status(event.status) != "config":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Hosted Pi is only available for events in config status",
-        )
+        raise api_error("hosted_pi_config_only", status.HTTP_422_UNPROCESSABLE_ENTITY)
     if _active_instance_for_event(db, event.id):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A hosted Pi instance is already active for this event",
-        )
+        raise api_error("hosted_pi_already_active", status.HTTP_409_CONFLICT)
     if _running_count(db) >= MAX_CONCURRENT_HOSTED_PI:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Maximum of {MAX_CONCURRENT_HOSTED_PI} hosted Pi instances are already running",
-        )
+        raise api_error("hosted_pi_max_concurrent", status.HTTP_429_TOO_MANY_REQUESTS, max=MAX_CONCURRENT_HOSTED_PI)
 
     slug = _generate_slug()
     now = _utc_now()
@@ -189,10 +181,7 @@ async def create_hosted_pi(
             edge_credential.revoked_at = _utc_now()
         _delete_hosted_appliance(db, instance)
         db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to start hosted Pi: {exc.detail}",
-        ) from exc
+        raise api_error("hosted_pi_start_failed", status.HTTP_502_BAD_GATEWAY, detail=exc.detail) from exc
 
     return instance
 

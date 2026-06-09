@@ -17,6 +17,20 @@ router = APIRouter(prefix="/v1/setup")
 SETUP_URL = "http://192.168.192.10"
 
 
+def _cloud_api_error_detail(response: httpx.Response) -> str | dict:
+    text = response.text or ""
+    try:
+        data = response.json()
+        detail = data.get("detail")
+        if isinstance(detail, dict) and isinstance(detail.get("message"), str):
+            return detail
+        if isinstance(detail, str) and detail:
+            return detail
+    except Exception:
+        pass
+    return text or "Pairing rejected by cloud"
+
+
 class SetupStatusResponse(BaseModel):
     configured: bool
     setup_url: str = SETUP_URL
@@ -136,7 +150,7 @@ async def pair_with_cloud(body: PairSetupRequest):
             response.raise_for_status()
             payload = response.json()
     except httpx.HTTPStatusError as exc:
-        detail = exc.response.text or "Pairing rejected by cloud"
+        detail = _cloud_api_error_detail(exc.response)
         raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(

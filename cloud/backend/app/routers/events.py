@@ -3,6 +3,7 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
@@ -357,7 +358,7 @@ def get_event_for_configuration(
         .first()
     )
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
     return event
 
 
@@ -861,7 +862,7 @@ def get_event_twint_qr(
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     payload = twint_qr_bytes(event)
     if not payload:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No TWINT QR code for this event")
+        raise api_error("no_twint_qr", status.HTTP_404_NOT_FOUND)
     mime, raw = payload
     return Response(content=raw, media_type=mime)
 
@@ -876,16 +877,13 @@ async def put_event_twint_qr(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     if "twint" not in payment_types_from_event(event):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Enable TWINT in payment types before uploading a QR code",
-        )
+        raise api_error("enable_twint_before_qr", status.HTTP_400_BAD_REQUEST)
     mime = (file.content_type or "").split(";")[0].strip().lower()
     raw = await file.read()
     try:
         store_twint_qr(event, mime, raw)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
     db.commit()
     db.refresh(event)
     return {"ok": True, "has_twint_qr": True}
@@ -1017,7 +1015,7 @@ def read_event(
 ):
     event = readable_events_query(db, current_user, tenant.hire_company_id).filter(Event.id == event_id).first()
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
     return event_response(event)
 
 
@@ -1075,7 +1073,7 @@ def copy_event_endpoint(
         raise
     except ValueError as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+        raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_ENTITY) from e
     except Exception:
         db.rollback()
         raise
@@ -1093,7 +1091,7 @@ def update_event(
 ):
     event = readable_events_query(db, current_user, tenant.hire_company_id).filter(Event.id == event_id).first()
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
 
     if event_in.organisation_id is not None:
         organisation = ensure_user_can_use_organisation(db, current_user, event_in.organisation_id, tenant.hire_company_id)
@@ -1103,10 +1101,7 @@ def update_event(
     if event_in.status is not None:
         status_value = event_in.status.lower()
         if status_value not in ALLOWED_STATUSES:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}",
-            )
+            raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_ENTITY, statuses=", ".join(sorted(ALLOWED_STATUSES)))
         old_status = event.status
         validate_status_transition(old_status, status_value)
         if old_status == "test" and status_value == "prod":
@@ -1121,10 +1116,7 @@ def update_event(
     if event_in.payment_mode is not None:
         pm = event_in.payment_mode.lower()
         if pm not in PAYMENT_MODES:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}",
-            )
+            raise api_error("payment_mode_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY, modes=", ".join(sorted(PAYMENT_MODES)))
         event.payment_mode = pm
     if event_in.payment_types is not None:
         try:
@@ -1133,10 +1125,7 @@ def update_event(
             if "twint" not in new_types:
                 clear_twint_qr(event)
         except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=str(e),
-            ) from e
+            raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_ENTITY) from e
     if event_in.cash_registers_enabled is not None:
         event.cash_registers_enabled = bool(event_in.cash_registers_enabled)
     if event_in.shift_settlement_enabled is not None:
@@ -1152,7 +1141,7 @@ def update_event(
     if event_in.offer_payment_receipt is not None:
         event.offer_payment_receipt = bool(event_in.offer_payment_receipt)
     if event.end < event.start:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="End must be after start")
+        raise api_error("end_must_be_after_start", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
     db.commit()
     db.refresh(event)
@@ -1172,7 +1161,7 @@ def delete_event(
         .first()
     )
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(event)
     db.commit()
     return None

@@ -30,12 +30,14 @@
 </template>
 
 <script setup>
+import { i18n } from '../i18n'
+
 defineProps({
   title: String,
   subtitle: String,
   createLabel: {
     type: String,
-    default: 'Neu',
+    default: () => i18n.global.t('common.new'),
   },
   showCreate: {
     type: Boolean,

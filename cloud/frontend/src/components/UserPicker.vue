@@ -3,7 +3,7 @@
     <div v-if="selectedUsers.length" class="selected-list">
       <span v-for="u in selectedUsers" :key="u.id" class="chip">
         {{ displayUser(u) }}
-        <button type="button" class="remove" aria-label="Entfernen" @click="remove(u.id)">&times;</button>
+        <button type="button" class="remove" :aria-label="$t('common.remove')" @click="remove(u.id)">&times;</button>
       </span>
     </div>
 
@@ -14,7 +14,7 @@
         type="text"
         class="picker-input"
         autocomplete="off"
-        placeholder="Benutzer suchen oder aus Liste wählen…"
+        :placeholder="$t('pickers.userSearchPlaceholder')"
         @focus="onFocus"
         @input="onInput"
         @keydown.escape.prevent="closeDropdown"
@@ -24,14 +24,14 @@
 
     <ul v-show="dropdownOpen" class="results" role="listbox">
       <template v-if="loading">
-        <li class="result-hint">Wird geladen…</li>
+        <li class="result-hint">{{ $t('pickers.userLoading') }}</li>
       </template>
       <template v-else-if="!filteredChoices.length">
         <li class="result-hint">
           {{
             directory.length
-              ? 'Keine weiteren Benutzer für diese Suche.'
-              : 'Keine Benutzer geladen.'
+              ? $t('pickers.userNoMoreResults')
+              : $t('pickers.userNotLoaded')
           }}
         </li>
       </template>
@@ -46,7 +46,10 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -70,7 +73,7 @@ function displayUser(u) {
   if (u.name && String(u.name).trim()) {
     return u.email ? `${u.name} (${u.email})` : u.name
   }
-  return u.email || `Benutzer #${u.id}`
+  return u.email || t('pickers.userFallback', { id: u.id })
 }
 
 const selectedIdSet = computed(() => new Set((props.modelValue || []).map((x) => Number(x))))

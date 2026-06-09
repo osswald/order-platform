@@ -3,12 +3,12 @@
     <v-card max-width="32rem">
       <v-card-title>{{ title }}</v-card-title>
       <v-card-text>
-        <p v-if="busy" class="muted">Bitte warten…</p>
+        <p v-if="busy" class="muted">{{ $t('stripe.pleaseWait') }}</p>
         <p v-else-if="error" class="error-text">{{ error }}</p>
         <p v-else>{{ message }}</p>
       </v-card-text>
       <v-card-actions v-if="!busy">
-        <v-btn color="primary" :to="{ name: 'organisations' }">Zu Organisationen</v-btn>
+        <v-btn color="primary" :to="{ name: 'organisations' }">{{ $t('stripe.toOrganisations') }}</v-btn>
       </v-card-actions>
     </v-card>
   </section>
@@ -17,8 +17,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { createStripeAccountLink, refreshStripeConnectStatus } from '../utils/stripeConnect'
 
+const { t } = useI18n()
 const route = useRoute()
 const busy = ref(true)
 const error = ref('')
@@ -26,7 +28,7 @@ const message = ref('')
 
 const isRefreshRoute = computed(() => route.name === 'stripe-connect-refresh')
 const title = computed(() =>
-  isRefreshRoute.value ? 'Stripe Onboarding' : 'Stripe verbunden',
+  isRefreshRoute.value ? t('stripe.onboardingTitle') : t('stripe.connectedTitle'),
 )
 
 function resolveOrganisationId() {
@@ -41,7 +43,7 @@ onMounted(async () => {
   const orgId = resolveOrganisationId()
   if (!orgId || Number.isNaN(orgId)) {
     busy.value = false
-    error.value = 'Keine Organisation ausgewählt. Bitte in Organisationen erneut starten.'
+    error.value = t('stripe.noOrganisation')
     return
   }
   try {
@@ -54,13 +56,13 @@ onMounted(async () => {
           return
         }
       }
-      message.value = 'Onboarding-Status aktualisiert.'
+      message.value = t('stripe.onboardingUpdated')
     } else {
       await refreshStripeConnectStatus(orgId)
-      message.value = 'Stripe-Konto wurde aktualisiert. Sie können nun Kartenzahlungen in Veranstaltungen aktivieren.'
+      message.value = t('stripe.accountUpdated')
     }
   } catch (e) {
-    error.value = e.message || 'Stripe-Rückkehr fehlgeschlagen.'
+    error.value = e.message || t('stripe.returnFailed')
   } finally {
     busy.value = false
   }

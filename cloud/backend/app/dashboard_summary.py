@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .event_sales import build_event_sales_report
-from .event_status import ALLOWED_STATUSES, PI_VISIBLE_STATUSES, STATUS_LABELS, normalize_status
+from .event_status import ALLOWED_STATUSES, PI_VISIBLE_STATUSES, normalize_status
 from .models import Article, ArticleCategory, Event, Waiter
 from .payment_types_config import payment_types_from_event
 from .twint_qr import has_twint_qr
@@ -62,7 +62,6 @@ def build_attention_items(events: list[Event], now: datetime | None = None) -> l
                     "type": "config_starting_soon",
                     "event_id": event.id,
                     "event_name": event.name,
-                    "message": f'„{event.name}" startet bald und ist noch in Konfiguration.',
                 }
             )
 
@@ -74,7 +73,6 @@ def build_attention_items(events: list[Event], now: datetime | None = None) -> l
                         "type": "missing_twint_qr",
                         "event_id": event.id,
                         "event_name": event.name,
-                        "message": f'„{event.name}": TWINT aktiv, aber kein QR-Code hinterlegt.',
                     }
                 )
 
@@ -179,7 +177,6 @@ def build_organisation_dashboard_summary(
         "organisation_id": organisation_id,
         "organisation_name": organisation_name,
         "events_by_status": status_counts,
-        "status_labels": dict(STATUS_LABELS),
         "running_event_ids": running_ids,
         "running_events_count": len(running_ids),
         "events_total": len(events),

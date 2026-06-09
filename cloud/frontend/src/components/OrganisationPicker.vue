@@ -3,7 +3,7 @@
     <div v-if="selectedOrgs.length" class="selected-list">
       <span v-for="o in selectedOrgs" :key="o.id" class="chip">
         {{ displayOrg(o) }}
-        <button type="button" class="remove" aria-label="Entfernen" @click="remove(o.id)">&times;</button>
+        <button type="button" class="remove" :aria-label="$t('common.remove')" @click="remove(o.id)">&times;</button>
       </span>
     </div>
 
@@ -14,7 +14,7 @@
         type="text"
         class="picker-input"
         autocomplete="off"
-        placeholder="Organisation suchen oder aus Liste wählen…"
+        :placeholder="$t('pickers.orgSearchPlaceholder')"
         @focus="onFocus"
         @input="onInput"
         @keydown.escape.prevent="closeDropdown"
@@ -24,14 +24,14 @@
 
     <ul v-show="dropdownOpen" class="results" role="listbox">
       <template v-if="loading">
-        <li class="result-hint">Wird geladen…</li>
+        <li class="result-hint">{{ $t('pickers.orgLoading') }}</li>
       </template>
       <template v-else-if="!filteredChoices.length">
         <li class="result-hint">
           {{
             directory.length
-              ? 'Keine weiteren Organisationen für diese Suche.'
-              : 'Keine Organisationen geladen.'
+              ? $t('pickers.orgNoMoreResults')
+              : $t('pickers.orgNotLoaded')
           }}
         </li>
       </template>
@@ -46,7 +46,10 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -67,7 +70,7 @@ const selectedOrgs = ref([])
 let inFlightFetch = null
 
 function displayOrg(o) {
-  const name = o.name || `Organisation #${o.id}`
+  const name = o.name || t('pickers.orgFallback', { id: o.id })
   if (o.country) {
     return `${name} (${o.country})`
   }

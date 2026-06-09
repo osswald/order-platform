@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
@@ -132,7 +133,7 @@ def ensure_user_can_use_category(
         .first()
     )
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article category not found")
+        raise api_error("article_category_not_found", status.HTTP_404_NOT_FOUND)
     return category
 
 
@@ -169,7 +170,7 @@ def read_article_additions(
 ):
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
     validate_base_article(db, article_id)
     return ArticleAdditionsRead(items=serialize_links_for_admin(db, article))
 
@@ -184,7 +185,7 @@ def put_article_additions(
 ):
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
     base = validate_base_article(db, article_id)
     try:
         replace_addition_links(
@@ -211,7 +212,7 @@ def read_article(
 ):
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
     return article_response(article)
 
 
@@ -252,7 +253,7 @@ def update_article(
 ):
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
 
     if article_in.article_category_id is not None:
         category = ensure_user_can_use_category(db, current_user, article_in.article_category_id, tenant.hire_company_id)
@@ -294,7 +295,7 @@ def delete_article(
 ):
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(article)
     db.commit()
     return None

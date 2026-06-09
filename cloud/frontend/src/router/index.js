@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { i18n } from '../i18n'
 import { listDetailRoutes } from '../composables/useListDetailRouting'
 
 import Dashboard from '../components/Dashboard.vue'
@@ -107,11 +108,11 @@ const routes = [
     name: 'no-access',
     component: SectionPlaceholder,
     props: (route) => ({
-      title: 'Kein Zugriff',
+      title: i18n.global.t('noAccess.title'),
       description:
         route.params.section === 'users'
-          ? 'Nur Administratoren können Benutzerkonten anzeigen und verwalten.'
-          : 'Nur Administratoren können diesen Bereich anzeigen und verwalten.',
+          ? i18n.global.t('noAccess.usersDescription')
+          : i18n.global.t('noAccess.defaultDescription'),
     }),
     meta: { requiresAuth: true },
   },

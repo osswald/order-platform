@@ -2,15 +2,15 @@
   <section class="vq-page help-center">
     <div class="vq-page-header">
       <div>
-        <h1>Hilfe</h1>
-        <p>Anleitungen und Erklärungen zur Vendiqo Cloud-Verwaltung.</p>
+        <h1>{{ $t('help.title') }}</h1>
+        <p>{{ $t('help.subtitle') }}</p>
       </div>
     </div>
 
     <v-text-field
       v-model="searchQuery"
-      label="Suchen"
-      placeholder="Stichwort eingeben…"
+      :label="$t('help.search')"
+      :placeholder="$t('help.searchPlaceholder')"
       prepend-inner-icon="mdi-magnify"
       hide-details
       clearable
@@ -18,13 +18,13 @@
     />
 
     <p v-if="notFound" class="error help-not-found">
-      Artikel «{{ routeSlug }}» wurde nicht gefunden.
-      <RouterLink :to="{ name: 'help' }">Zurück zur Übersicht</RouterLink>
+      {{ $t('help.articleNotFound', { slug: routeSlug }) }}
+      <RouterLink :to="{ name: 'help' }">{{ $t('help.backToOverview') }}</RouterLink>
     </p>
 
     <template v-else-if="showArticleView && currentArticle">
-      <nav class="help-breadcrumb" aria-label="Hilfe-Navigation">
-        <RouterLink :to="{ name: 'help' }">Hilfe</RouterLink>
+      <nav class="help-breadcrumb" :aria-label="$t('help.navAria')">
+        <RouterLink :to="{ name: 'help' }">{{ $t('help.title') }}</RouterLink>
         <span aria-hidden="true">/</span>
         <span>{{ currentArticle.categoryTitle }}</span>
       </nav>
@@ -46,7 +46,7 @@
 
     <div v-else class="help-index">
       <p v-if="filteredArticles.length === 0" class="muted-hint">
-        Keine Artikel für «{{ searchQuery }}» gefunden.
+        {{ $t('help.noSearchResults', { query: searchQuery }) }}
       </p>
 
       <div v-for="category in visibleCategories" :key="category.id" class="help-category">

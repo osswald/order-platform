@@ -2,7 +2,8 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -86,6 +87,6 @@ async def delete_hosted_pi(
     get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     row = _active_instance_for_event(db, event_id)
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active hosted Pi for this event")
+        raise api_error("no_active_hosted_pi", status.HTTP_404_NOT_FOUND)
     row = await stop_hosted_pi(db, row)
     return HostedPiRead(**instance_to_read(row))

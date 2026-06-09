@@ -1,6 +1,7 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -87,7 +88,7 @@ def read_waiter(
         .first()
     )
     if not waiter:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Waiter not found")
+        raise api_error("waiter_not_found", status.HTTP_404_NOT_FOUND)
     return waiter_response(waiter)
 
 
@@ -126,7 +127,7 @@ def update_waiter(
         .first()
     )
     if not waiter:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Waiter not found")
+        raise api_error("waiter_not_found", status.HTTP_404_NOT_FOUND)
 
     if waiter_in.organisation_id is not None:
         organisation = ensure_user_can_use_organisation(
@@ -156,7 +157,7 @@ def delete_waiter(
         .first()
     )
     if not waiter:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Waiter not found")
+        raise api_error("waiter_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(waiter)
     db.commit()
     return None

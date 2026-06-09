@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   attentionItems,
+  attentionMessage,
   eventsByStatus,
   eventsStatDetail,
   formatEventDateRange,
@@ -71,6 +72,8 @@ describe('attentionItems', () => {
     )
     expect(items).toHaveLength(1)
     expect(items[0].type).toBe('config_starting_soon')
+    expect(items[0].message).toBeUndefined()
+    expect(attentionMessage(items[0])).toContain('Sommerfest')
   })
 
   it('flags TWINT without QR code', () => {

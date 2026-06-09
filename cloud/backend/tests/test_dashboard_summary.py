@@ -79,6 +79,8 @@ def test_attention_config_starting_soon():
     items = build_attention_items(events, now)
     assert len(items) == 1
     assert items[0]["type"] == "config_starting_soon"
+    assert "message" not in items[0]
+    assert items[0]["event_name"] == "Fest"
 
 
 def test_attention_missing_twint_qr():
@@ -111,6 +113,7 @@ def test_build_organisation_dashboard_summary(db):
     events = db.query(Event).filter(Event.organisation_id == 1).all()
     summary = build_organisation_dashboard_summary(db, 1, "Test Org", events)
     assert summary["organisation_name"] == "Test Org"
+    assert "status_labels" not in summary
     assert summary["events_total"] == 1
     assert summary["catalog"]["waiters"] == 0
     assert "sales" in summary

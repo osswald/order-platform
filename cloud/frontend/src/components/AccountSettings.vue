@@ -1,24 +1,26 @@
 <template>
   <section class="settings-panel">
     <v-card class="settings-card version-card" max-width="42rem">
-      <v-card-title>System</v-card-title>
-      <v-card-subtitle>Installierte Version dieser Anwendung.</v-card-subtitle>
+      <v-card-title>{{ $t('settings.system') }}</v-card-title>
+      <v-card-subtitle>{{ $t('settings.systemSubtitle') }}</v-card-subtitle>
       <v-card-text>
-        <p class="version-line">Vendiqo ERP {{ label }}</p>
+        <p class="version-line">{{ $t('settings.versionLine', { version: label }) }}</p>
       </v-card-text>
     </v-card>
 
     <v-card class="settings-card" max-width="42rem">
-      <v-card-title>Passwort ändern</v-card-title>
-      <v-card-subtitle>Aktualisieren Sie Ihr eigenes Passwort.</v-card-subtitle>
+      <v-card-title>{{ $t('settings.changePassword') }}</v-card-title>
+      <v-card-subtitle>{{ $t('settings.changePasswordSubtitle') }}</v-card-subtitle>
       <v-card-text>
-        <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+        <p class="form-required-legend">
+          <span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}
+        </p>
         <v-form ref="formRef" @submit.prevent="changePassword">
           <div class="form-field">
             <v-text-field
               v-model="form.currentPassword"
-              label="Aktuelles Passwort"
-              placeholder="Aktuelles Passwort"
+              :label="$t('settings.currentPassword')"
+              :placeholder="$t('settings.currentPassword')"
               :type="showCurrent ? 'text' : 'password'"
               :append-inner-icon="showCurrent ? 'mdi-eye-off' : 'mdi-eye'"
               autocomplete="current-password"
@@ -31,8 +33,8 @@
           <div class="form-field">
             <v-text-field
               v-model="form.newPassword"
-              label="Neues Passwort"
-              placeholder="Neues Passwort"
+              :label="$t('settings.newPassword')"
+              :placeholder="$t('settings.newPassword')"
               :type="showNew ? 'text' : 'password'"
               :append-inner-icon="showNew ? 'mdi-eye-off' : 'mdi-eye'"
               autocomplete="new-password"
@@ -45,8 +47,8 @@
           <div class="form-field">
             <v-text-field
               v-model="form.confirmPassword"
-              label="Neues Passwort bestätigen"
-              placeholder="Neues Passwort bestätigen"
+              :label="$t('settings.confirmPassword')"
+              :placeholder="$t('settings.confirmPassword')"
               :type="showConfirm ? 'text' : 'password'"
               :append-inner-icon="showConfirm ? 'mdi-eye-off' : 'mdi-eye'"
               autocomplete="new-password"
@@ -57,7 +59,7 @@
             />
           </div>
           <div class="actions">
-            <v-btn color="primary" type="submit">Passwort speichern</v-btn>
+            <v-btn color="primary" type="submit">{{ $t('settings.savePassword') }}</v-btn>
           </div>
           <p v-if="message" :class="messageType">{{ message }}</p>
         </v-form>
@@ -68,10 +70,12 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
 import { rules, validateForm } from '../utils/formRules.js'
 
+const { t } = useI18n()
 const { label } = useAppVersion()
 
 const form = ref({
@@ -110,10 +114,10 @@ async function changePassword() {
       newPassword: '',
       confirmPassword: '',
     }
-    message.value = 'Passwort aktualisiert.'
+    message.value = t('settings.passwordUpdated')
     messageType.value = 'success'
   } catch {
-    message.value = 'Passwort konnte nicht geändert werden.'
+    message.value = t('settings.passwordUpdateFailed')
     messageType.value = 'error'
   }
 }

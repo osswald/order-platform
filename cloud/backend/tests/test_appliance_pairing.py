@@ -222,7 +222,7 @@ def test_active_edge_credential_cannot_be_deleted():
         headers={"Authorization": f"Bearer {token}"},
     )
     assert blocked.status_code == 400, blocked.text
-    assert "Only revoked SD cards can be deleted" in blocked.text
+    assert blocked.json()["detail"]["code"] == "only_revoked_sd_cards_deleted"
 
 
 def test_delete_unknown_edge_credential_returns_404():

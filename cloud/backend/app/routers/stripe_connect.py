@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, status
+from ..i18n.errors import api_error
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -42,11 +43,10 @@ class StripeAccountLinkResponse(StripeConnectStatus):
 
 def _stripe_error(exc: Exception) -> HTTPException:
     if isinstance(exc, StripeConfigError):
-        return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+        return api_error("validation_failed", status.HTTP_503_SERVICE_UNAVAILABLE)
     if isinstance(exc, stripe.error.StripeError):
-        message = getattr(exc, "user_message", None) or str(exc)
-        return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
-    return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Stripe request failed")
+        return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
+    return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
 
 
 def _status_response(organisation: Organisation) -> StripeConnectStatus:
@@ -65,7 +65,7 @@ def _status_response(organisation: Organisation) -> StripeConnectStatus:
 def _account_link_url(value: str | None, env_name: str) -> str:
     url = (value or os.getenv(env_name) or "").strip()
     if not url:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"{env_name} is required")
+        raise api_error("env_required", status.HTTP_422_UNPROCESSABLE_ENTITY, env_name=env_name)
     return url
 
 

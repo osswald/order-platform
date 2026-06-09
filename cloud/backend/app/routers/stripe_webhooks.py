@@ -6,7 +6,8 @@ import logging
 import os
 
 import stripe
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
+from ..i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _webhook_secret() -> str:
     secret = (os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()
     if not secret:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="STRIPE_WEBHOOK_SECRET is not configured")
+        raise api_error("stripe_webhook_secret_missing", status.HTTP_503_SERVICE_UNAVAILABLE)
     return secret
 
 
@@ -30,15 +31,15 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     if not sig_header:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing Stripe-Signature header")
+        raise api_error("stripe_signature_missing", status.HTTP_400_BAD_REQUEST)
 
     stripe.api_version = STRIPE_API_VERSION
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, _webhook_secret())
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload") from exc
+        raise api_error("stripe_invalid_payload", status.HTTP_400_BAD_REQUEST) from exc
     except stripe.error.SignatureVerificationError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature") from exc
+        raise api_error("stripe_invalid_signature", status.HTTP_400_BAD_REQUEST) from exc
 
     event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
     data_object = None

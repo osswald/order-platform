@@ -32,9 +32,9 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="dialogOpen = false">Schliessen</v-btn>
+          <v-btn variant="text" @click="dialogOpen = false">{{ $t('common.close') }}</v-btn>
           <v-btn color="primary" :to="articleRoute" @click="dialogOpen = false">
-            Vollständige Anleitung
+            {{ $t('help.fullGuide') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -44,8 +44,12 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import HelpMarkdown from './HelpMarkdown.vue'
 import { getArticle } from '../utils/helpArticles.js'
+import { i18n } from '../i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   slug: {
@@ -54,7 +58,7 @@ const props = defineProps({
   },
   label: {
     type: String,
-    default: 'Hilfe',
+    default: () => i18n.global.t('help.title'),
   },
   variant: {
     type: String,
@@ -77,7 +81,7 @@ const articleRoute = computed(() => ({
 }))
 
 const ariaLabel = computed(() => {
-  if (article.value?.title) return `Hilfe: ${article.value.title}`
+  if (article.value?.title) return t('help.ariaLabel', { title: article.value.title })
   return props.label
 })
 </script>

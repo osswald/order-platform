@@ -1,22 +1,22 @@
 <template>
   <ListDetailLayout
-    title="Artikel"
-    subtitle="Artikel und Lagerbestand pro Organisation verwalten."
-    createLabel="Neuer Artikel"
+    :title="$t('articles.title')"
+    :subtitle="$t('articles.subtitle')"
+    :createLabel="$t('articles.createLabel')"
     :showCreate="canCreateArticles"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
     <template #detail>
-      <h2>{{ editMode ? 'Artikel bearbeiten' : 'Neuer Artikel' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? $t('articles.editTitle') : $t('articles.newTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveArticle">
       <div class="form-field">
         <v-text-field
           v-model="form.name"
-          label="Name"
-          placeholder="Espresso"
+          :label="$t('common.name')"
+          :placeholder="$t('articles.namePlaceholder')"
           hide-details="auto"
           required
           :rules="[rules.required]"
@@ -26,21 +26,21 @@
       <div class="form-field">
         <v-text-field
           v-model="form.label"
-          label="Label"
+          :label="$t('common.label')"
           maxlength="22"
-          placeholder="Espresso"
+          :placeholder="$t('articles.labelPlaceholder')"
           hide-details="auto"
           required
           :rules="labelRules"
         />
-        <small>{{ form.label.length }}/22 Zeichen</small>
+        <small>{{ $t('articles.labelCharCount', { count: form.label.length }) }}</small>
       </div>
 
       <div class="form-field">
         <v-text-field
           v-model="form.importArticleNumber"
-          label="Import-Artikelnummer"
-          placeholder="z. B. 4711"
+          :label="$t('articles.importArticleNumber')"
+          :placeholder="$t('articles.importArticleNumberPlaceholder')"
           hide-details="auto"
         />
       </div>
@@ -48,34 +48,34 @@
       <div class="form-field">
         <v-textarea
           v-model="form.description"
-          label="Beschreibung"
+          :label="$t('common.description')"
           rows="4"
           auto-grow
-          placeholder="Optionale Beschreibung"
+          :placeholder="$t('articles.descriptionPlaceholder')"
           hide-details="auto"
         />
       </div>
 
       <div class="field-row">
         <div class="form-field">
-          <v-text-field v-model="form.unit" label="Einheit" placeholder="z. B. Stk., l, kg" hide-details="auto" />
+          <v-text-field v-model="form.unit" :label="$t('common.unit')" :placeholder="$t('articles.unitPlaceholder')" hide-details="auto" />
         </div>
         <div class="form-field">
           <v-text-field
             v-model.number="form.incomeAccount"
             type="number"
-            label="Erlöskonto"
-            placeholder="Optional"
+            :label="$t('articles.incomeAccount')"
+            :placeholder="$t('common.optional')"
             hide-details="auto"
           />
         </div>
       </div>
 
       <div class="stock-field">
-        <v-checkbox v-model="form.isAddition" label="Ist Zusatz" hide-details density="compact" />
+        <v-checkbox v-model="form.isAddition" :label="$t('articles.isAddition')" hide-details density="compact" />
       </div>
       <small v-if="form.isAddition" class="muted block-hint">
-        Preis: 0 = kostenlos, positiv = Aufpreis, negativ = Abzug (vom Artikelpreis).
+        {{ $t('articles.additionPriceHint') }}
       </small>
 
       <div class="field-row">
@@ -85,7 +85,7 @@
             type="number"
             step="0.01"
             :min="form.isAddition ? undefined : 0"
-            label="Preis"
+            :label="$t('common.price')"
             hide-details="auto"
             required
             :rules="priceRules"
@@ -97,8 +97,8 @@
             :items="categoryOptions"
             item-title="label"
             item-value="value"
-            label="Kategorie"
-            placeholder="Kategorie wählen"
+            :label="$t('common.category')"
+            :placeholder="$t('articles.selectCategory')"
             hide-details="auto"
             required
             :rules="[rules.required]"
@@ -107,7 +107,7 @@
       </div>
 
       <div class="stock-field">
-        <v-checkbox v-model="form.monitorStock" label="Lagerbestand überwachen" hide-details density="compact" />
+        <v-checkbox v-model="form.monitorStock" :label="$t('articles.monitorStock')" hide-details density="compact" />
       </div>
 
       <div v-if="form.monitorStock" class="form-field">
@@ -115,7 +115,7 @@
           v-model.number="form.inStock"
           type="number"
           :min="0"
-          label="Lagerbestand"
+          :label="$t('articles.inStock')"
           hide-details="auto"
           required
           :rules="[rules.requiredNumber, rules.minNumber(0)]"
@@ -123,16 +123,16 @@
       </div>
 
       <div v-if="editMode && activeId && !form.isAddition" class="additions-section">
-        <h3>Zusätze</h3>
-        <p class="muted small">Preise der Zusätze unter Artikel → Zusätze pflegen. Hier nur verknüpfen.</p>
+        <h3>{{ $t('articles.additionsTitle') }}</h3>
+        <p class="muted small">{{ $t('articles.additionsHint') }}</p>
         <div class="form-field">
           <v-select
             v-model="additionPickIds"
             :items="additionOptions"
             item-title="label"
             item-value="value"
-            label="Zusatz hinzufügen"
-            placeholder="Zusätze wählen"
+            :label="$t('articles.addAddition')"
+            :placeholder="$t('articles.selectAdditions')"
             multiple
             chips
             closable-chips
@@ -158,7 +158,7 @@
               @click="removeAdditionLink(item)"
             />
           </template>
-          <template #no-data>Keine Zusätze verknüpft.</template>
+          <template #no-data>{{ $t('articles.noAdditionsLinked') }}</template>
         </VqDataTable>
         <v-btn
           color="primary"
@@ -167,14 +167,14 @@
           :disabled="!activeId"
           @click="saveAdditions"
         >
-          Zusätze speichern
+          {{ $t('articles.saveAdditions') }}
         </v-btn>
         <p v-if="additionsMessage" :class="additionsMessageType">{{ additionsMessage }}</p>
       </div>
 
       <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-        <v-btn color="primary" type="submit">Speichern</v-btn>
+        <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+        <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
       </div>
       <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -182,19 +182,19 @@
 
     <template #table>
       <p v-if="activeOrganisationId == null" class="empty-hint">
-        Bitte wählen Sie links eine Organisation.
+        {{ $t('common.noOrganisation') }}
       </p>
       <div class="table-header">
-        <h2>Alle Artikel</h2>
-        <span>{{ filteredArticles.length }} von {{ articlesInActiveOrganisation.length }} Einträgen</span>
+        <h2>{{ $t('articles.allTitle') }}</h2>
+        <span>{{ $t('common.entriesCount', { filtered: filteredArticles.length, total: articlesInActiveOrganisation.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
           <v-text-field
             v-model="searchQuery"
-            label="Suche"
+            :label="$t('common.search')"
             prepend-inner-icon="mdi-magnify"
-            placeholder="Name, Label oder Kategorie suchen..."
+            :placeholder="$t('articles.searchPlaceholder')"
             hide-details
             density="compact"
           />
@@ -205,7 +205,7 @@
             :items="typeFilterOptions"
             item-title="label"
             item-value="value"
-            label="Typ"
+            :label="$t('common.type')"
             hide-details
             density="compact"
           />
@@ -216,8 +216,8 @@
             :items="categoryFilterOptions"
             item-title="label"
             item-value="value"
-            label="Kategorie"
-            placeholder="Alle Kategorien"
+            :label="$t('common.category')"
+            :placeholder="$t('articles.allCategories')"
             hide-details
             density="compact"
           />
@@ -236,22 +236,22 @@
       >
         <template #item.is_addition="{ item }">
           <v-chip :color="item.is_addition ? 'warning' : undefined" size="small" variant="tonal">
-            {{ item.is_addition ? 'Zusatz' : 'Artikel' }}
+            {{ item.is_addition ? $t('articles.typeAddition') : $t('articles.typeArticle') }}
           </v-chip>
         </template>
         <template #item.price="{ item }">{{ formatPrice(item.price) }}</template>
         <template #item.stock="{ item }">
           <v-chip v-if="item.monitor_stock" color="info" size="small" variant="tonal">
-            {{ item.in_stock ?? 0 }} Stk.
+            {{ $t('articles.stockPieces', { count: item.in_stock ?? 0 }) }}
           </v-chip>
-          <v-chip v-else size="small" variant="tonal">Aus</v-chip>
+          <v-chip v-else size="small" variant="tonal">{{ $t('articles.stockOff') }}</v-chip>
         </template>
         <template #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteArticle(item.id)">
-            Löschen
+            {{ $t('common.delete') }}
           </v-btn>
         </template>
-        <template #no-data>Keine Artikel gefunden.</template>
+        <template #no-data>{{ $t('articles.noData') }}</template>
       </VqDataTable>
     </template>
   </ListDetailLayout>
@@ -260,6 +260,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
@@ -267,6 +268,8 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   activeOrganisationId: {
@@ -299,25 +302,25 @@ const additionPickIds = ref([])
 const additionsMessage = ref('')
 const additionsMessageType = ref('')
 
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Typ', key: 'is_addition', sortable: false },
-  { title: 'Name', key: 'name' },
-  { title: 'Import-Nr.', key: 'import_article_number' },
-  { title: 'Label', key: 'label' },
-  { title: 'Einheit', key: 'unit' },
-  { title: 'Preis', key: 'price', sortable: false },
-  { title: 'Kategorie', key: 'article_category_name' },
-  { title: 'Organisation', key: 'organisation_name' },
-  { title: 'Lager', key: 'stock', sortable: false },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
+const tableHeaders = computed(() => [
+  { title: t('common.id'), key: 'id' },
+  { title: t('common.type'), key: 'is_addition', sortable: false },
+  { title: t('common.name'), key: 'name' },
+  { title: t('articles.importNumberShort'), key: 'import_article_number' },
+  { title: t('common.label'), key: 'label' },
+  { title: t('common.unit'), key: 'unit' },
+  { title: t('common.price'), key: 'price', sortable: false },
+  { title: t('common.category'), key: 'article_category_name' },
+  { title: t('common.organisation'), key: 'organisation_name' },
+  { title: t('common.stock'), key: 'stock', sortable: false },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
+])
 
-const additionsHeaders = [
-  { title: 'Zusatz', key: 'name' },
-  { title: 'Preis', key: 'price', sortable: false },
+const additionsHeaders = computed(() => [
+  { title: t('articles.additionColumn'), key: 'name' },
+  { title: t('common.price'), key: 'price', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
-]
+])
 
 const emptyForm = () => ({
   name: '',
@@ -333,11 +336,11 @@ const emptyForm = () => ({
   articleCategoryId: null,
 })
 
-const typeFilterOptions = [
-  { value: 'articles', label: 'Artikel' },
-  { value: 'additions', label: 'Zusätze' },
-  { value: 'all', label: 'Alle' },
-]
+const typeFilterOptions = computed(() => [
+  { value: 'articles', label: t('articles.typeArticle') },
+  { value: 'additions', label: t('articles.typeAddition') },
+  { value: 'all', label: t('articles.typeAll') },
+])
 
 const form = ref(emptyForm())
 
@@ -361,7 +364,7 @@ const categoryOptions = computed(() =>
 )
 
 const categoryFilterOptions = computed(() => [
-  { value: null, label: 'Alle Kategorien' },
+  { value: null, label: t('articles.allCategories') },
   ...categoryOptions.value,
 ])
 
@@ -385,10 +388,10 @@ const additionOptions = computed(() =>
 
 const formRef = ref(null)
 
-const labelRules = [
+const labelRules = computed(() => [
   rules.required,
-  (v) => String(v || '').length <= 22 || 'Maximal 22 Zeichen',
-]
+  (v) => String(v || '').length <= 22 || t('articles.labelMaxLength'),
+])
 
 const priceRules = computed(() => {
   const base = [rules.requiredNumber]
@@ -459,7 +462,7 @@ async function fetchArticles() {
     if (!response.ok) throw new Error(await response.text())
     articles.value = await response.json()
   } catch (error) {
-    message.value = 'Artikel konnten nicht geladen werden.'
+    message.value = t('articles.loadError')
     messageType.value = 'error'
   }
 }
@@ -471,7 +474,7 @@ async function fetchCategories() {
       categories.value = await response.json()
     }
   } catch (error) {
-    message.value = 'Artikelkategorien konnten nicht geladen werden.'
+    message.value = t('articles.categoriesLoadError')
     messageType.value = 'error'
   }
 }
@@ -528,7 +531,7 @@ async function syncRouteToForm() {
       if (!response.ok) throw new Error(await response.text())
       row = await response.json()
     } catch {
-      message.value = 'Artikel nicht gefunden.'
+      message.value = t('articles.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -610,17 +613,17 @@ async function saveAdditions() {
       price: row.price,
       sort_order: row.sort_order ?? idx,
     }))
-    additionsMessage.value = 'Zusätze gespeichert.'
+    additionsMessage.value = t('articles.additionsSaved')
     additionsMessageType.value = 'success'
   } catch (e) {
-    additionsMessage.value = e.message || 'Speichern fehlgeschlagen'
+    additionsMessage.value = e.message || t('common.saveFailed')
     additionsMessageType.value = 'error'
   }
 }
 
 async function saveArticle() {
   if (props.activeOrganisationId == null) {
-    message.value = 'Bitte wählen Sie links eine Organisation.'
+    message.value = t('common.noOrganisation')
     messageType.value = 'error'
     return
   }
@@ -652,30 +655,30 @@ async function saveArticle() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchArticles()
-    message.value = wasEdit ? 'Artikel aktualisiert.' : 'Artikel erstellt.'
+    message.value = wasEdit ? t('articles.updated') : t('articles.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern des Artikels.'
+    message.value = t('articles.saveError')
     messageType.value = 'error'
   }
 }
 
 async function deleteArticle(id) {
-  if (!confirm('Artikel wirklich löschen?')) return
+  if (!confirm(t('articles.deleteConfirm'))) return
   try {
     const response = await apiFetch(`/articles/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) throw new Error(await response.text())
     await fetchArticles()
-    message.value = 'Artikel gelöscht.'
+    message.value = t('articles.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Artikel konnte nicht gelöscht werden.'
+    message.value = t('articles.deleteError')
     messageType.value = 'error'
   }
 }

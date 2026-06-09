@@ -83,7 +83,7 @@ def test_tenant_admin_cannot_attach_foreign_user_to_organisation():
         headers={"Authorization": f"Bearer {ctx['admin_b_token']}"},
     )
     assert r.status_code == 400
-    assert "Verleiher" in r.json()["detail"]
+    assert "Verleiher" in r.json()["detail"]["message"]
 
 
 def test_tenant_admin_can_update_user_in_own_verleiher_via_organisation():

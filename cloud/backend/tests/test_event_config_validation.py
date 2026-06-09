@@ -94,7 +94,7 @@ def test_cell_article_not_on_station_raises(db):
     ]
     with pytest.raises(HTTPException) as exc:
         assert_cell_articles_subset_of_stations(stations, layouts)
-    assert "not linked to any station" in exc.value.detail
+    assert exc.value.detail["code"] == "validation_failed"
 
 
 def test_assert_source_waiter_in_org(db):

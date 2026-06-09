@@ -1,5 +1,11 @@
 import { apiFetch } from '../api'
+import { i18n } from '../i18n'
+import { formatDate } from './localeFormat'
 import { parseApiErrorDetail } from './apiError'
+
+function t(key, params) {
+  return i18n.global.t(key, params)
+}
 
 /** Local calendar date at midnight (for Vuetify date pickers). */
 export function toLocalCalendarDate(d) {
@@ -49,29 +55,25 @@ export function defaultLendingEndDate(start = new Date()) {
 }
 
 export function formatDeDate(isoOrDate) {
-  if (!isoOrDate) return '—'
-  const d = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('de-DE')
+  return formatDate(isoOrDate, i18n.global.locale.value)
 }
 
 export function lendingRangeHint(start, end) {
   const days = inclusiveDurationDays(start, end)
   if (!days) return ''
-  return `${days} Tag${days === 1 ? '' : 'e'} (${formatDeDate(start)} – ${formatDeDate(end)})`
-}
-
-export const APPLIANCE_TYPE_LABELS = {
-  server: 'Server',
-  printer: 'Drucker',
-  mobile: 'Mobil',
-  tablet: 'Tablet',
-  router: 'Router',
-  ap: 'Access Point',
+  const dayLabel = days === 1 ? t('lending.day') : t('lending.days')
+  return t('lending.rangeHint', {
+    days,
+    dayLabel,
+    start: formatDeDate(start),
+    end: formatDeDate(end),
+  })
 }
 
 export function applianceTypeLabel(type) {
-  return APPLIANCE_TYPE_LABELS[type] || type
+  const key = `applianceType.${type}`
+  const translated = t(key)
+  return translated !== key ? translated : type
 }
 
 export function applianceDisplayName(appliance) {

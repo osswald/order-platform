@@ -3,7 +3,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -30,6 +30,8 @@ from .routers import (
     users,
     waiters,
 )
+from .i18n import resolve_locale_from_accept_language
+from .i18n.context import set_request_locale
 from .rate_limit import limiter
 from .security import get_password_hash
 
@@ -124,6 +126,12 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+
+@app.middleware("http")
+async def locale_middleware(request: Request, call_next):
+    set_request_locale(resolve_locale_from_accept_language(request.headers.get("accept-language")))
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,8 @@
-const MSG = 'Pflichtfeld'
+import { i18n } from '../i18n'
+
+function t(key) {
+  return i18n.global.t(key)
+}
 
 function isEmpty(value) {
   if (value === null || value === undefined) return true
@@ -8,34 +12,34 @@ function isEmpty(value) {
 }
 
 export const rules = {
-  required: (value) => !isEmpty(value) || MSG,
+  required: (value) => !isEmpty(value) || t('validation.required'),
 
   requiredArray: (value) =>
-    (Array.isArray(value) && value.length > 0) || MSG,
+    (Array.isArray(value) && value.length > 0) || t('validation.required'),
 
   requiredDate: (value) =>
-    (value instanceof Date && !Number.isNaN(value.getTime())) || MSG,
+    (value instanceof Date && !Number.isNaN(value.getTime())) || t('validation.required'),
 
   requiredNumber: (value) => {
-    if (value === null || value === undefined || value === '') return MSG
+    if (value === null || value === undefined || value === '') return t('validation.required')
     const n = Number(value)
-    return (!Number.isNaN(n)) || MSG
+    return (!Number.isNaN(n)) || t('validation.required')
   },
 
   minNumber: (min) => (value) => {
-    if (value === null || value === undefined || value === '') return MSG
+    if (value === null || value === undefined || value === '') return t('validation.required')
     const n = Number(value)
-    return (!Number.isNaN(n) && n >= min) || MSG
+    return (!Number.isNaN(n) && n >= min) || t('validation.required')
   },
 
   email: (value) => {
-    if (isEmpty(value)) return MSG
+    if (isEmpty(value)) return t('validation.required')
     const s = String(value).trim()
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) || 'Ungültige E-Mail-Adresse'
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) || t('validation.invalidEmail')
   },
 
   passwordMatch: (other) => (value) =>
-    value === other || 'Passwörter stimmen nicht überein',
+    value === other || t('validation.passwordMismatch'),
 }
 
 /** Run v-form validate(); returns true when valid. */

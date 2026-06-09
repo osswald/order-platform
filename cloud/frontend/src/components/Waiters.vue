@@ -1,22 +1,22 @@
 <template>
   <ListDetailLayout
-    title="Kellner"
-    subtitle="Kellner pro Organisation verwalten."
-    createLabel="Neuer Kellner"
+    :title="$t('waiters.title')"
+    :subtitle="$t('waiters.subtitle')"
+    :createLabel="$t('waiters.createLabel')"
     :showCreate="canCreateWaiters"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
     <template #detail>
-      <h2>{{ editMode ? 'Kellner bearbeiten' : 'Neuer Kellner' }}</h2>
-      <p class="form-required-legend"><span class="vq-asterisk">*</span> Pflichtfeld</p>
+      <h2>{{ editMode ? $t('waiters.editTitle') : $t('waiters.newTitle') }}</h2>
+      <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
       <v-form ref="formRef" @submit.prevent="saveWaiter">
         <div class="form-field">
-          <FormLabel required>Name</FormLabel>
+          <FormLabel required>{{ $t('common.name') }}</FormLabel>
           <v-text-field
             v-model="form.name"
-            placeholder="Max Mustermann"
+            :placeholder="$t('waiters.namePlaceholder')"
             hide-details="auto"
             required
             :rules="[rules.required]"
@@ -24,20 +24,20 @@
         </div>
 
         <div class="form-field">
-          <FormLabel required>PIN</FormLabel>
+          <FormLabel required>{{ $t('common.pin') }}</FormLabel>
           <v-text-field
             v-model="form.pin"
-            placeholder="0000"
+            :placeholder="$t('waiters.pinPlaceholder')"
             hide-details="auto"
             required
             :rules="[rules.required]"
           />
-          <small>Standard-PIN ist 0000.</small>
+          <small>{{ $t('waiters.pinHint') }}</small>
         </div>
 
         <div class="actions">
-          <v-btn variant="outlined" type="button" @click="resetForm">Zurück</v-btn>
-          <v-btn color="primary" type="submit">Speichern</v-btn>
+          <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+          <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
         </div>
         <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
@@ -45,18 +45,18 @@
 
     <template #table>
       <p v-if="activeOrganisationId == null" class="empty-hint">
-        Bitte wählen Sie links eine Organisation.
+        {{ $t('common.noOrganisation') }}
       </p>
       <div class="table-header">
-        <h2>Alle Kellner</h2>
-        <span>{{ filteredWaiters.length }} von {{ waitersInActiveOrganisation.length }} Einträge</span>
+        <h2>{{ $t('waiters.allTitle') }}</h2>
+        <span>{{ $t('common.entriesCount', { filtered: filteredWaiters.length, total: waitersInActiveOrganisation.length }) }}</span>
       </div>
       <div class="list-controls">
         <div class="search-field">
-          <label>Suche</label>
+          <label>{{ $t('common.search') }}</label>
           <v-text-field
             v-model="searchQuery"
-            placeholder="Name, PIN oder Organisation suchen..."
+            :placeholder="$t('waiters.searchPlaceholder')"
             prepend-inner-icon="mdi-magnify"
             hide-details="auto"
           />
@@ -70,12 +70,12 @@
         :items-per-page="pageSize"
         item-value="id"
         hover
-        no-data-text="Keine Kellner gefunden."
+        :no-data-text="$t('waiters.noData')"
         class="vq-data-table list-table"
         @click:row="(_e, { item }) => editWaiter(item)"
       >
         <template #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteWaiter(item.id)">Löschen</v-btn>
+          <v-btn color="error" variant="text" @click.stop="deleteWaiter(item.id)">{{ $t('common.delete') }}</v-btn>
         </template>
       </VqDataTable>
     </template>
@@ -85,6 +85,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
@@ -93,6 +94,8 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   activeOrganisationId: {
@@ -112,13 +115,13 @@ const {
   goToDetail,
 } = useListDetailRouting('waiters')
 
-const tableHeaders = [
-  { title: 'ID', key: 'id' },
-  { title: 'Name', key: 'name' },
-  { title: 'PIN', key: 'pin' },
-  { title: 'Organisation', key: 'organisation_name' },
-  { title: 'Aktionen', key: 'actions', sortable: false, align: 'end' },
-]
+const tableHeaders = computed(() => [
+  { title: t('common.id'), key: 'id' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.pin'), key: 'pin' },
+  { title: t('common.organisation'), key: 'organisation_name' },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
+])
 
 const waiters = ref([])
 const message = ref('')
@@ -179,7 +182,7 @@ async function fetchWaiters() {
     if (!response.ok) throw new Error(await response.text())
     waiters.value = await response.json()
   } catch {
-    message.value = 'Kellner konnten nicht geladen werden.'
+    message.value = t('waiters.loadError')
     messageType.value = 'error'
   }
 }
@@ -218,7 +221,7 @@ async function syncRouteToForm() {
       if (!response.ok) throw new Error(await response.text())
       row = await response.json()
     } catch {
-      message.value = 'Kellner nicht gefunden.'
+      message.value = t('waiters.notFound')
       messageType.value = 'error'
       goToList()
       return
@@ -244,7 +247,7 @@ function editWaiter(waiter) {
 
 async function saveWaiter() {
   if (props.activeOrganisationId == null) {
-    message.value = 'Bitte wählen Sie links eine Organisation.'
+    message.value = t('common.noOrganisation')
     messageType.value = 'error'
     return
   }
@@ -270,30 +273,30 @@ async function saveWaiter() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchWaiters()
-    message.value = wasEdit ? 'Kellner aktualisiert.' : 'Kellner erstellt.'
+    message.value = wasEdit ? t('waiters.updated') : t('waiters.created')
     messageType.value = 'success'
     await goToList()
   } catch {
-    message.value = 'Fehler beim Speichern des Kellners.'
+    message.value = t('waiters.saveError')
     messageType.value = 'error'
   }
 }
 
 async function deleteWaiter(id) {
-  if (!confirm('Kellner wirklich löschen?')) return
+  if (!confirm(t('waiters.deleteConfirm'))) return
   try {
     const response = await apiFetch(`/waiters/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) throw new Error(await response.text())
     await fetchWaiters()
-    message.value = 'Kellner gelöscht.'
+    message.value = t('waiters.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
   } catch {
-    message.value = 'Kellner konnte nicht gelöscht werden.'
+    message.value = t('waiters.deleteError')
     messageType.value = 'error'
   }
 }

@@ -2,24 +2,24 @@
   <div class="payment-receipt-profile-fields">
     <v-checkbox
       v-model="model.logo_enabled"
-      label="Logo drucken"
+      :label="$t('receipts.printLogo')"
       hide-details
       density="compact"
     />
     <v-checkbox
       v-model="model.show_event_title"
-      label="Event-Titel anzeigen"
+      :label="$t('receipts.showEventTitle')"
       hide-details
       density="compact"
     />
-    <p class="muted size-hint">Schriftgröße: klein (für kompakte Zahlungsbelege).</p>
+    <p class="muted size-hint">{{ $t('receipts.paymentSizeHint') }}</p>
     <div class="form-field">
-      <label>Fußzeile (zentriert, mehrzeilig)</label>
+      <label>{{ $t('receipts.footerLabel') }}</label>
       <v-textarea
         v-model="model.bottom_line"
         rows="3"
         auto-grow
-        placeholder="Optional — leer = «Danke!»"
+        :placeholder="$t('receipts.paymentFooterPlaceholder')"
         density="compact"
         hide-details
       />

@@ -119,7 +119,7 @@ def test_create_lending_rejects_overlap():
         },
     )
     assert second.status_code == 400
-    assert "overlap" in second.json()["detail"].lower()
+    assert second.json()["detail"]["code"] == "lending_overlap"
 
 
 def test_planned_lending_not_marked_lent_until_start():
