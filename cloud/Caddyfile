@@ -17,6 +17,18 @@
 	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.vendiqo.ch; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
+(website_headers) {
+	import security_headers
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'"
+}
+
+vendiqo.ch, www.vendiqo.ch {
+	import website_headers
+	reverse_proxy website:80 {
+		header_down -Server
+	}
+}
+
 admin.vendiqo.ch {
 	import admin_headers
 	reverse_proxy cloud-frontend:80 {

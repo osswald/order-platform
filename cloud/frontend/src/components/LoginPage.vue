@@ -47,6 +47,11 @@
 
         <div class="login-footer">
           <p class="version">{{ $t('login.version', { version: label }) }}</p>
+          <p class="legal-link">
+            <a href="https://www.vendiqo.ch/datenschutz/" target="_blank" rel="noopener noreferrer">
+              {{ $t('login.privacyPolicy') }}
+            </a>
+          </p>
         </div>
       </div>
 
@@ -261,6 +266,11 @@ async function submit() {
   color: rgba(var(--v-theme-on-surface), 0.6);
   font-size: 0.85rem;
   opacity: 0.6;
+}
+
+.legal-link {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
 }
 
 .login-side {

@@ -9,7 +9,8 @@ Local development still uses `docker compose up` with the dev Dockerfiles (Vite 
 | File | Purpose |
 |------|---------|
 | `docker-compose.prod.yml` | Production compose (Caddy, no public DB/backend ports) |
-| `Caddyfile` | TLS + reverse proxy for `admin.vendiqo.ch` and `api.vendiqo.ch` |
+| `Caddyfile` | TLS + reverse proxy for `vendiqo.ch`, `admin.vendiqo.ch`, and `api.vendiqo.ch` |
+| `../website/Dockerfile.prod` | Multi-stage build → nginx static site (landing + Datenschutz) |
 | `.env.example` | Template for production secrets and settings |
 | `frontend/Dockerfile.prod` | Multi-stage build → nginx static SPA |
 | `backend/Dockerfile.prod` | gunicorn + uvicorn workers |
@@ -32,6 +33,8 @@ The cloud API is multi-tenant: each **Verleiher** (`hire_companies`) owns applia
 
 - Ubuntu/Debian VPS with Docker Engine and Docker Compose plugin
 - DNS A records pointing to the VPS (TTL can be 3600):
+  - `vendiqo.ch` → server IP
+  - `www.vendiqo.ch` → server IP
   - `admin.vendiqo.ch` → server IP
   - `api.vendiqo.ch` → server IP
   - `*.demo.vendiqo.ch` → server IP (wildcard for hosted Cloud-Pi sandboxes)
@@ -76,7 +79,12 @@ curl -sS https://api.vendiqo.ch/health
 
 curl -I https://admin.vendiqo.ch/
 # HTTP/2 200
+
+curl -I https://www.vendiqo.ch/datenschutz/
+# HTTP/2 200
 ```
+
+Public privacy policy (e.g. Google Play Console): `https://www.vendiqo.ch/datenschutz/` (`https://vendiqo.ch/datenschutz/` also works).
 
 Log in at `https://admin.vendiqo.ch` with the bootstrap admin from `.env` (created on first start if no user exists).
 

@@ -378,6 +378,7 @@
     "success": "Anmeldung erfolgreich!",
     "networkError": "Netzwerkfehler - bitte versuchen Sie es später erneut",
     "tagline": "Enterprise Resource Planning",
+    "privacyPolicy": "Datenschutz",
     "version": "Vendiqo ERP {version}",
     "features": {
       "centralManagement": {

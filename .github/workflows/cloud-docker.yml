@@ -8,6 +8,7 @@ on:
     paths:
       - "cloud/backend/**"
       - "cloud/frontend/**"
+      - "website/**"
       - "cloud/docker-compose.prod.yml"
       - "cloud/Caddyfile"
       - "VERSION"
@@ -67,3 +68,14 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-latest
             ${{ env.REGISTRY }}/${{ github.repository }}:cloud-frontend-${{ github.sha }}
+
+      - name: Build and push website
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./website/Dockerfile.prod
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:website-latest
+            ${{ env.REGISTRY }}/${{ github.repository }}:website-${{ github.sha }}

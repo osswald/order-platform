@@ -49,6 +49,14 @@ services:
     networks:
       - app-net
 
+  website:
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: website/Dockerfile.prod
+    networks:
+      - app-net
+
   hosted-pi-manager:
     restart: unless-stopped
     build:
@@ -75,6 +83,7 @@ services:
     depends_on:
       - cloud-frontend
       - cloud-backend
+      - website
     ports:
       - "80:80"
       - "443:443"
