@@ -1,5 +1,5 @@
 <template>
-  <div class="cart-panel">
+  <div ref="panelRef" class="cart-panel">
     <p v-if="!lines.length && !orderDiscountRow" class="cart-empty">Artikel unten antippen</p>
     <ul v-else class="cart-lines">
       <li v-for="l in lines" :key="l.lineId" class="cart-line">
@@ -43,7 +43,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   applyDiscountCents,
   discountButtonLabel,
@@ -67,6 +67,23 @@ const props = defineProps({
 })
 
 defineEmits(['tap-qty', 'tap-name', 'tap-price', 'tap-discount', 'remove-order-discount'])
+
+const panelRef = ref(null)
+let prevLineCount = 0
+
+watch(
+  () => props.lines.length,
+  (count) => {
+    if (count > prevLineCount) {
+      nextTick(() => {
+        const el = panelRef.value
+        if (el) el.scrollTop = el.scrollHeight
+      })
+    }
+    prevLineCount = count
+  },
+  { immediate: true },
+)
 
 const orderDiscountRow = computed(() => {
   if (!props.discountsEnabled || !props.orderDiscount) return null
