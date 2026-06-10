@@ -27,7 +27,7 @@ def _lending_fixture(suffix: str) -> tuple[int, int, str]:
         company = HireCompany(name=f"Lending Tenant {suffix}")
         db.add(company)
         db.flush()
-        org = Organisation(name=f"Lending Org {suffix}", country="CH", hire_company_id=company.id)
+        org = Organisation(name=f"Lending Org {suffix}", country="CH", hire_company_id=company.id, currency="CHF")
         db.add(org)
         db.flush()
         user = User(

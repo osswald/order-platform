@@ -640,6 +640,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  organisationCurrency: {
+    type: String,
+    default: 'EUR',
+  },
   eventStatus: {
     type: String,
     default: 'config',
@@ -758,7 +762,7 @@ const layoutsLocal = ref([])
 const cashRegistersLocal = ref([])
 const vouchersLocal = ref([])
 const articlesRaw = ref([])
-const currencyLabel = ref('CHF')
+const currencyLabel = computed(() => props.organisationCurrency || 'EUR')
 
 const voucherKindOptions = computed(() => [
   { label: t('events.config.voucherKindFixedAmount'), value: 'fixed_amount' },

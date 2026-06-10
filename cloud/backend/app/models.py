@@ -55,6 +55,7 @@ class Organisation(Base):
     zip = Column(String, nullable=True)
     city = Column(String, nullable=True)
     country = Column(String, nullable=False)
+    currency = Column(String(3), nullable=False, default="EUR")
     stripe_account_id = Column(String(255), nullable=True, unique=True, index=True)
     stripe_charges_enabled = Column(Boolean, nullable=False, default=False)
     stripe_payouts_enabled = Column(Boolean, nullable=False, default=False)
@@ -165,7 +166,6 @@ class Event(Base):
     status = Column(String, nullable=False)
     start = Column(DateTime(timezone=True), nullable=False)
     end = Column(DateTime(timezone=True), nullable=False)
-    currency = Column(String, nullable=False)
     # Edge / waiter POS: instant = mark paid on submit; pay_now = pay before submit completes; pay_later = pay after submit.
     payment_mode = Column(String(32), nullable=False, default="pay_later")
     payment_types = Column(JSON, nullable=False, default=lambda: ["cash"])

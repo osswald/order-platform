@@ -3,7 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, status
 from ..i18n.errors import api_error
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import appliance_display_name
@@ -31,6 +31,12 @@ class OrganisationBase(BaseModel):
     zip: str | None = None
     city: str | None = None
     country: str = Field(..., min_length=2)
+    currency: str = Field(..., min_length=3, max_length=3)
+
+    @model_validator(mode="after")
+    def normalize_currency(self):
+        self.currency = self.currency.upper()
+        return self
 
 
 class OrganisationCreate(OrganisationBase):
@@ -43,6 +49,7 @@ class OrganisationUpdate(BaseModel):
     zip: str | None = None
     city: str | None = None
     country: str | None = None
+    currency: str | None = Field(None, min_length=3, max_length=3)
     user_ids: List[int] | None = None
 
 
@@ -78,6 +85,7 @@ def organisation_response(org: Organisation) -> dict:
         "zip": org.zip,
         "city": org.city,
         "country": org.country,
+        "currency": org.currency,
         "user_ids": [user.id for user in org.users],
     }
 
@@ -223,6 +231,7 @@ def create_organisation(
         zip=org_in.zip,
         city=org_in.city,
         country=org_in.country,
+        currency=org_in.currency,
     )
     if org_in.user_ids:
         db_org.users = ensure_users_in_tenant(db, org_in.user_ids, tenant.hire_company_id)
@@ -256,6 +265,8 @@ def update_organisation(
         org.city = org_in.city
     if org_in.country is not None:
         org.country = org_in.country
+    if org_in.currency is not None:
+        org.currency = org_in.currency.upper()
     if org_in.user_ids is not None:
         org.users = ensure_users_in_tenant(db, org_in.user_ids, tenant.hire_company_id)
     db.commit()

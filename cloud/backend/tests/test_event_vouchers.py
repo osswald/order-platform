@@ -30,7 +30,7 @@ def db_session():
     now = datetime.now(timezone.utc)
     hc = HireCompany(id=1, name="HC")
     db.add(hc)
-    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1)
+    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF")
     db.add(org)
     cat = ArticleCategory(id=1, name="Drinks", organisation_id=1)
     db.add(cat)
@@ -42,7 +42,6 @@ def db_session():
         status="config",
         start=now,
         end=now,
-        currency="CHF",
         organisation_id=1,
     )
     db.add(ev)

@@ -229,6 +229,7 @@ def apply_schema_patches() -> None:
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
     _patch_organisation_stripe_connect()
+    _patch_organisation_currency()
 
 
 def _ensure_event_station_printer_rules_table() -> None:
@@ -347,6 +348,52 @@ def _ensure_event_cash_registers_table() -> None:
     from .models import EventCashRegister
 
     EventCashRegister.__table__.create(bind=engine, checkfirst=True)
+
+
+def _patch_organisation_currency() -> None:
+    """Currency belongs on the organisation; backfill from each org's most recent event."""
+    _add_column_if_missing(
+        "organisations",
+        "currency",
+        "ALTER TABLE organisations ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'EUR'",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'EUR'",
+    )
+    try:
+        inspector = inspect(engine)
+        if "organisations" not in inspector.get_table_names():
+            return
+        if "events" not in inspector.get_table_names():
+            return
+        event_cols = {c["name"] for c in inspector.get_columns("events")}
+    except Exception:
+        return
+    if "currency" not in event_cols:
+        return
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        if is_sqlite:
+            conn.execute(
+                text(
+                    "UPDATE organisations SET currency = ("
+                    "SELECT e.currency FROM events e "
+                    "WHERE e.organisation_id = organisations.id "
+                    "ORDER BY e.id DESC LIMIT 1"
+                    ") WHERE EXISTS ("
+                    "SELECT 1 FROM events e WHERE e.organisation_id = organisations.id"
+                    ")"
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    "UPDATE organisations o SET currency = sub.currency "
+                    "FROM ("
+                    "SELECT DISTINCT ON (organisation_id) organisation_id, currency "
+                    "FROM events ORDER BY organisation_id, id DESC"
+                    ") sub "
+                    "WHERE sub.organisation_id = o.id"
+                )
+            )
 
 
 def _patch_organisation_stripe_connect() -> None:

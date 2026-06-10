@@ -96,6 +96,7 @@ def article_response(article: Article) -> dict:
         "article_category_name": category.name if category else "",
         "organisation_id": organisation.id if organisation else None,
         "organisation_name": organisation.name if organisation else "",
+        "organisation_currency": organisation.currency if organisation else "EUR",
     }
 
 

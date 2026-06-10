@@ -34,7 +34,7 @@ def db():
     session = Session()
     now = datetime.now(timezone.utc)
     hc = HireCompany(id=1, name="HC")
-    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH")
+    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH", currency="CHF")
     appliance = Appliance(id=1, hire_company_id=1, type="pi", name="Pi")
     event = Event(
         id=1,
@@ -42,7 +42,6 @@ def db():
         status="test",
         start=now - timedelta(hours=1),
         end=now + timedelta(hours=1),
-        currency="CHF",
         organisation_id=1,
         payment_mode="pay_later",
         payment_types=["cash"],
@@ -131,7 +130,6 @@ def test_active_events_for_org_excludes_config_and_archive(db):
             status="config",
             start=now - timedelta(hours=1),
             end=now + timedelta(hours=1),
-            currency="CHF",
             organisation_id=1,
             payment_mode="pay_later",
             payment_types=["cash"],
@@ -144,7 +142,6 @@ def test_active_events_for_org_excludes_config_and_archive(db):
             status="archive",
             start=now - timedelta(hours=1),
             end=now + timedelta(hours=1),
-            currency="CHF",
             organisation_id=1,
             payment_mode="pay_later",
             payment_types=["cash"],
@@ -157,7 +154,6 @@ def test_active_events_for_org_excludes_config_and_archive(db):
             status="prod",
             start=now - timedelta(hours=1),
             end=now + timedelta(hours=1),
-            currency="CHF",
             organisation_id=1,
             payment_mode="pay_later",
             payment_types=["cash"],

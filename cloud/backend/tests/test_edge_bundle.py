@@ -28,7 +28,7 @@ def _pair_edge_credentials() -> tuple[str, str]:
         hc = HireCompany(name=f"Bundle HC {suffix}")
         db.add(hc)
         db.flush()
-        org = Organisation(name=f"Bundle Org {suffix}", country="CH", hire_company_id=hc.id)
+        org = Organisation(name=f"Bundle Org {suffix}", country="CH", hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         db.add(

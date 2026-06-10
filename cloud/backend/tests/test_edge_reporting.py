@@ -32,7 +32,7 @@ def db_session():
     db = Session()
     now = datetime.now(timezone.utc)
     db.add(HireCompany(id=1, name="HC"))
-    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1))
+    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="EUR"))
     db.add(ArticleCategory(id=1, name="Food", organisation_id=1))
     art = Article(id=10, name="Bratwurst", label="B", price=5.0, article_category_id=1)
     db.add(art)
@@ -42,7 +42,6 @@ def db_session():
         status="production",
         start=now,
         end=now,
-        currency="EUR",
         organisation_id=1,
     )
     db.add(ev)
@@ -147,14 +146,13 @@ def test_sales_report_v3_counts_orders_by_session_and_order_number_without_submi
     db = Session()
     now = datetime.now(timezone.utc)
     db.add(HireCompany(id=1, name="HC"))
-    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1))
+    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF"))
     ev = Event(
         id=1,
         name="Fest",
         status="production",
         start=now,
         end=now,
-        currency="CHF",
         organisation_id=1,
     )
     db.add(ev)

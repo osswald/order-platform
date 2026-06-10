@@ -8,6 +8,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .currency import event_currency
+
 from .additions import load_links_for_bases
 from .models import Article, EdgeSubmittedOrder, Event, EventVoucherRedemption, Waiter
 
@@ -519,7 +521,7 @@ def build_event_sales_report(db: Session, event: Event) -> dict[str, Any]:
     article_ids = _collect_article_ids_from_orders(orders_rows)
     articles = _build_articles_pricing_map(db, article_ids)
 
-    currency = (getattr(event, "currency", None) or "CHF").upper()
+    currency = event_currency(event, "CHF")
 
     orders_out: list[dict] = []
     by_waiter: dict[str, dict] = {}

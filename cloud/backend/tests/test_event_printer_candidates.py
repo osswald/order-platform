@@ -41,7 +41,7 @@ def printer_scenario_db():
     Session = sessionmaker(bind=engine_local)
     db = Session()
     hc = HireCompany(id=1, name="HC")
-    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1)
+    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF")
     db.add_all([hc, org])
     printer = Appliance(
         id=10,
@@ -64,7 +64,6 @@ def printer_scenario_db():
         status="config",
         start=_utc_dt(2026, 6, 10),
         end=_utc_dt(2026, 6, 12, 23),
-        currency="CHF",
         organisation_id=1,
     )
     db.add(event)
@@ -168,7 +167,7 @@ def _api_fixture(suffix: str) -> tuple[int, int, int, str, int]:
         company = HireCompany(name=f"Printer Event HC {suffix}")
         db.add(company)
         db.flush()
-        org = Organisation(name=f"Printer Event Org {suffix}", country="CH", hire_company_id=company.id)
+        org = Organisation(name=f"Printer Event Org {suffix}", country="CH", hire_company_id=company.id, currency="CHF")
         db.add(org)
         db.flush()
         user = User(
@@ -193,7 +192,6 @@ def _api_fixture(suffix: str) -> tuple[int, int, int, str, int]:
             status="config",
             start=event_start,
             end=event_end,
-            currency="CHF",
             organisation_id=org.id,
             payment_mode="pay_later",
         )

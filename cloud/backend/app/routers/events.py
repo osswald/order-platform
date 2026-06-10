@@ -24,7 +24,7 @@ from ..models import (
     Organisation,
     User,
 )
-from ..event_collective_bills import build_event_collective_bills_list
+from ..currency import event_currency
 from ..event_cash_sessions import build_cash_sessions_page
 from ..event_transactions import build_event_transactions_page
 from ..vouchers import cell_voucher_uuids_for_read
@@ -61,7 +61,6 @@ class EventBase(BaseModel):
     status: str
     start: datetime
     end: datetime
-    currency: str = Field(..., min_length=3, max_length=3)
     organisation_id: int
     payment_mode: str = "pay_later"
     payment_types: List[str] = Field(default_factory=lambda: ["cash"])
@@ -78,7 +77,6 @@ class EventBase(BaseModel):
         self.status = self.status.lower()
         if self.status not in ALLOWED_STATUSES:
             raise ValueError(f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}")
-        self.currency = self.currency.upper()
         pm = (self.payment_mode or "pay_later").lower()
         if pm not in PAYMENT_MODES:
             raise ValueError(f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}")
@@ -94,7 +92,6 @@ class EventCreate(BaseModel):
     status: str
     start: datetime
     end: datetime
-    currency: str = Field(..., min_length=3, max_length=3)
     organisation_id: int | None = None
     payment_mode: str = "pay_later"
     payment_types: List[str] = Field(default_factory=lambda: ["cash"])
@@ -111,7 +108,6 @@ class EventCreate(BaseModel):
         self.status = self.status.lower()
         if self.status not in ALLOWED_STATUSES:
             raise ValueError(f"Status must be one of: {', '.join(sorted(ALLOWED_STATUSES))}")
-        self.currency = self.currency.upper()
         pm = (self.payment_mode or "pay_later").lower()
         if pm not in PAYMENT_MODES:
             raise ValueError(f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}")
@@ -131,7 +127,6 @@ class EventUpdate(BaseModel):
     status: str | None = None
     start: datetime | None = None
     end: datetime | None = None
-    currency: str | None = Field(None, min_length=3, max_length=3)
     organisation_id: int | None = None
     payment_mode: str | None = None
     payment_types: List[str] | None = None
@@ -320,9 +315,9 @@ def event_response(event: Event) -> dict:
         "status": event.status,
         "start": event.start,
         "end": event.end,
-        "currency": event.currency,
         "organisation_id": event.organisation_id,
         "organisation_name": event.organisation.name if event.organisation else "",
+        "organisation_currency": event_currency(event, "EUR"),
         "payment_mode": getattr(event, "payment_mode", None) or "pay_later",
         "payment_types": payment_types_from_event(event),
         "has_twint_qr": has_twint_qr(event),
@@ -484,7 +479,7 @@ def read_event_organisations(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    return [{"id": org.id, "name": org.name} for org in readable_organisations(db, current_user, tenant.hire_company_id)]
+    return [{"id": org.id, "name": org.name, "currency": org.currency} for org in readable_organisations(db, current_user, tenant.hire_company_id)]
 
 
 @router.get("/{event_id}/configuration", response_model=EventConfigurationRead)
@@ -1033,7 +1028,6 @@ def create_event(
         status=create_status,
         start=event_in.start,
         end=event_in.end,
-        currency=event_in.currency,
         organisation_id=organisation.id,
         payment_mode=event_in.payment_mode,
         payment_types=event_in.payment_types,
@@ -1111,8 +1105,6 @@ def update_event(
         event.start = event_in.start
     if event_in.end is not None:
         event.end = event_in.end
-    if event_in.currency is not None:
-        event.currency = event_in.currency.upper()
     if event_in.payment_mode is not None:
         pm = event_in.payment_mode.lower()
         if pm not in PAYMENT_MODES:

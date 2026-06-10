@@ -19,6 +19,7 @@
         ref="eventConfigurationRef"
         :event-id="activeId"
         :organisation-id="activeOrganisationId"
+        :organisation-currency="organisationCurrency"
         :event-status="form.status"
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
@@ -33,7 +34,6 @@
             <EventStammdatenFields
               :form="form"
               :selectable-status-options="selectableStatusOptions"
-              :currency-options="currencyOptions"
               :payment-mode-options="paymentModeOptions"
               :payment-type-options="paymentTypeOptions"
               :show-twint-qr-section="showTwintQrSection"
@@ -61,7 +61,6 @@
         <EventStammdatenFields
           :form="form"
           :selectable-status-options="selectableStatusOptions"
-          :currency-options="currencyOptions"
           :payment-mode-options="paymentModeOptions"
           :payment-type-options="paymentTypeOptions"
           :show-twint-qr-section="showTwintQrSection"
@@ -200,7 +199,6 @@ const statusFilterOptions = computed(() => [
   { value: '', label: t('events.allStatus') },
   ...statusOptions.value,
 ])
-const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
 const paymentModeOptions = computed(() =>
   PAYMENT_MODE_VALUES.map((value) => ({ value, label: t(`events.paymentMode.${value}`) })),
 )
@@ -208,12 +206,13 @@ const paymentTypeOptions = computed(() =>
   PAYMENT_TYPE_VALUES.map((value) => ({ value, label: t(`events.paymentType.${value}`) })),
 )
 
+const organisationCurrency = ref('EUR')
+
 const emptyForm = () => ({
   name: '',
   status: 'config',
   start: null,
   end: null,
-  currency: 'EUR',
   paymentMode: 'pay_later',
   paymentTypes: ['cash'],
   cashRegistersEnabled: false,
@@ -239,7 +238,6 @@ function stammdatenSnapshot() {
     status: form.value.status,
     start: toIso(form.value.start),
     end: toIso(form.value.end),
-    currency: form.value.currency,
     paymentMode: form.value.paymentMode,
     paymentTypes: types,
     cashRegistersEnabled: Boolean(form.value.cashRegistersEnabled),
@@ -295,7 +293,6 @@ const tableHeaders = computed(() => {
     { title: t('events.table.organisation'), key: 'organisation_name' },
     { title: t('events.table.start'), key: 'start', sortable: false },
     { title: t('events.table.end'), key: 'end', sortable: false },
-    { title: t('events.table.currency'), key: 'currency' },
   ]
   if (props.isAdmin) {
     headers.push({ title: t('events.table.actions'), key: 'actions', sortable: false, align: 'end' })
@@ -327,7 +324,6 @@ function matchesSearch(event, term) {
     event.status,
     statusLabel(event.status),
     event.organisation_name,
-    event.currency,
   ]
     .filter((value) => value !== null && value !== undefined)
     .some((value) => String(value).toLowerCase().includes(term))
@@ -456,7 +452,6 @@ async function applyEventToForm(event) {
     status: event.status || 'config',
     start: parseDate(event.start),
     end: parseDate(event.end),
-    currency: event.currency || 'EUR',
     paymentMode: event.payment_mode || 'pay_later',
     paymentTypes: Array.isArray(event.payment_types) && event.payment_types.length
       ? [...event.payment_types]
@@ -470,6 +465,7 @@ async function applyEventToForm(event) {
     offerPaymentReceipt: Boolean(event.offer_payment_receipt),
   }
   originalStatus.value = event.status || 'config'
+  organisationCurrency.value = event.organisation_currency || 'EUR'
   stammdatenBaseline.value = stammdatenSnapshot()
   message.value = ''
   if (hasTwintQr.value) await loadTwintQrPreview()
@@ -581,7 +577,6 @@ async function saveEvent() {
     status: form.value.status,
     start: toIso(form.value.start),
     end: toIso(form.value.end),
-    currency: form.value.currency,
     payment_mode: form.value.paymentMode,
     payment_types: form.value.paymentTypes,
     cash_registers_enabled: Boolean(form.value.cashRegistersEnabled),

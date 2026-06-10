@@ -31,7 +31,7 @@ def db():
     now = datetime.now(timezone.utc)
 
     hire = HireCompany(id=1, name="Vendor")
-    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1)
+    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF")
     session.add(hire)
     cat = ArticleCategory(id=1, name="Drinks", organisation_id=1)
     art = Article(
@@ -49,7 +49,6 @@ def db():
         status="config",
         start=now,
         end=now,
-        currency="CHF",
         organisation_id=1,
         payment_mode="pay_later",
         payment_types=["cash", "twint"],

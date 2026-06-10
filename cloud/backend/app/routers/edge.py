@@ -11,6 +11,7 @@ from ..i18n.errors import api_error
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
+from ..currency import event_currency
 from ..models import (
     Appliance,
     ApplianceEdgeCredential,
@@ -375,7 +376,7 @@ def read_edge_bundle(
                 id=ev.id,
                 name=ev.name,
                 status=(ev.status or "config").lower(),
-                currency=ev.currency,
+                currency=event_currency(ev, "CHF"),
                 payment_mode=getattr(ev, "payment_mode", None) or "pay_later",
                 payment_types=payment_types_from_event(ev),
                 shift_settlement_enabled=bool(getattr(ev, "shift_settlement_enabled", False)),

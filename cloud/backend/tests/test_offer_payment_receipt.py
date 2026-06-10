@@ -20,14 +20,13 @@ def db_session():
     db = Session()
     now = datetime.now(timezone.utc)
     db.add(HireCompany(id=1, name="HC"))
-    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1))
+    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF"))
     ev = Event(
         id=1,
         name="Fest",
         status="config",
         start=now,
         end=now,
-        currency="CHF",
         organisation_id=1,
     )
     db.add(ev)
@@ -61,7 +60,7 @@ def test_edge_event_bundle_includes_offer_payment_receipt(db_session):
         id=ev.id,
         name=ev.name,
         status=ev.status,
-        currency=ev.currency,
+        currency="CHF",
         payment_mode="pay_later",
         payment_types=["cash"],
         shift_settlement_enabled=False,

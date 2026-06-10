@@ -26,6 +26,7 @@ def test_org_admin_cannot_access_other_tenant_organisation(client, auth_token):
             name="Org B",
             country="CH",
             hire_company_id=hc_b.id,
+            currency="CHF",
         )
         db.add(org_b)
         admin_a = User(

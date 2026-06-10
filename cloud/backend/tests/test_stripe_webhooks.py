@@ -28,6 +28,7 @@ def _seed_org_with_stripe_account(account_id: str = "acct_test123") -> int:
             name="Stripe Org",
             country="CH",
             hire_company_id=hc.id,
+            currency="CHF",
             stripe_account_id=account_id,
             stripe_charges_enabled=False,
             stripe_payouts_enabled=False,

@@ -41,7 +41,7 @@ def test_copy_hire_company_to_organisation(db):
     }
     store_receipt_logo(hire, "image/png", b"\x89PNG\r\n\x1a\n")
 
-    org = Organisation(name="Org", country="CH", hire_company_id=hire.id)
+    org = Organisation(name="Org", country="CH", hire_company_id=hire.id, currency="CHF")
     db.add(org)
     db.flush()
     copy_receipt_printing_from_hire_company(hire, org)
@@ -52,7 +52,7 @@ def test_copy_hire_company_to_organisation(db):
 
 
 def test_copy_organisation_to_event_includes_label(db):
-    org = Organisation(name="Org", country="CH", hire_company_id=1)
+    org = Organisation(name="Org", country="CH", hire_company_id=1, currency="CHF")
     db.add(HireCompany(id=1, name="V"))
     db.add(org)
     db.flush()
@@ -66,7 +66,6 @@ def test_copy_organisation_to_event_includes_label(db):
         status="config",
         start=start,
         end=end,
-        currency="CHF",
         organisation_id=org.id,
     )
     db.add(event)
@@ -85,7 +84,6 @@ def test_printing_bundle_dict_includes_logo_base64(db):
         status="config",
         start=start,
         end=end,
-        currency="CHF",
         organisation_id=1,
     )
     store_receipt_logo(event, "image/png", b"fakepng")

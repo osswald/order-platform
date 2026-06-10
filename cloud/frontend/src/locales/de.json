@@ -330,6 +330,8 @@
     "zipPlaceholder": "12345",
     "cityPlaceholder": "Berlin",
     "selectCountry": "Land wählen",
+    "currency": "Währung",
+    "currencyPlaceholder": "Währung wählen",
     "usersHint": "Feld anklicken für die Liste; tippen zum Filtern.",
     "lendAppliances": "Geräte ausleihen",
     "receiptTemplatesOrgTitle": "Beleg-Vorlagen (Organisation)",

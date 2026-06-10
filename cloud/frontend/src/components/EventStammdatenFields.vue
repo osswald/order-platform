@@ -26,17 +26,6 @@
             :rules="[rules.required]"
           />
         </div>
-        <div class="form-field">
-          <FormLabel required>{{ t('events.stammdaten.currency') }}</FormLabel>
-          <v-select
-            v-model="form.currency"
-            :items="currencyOptions"
-            :placeholder="t('events.stammdaten.currencyPlaceholder')"
-            hide-details="auto"
-            required
-            :rules="[rules.required]"
-          />
-        </div>
       </div>
       <div class="field-row">
         <div class="form-field">
@@ -223,10 +212,6 @@ const props = defineProps({
     required: true,
   },
   selectableStatusOptions: {
-    type: Array,
-    required: true,
-  },
-  currencyOptions: {
     type: Array,
     required: true,
   },

@@ -86,6 +86,7 @@
             step="0.01"
             :min="form.isAddition ? undefined : 0"
             :label="$t('common.price')"
+            :prefix="formCurrency"
             hide-details="auto"
             required
             :rules="priceRules"
@@ -147,7 +148,7 @@
           class="vq-data-table list-table nested"
           hide-default-footer
         >
-          <template #item.price="{ item }">{{ formatPrice(item.price) }}</template>
+          <template #item.price="{ item }">{{ formatPrice(item.price, formCurrency) }}</template>
           <template #item.actions="{ item }">
             <v-btn
               icon="mdi-delete"
@@ -239,7 +240,7 @@
             {{ item.is_addition ? $t('articles.typeAddition') : $t('articles.typeArticle') }}
           </v-chip>
         </template>
-        <template #item.price="{ item }">{{ formatPrice(item.price) }}</template>
+        <template #item.price="{ item }">{{ formatPrice(item.price, item.organisation_currency) }}</template>
         <template #item.stock="{ item }">
           <v-chip v-if="item.monitor_stock" color="info" size="small" variant="tonal">
             {{ $t('articles.stockPieces', { count: item.in_stock ?? 0 }) }}
@@ -267,9 +268,10 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
+import { formatPriceWithCurrency } from '../utils/localeFormat.js'
 import VqDataTable from './VqDataTable.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps({
   activeOrganisationId: {
@@ -291,6 +293,8 @@ const {
 
 const articles = ref([])
 const categories = ref([])
+const organisationsList = ref([])
+const formCurrency = ref('EUR')
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
@@ -382,7 +386,7 @@ const additionOptions = computed(() =>
     )
     .map((a) => ({
       value: a.id,
-      label: `${a.name} (${formatPrice(a.price)})`,
+      label: `${a.name} (${formatPrice(a.price, a.organisation_currency)})`,
     })),
 )
 
@@ -399,11 +403,26 @@ const priceRules = computed(() => {
   return base
 })
 
-function formatPrice(value) {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(value || 0)
+function formatPrice(value, currency = 'EUR') {
+  return formatPriceWithCurrency(value, currency || 'EUR', locale.value)
+}
+
+function currencyForOrganisationId(organisationId) {
+  if (organisationId == null) return 'EUR'
+  const org = organisationsList.value.find((o) => Number(o.id) === Number(organisationId))
+  return org?.currency || 'EUR'
+}
+
+function syncFormCurrencyFromContext(article = null) {
+  if (article?.organisation_currency) {
+    formCurrency.value = article.organisation_currency
+    return
+  }
+  if (article?.organisation_id != null) {
+    formCurrency.value = currencyForOrganisationId(article.organisation_id)
+    return
+  }
+  formCurrency.value = currencyForOrganisationId(props.activeOrganisationId)
 }
 
 function matchesSearch(article, term) {
@@ -452,6 +471,9 @@ watch([searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId
 watch(
   () => props.activeOrganisationId,
   () => {
+    if (showDetail.value && isCreateMode.value) {
+      syncFormCurrencyFromContext()
+    }
     if (showDetail.value) goToList()
   },
 )
@@ -488,6 +510,7 @@ function clearFormState() {
     form.value.articleCategoryId = categoryOptions.value[0].value
   }
   message.value = ''
+  syncFormCurrencyFromContext()
 }
 
 async function applyArticleToForm(article) {
@@ -505,6 +528,7 @@ async function applyArticleToForm(article) {
     articleCategoryId: article.article_category_id || null,
   }
   message.value = ''
+  syncFormCurrencyFromContext(article)
   if (!article.is_addition) await loadAdditions(article.id)
   else additionsLocal.value = []
 }
@@ -517,6 +541,7 @@ async function syncRouteToForm() {
   if (isCreateMode.value) {
     clearFormState()
     form.value.isAddition = typeFilter.value === 'additions'
+    syncFormCurrencyFromContext()
     return
   }
   const id = routeEntityId.value
@@ -683,7 +708,18 @@ async function deleteArticle(id) {
   }
 }
 
+async function fetchOrganisationsList() {
+  try {
+    const response = await apiFetch('/events/organisations')
+    if (!response.ok) return
+    organisationsList.value = await response.json()
+  } catch {
+    organisationsList.value = []
+  }
+}
+
 onMounted(async () => {
+  await fetchOrganisationsList()
   await fetchCategories()
   await fetchArticles()
 })

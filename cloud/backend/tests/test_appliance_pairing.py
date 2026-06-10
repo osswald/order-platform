@@ -27,7 +27,7 @@ def _server_appliance_fixture(suffix: str) -> tuple[int, str]:
         company = HireCompany(name=f"Pairing Tenant {suffix}")
         db.add(company)
         db.flush()
-        org = Organisation(name=f"Pairing Org {suffix}", country="CH", hire_company_id=company.id)
+        org = Organisation(name=f"Pairing Org {suffix}", country="CH", hire_company_id=company.id, currency="CHF")
         db.add(org)
         db.flush()
         user = User(

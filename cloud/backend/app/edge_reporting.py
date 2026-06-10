@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
 
+from .currency import event_currency
 from .event_sales import (
     _build_name_maps,
     _resolve_station_name,
@@ -45,6 +46,7 @@ def _load_event_for_reporting(db: Session, *, organisation_id: int, event_id: in
     return (
         db.query(Event)
         .options(
+            joinedload(Event.organisation),
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
         )
@@ -67,7 +69,7 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
             "waiter_by_source": {},
             "global_waiter": {},
         }
-    currency = ((event.currency if event else None) or "CHF").upper()
+    currency = event_currency(event, "CHF")
     article_station_uuid = maps["article_station_uuid"]
 
     rows = (
@@ -179,7 +181,7 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
 
 def build_payment_batches_report_v3(db: Session, *, organisation_id: int, event_id: int) -> dict[str, Any]:
     event = _load_event_for_reporting(db, organisation_id=organisation_id, event_id=event_id)
-    currency = ((event.currency if event else None) or "CHF").upper()
+    currency = event_currency(event, "CHF")
     rows = (
         db.query(EdgePaymentBatch)
         .filter(

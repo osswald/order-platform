@@ -183,7 +183,6 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         status="config",
         start=source.start,
         end=source.end,
-        currency=source.currency,
         organisation_id=source.organisation_id,
         payment_mode=getattr(source, "payment_mode", None) or "pay_later",
         payment_types=list(payment_types_from_event(source)),

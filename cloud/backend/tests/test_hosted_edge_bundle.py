@@ -28,7 +28,7 @@ def test_hosted_bundle_includes_config_event():
         hc = HireCompany(name=f"Hosted Bundle HC {suffix}")
         db.add(hc)
         db.flush()
-        org = Organisation(name=f"Hosted Bundle Org {suffix}", country="CH", hire_company_id=hc.id)
+        org = Organisation(name=f"Hosted Bundle Org {suffix}", country="CH", hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         now = datetime.now(timezone.utc)
@@ -37,7 +37,6 @@ def test_hosted_bundle_includes_config_event():
             status="config",
             start=now + timedelta(days=30),
             end=now + timedelta(days=31),
-            currency="CHF",
             organisation_id=org.id,
             payment_mode="pay_later",
             payment_types=["cash"],

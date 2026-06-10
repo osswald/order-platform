@@ -25,8 +25,8 @@ def _tenant_setup(suffix: str):
         hc_b = HireCompany(name=f"Isolation B {suffix}")
         db.add_all([hc_a, hc_b])
         db.flush()
-        org_a = Organisation(name=f"Org A {suffix}", country="CH", hire_company_id=hc_a.id)
-        org_b = Organisation(name=f"Org B {suffix}", country="CH", hire_company_id=hc_b.id)
+        org_a = Organisation(name=f"Org A {suffix}", country="CH", hire_company_id=hc_a.id, currency="CHF")
+        org_b = Organisation(name=f"Org B {suffix}", country="CH", hire_company_id=hc_b.id, currency="CHF")
         db.add_all([org_a, org_b])
         db.flush()
         member_email = f"member-a-{suffix}@tenant.test"
@@ -92,7 +92,7 @@ def test_tenant_admin_can_update_user_in_own_verleiher_via_organisation():
         hc = HireCompany(name="Own Tenant positive")
         db.add(hc)
         db.flush()
-        org = Organisation(name="Own Org positive", country="CH", hire_company_id=hc.id)
+        org = Organisation(name="Own Org positive", country="CH", hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         member = User(

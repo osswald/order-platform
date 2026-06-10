@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .currency import event_currency
 from .models import EdgeCashSession, Event
 
 
@@ -66,7 +67,7 @@ def build_cash_sessions_page(
         )
 
     return {
-        "currency": event.currency or "EUR",
+        "currency": event_currency(event, "EUR"),
         "total": total,
         "page": page,
         "items_per_page": items_per_page,

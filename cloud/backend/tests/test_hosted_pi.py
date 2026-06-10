@@ -41,7 +41,7 @@ def _setup_org_admin() -> tuple[int, str]:
         hc = HireCompany(name=f"Hosted HC {suffix}")
         db.add(hc)
         db.flush()
-        org = Organisation(name=f"Hosted Org {suffix}", country="CH", hire_company_id=hc.id)
+        org = Organisation(name=f"Hosted Org {suffix}", country="CH", hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         db.add(
@@ -74,7 +74,6 @@ def _create_config_event(org_id: int, headers: dict) -> int:
             "status": "config",
             "start": (now + timedelta(days=30)).isoformat(),
             "end": (now + timedelta(days=31)).isoformat(),
-            "currency": "CHF",
             "organisation_id": org_id,
             "payment_mode": "pay_later",
             "payment_types": ["cash"],

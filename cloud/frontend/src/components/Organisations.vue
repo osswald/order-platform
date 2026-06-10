@@ -44,6 +44,17 @@
         />
       </div>
       <div class="form-field">
+        <v-select
+          v-model="form.currency"
+          :items="currencyOptions"
+          :label="$t('organisations.currency')"
+          :placeholder="$t('organisations.currencyPlaceholder')"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
+      </div>
+      <div class="form-field">
         <label>{{ $t('common.users') }}</label>
         <UserPicker v-model="form.userIdsArray" />
         <small>{{ $t('organisations.usersHint') }}</small>
@@ -247,6 +258,7 @@ const orgApplianceLendings = ref(null)
 const lendingDialogVisible = ref(false)
 const cancellingLendingId = ref(null)
 const countryOptions = ['Deutschland', 'Österreich', 'Schweiz', 'Frankreich', 'Italien', 'Belgien', 'Niederlande']
+const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
 
 const userFilterOptions = computed(() => [
   { value: '', label: t('common.all') },
@@ -259,6 +271,7 @@ const tableHeaders = computed(() => [
   { title: t('common.name'), key: 'name' },
   { title: t('common.location'), key: 'location', sortable: false },
   { title: t('common.country'), key: 'country' },
+  { title: t('organisations.currency'), key: 'currency' },
   { title: t('common.users'), key: 'user_ids', sortable: false },
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
@@ -281,6 +294,7 @@ const form = ref({
   zip: '',
   city: '',
   country: '',
+  currency: 'EUR',
   userIdsArray: [],
 })
 
@@ -293,6 +307,7 @@ function matchesSearch(org, term) {
     org.zip,
     org.city,
     org.country,
+    org.currency,
   ]
     .filter((value) => value !== null && value !== undefined)
     .some((value) => String(value).toLowerCase().includes(term))
@@ -378,6 +393,7 @@ const emptyOrgForm = () => ({
   zip: '',
   city: '',
   country: '',
+  currency: 'EUR',
   userIdsArray: [],
 })
 
@@ -388,6 +404,7 @@ function applyOrganisationToForm(org) {
     zip: org.zip || '',
     city: org.city || '',
     country: org.country,
+    currency: org.currency || 'EUR',
     userIdsArray: org.user_ids ? org.user_ids.slice() : [],
   }
   message.value = ''
@@ -457,6 +474,7 @@ async function saveOrganisation() {
     zip: form.value.zip || null,
     city: form.value.city || null,
     country: form.value.country,
+    currency: form.value.currency,
     user_ids: Array.isArray(form.value.userIdsArray) ? form.value.userIdsArray : parseUserIds(form.value.userIds || ''),
   }
 

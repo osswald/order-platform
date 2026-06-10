@@ -33,7 +33,6 @@ def _event(**kwargs):
         status="config",
         start=now + timedelta(days=3),
         end=now + timedelta(days=4),
-        currency="CHF",
         organisation_id=1,
         payment_mode="pay_later",
         payment_types=["cash"],
@@ -100,7 +99,7 @@ def test_attention_missing_twint_qr():
 def test_build_organisation_dashboard_summary(db):
     now = datetime.now(timezone.utc)
     db.add(HireCompany(id=1, name="HC"))
-    org = Organisation(id=1, hire_company_id=1, name="Test Org", country="CH")
+    org = Organisation(id=1, hire_company_id=1, name="Test Org", country="CH", currency="CHF")
     db.add(org)
     db.add(
         _event(

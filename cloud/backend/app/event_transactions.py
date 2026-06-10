@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .currency import event_currency
 from .event_sales import (
     _additions_signature,
     _build_articles_pricing_map,
@@ -268,7 +269,7 @@ def build_event_transactions_page(
     payment_status: str | None = None,
     kind: str | None = None,
 ) -> dict[str, Any]:
-    currency = event.currency or "EUR"
+    currency = event_currency(event, "EUR")
     base = db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event.id)
     base = _apply_payment_status_filter(base, payment_status)
 

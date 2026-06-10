@@ -32,7 +32,7 @@ def db():
     session.add_all(
         [
             HireCompany(id=1, name="HC"),
-            Organisation(id=1, name="Org", country="CH", hire_company_id=1),
+            Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF"),
             ArticleCategory(id=1, name="Food", organisation_id=1),
             Article(id=10, name="Beer", label="B", price=5.0, article_category_id=1, is_addition=False),
             Article(id=11, name="Cheese", label="C", price=2.0, article_category_id=1, is_addition=True),
@@ -43,7 +43,6 @@ def db():
                 status="config",
                 start=now,
                 end=now,
-                currency="CHF",
                 organisation_id=1,
                 payment_mode="pay_later",
                 payment_types=["cash"],

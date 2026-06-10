@@ -24,8 +24,8 @@ def _setup_two_tenants():
         hc_b = HireCompany(name="Events Tenant B")
         db.add_all([hc_a, hc_b])
         db.flush()
-        org_a = Organisation(name="Org A", country="CH", hire_company_id=hc_a.id)
-        org_b = Organisation(name="Org B", country="CH", hire_company_id=hc_b.id)
+        org_a = Organisation(name="Org A", country="CH", hire_company_id=hc_a.id, currency="CHF")
+        org_b = Organisation(name="Org B", country="CH", hire_company_id=hc_b.id, currency="CHF")
         db.add_all([org_a, org_b])
         db.flush()
         db.add(
@@ -60,7 +60,6 @@ def test_create_event_and_status_transition():
             "status": "config",
             "start": (now + timedelta(days=1)).isoformat(),
             "end": (now + timedelta(days=2)).isoformat(),
-            "currency": "CHF",
             "organisation_id": org_a_id,
             "payment_mode": "pay_later",
             "payment_types": ["cash"],
@@ -79,6 +78,22 @@ def test_create_event_and_status_transition():
     assert updated.json()["status"] == "test"
 
 
+def test_create_organisation_with_currency():
+    _, _ = _setup_two_tenants()
+    headers = {"Authorization": f"Bearer {_token()}"}
+    created = client.post(
+        "/organisations/",
+        headers=headers,
+        json={
+            "name": "CHF Org",
+            "country": "Schweiz",
+            "currency": "chf",
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["currency"] == "CHF"
+
+
 def test_org_admin_cannot_read_other_tenant_event():
     org_a_id, org_b_id = _setup_two_tenants()
     db = SessionLocal()
@@ -89,7 +104,6 @@ def test_org_admin_cannot_read_other_tenant_event():
             status="config",
             start=now,
             end=now + timedelta(hours=2),
-            currency="CHF",
             organisation_id=org_b_id,
             payment_mode="pay_later",
             payment_types=["cash"],

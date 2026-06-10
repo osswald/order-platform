@@ -26,6 +26,15 @@ export function formatAmount(cents, locale = 'de') {
   }).format((cents || 0) / 100)
 }
 
+/** Major currency units with ISO code prefix, e.g. "CHF 12.50". */
+export function formatPriceWithCurrency(amount, currency, locale = 'de') {
+  const formatted = new Intl.NumberFormat(intlLocale(locale), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(amount) || 0)
+  return `${currency} ${formatted}`
+}
+
 export function formatDate(isoOrDate, locale = 'de') {
   if (!isoOrDate) return '—'
   const d = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate)

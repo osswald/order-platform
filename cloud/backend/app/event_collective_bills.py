@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from .currency import event_currency
 from .event_sales import (
     _build_articles_pricing_map,
     _collect_article_ids_from_orders,
@@ -133,7 +134,7 @@ def _order_row_dict(order: EdgeSubmittedOrder, arts: dict) -> dict:
 
 
 def build_event_collective_bills_list(db: Session, event: Event) -> dict:
-    currency = event.currency or "EUR"
+    currency = event_currency(event, "EUR")
 
     headers = {
         r.uuid: r

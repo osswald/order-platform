@@ -17,7 +17,7 @@ def _seed_org_admin():
         hc = HireCompany(name="Articles Tenant")
         db.add(hc)
         db.flush()
-        org = Organisation(name="Articles Org", country="CH", hire_company_id=hc.id)
+        org = Organisation(name="Articles Org", country="CH", hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         db.add(

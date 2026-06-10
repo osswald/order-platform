@@ -11,6 +11,7 @@ from ..i18n.errors import api_error
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
+from ..currency import event_currency, organisation_currency
 from ..deps import get_db
 from ..event_status import ORDER_ACCEPT_STATUSES
 from ..models import Event, Organisation
@@ -119,7 +120,7 @@ def create_terminal_payment_intent(
     db: Session = Depends(get_db),
 ) -> TerminalPaymentIntentRead:
     event, organisation = _terminal_organisation_for_event(db, ctx, body.event_id)
-    currency = (body.currency or event.currency or "CHF").upper()
+    currency = (body.currency or organisation_currency(organisation, event_currency(event, "CHF"))).upper()
     metadata = {
         "event_id": str(event.id),
         "organisation_id": str(organisation.id),

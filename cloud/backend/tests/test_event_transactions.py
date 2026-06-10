@@ -26,7 +26,7 @@ def db_session():
     db = Session()
     hc = HireCompany(id=1, name="HC")
     db.add(hc)
-    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH")
+    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH", currency="CHF")
     db.add(org)
     now = datetime.now(timezone.utc)
     ev = Event(
@@ -36,7 +36,6 @@ def db_session():
         start=now,
         end=now,
         organisation_id=1,
-        currency="CHF",
         payment_mode="pay_later",
     )
     db.add(ev)
