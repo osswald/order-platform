@@ -1,39 +1,39 @@
 <template>
-  <div v-if="mobile" class="event-config-accordion">
+  <div v-if="mobile" class="section-nav-accordion">
     <details
       v-for="section in sections"
       :key="section.id"
-      class="event-config-accordion-panel"
+      class="section-nav-accordion-panel"
       :open="section.defaultOpen || undefined"
     >
-      <summary class="event-config-accordion-header">
-        <span class="event-config-accordion-title">{{ section.title }}</span>
-        <span class="event-config-accordion-chevron" aria-hidden="true">
+      <summary class="section-nav-accordion-header">
+        <span class="section-nav-accordion-title">{{ section.title }}</span>
+        <span class="section-nav-accordion-chevron" aria-hidden="true">
           <v-icon icon="mdi-chevron-down" size="small" />
         </span>
       </summary>
-      <div class="event-config-accordion-content">
+      <div class="section-nav-accordion-content">
         <slot :name="section.id" />
       </div>
     </details>
   </div>
 
-  <div v-else class="event-config-split">
-    <nav class="event-config-nav" :aria-label="$t('events.configNavAria')">
+  <div v-else class="section-nav-split">
+    <nav class="section-nav-nav" :aria-label="navAriaLabel">
       <button
         v-for="section in sections"
         :key="section.id"
         type="button"
-        class="event-config-nav-item"
-        :class="{ 'event-config-nav-item--active': activeTabModel === section.id }"
+        class="section-nav-item"
+        :class="{ 'section-nav-item--active': activeTabModel === section.id }"
         :aria-current="activeTabModel === section.id ? 'page' : undefined"
         @click="activeTabModel = section.id"
       >
         {{ section.title }}
       </button>
     </nav>
-    <div class="event-config-main">
-      <div class="event-config-tabpanel-body">
+    <div class="section-nav-main">
+      <div class="section-nav-panel-body">
         <slot :name="activeTabModel" />
       </div>
     </div>
@@ -56,6 +56,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  navAriaLabel: {
+    type: String,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:activeTab'])
@@ -74,7 +78,7 @@ const activeTabModel = computed({
 </script>
 
 <style scoped>
-.event-config-accordion {
+.section-nav-accordion {
   display: flex;
   flex-direction: column;
   border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
@@ -84,7 +88,7 @@ const activeTabModel = computed({
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-.event-config-accordion-panel {
+.section-nav-accordion-panel {
   border: none;
   border-radius: 0;
   border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
@@ -92,11 +96,11 @@ const activeTabModel = computed({
   overflow: hidden;
 }
 
-.event-config-accordion-panel:last-of-type {
+.section-nav-accordion-panel:last-of-type {
   border-bottom: none;
 }
 
-.event-config-accordion-header {
+.section-nav-accordion-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -109,26 +113,26 @@ const activeTabModel = computed({
   transition: background-color 0.15s ease;
 }
 
-.event-config-accordion-header:hover {
+.section-nav-accordion-header:hover {
   background: rgba(var(--v-theme-primary), 0.08);
 }
 
-.event-config-accordion-header:focus-visible {
+.section-nav-accordion-header:focus-visible {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: -2px;
 }
 
-.event-config-accordion-header::-webkit-details-marker {
+.section-nav-accordion-header::-webkit-details-marker {
   display: none;
 }
 
-.event-config-accordion-title {
+.section-nav-accordion-title {
   font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-.event-config-accordion-chevron {
+.section-nav-accordion-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -145,26 +149,26 @@ const activeTabModel = computed({
     color 0.15s ease;
 }
 
-.event-config-accordion-panel[open] .event-config-accordion-header {
+.section-nav-accordion-panel[open] .section-nav-accordion-header {
   background: rgba(var(--v-theme-primary), 0.1);
   border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-.event-config-accordion-panel[open] .event-config-accordion-chevron {
+.section-nav-accordion-panel[open] .section-nav-accordion-chevron {
   color: rgb(var(--v-theme-primary));
   border-color: rgba(var(--v-theme-primary), 0.35);
 }
 
-.event-config-accordion-panel[open] .event-config-accordion-chevron :deep(.v-icon) {
+.section-nav-accordion-panel[open] .section-nav-accordion-chevron :deep(.v-icon) {
   transform: rotate(180deg);
 }
 
-.event-config-accordion-content {
+.section-nav-accordion-content {
   padding: 1.1rem 1.25rem 1.25rem;
   background: rgb(var(--v-theme-surface));
 }
 
-.event-config-split {
+.section-nav-split {
   display: grid;
   grid-template-columns: minmax(10.5rem, 12.5rem) minmax(0, 1fr);
   border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
@@ -175,7 +179,7 @@ const activeTabModel = computed({
   min-height: 12rem;
 }
 
-.event-config-nav {
+.section-nav-nav {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -187,7 +191,7 @@ const activeTabModel = computed({
   overscroll-behavior: contain;
 }
 
-.event-config-nav-item {
+.section-nav-item {
   display: block;
   width: 100%;
   padding: 0.5rem 0.65rem;
@@ -206,36 +210,36 @@ const activeTabModel = computed({
     color 0.15s ease;
 }
 
-.event-config-nav-item:hover {
+.section-nav-item:hover {
   background: rgba(var(--v-theme-primary), 0.08);
 }
 
-.event-config-nav-item:focus-visible {
+.section-nav-item:focus-visible {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: 1px;
 }
 
-.event-config-nav-item--active {
+.section-nav-item--active {
   background: rgba(var(--v-theme-primary), 0.12);
   color: rgb(var(--v-theme-primary));
   font-weight: 600;
 }
 
-.event-config-main {
+.section-nav-main {
   min-width: 0;
   background: rgb(var(--v-theme-surface));
 }
 
-.event-config-tabpanel-body {
+.section-nav-panel-body {
   padding: 1.1rem 1.25rem 1.25rem;
 }
 
 @media (max-width: 960px) {
-  .event-config-split {
+  .section-nav-split {
     grid-template-columns: 1fr;
   }
 
-  .event-config-nav {
+  .section-nav-nav {
     flex-direction: row;
     flex-wrap: wrap;
     max-height: none;
@@ -244,7 +248,7 @@ const activeTabModel = computed({
     padding: 0.45rem 0.5rem;
   }
 
-  .event-config-nav-item {
+  .section-nav-item {
     width: auto;
     flex: 0 1 auto;
     white-space: nowrap;
@@ -254,20 +258,20 @@ const activeTabModel = computed({
 }
 
 @media (max-width: 768px) {
-  .event-config-accordion-content {
+  .section-nav-accordion-content {
     padding: 0.85rem 0.9rem 1rem;
   }
 
-  .event-config-accordion-header {
+  .section-nav-accordion-header {
     padding: 0.75rem 0.9rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .event-config-accordion-header,
-  .event-config-accordion-chevron,
-  .event-config-accordion-chevron :deep(.v-icon),
-  .event-config-nav-item {
+  .section-nav-accordion-header,
+  .section-nav-accordion-chevron,
+  .section-nav-accordion-chevron :deep(.v-icon),
+  .section-nav-item {
     transition: none;
   }
 }

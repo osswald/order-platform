@@ -349,7 +349,16 @@
     "saveError": "Fehler beim Speichern der Organisation.",
     "deleteConfirm": "Organisation wirklich löschen?",
     "deleted": "Organisation gelöscht.",
-    "deleteError": "Organisation konnte nicht gelöscht werden."
+    "deleteError": "Organisation konnte nicht gelöscht werden.",
+    "configNavAria": "Organisations-Konfiguration",
+    "config": {
+      "sectionStammdaten": "Stammdaten",
+      "sectionGeraete": "Geräte/Ausleihen",
+      "sectionStripe": "Kartenzahlung (Stripe)",
+      "sectionBelegvorlagen": "Belegvorlagen",
+      "sectionMwst": "Mehrwert-/Umsatzsteuer",
+      "taxComingSoon": "Inhalt folgt."
+    }
   },
   "pickers": {
     "userSearchPlaceholder": "Benutzer suchen oder aus Liste wählen…",

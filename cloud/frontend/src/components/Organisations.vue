@@ -10,132 +10,121 @@
       <h2>{{ editMode ? $t('organisations.editTitle') : $t('organisations.newTitle') }}</h2>
       <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
-      <v-form ref="formRef" @submit.prevent="saveOrganisation">
-      <div class="form-field">
-        <v-text-field
-          v-model="form.name"
-          :label="$t('common.name')"
-          :placeholder="$t('organisations.namePlaceholder')"
-          hide-details="auto"
-          required
-          :rules="[rules.required]"
-        />
-      </div>
-      <div class="form-field">
-        <v-text-field v-model="form.address" :label="$t('common.address')" :placeholder="$t('organisations.addressPlaceholder')" hide-details="auto" />
-      </div>
-      <div class="field-row">
-        <div class="form-field">
-          <v-text-field v-model="form.zip" :label="$t('common.zip')" :placeholder="$t('organisations.zipPlaceholder')" hide-details="auto" />
-        </div>
-        <div class="form-field">
-          <v-text-field v-model="form.city" :label="$t('common.city')" :placeholder="$t('organisations.cityPlaceholder')" hide-details="auto" />
-        </div>
-      </div>
-      <div class="form-field">
-        <v-select
-          v-model="form.country"
-          :items="countryOptions"
-          :label="$t('common.country')"
-          :placeholder="$t('organisations.selectCountry')"
-          hide-details="auto"
-          required
-          :rules="[rules.required]"
-        />
-      </div>
-      <div class="form-field">
-        <v-select
-          v-model="form.currency"
-          :items="currencyOptions"
-          :label="$t('organisations.currency')"
-          :placeholder="$t('organisations.currencyPlaceholder')"
-          hide-details="auto"
-          required
-          :rules="[rules.required]"
-        />
-      </div>
-      <div class="form-field">
-        <label>{{ $t('common.users') }}</label>
-        <UserPicker v-model="form.userIdsArray" />
-        <small>{{ $t('organisations.usersHint') }}</small>
-      </div>
+      <template v-if="editMode && activeId">
+        <p v-if="message" :class="messageType">{{ message }}</p>
+        <SectionNavLayout
+          :mobile="isMobile"
+          v-model:active-tab="activeConfigTab"
+          :sections="configSections"
+          :nav-aria-label="$t('organisations.configNavAria')"
+        >
+          <template #stammdaten>
+            <v-form ref="formRef" @submit.prevent="saveOrganisation">
+              <OrganisationStammdatenFields
+                :form="form"
+                :country-options="countryOptions"
+                :currency-options="currencyOptions"
+              />
+              <div class="actions">
+                <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+                <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
+              </div>
+            </v-form>
+          </template>
 
-      <template v-if="editMode && orgApplianceLendings">
-        <div class="org-lendings-toolbar">
-          <v-btn color="primary" type="button" @click="lendingDialogVisible = true">
-            {{ $t('organisations.lendAppliances') }}
-          </v-btn>
-        </div>
-        <div class="org-lendings-block">
-          <h3>{{ $t('lending.currentTitle') }}</h3>
-          <VqDataTable
-            :headers="lendingHeaders"
-            :items="orgApplianceLendings.current"
-            item-value="lending_id"
-            class="vq-data-table list-table nested-table"
-            hide-default-footer
-          >
-            <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-            <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
-            <template #item.period="{ item }">
-              {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+          <template #geraete>
+            <template v-if="orgApplianceLendings">
+              <div class="org-lendings-toolbar">
+                <v-btn color="primary" type="button" @click="lendingDialogVisible = true">
+                  {{ $t('organisations.lendAppliances') }}
+                </v-btn>
+              </div>
+              <div class="org-lendings-block">
+                <h3>{{ $t('lending.currentTitle') }}</h3>
+                <VqDataTable
+                  :headers="lendingHeaders"
+                  :items="orgApplianceLendings.current"
+                  item-value="lending_id"
+                  class="vq-data-table list-table nested-table"
+                  hide-default-footer
+                >
+                  <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
+                  <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+                  <template #item.period="{ item }">
+                    {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+                  </template>
+                  <template #no-data>{{ $t('lending.noCurrent') }}</template>
+                </VqDataTable>
+              </div>
+              <div class="org-lendings-block">
+                <h3>{{ $t('lending.plannedTitle') }}</h3>
+                <VqDataTable
+                  :headers="plannedLendingHeaders"
+                  :items="orgApplianceLendings.planned"
+                  item-value="lending_id"
+                  class="vq-data-table list-table nested-table"
+                  hide-default-footer
+                >
+                  <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
+                  <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+                  <template #item.period="{ item }">
+                    {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+                  </template>
+                  <template #item.actions="{ item }">
+                    <v-btn
+                      variant="outlined"
+                      size="small"
+                      type="button"
+                      :disabled="cancellingLendingId === item.lending_id"
+                      @click="cancelPlannedLendingRow(item)"
+                    >
+                      {{ $t('common.cancelLending') }}
+                    </v-btn>
+                  </template>
+                  <template #no-data>{{ $t('lending.noPlanned') }}</template>
+                </VqDataTable>
+              </div>
             </template>
-            <template #no-data>{{ $t('lending.noCurrent') }}</template>
-          </VqDataTable>
-        </div>
-        <div class="org-lendings-block">
-          <h3>{{ $t('lending.plannedTitle') }}</h3>
-          <VqDataTable
-            :headers="plannedLendingHeaders"
-            :items="orgApplianceLendings.planned"
-            item-value="lending_id"
-            class="vq-data-table list-table nested-table"
-            hide-default-footer
-          >
-            <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-            <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
-            <template #item.period="{ item }">
-              {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
-            </template>
-            <template #item.actions="{ item }">
-              <v-btn
-                variant="outlined"
-                size="small"
-                type="button"
-                :disabled="cancellingLendingId === item.lending_id"
-                @click="cancelPlannedLendingRow(item)"
-              >
-                {{ $t('common.cancelLending') }}
-              </v-btn>
-            </template>
-            <template #no-data>{{ $t('lending.noPlanned') }}</template>
-          </VqDataTable>
-        </div>
+          </template>
+
+          <template #stripe>
+            <OrganisationStripeSection :organisation-id="activeId" />
+          </template>
+
+          <template #belegvorlagen>
+            <ReceiptPrintingSection
+              :api-base-path="`/organisations/${activeId}`"
+              :entity-id="activeId"
+              :title="$t('organisations.receiptTemplatesOrgTitle')"
+              :hint="$t('organisations.receiptTemplatesOrgHint')"
+            />
+          </template>
+
+          <template #mwst>
+            <p class="muted">{{ $t('organisations.config.taxComingSoon') }}</p>
+          </template>
+        </SectionNavLayout>
+
+        <OrganisationLendingDialog
+          v-model:visible="lendingDialogVisible"
+          :organisation-id="activeId"
+          :organisation-name="form.name"
+          @completed="fetchOrgApplianceLendings(activeId)"
+        />
       </template>
 
-      <OrganisationStripeSection v-if="editMode && activeId" :organisation-id="activeId" />
-
-      <ReceiptPrintingSection
-        v-if="editMode && activeId"
-        :api-base-path="`/organisations/${activeId}`"
-        :entity-id="activeId"
-        :title="$t('organisations.receiptTemplatesOrgTitle')"
-        :hint="$t('organisations.receiptTemplatesOrgHint')"
-      />
-      <div class="actions">
-        <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
-        <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
-      </div>
-      <p v-if="message" :class="messageType">{{ message }}</p>
+      <v-form v-else ref="formRef" @submit.prevent="saveOrganisation">
+        <OrganisationStammdatenFields
+          :form="form"
+          :country-options="countryOptions"
+          :currency-options="currencyOptions"
+        />
+        <div class="actions">
+          <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
+          <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
+        </div>
+        <p v-if="message" :class="messageType">{{ message }}</p>
       </v-form>
-
-      <OrganisationLendingDialog
-        v-if="editMode && activeId"
-        v-model:visible="lendingDialogVisible"
-        :organisation-id="activeId"
-        :organisation-name="form.name"
-        @completed="fetchOrgApplianceLendings(activeId)"
-      />
     </template>
 
     <template #table>
@@ -215,11 +204,12 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
+import OrganisationStammdatenFields from './OrganisationStammdatenFields.vue'
 import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
-import UserPicker from './UserPicker.vue'
+import SectionNavLayout from './SectionNavLayout.vue'
 import { apiFetch } from '../api'
-import { rules, validateForm } from '../utils/formRules.js'
+import { validateForm } from '../utils/formRules.js'
 import {
   cancelPlannedLending,
   applianceTypeLabel,
@@ -227,6 +217,7 @@ import {
 } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
+import { useBreakpoint } from '../composables/useBreakpoint'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
@@ -259,6 +250,30 @@ const lendingDialogVisible = ref(false)
 const cancellingLendingId = ref(null)
 const countryOptions = ['Deutschland', 'Österreich', 'Schweiz', 'Frankreich', 'Italien', 'Belgien', 'Niederlande']
 const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
+
+const { matches: isMobile } = useBreakpoint(768)
+const activeConfigTab = ref('stammdaten')
+
+const configSections = computed(() => {
+  if (!editMode.value || !activeId.value) return []
+  return [
+    { id: 'stammdaten', title: t('organisations.config.sectionStammdaten'), defaultOpen: true },
+    { id: 'geraete', title: t('organisations.config.sectionGeraete') },
+    { id: 'stripe', title: t('organisations.config.sectionStripe') },
+    { id: 'belegvorlagen', title: t('organisations.config.sectionBelegvorlagen') },
+    { id: 'mwst', title: t('organisations.config.sectionMwst') },
+  ]
+})
+
+watch(
+  configSections,
+  (sections) => {
+    if (!sections.some((s) => s.id === activeConfigTab.value)) {
+      activeConfigTab.value = sections[0]?.id ?? 'stammdaten'
+    }
+  },
+  { immediate: true },
+)
 
 const userFilterOptions = computed(() => [
   { value: '', label: t('common.all') },
@@ -413,6 +428,7 @@ function applyOrganisationToForm(org) {
 function clearFormState() {
   orgApplianceLendings.value = null
   lendingDialogVisible.value = false
+  activeConfigTab.value = 'stammdaten'
   form.value = emptyOrgForm()
   message.value = ''
 }
@@ -538,26 +554,7 @@ h2 {
   color: rgb(var(--v-theme-on-surface));
 }
 
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-label {
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-small {
+.muted {
   color: rgba(var(--v-theme-on-surface), 0.65);
 }
 
@@ -606,7 +603,7 @@ small {
 }
 
 .org-lendings-toolbar {
-  margin-top: 1.5rem;
+  margin-top: 0;
 }
 
 .org-lendings-block {
@@ -624,7 +621,6 @@ small {
 }
 
 @media (max-width: 1000px) {
-  .field-row,
   .list-controls {
     grid-template-columns: 1fr;
   }

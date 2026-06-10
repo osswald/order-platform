@@ -4,10 +4,11 @@
     <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else>
       <p class="form-required-legend config-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
-      <EventConfigLayout
+      <SectionNavLayout
         :mobile="isMobile"
         v-model:active-tab="activeConfigTab"
         :sections="configSections"
+        :nav-aria-label="$t('events.configNavAria')"
       >
         <template v-if="$slots.stammdaten" #stammdaten>
           <slot name="stammdaten" />
@@ -493,7 +494,7 @@
         <template v-if="showTransactionsTab && shiftSettlementEnabled" #schichten>
           <EventCashSessionsTab :event-id="eventId" />
         </template>
-      </EventConfigLayout>
+      </SectionNavLayout>
 
       <EventSaveStatusBar
         :configuration-status="configAutosaveStatus"
@@ -618,7 +619,7 @@ import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
-import EventConfigLayout from './EventConfigLayout.vue'
+import SectionNavLayout from './SectionNavLayout.vue'
 import EventSaveStatusBar from './EventSaveStatusBar.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'

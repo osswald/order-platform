@@ -29,10 +29,11 @@
         <span>{{ currentArticle.categoryTitle }}</span>
       </nav>
 
-      <EventConfigLayout
+      <SectionNavLayout
         :mobile="isMobile"
         v-model:active-tab="activeSlug"
         :sections="navSections"
+        :nav-aria-label="$t('help.navAria')"
       >
         <template v-for="article in categoryArticles" :key="article.slug" #[article.slug]>
           <div v-if="articleBodies[article.slug]" class="help-article">
@@ -41,7 +42,7 @@
             <HelpMarkdown :html="articleBodies[article.slug].html" />
           </div>
         </template>
-      </EventConfigLayout>
+      </SectionNavLayout>
     </template>
 
     <div v-else class="help-index">
@@ -69,7 +70,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import EventConfigLayout from './EventConfigLayout.vue'
+import SectionNavLayout from './SectionNavLayout.vue'
 import HelpMarkdown from './HelpMarkdown.vue'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import {
