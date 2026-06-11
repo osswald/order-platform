@@ -141,6 +141,10 @@ async function submit() {
       localStorage.removeItem('user_hire_company_id')
     }
     localStorage.setItem('is_tenant_admin', data.is_tenant_admin ? 'true' : 'false')
+    localStorage.setItem(
+      'is_organisation_admin',
+      data.is_organisation_admin ? 'true' : 'false',
+    )
     if (data.user_id != null) {
       localStorage.setItem('user_id', String(data.user_id))
     }

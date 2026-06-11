@@ -13,6 +13,9 @@
           v-if="!isMobile"
           :is-platform-admin="isPlatformAdmin"
           :can-access-tenant-admin="canAccessTenantAdmin"
+          :can-access-organisation-settings="canAccessOrganisationSettings"
+          :can-access-users="canAccessUsers"
+          :is-tenant-admin-role="isTenantAdminRole"
           :hire-companies="hireCompanies"
           :active-hire-company-id="activeHireCompanyId"
           :show-hire-company-picker="isPlatformAdmin"
@@ -26,6 +29,10 @@
             <component
               :is="Component"
               :is-admin="isAdmin"
+              :is-tenant-admin="isTenantAdminRole"
+              :is-organisation-admin="isOrganisationAdminRole"
+              :can-access-tenant-admin="canAccessTenantAdmin"
+              :active-hire-company-id="activeHireCompanyIdForViews"
               :active-organisation-id="activeOrganisationIdForViews"
             />
           </RouterView>
@@ -43,6 +50,9 @@
           <AppNavMenu
             :is-platform-admin="isPlatformAdmin"
             :can-access-tenant-admin="canAccessTenantAdmin"
+            :can-access-organisation-settings="canAccessOrganisationSettings"
+            :can-access-users="canAccessUsers"
+            :is-tenant-admin-role="isTenantAdminRole"
             :hire-companies="hireCompanies"
             :active-hire-company-id="activeHireCompanyId"
             :show-hire-company-picker="isPlatformAdmin"
@@ -95,6 +105,10 @@ const {
   isAdmin,
   isPlatformAdmin,
   canAccessTenantAdmin,
+  canAccessOrganisationSettings,
+  canAccessUsers,
+  isTenantAdminRole,
+  isOrganisationAdminRole,
   hireCompanies,
   activeHireCompanyId,
   setActiveHireCompany,
@@ -108,6 +122,10 @@ const {
 
 const activeOrganisationIdForViews = computed(() =>
   normalizeOrganisationId(unref(activeOrganisationId)),
+)
+
+const activeHireCompanyIdForViews = computed(() =>
+  normalizeOrganisationId(unref(activeHireCompanyId)),
 )
 
 provide(SESSION_CONTEXT_KEY, {

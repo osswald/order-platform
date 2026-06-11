@@ -4,7 +4,8 @@ import { apiFetch, clearAuthStorage } from '../api'
 import { normalizeOrganisationId } from '../utils/orgId'
 
 const ROLE_PLATFORM = 'platform_admin'
-const ROLE_ORG_ADMIN = 'org_admin'
+const ROLE_TENANT_ADMIN = 'tenant_admin'
+const ROLE_ORGANISATION_ADMIN = 'organisation_admin'
 const ROLE_MEMBER = 'member'
 
 function parseId(value) {
@@ -21,6 +22,7 @@ export function useAuthSession() {
   const userRole = ref(localStorage.getItem('user_role') || ROLE_MEMBER)
   const isPlatformAdmin = ref(localStorage.getItem('is_admin') === 'true')
   const isTenantAdmin = ref(localStorage.getItem('is_tenant_admin') === 'true')
+  const isOrganisationAdmin = ref(localStorage.getItem('is_organisation_admin') === 'true')
   const userHireCompanyId = ref(parseId(localStorage.getItem('user_hire_company_id')))
   const hireCompanies = ref([])
   const activeHireCompanyId = ref(parseId(localStorage.getItem('active_hire_company_id')))
@@ -28,14 +30,22 @@ export function useAuthSession() {
   const activeOrganisationId = ref(parseId(route.query.organisation))
 
   const isAdmin = computed(() => isPlatformAdmin.value)
+  const isTenantAdminRole = computed(() => userRole.value === ROLE_TENANT_ADMIN)
+  const isOrganisationAdminRole = computed(() => userRole.value === ROLE_ORGANISATION_ADMIN)
   const canAccessTenantAdmin = computed(
     () =>
-      userRole.value === ROLE_ORG_ADMIN ||
+      userRole.value === ROLE_TENANT_ADMIN ||
       (isPlatformAdmin.value && activeHireCompanyId.value != null),
+  )
+  const canAccessOrganisationSettings = computed(
+    () => canAccessTenantAdmin.value || isOrganisationAdminRole.value,
+  )
+  const canAccessUsers = computed(
+    () => canAccessTenantAdmin.value || isOrganisationAdminRole.value,
   )
 
   function syncActiveHireCompany() {
-    if (userRole.value === ROLE_ORG_ADMIN && userHireCompanyId.value != null) {
+    if (userRole.value === ROLE_TENANT_ADMIN && userHireCompanyId.value != null) {
       activeHireCompanyId.value = userHireCompanyId.value
       localStorage.setItem('active_hire_company_id', String(userHireCompanyId.value))
       return
@@ -58,7 +68,7 @@ export function useAuthSession() {
   }
 
   function setActiveHireCompany(id) {
-    if (userRole.value === ROLE_ORG_ADMIN) return
+    if (userRole.value === ROLE_TENANT_ADMIN) return
     const parsed = parseId(id)
     activeHireCompanyId.value = parsed
     if (parsed != null) {
@@ -92,10 +102,15 @@ export function useAuthSession() {
     isPlatformAdmin.value = !!data.is_admin
     userRole.value = data.role || (data.is_admin ? ROLE_PLATFORM : ROLE_MEMBER)
     isTenantAdmin.value = !!data.is_tenant_admin
+    isOrganisationAdmin.value = !!data.is_organisation_admin
     userHireCompanyId.value = parseId(data.hire_company_id)
     localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
     localStorage.setItem('user_role', userRole.value)
     localStorage.setItem('is_tenant_admin', data.is_tenant_admin ? 'true' : 'false')
+    localStorage.setItem(
+      'is_organisation_admin',
+      data.is_organisation_admin ? 'true' : 'false',
+    )
     if (data.hire_company_id != null) {
       localStorage.setItem('user_hire_company_id', String(data.hire_company_id))
     } else {
@@ -117,6 +132,7 @@ export function useAuthSession() {
     if (!token) {
       isPlatformAdmin.value = false
       isTenantAdmin.value = false
+      isOrganisationAdmin.value = false
       return false
     }
     try {
@@ -124,6 +140,7 @@ export function useAuthSession() {
       if (!response.ok) {
         isPlatformAdmin.value = false
         isTenantAdmin.value = false
+        isOrganisationAdmin.value = false
         if (response.status === 401) {
           clearAuthStorage()
         }
@@ -135,6 +152,7 @@ export function useAuthSession() {
     } catch {
       isPlatformAdmin.value = false
       isTenantAdmin.value = false
+      isOrganisationAdmin.value = false
       return false
     }
   }
@@ -212,6 +230,22 @@ export function useAuthSession() {
         params: { section: route.name },
         query: route.query,
       })
+      return
+    }
+    if (route.meta.organisationManagerOnly && !canAccessOrganisationSettings.value) {
+      router.replace({
+        name: 'no-access',
+        params: { section: route.name },
+        query: route.query,
+      })
+      return
+    }
+    if (route.meta.usersOnly && !canAccessUsers.value) {
+      router.replace({
+        name: 'no-access',
+        params: { section: route.name },
+        query: route.query,
+      })
     }
   }
 
@@ -269,6 +303,7 @@ export function useAuthSession() {
       isPlatformAdmin.value = localStorage.getItem('is_admin') === 'true'
       userRole.value = localStorage.getItem('user_role') || ROLE_MEMBER
       isTenantAdmin.value = localStorage.getItem('is_tenant_admin') === 'true'
+      isOrganisationAdmin.value = localStorage.getItem('is_organisation_admin') === 'true'
       activeOrganisationId.value = parseId(route.query.organisation)
       activeHireCompanyId.value = parseId(localStorage.getItem('active_hire_company_id'))
     })
@@ -299,6 +334,7 @@ export function useAuthSession() {
     hireCompanies.value = []
     activeOrganisationId.value = null
     activeHireCompanyId.value = null
+    isOrganisationAdmin.value = false
     isLoggedIn.value = false
     userEmail.value = ''
     router.replace({ name: 'login' })
@@ -311,8 +347,13 @@ export function useAuthSession() {
     isAdmin,
     isPlatformAdmin,
     isTenantAdmin,
+    isOrganisationAdmin,
+    isTenantAdminRole,
+    isOrganisationAdminRole,
     userRole,
     canAccessTenantAdmin,
+    canAccessOrganisationSettings,
+    canAccessUsers,
     hireCompanies,
     activeHireCompanyId,
     setActiveHireCompany,

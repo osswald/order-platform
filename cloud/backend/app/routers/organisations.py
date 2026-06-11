@@ -13,12 +13,15 @@ from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import (
     TenantContext,
+    ensure_can_manage_organisation,
     ensure_org_in_tenant,
     ensure_user_can_use_organisation,
     ensure_users_in_tenant,
+    get_current_organisation_manager,
     get_current_tenant,
     get_current_tenant_admin,
     readable_events_query,
+    readable_organisations,
 )
 from .appliances import _assert_lending_is_planned, _utc_today
 
@@ -93,14 +96,10 @@ def organisation_response(org: Organisation) -> dict:
 @router.get("/", response_model=List[OrganisationRead])
 def read_organisations(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_organisation_manager),
 ):
-    organisations = (
-        db.query(Organisation)
-        .filter(Organisation.hire_company_id == tenant.hire_company_id)
-        .order_by(Organisation.name)
-        .all()
-    )
+    organisations = readable_organisations(db, current_user, tenant.hire_company_id)
     return [organisation_response(org) for org in organisations]
 
 
@@ -212,9 +211,10 @@ def cancel_organisation_planned_lending(
 def read_organisation(
     organisation_id: int,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_organisation_manager),
 ):
-    org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
+    org = ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
     return organisation_response(org)
 
 
@@ -252,8 +252,10 @@ def update_organisation(
     organisation_id: int,
     org_in: OrganisationUpdate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
+    ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     if org_in.name is not None:
         org.name = org_in.name

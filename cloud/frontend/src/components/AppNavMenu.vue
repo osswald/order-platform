@@ -91,7 +91,14 @@
           @click="onNavigate"
         />
         <v-list-item
-          v-if="canAccessTenantAdmin"
+          v-if="isTenantAdminRole"
+          :to="{ name: 'tenant-settings' }"
+          prepend-icon="mdi-briefcase-edit"
+          :title="$t('nav.tenantSettings')"
+          @click="onNavigate"
+        />
+        <v-list-item
+          v-if="canAccessOrganisationSettings"
           :to="routeTo('organisations')"
           prepend-icon="mdi-office-building"
           :title="$t('nav.organisations')"
@@ -105,7 +112,7 @@
           @click="onNavigate"
         />
         <v-list-item
-          v-if="canAccessTenantAdmin"
+          v-if="canAccessUsers"
           :to="routeTo('users')"
           prepend-icon="mdi-account"
           :title="$t('nav.users')"
@@ -146,6 +153,18 @@ const props = defineProps({
     default: false,
   },
   canAccessTenantAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  canAccessOrganisationSettings: {
+    type: Boolean,
+    default: false,
+  },
+  canAccessUsers: {
+    type: Boolean,
+    default: false,
+  },
+  isTenantAdminRole: {
     type: Boolean,
     default: false,
   },

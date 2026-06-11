@@ -3,6 +3,9 @@
     <AppNavMenu
       :is-platform-admin="isPlatformAdmin"
       :can-access-tenant-admin="canAccessTenantAdmin"
+      :can-access-organisation-settings="canAccessOrganisationSettings"
+      :can-access-users="canAccessUsers"
+      :is-tenant-admin-role="isTenantAdminRole"
       :hire-companies="hireCompanies"
       :active-hire-company-id="activeHireCompanyId"
       :show-hire-company-picker="showHireCompanyPicker"
@@ -20,6 +23,9 @@ import AppNavMenu from './AppNavMenu.vue'
 defineProps({
   isPlatformAdmin: { type: Boolean, default: false },
   canAccessTenantAdmin: { type: Boolean, default: false },
+  canAccessOrganisationSettings: { type: Boolean, default: false },
+  canAccessUsers: { type: Boolean, default: false },
+  isTenantAdminRole: { type: Boolean, default: false },
   hireCompanies: { type: Array, default: () => [] },
   activeHireCompanyId: { type: Number, default: null },
   showHireCompanyPicker: { type: Boolean, default: false },

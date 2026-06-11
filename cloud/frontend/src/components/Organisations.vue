@@ -3,6 +3,7 @@
     :title="$t('organisations.title')"
     :subtitle="$t('organisations.subtitle')"
     :createLabel="$t('organisations.createLabel')"
+    :showCreate="canAccessTenantAdmin"
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
@@ -187,7 +188,7 @@
           {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
         </template>
         <template #item.user_ids="{ item }">{{ item.user_ids.length }}</template>
-        <template #item.actions="{ item }">
+        <template v-if="canAccessTenantAdmin" #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteOrganisation(item.id)">
             {{ $t('common.delete') }}
           </v-btn>
@@ -221,11 +222,15 @@ import { useBreakpoint } from '../composables/useBreakpoint'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
+const props = defineProps({
+  canAccessTenantAdmin: { type: Boolean, default: false },
+})
+
 const { t } = useI18n()
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 const tenantHireCompanyId = computed(() => sessionContext?.activeHireCompanyId?.value ?? null)
-const canManageTenant = computed(() => Boolean(sessionContext?.canAccessTenantAdmin?.value))
+const canManageTenant = computed(() => props.canAccessTenantAdmin)
 
 const route = useRoute()
 const {

@@ -179,6 +179,8 @@ const { t } = useI18n()
 
 const props = defineProps({
   isAdmin: { type: Boolean, default: false },
+  isTenantAdmin: { type: Boolean, default: false },
+  isOrganisationAdmin: { type: Boolean, default: false },
 })
 
 const route = useRoute()
@@ -213,14 +215,22 @@ const tableHeaders = computed(() => [
 
 const roleFilterOptions = computed(() => [
   { value: '', label: t('users.allRoles') },
-  { value: 'org_admin', label: t('users.roleOrgAdmin') },
+  { value: 'tenant_admin', label: t('users.roleTenantAdmin') },
+  { value: 'organisation_admin', label: t('users.roleOrganisationAdmin') },
   { value: 'member', label: t('users.roleMember') },
 ])
 
 const roleOptions = computed(() => {
+  if (props.isOrganisationAdmin && !props.isTenantAdmin && !props.isAdmin) {
+    return [
+      { value: 'member', label: t('users.roleMemberSingular') },
+      { value: 'organisation_admin', label: t('users.roleOrganisationAdminSingular') },
+    ]
+  }
   const opts = [
     { value: 'member', label: t('users.roleMemberSingular') },
-    { value: 'org_admin', label: t('users.roleOrgAdminSingular') },
+    { value: 'organisation_admin', label: t('users.roleOrganisationAdminSingular') },
+    { value: 'tenant_admin', label: t('users.roleTenantAdminSingular') },
   ]
   if (props.isAdmin) {
     opts.push({ value: 'platform_admin', label: t('users.rolePlatformAdmin') })
@@ -230,7 +240,8 @@ const roleOptions = computed(() => {
 
 function roleLabel(role) {
   if (role === 'platform_admin') return t('users.rolePlatformAdmin')
-  if (role === 'org_admin') return t('users.roleOrgAdminSingular')
+  if (role === 'tenant_admin') return t('users.roleTenantAdminSingular')
+  if (role === 'organisation_admin') return t('users.roleOrganisationAdminSingular')
   return t('users.roleMemberSingular')
 }
 

@@ -21,6 +21,7 @@ from ..receipt_printing_config import (
 )
 from ..tenancy import (
     TenantContext,
+    ensure_can_manage_organisation,
     ensure_org_in_tenant,
     get_current_tenant,
     get_current_tenant_admin,
@@ -122,8 +123,10 @@ def delete_hire_company_receipt_logo(
 def get_organisation_receipt_printing(
     organisation_id: int,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
+    ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return read_printing_response(org, is_event=False)
 
@@ -133,8 +136,10 @@ def put_organisation_receipt_printing(
     organisation_id: int,
     body: ReceiptPrintingConfigUpdate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
+    ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     apply_vendor_or_org_printing_update(org, body)
     db.commit()
@@ -146,8 +151,10 @@ def put_organisation_receipt_printing(
 def get_organisation_receipt_logo(
     organisation_id: int,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
+    ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     payload = receipt_logo_bytes(org)
     if not payload:
@@ -161,8 +168,10 @@ async def put_organisation_receipt_logo(
     organisation_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
+    ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     mime = (file.content_type or "").split(";")[0].strip().lower()
     raw = await file.read()
@@ -178,8 +187,10 @@ async def put_organisation_receipt_logo(
 def delete_organisation_receipt_logo(
     organisation_id: int,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
 ):
+    ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     clear_receipt_logo(org)
     db.commit()

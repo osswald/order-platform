@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.database import SessionLocal
 from app.main import app
 from app.models import Appliance, ApplianceLending, HireCompany, Organisation, User
-from app.roles import ROLE_ORG_ADMIN
+from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
@@ -33,7 +33,7 @@ def _lending_fixture(suffix: str) -> tuple[int, int, str]:
         user = User(
             email=f"lending-admin-{suffix}@test.local",
             hashed_password=get_password_hash("secret"),
-            role=ROLE_ORG_ADMIN,
+            role=ROLE_TENANT_ADMIN,
             hire_company_id=company.id,
             is_superuser=False,
         )

@@ -15,7 +15,7 @@ from app.models import (
     Organisation,
     User,
 )
-from app.roles import ROLE_ORG_ADMIN
+from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
@@ -35,7 +35,7 @@ def _pair_edge_credentials() -> tuple[str, str]:
             User(
                 email=f"bundle-{suffix}@test.local",
                 hashed_password=get_password_hash("secret"),
-                role=ROLE_ORG_ADMIN,
+                role=ROLE_TENANT_ADMIN,
                 hire_company_id=hc.id,
             )
         )

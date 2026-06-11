@@ -12,7 +12,7 @@ from app.hosted_pi_manager_client import HostedPiManagerError
 from app.hosted_pi_service import expire_due_instances, reconcile_stuck_provisioning
 from app.main import app
 from app.models import Appliance, Event, HireCompany, HostedPiInstance, Organisation, User
-from app.roles import ROLE_ORG_ADMIN
+from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
@@ -48,7 +48,7 @@ def _setup_org_admin() -> tuple[int, str]:
             User(
                 email=f"hosted-{suffix}@test.local",
                 hashed_password=get_password_hash("secret"),
-                role=ROLE_ORG_ADMIN,
+                role=ROLE_TENANT_ADMIN,
                 hire_company_id=hc.id,
             )
         )

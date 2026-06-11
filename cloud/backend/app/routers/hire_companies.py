@@ -5,9 +5,10 @@ from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..models import Appliance, HireCompany, Organisation, User
-from ..tenancy import get_current_platform_admin
+from ..tenancy import ensure_can_access_hire_company, get_current_platform_admin
 
 router = APIRouter()
 
@@ -62,8 +63,9 @@ def list_hire_companies(
 def read_hire_company(
     hire_company_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_platform_admin),
+    current_user: User = Depends(get_current_user),
 ):
+    ensure_can_access_hire_company(current_user, hire_company_id)
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
         raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
@@ -94,8 +96,9 @@ def update_hire_company(
     hire_company_id: int,
     company_in: HireCompanyUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_platform_admin),
+    current_user: User = Depends(get_current_user),
 ):
+    ensure_can_access_hire_company(current_user, hire_company_id)
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
         raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)

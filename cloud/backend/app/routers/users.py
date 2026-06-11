@@ -8,18 +8,34 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Organisation, User
-from ..roles import ROLE_MEMBER, ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN
+from ..roles import (
+    ALL_ROLES,
+    ASSIGNABLE_BY_ORGANISATION_ADMIN,
+    ROLE_MEMBER,
+    ROLE_ORGANISATION_ADMIN,
+    ROLE_PLATFORM_ADMIN,
+    ROLE_TENANT_ADMIN,
+)
 from ..security import get_password_hash
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import (
     TenantContext,
+    ensure_organisation_ids_in_admin_scope,
     ensure_organisation_ids_in_tenant,
     ensure_user_in_tenant,
-    get_current_tenant_admin,
+    get_current_user_manager,
     sync_user_role_fields,
+    user_shares_administered_org,
 )
-from ..user_access import is_platform_admin, user_role
+from ..user_access import (
+    administered_organisation_ids,
+    can_manage_tenant,
+    is_organisation_admin,
+    is_platform_admin,
+    is_tenant_admin,
+    user_role,
+)
 
 router = APIRouter()
 
@@ -79,7 +95,7 @@ class UserCreate(BaseModel):
     @field_validator("role")
     @classmethod
     def validate_role_create(cls, v: str) -> str:
-        if v not in (ROLE_MEMBER, ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN):
+        if v not in ALL_ROLES:
             raise ValueError("Invalid role")
         return v
 
@@ -108,7 +124,7 @@ class UserUpdate(BaseModel):
     def validate_role_update(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        if v not in (ROLE_MEMBER, ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN):
+        if v not in ALL_ROLES:
             raise ValueError("Invalid role")
         return v
 
@@ -129,6 +145,17 @@ def user_to_read(u: User) -> dict:
     }
 
 
+def _assert_role_assignable_by_actor(role: str, acting_user: User) -> None:
+    if is_organisation_admin(acting_user):
+        if role not in ASSIGNABLE_BY_ORGANISATION_ADMIN:
+            raise api_error("cannot_assign_role", status.HTTP_403_FORBIDDEN)
+        return
+    if role == ROLE_PLATFORM_ADMIN and not is_platform_admin(acting_user):
+        raise api_error("cannot_assign_platform_admin", status.HTTP_403_FORBIDDEN)
+    if role == ROLE_TENANT_ADMIN and not can_manage_tenant(acting_user):
+        raise api_error("cannot_assign_role", status.HTTP_403_FORBIDDEN)
+
+
 def _apply_role_on_create(
     db_user: User,
     role: str,
@@ -136,30 +163,56 @@ def _apply_role_on_create(
     tenant_hire_company_id: int,
     acting_user: User,
 ) -> None:
+    _assert_role_assignable_by_actor(role, acting_user)
     if role == ROLE_PLATFORM_ADMIN:
-        if not is_platform_admin(acting_user):
-            raise api_error("cannot_create_platform_admin", status.HTTP_403_FORBIDDEN)
         db_user.role = ROLE_PLATFORM_ADMIN
         db_user.is_superuser = True
         db_user.hire_company_id = None
         return
-    if role == ROLE_ORG_ADMIN:
-        db_user.role = ROLE_ORG_ADMIN
+    if role == ROLE_TENANT_ADMIN:
+        db_user.role = ROLE_TENANT_ADMIN
         db_user.is_superuser = False
         db_user.hire_company_id = hire_company_id or tenant_hire_company_id
         if db_user.hire_company_id != tenant_hire_company_id:
-            raise api_error("invalid_verleiher_for_org_admin", status.HTTP_400_BAD_REQUEST)
+            raise api_error("invalid_verleiher_for_tenant_admin", status.HTTP_400_BAD_REQUEST)
+        return
+    if role == ROLE_ORGANISATION_ADMIN:
+        db_user.role = ROLE_ORGANISATION_ADMIN
+        db_user.is_superuser = False
+        db_user.hire_company_id = None
         return
     db_user.role = ROLE_MEMBER
     db_user.is_superuser = False
     db_user.hire_company_id = None
 
 
+def _admin_org_ids(acting_user: User) -> list[int]:
+    return administered_organisation_ids(acting_user)
+
+
+def _ensure_actor_can_manage_target(acting_user: User, target: User) -> None:
+    if can_manage_tenant(acting_user):
+        return
+    admin_org_ids = _admin_org_ids(acting_user)
+    if not user_shares_administered_org(target, admin_org_ids):
+        raise api_error("not_allowed_for_organisation", status.HTTP_403_FORBIDDEN)
+    if is_tenant_admin(target) or user_role(target) == ROLE_PLATFORM_ADMIN:
+        raise api_error("cannot_modify_elevated_user", status.HTTP_403_FORBIDDEN)
+
+
+def _filter_users_for_organisation_admin(
+    users: list[User],
+    admin_org_ids: list[int],
+) -> list[User]:
+    return [u for u in users if user_shares_administered_org(u, admin_org_ids)]
+
+
 @router.get("/", response_model=List[UserRead])
 def list_or_search_users(
     q: str | None = None,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_user_manager),
 ):
     query = (
         db.query(User)
@@ -175,6 +228,8 @@ def list_or_search_users(
         term = f"%{q.strip()}%"
         query = query.filter(or_(User.email.ilike(term), User.name.ilike(term)))
     users = query.order_by(User.id).all()
+    if is_organisation_admin(current_user):
+        users = _filter_users_for_organisation_admin(users, _admin_org_ids(current_user))
     return [user_to_read(u) for u in users]
 
 
@@ -183,11 +238,13 @@ def create_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    tenant: TenantContext = Depends(get_current_user_manager),
 ):
     existing = db.query(User).filter(User.email == user_in.email).first()
     if existing:
         raise api_error("email_already_registered", status.HTTP_400_BAD_REQUEST)
+    if is_organisation_admin(current_user):
+        ensure_organisation_ids_in_admin_scope(user_in.organisation_ids, _admin_org_ids(current_user))
     db_user = User(
         email=user_in.email,
         name=user_in.name,
@@ -199,7 +256,11 @@ def create_user(
     db.flush()
     if user_in.organisation_ids:
         orgs = ensure_organisation_ids_in_tenant(db, user_in.organisation_ids, tenant.hire_company_id)
+        if is_organisation_admin(current_user):
+            ensure_organisation_ids_in_admin_scope(user_in.organisation_ids, _admin_org_ids(current_user))
         db_user.organisations = orgs
+    elif is_organisation_admin(current_user):
+        raise api_error("organisation_required_for_user", status.HTTP_400_BAD_REQUEST)
     _apply_event_admin_pin(
         db_user,
         user_in.event_admin_pin,
@@ -217,11 +278,12 @@ def update_user(
     user_in: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    tenant: TenantContext = Depends(get_current_user_manager),
 ):
     u = ensure_user_in_tenant(
         db, user_id, tenant.hire_company_id, load_organisations=True
     )
+    _ensure_actor_can_manage_target(current_user, u)
     if u.is_superuser and not is_platform_admin(current_user):
         raise api_error("cannot_modify_platform_admin", status.HTTP_403_FORBIDDEN)
     if user_in.email is not None and user_in.email != u.email:
@@ -232,12 +294,15 @@ def update_user(
     if user_in.name is not None:
         u.name = user_in.name
     if user_in.role is not None:
-        if user_in.role == ROLE_PLATFORM_ADMIN and not is_platform_admin(current_user):
-            raise api_error("cannot_assign_platform_admin", status.HTTP_403_FORBIDDEN)
+        _assert_role_assignable_by_actor(user_in.role, current_user)
         _apply_role_on_create(u, user_in.role, user_in.hire_company_id, tenant.hire_company_id, current_user)
-    elif user_in.hire_company_id is not None and user_role(u) == ROLE_ORG_ADMIN:
+    elif user_in.hire_company_id is not None and user_role(u) == ROLE_TENANT_ADMIN:
+        if not can_manage_tenant(current_user):
+            raise api_error("cannot_assign_role", status.HTTP_403_FORBIDDEN)
         u.hire_company_id = user_in.hire_company_id
     if user_in.organisation_ids is not None:
+        if is_organisation_admin(current_user):
+            ensure_organisation_ids_in_admin_scope(user_in.organisation_ids, _admin_org_ids(current_user))
         orgs = ensure_organisation_ids_in_tenant(db, user_in.organisation_ids, tenant.hire_company_id)
         u.organisations = orgs
     update_data = user_in.model_dump(exclude_unset=True)
@@ -259,9 +324,10 @@ def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    tenant: TenantContext = Depends(get_current_user_manager),
 ):
-    u = ensure_user_in_tenant(db, user_id, tenant.hire_company_id)
+    u = ensure_user_in_tenant(db, user_id, tenant.hire_company_id, load_organisations=True)
+    _ensure_actor_can_manage_target(current_user, u)
     if u.id == current_user.id:
         raise api_error("cannot_delete_own_account", status.HTTP_400_BAD_REQUEST)
     if u.is_superuser:

@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session, joinedload
 from .deps import get_db
 from .models import Event, HireCompany, Organisation, User
 from .user_access import (
+    administered_organisation_ids,
+    can_manage_organisation,
     can_manage_tenant,
-    is_org_admin,
+    is_organisation_admin,
     is_platform_admin,
+    is_tenant_admin,
     user_hire_company_id,
 )
 from .auth_deps import get_current_user
@@ -30,9 +33,9 @@ def resolve_hire_company_id(
     user: User,
     header_hire_company_id: int | None,
 ) -> int:
-    if is_org_admin(user):
+    if is_tenant_admin(user):
         if user.hire_company_id is None:
-            raise api_error("org_admin_no_verleiher", status.HTTP_403_FORBIDDEN)
+            raise api_error("tenant_admin_no_verleiher", status.HTTP_403_FORBIDDEN)
         return user.hire_company_id
     if is_platform_admin(user):
         if header_hire_company_id is None:
@@ -58,7 +61,7 @@ def get_tenant_context(
     company = db.query(HireCompany).filter(HireCompany.id == hire_company_id).first()
     if not company:
         raise api_error("verleiher_not_found", status.HTTP_404_NOT_FOUND)
-    if is_org_admin(user) and user.hire_company_id != hire_company_id:
+    if is_tenant_admin(user) and user.hire_company_id != hire_company_id:
         raise api_error("not_allowed_for_verleiher", status.HTTP_403_FORBIDDEN)
     if is_platform_admin(user) and header_hire_company_id is not None and header_hire_company_id != hire_company_id:
         raise api_error("not_allowed_for_verleiher", status.HTTP_403_FORBIDDEN)
@@ -93,10 +96,41 @@ def get_current_tenant_admin(
     return tenant
 
 
+def get_current_user_manager(
+    tenant: TenantContext = Depends(get_current_tenant),
+    current_user: User = Depends(get_current_user),
+) -> TenantContext:
+    if can_manage_tenant(current_user) or is_organisation_admin(current_user):
+        return tenant
+    raise api_error("requires_user_management", status.HTTP_403_FORBIDDEN)
+
+
+def get_current_organisation_manager(
+    tenant: TenantContext = Depends(get_current_tenant),
+    current_user: User = Depends(get_current_user),
+) -> TenantContext:
+    if can_manage_tenant(current_user) or is_organisation_admin(current_user):
+        return tenant
+    raise api_error("requires_organisation_management", status.HTTP_403_FORBIDDEN)
+
+
 def get_current_platform_admin(current_user: User = Depends(get_current_user)) -> User:
     if not is_platform_admin(current_user):
         raise api_error("requires_platform_admin", status.HTTP_403_FORBIDDEN)
     return current_user
+
+
+def ensure_can_access_hire_company(user: User, hire_company_id: int) -> None:
+    if is_platform_admin(user):
+        return
+    if is_tenant_admin(user) and user.hire_company_id == hire_company_id:
+        return
+    raise api_error("not_allowed_for_verleiher", status.HTTP_403_FORBIDDEN)
+
+
+def ensure_can_manage_organisation(user: User, organisation_id: int) -> None:
+    if not can_manage_organisation(user, organisation_id):
+        raise api_error("not_allowed_for_organisation", status.HTTP_403_FORBIDDEN)
 
 
 def ensure_org_in_tenant(db: Session, organisation_id: int, hire_company_id: int) -> Organisation:
@@ -117,6 +151,17 @@ def readable_organisations(
         return (
             db.query(Organisation)
             .filter(Organisation.hire_company_id == hire_company_id)
+            .order_by(Organisation.name)
+            .all()
+        )
+    admin_org_ids = administered_organisation_ids(current_user)
+    if admin_org_ids:
+        return (
+            db.query(Organisation)
+            .filter(
+                Organisation.hire_company_id == hire_company_id,
+                Organisation.id.in_(admin_org_ids),
+            )
             .order_by(Organisation.name)
             .all()
         )
@@ -161,6 +206,13 @@ def user_belongs_to_tenant(user: User, hire_company_id: int) -> bool:
     if user.hire_company_id == hire_company_id:
         return True
     return any(o.hire_company_id == hire_company_id for o in (user.organisations or []))
+
+
+def user_shares_administered_org(user: User, admin_org_ids: list[int]) -> bool:
+    if not admin_org_ids:
+        return False
+    user_org_ids = {o.id for o in (user.organisations or [])}
+    return bool(user_org_ids.intersection(admin_org_ids))
 
 
 def get_user_in_tenant(
@@ -237,8 +289,19 @@ def ensure_organisation_ids_in_tenant(
     return orgs
 
 
+def ensure_organisation_ids_in_admin_scope(
+    organisation_ids: list[int],
+    admin_org_ids: list[int],
+) -> None:
+    if not organisation_ids:
+        raise api_error("organisation_required_for_user", status.HTTP_400_BAD_REQUEST)
+    allowed = set(admin_org_ids)
+    if not allowed.issuperset(organisation_ids):
+        raise api_error("not_allowed_for_organisation", status.HTTP_403_FORBIDDEN)
+
+
 def sync_user_role_fields(user: User) -> None:
-    from .roles import ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN
+    from .roles import ROLE_ORGANISATION_ADMIN, ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
     from .user_access import user_role
 
     role = user_role(user)
@@ -246,8 +309,11 @@ def sync_user_role_fields(user: User) -> None:
     if role == ROLE_PLATFORM_ADMIN:
         user.is_superuser = True
         user.hire_company_id = None
-    elif role == ROLE_ORG_ADMIN:
+    elif role == ROLE_TENANT_ADMIN:
         user.is_superuser = False
+    elif role == ROLE_ORGANISATION_ADMIN:
+        user.is_superuser = False
+        user.hire_company_id = None
     else:
         user.is_superuser = False
         user.hire_company_id = None

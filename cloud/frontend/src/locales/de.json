@@ -71,6 +71,7 @@
     "articleCategories": "Artikelkategorien",
     "applianceLendings": "Geräteausleihen",
     "hireCompanies": "Verleiher",
+    "tenantSettings": "Verleiher-Einstellungen",
     "organisations": "Organisationen",
     "appliances": "Geräte",
     "users": "Benutzer",
@@ -276,10 +277,12 @@
     "clearEventAdminPin": "Pi Admin-Code entfernen",
     "searchPlaceholder": "Name, E-Mail oder Organisation suchen...",
     "allRoles": "Alle Rollen",
-    "roleOrgAdmin": "Organisations-Admins",
+    "roleTenantAdmin": "Verleiher-Admins",
+    "roleTenantAdminSingular": "Verleiher-Admin",
+    "roleOrganisationAdmin": "Organisations-Admins",
+    "roleOrganisationAdminSingular": "Organisations-Admin",
     "roleMember": "Mitglieder",
     "roleMemberSingular": "Mitglied",
-    "roleOrgAdminSingular": "Organisations-Admin",
     "rolePlatformAdmin": "Plattform-Admin",
     "withOrganisations": "Mit Organisationen",
     "withoutOrganisation": "Ohne Organisation",
@@ -293,6 +296,14 @@
     "deleteConfirm": "Benutzer wirklich löschen?",
     "deleted": "Benutzer gelöscht.",
     "deleteError": "Benutzer konnte nicht gelöscht werden."
+  },
+  "tenantSettings": {
+    "title": "Verleiher-Einstellungen",
+    "subtitle": "Stammdaten und Belegvorlagen des eigenen Verleihers bearbeiten.",
+    "noHireCompany": "Kein Verleiher zugewiesen.",
+    "saved": "Verleiher gespeichert.",
+    "saveError": "Verleiher konnte nicht gespeichert werden.",
+    "loadError": "Verleiher konnte nicht geladen werden."
   },
   "hireCompanies": {
     "title": "Verleiher",

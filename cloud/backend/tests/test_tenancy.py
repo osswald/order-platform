@@ -2,7 +2,7 @@
 
 from app.database import SessionLocal
 from app.models import HireCompany, Organisation, User
-from app.roles import ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN
+from app.roles import ROLE_TENANT_ADMIN, ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
 
 
@@ -32,7 +32,7 @@ def test_org_admin_cannot_access_other_tenant_organisation(client, auth_token):
         admin_a = User(
             email="orgadmin-a@test.local",
             hashed_password=get_password_hash("secret"),
-            role=ROLE_ORG_ADMIN,
+            role=ROLE_TENANT_ADMIN,
             hire_company_id=hc_a.id,
             is_superuser=False,
         )

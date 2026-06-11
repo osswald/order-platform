@@ -10,6 +10,7 @@ import ArticleCategories from '../components/ArticleCategories.vue'
 import ApplianceLendings from '../components/ApplianceLendings.vue'
 import Organisations from '../components/Organisations.vue'
 import HireCompanies from '../components/HireCompanies.vue'
+import TenantSettings from '../components/TenantSettings.vue'
 import Appliances from '../components/Appliances.vue'
 import Users from '../components/Users.vue'
 import AccountSettings from '../components/AccountSettings.vue'
@@ -21,6 +22,8 @@ import HelpCenter from '../components/HelpCenter.vue'
 const orgScoped = { requiresAuth: true, organisationScoped: true }
 const platformOnly = { requiresAuth: true, platformOnly: true }
 const tenantAdminOnly = { requiresAuth: true, tenantAdminOnly: true }
+const organisationManagerOnly = { requiresAuth: true, organisationManagerOnly: true }
+const usersOnly = { requiresAuth: true, usersOnly: true }
 
 const routes = [
   {
@@ -64,15 +67,22 @@ const routes = [
     path: '/organisations',
     listName: 'organisations',
     component: Organisations,
-    meta: tenantAdminOnly,
+    meta: organisationManagerOnly,
+    createMeta: tenantAdminOnly,
   }),
+  {
+    path: '/verleiher-einstellungen',
+    name: 'tenant-settings',
+    component: TenantSettings,
+    meta: tenantAdminOnly,
+  },
   ...listDetailRoutes({
     path: '/appliances',
     listName: 'appliances',
     component: Appliances,
     meta: tenantAdminOnly,
   }),
-  ...listDetailRoutes({ path: '/users', listName: 'users', component: Users, meta: tenantAdminOnly }),
+  ...listDetailRoutes({ path: '/users', listName: 'users', component: Users, meta: usersOnly }),
   {
     path: '/settings',
     name: 'settings',

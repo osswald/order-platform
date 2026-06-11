@@ -4,7 +4,7 @@ import uuid
 
 from sqlalchemy import create_engine, inspect, text
 
-from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_ORG_ADMIN, ROLE_PLATFORM_ADMIN
+from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
@@ -230,6 +230,19 @@ def apply_schema_patches() -> None:
     _patch_hire_companies_tenancy()
     _patch_organisation_stripe_connect()
     _patch_organisation_currency()
+    _patch_tenant_admin_role()
+
+
+def _patch_tenant_admin_role() -> None:
+    """Rename legacy org_admin role slug to tenant_admin."""
+    try:
+        inspector = inspect(engine)
+        if "users" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE users SET role = 'tenant_admin' WHERE role = 'org_admin'"))
 
 
 def _ensure_event_station_printer_rules_table() -> None:

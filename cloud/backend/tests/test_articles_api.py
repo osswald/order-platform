@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.database import SessionLocal
 from app.main import app
 from app.models import ArticleCategory, HireCompany, Organisation, User
-from app.roles import ROLE_ORG_ADMIN
+from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
@@ -24,7 +24,7 @@ def _seed_org_admin():
             User(
                 email="articles-admin@test.local",
                 hashed_password=get_password_hash("secret"),
-                role=ROLE_ORG_ADMIN,
+                role=ROLE_TENANT_ADMIN,
                 hire_company_id=hc.id,
                 is_superuser=False,
             )

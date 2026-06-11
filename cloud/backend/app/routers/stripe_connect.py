@@ -12,11 +12,17 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
-from ..models import Organisation
+from ..models import Organisation, User
 from ..stripe_client import StripeConfigError
 from .. import stripe_client
 from ..stripe_connect_status import update_organisation_from_stripe_account
-from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
+from ..auth_deps import get_current_user
+from ..tenancy import (
+    TenantContext,
+    ensure_can_manage_organisation,
+    ensure_org_in_tenant,
+    get_current_tenant,
+)
 
 router = APIRouter()
 
@@ -72,9 +78,11 @@ def _account_link_url(value: str | None, env_name: str) -> str:
 @router.get("/organisations/{organisation_id}/status", response_model=StripeConnectStatus)
 def read_connect_status(
     organisation_id: int,
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
     db: Session = Depends(get_db),
 ) -> StripeConnectStatus:
+    ensure_can_manage_organisation(current_user, organisation_id)
     organisation = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return _status_response(organisation)
 
@@ -83,9 +91,11 @@ def read_connect_status(
 def create_connect_account_link(
     organisation_id: int,
     body: StripeAccountLinkRequest,
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
     db: Session = Depends(get_db),
 ) -> StripeAccountLinkResponse:
+    ensure_can_manage_organisation(current_user, organisation_id)
     organisation = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     try:
         if not organisation.stripe_account_id:
@@ -115,9 +125,11 @@ def create_connect_account_link(
 @router.post("/organisations/{organisation_id}/refresh", response_model=StripeConnectStatus)
 def refresh_connect_status(
     organisation_id: int,
-    tenant: TenantContext = Depends(get_current_tenant_admin),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
     db: Session = Depends(get_db),
 ) -> StripeConnectStatus:
+    ensure_can_manage_organisation(current_user, organisation_id)
     organisation = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     if not organisation.stripe_account_id:
         return _status_response(organisation)

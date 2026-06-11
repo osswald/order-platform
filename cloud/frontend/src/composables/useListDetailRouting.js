@@ -61,10 +61,20 @@ export function useListDetailRouting(listRouteName) {
   }
 }
 
-export function listDetailRoutes({ path, listName, component, meta }) {
+export function listDetailRoutes({ path, listName, component, meta, createMeta, detailMeta }) {
   return [
     { path, name: listName, component, meta },
-    { path: `${path}/new`, name: `${listName}-new`, component, meta },
-    { path: `${path}/:id(\\d+)`, name: `${listName}-detail`, component, meta },
+    {
+      path: `${path}/new`,
+      name: `${listName}-new`,
+      component,
+      meta: createMeta ?? meta,
+    },
+    {
+      path: `${path}/:id(\\d+)`,
+      name: `${listName}-detail`,
+      component,
+      meta: detailMeta ?? meta,
+    },
   ]
 }

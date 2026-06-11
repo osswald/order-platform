@@ -10,7 +10,13 @@ from ..auth_sessions import invalidate_user_sessions, session_claims, token_vers
 from ..deps import get_db
 from ..rate_limit import LOGIN_RATE_LIMIT, REFRESH_RATE_LIMIT, limiter
 from ..models import HireCompany, User
-from ..user_access import is_org_admin, is_platform_admin, user_hire_company_id, user_role
+from ..user_access import (
+    is_organisation_admin,
+    is_platform_admin,
+    is_tenant_admin,
+    user_hire_company_id,
+    user_role,
+)
 from ..schemas import MessageResponse
 from ..auth_deps import get_current_user
 from ..i18n.errors import api_error
@@ -38,6 +44,7 @@ class Token(BaseModel):
     role: str = "member"
     hire_company_id: int | None = None
     is_tenant_admin: bool = False
+    is_organisation_admin: bool = False
 
 
 class MeResponse(BaseModel):
@@ -48,6 +55,7 @@ class MeResponse(BaseModel):
     role: str = "member"
     hire_company_id: int | None = None
     is_tenant_admin: bool = False
+    is_organisation_admin: bool = False
     hire_companies: list[HireCompanyBrief] = []
 
 
@@ -57,7 +65,8 @@ def _token_for_user(user: User) -> dict:
         "is_admin": is_platform_admin(user),
         "role": role,
         "hire_company_id": user_hire_company_id(user),
-        "is_tenant_admin": is_org_admin(user),
+        "is_tenant_admin": is_tenant_admin(user),
+        "is_organisation_admin": is_organisation_admin(user),
     }
 
 

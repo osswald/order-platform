@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.database import SessionLocal
 from app.main import app
 from app.models import HireCompany, Organisation, User
-from app.roles import ROLE_MEMBER, ROLE_ORG_ADMIN
+from app.roles import ROLE_MEMBER, ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 
 client = TestClient(app)
@@ -41,7 +41,7 @@ def _tenant_setup(suffix: str):
         admin_b = User(
             email=admin_email,
             hashed_password=get_password_hash("secret"),
-            role=ROLE_ORG_ADMIN,
+            role=ROLE_TENANT_ADMIN,
             hire_company_id=hc_b.id,
             is_superuser=False,
         )
@@ -105,7 +105,7 @@ def test_tenant_admin_can_update_user_in_own_verleiher_via_organisation():
         admin = User(
             email="admin-own-positive@tenant.test",
             hashed_password=get_password_hash("secret"),
-            role=ROLE_ORG_ADMIN,
+            role=ROLE_TENANT_ADMIN,
             hire_company_id=hc.id,
         )
         db.add_all([member, admin])
