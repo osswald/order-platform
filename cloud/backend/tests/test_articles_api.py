@@ -66,6 +66,7 @@ def test_articles_crud_and_addition_links():
     )
     assert created.status_code == 200, created.text
     base_id = created.json()["id"]
+    assert created.json()["organisation_currency"] == "CHF"
 
     zusatz = client.post(
         "/articles/",
@@ -83,7 +84,8 @@ def test_articles_crud_and_addition_links():
 
     listed = client.get("/articles/", headers=headers)
     assert listed.status_code == 200
-    assert any(a["id"] == base_id for a in listed.json())
+    cola_full = next(a for a in listed.json() if a["id"] == base_id)
+    assert cola_full["organisation_currency"] == "CHF"
 
     updated = client.put(
         f"/articles/{base_id}",

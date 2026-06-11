@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
+from ..currency import organisation_currency
 from ..models import Article, ArticleCategory, Organisation, User
 from ..auth_deps import get_current_user
 from ..deps import get_db
@@ -62,6 +63,7 @@ class ArticleRead(ArticleBase):
     article_category_name: str
     organisation_id: int
     organisation_name: str
+    organisation_currency: str
 
 
 class ArticleMinimalRead(BaseModel):
@@ -116,6 +118,7 @@ def article_response(article: Article) -> ArticleRead:
         article_category_name=category.name if category else "",
         organisation_id=organisation.id if organisation else 0,
         organisation_name=organisation.name if organisation else "",
+        organisation_currency=organisation_currency(organisation),
     )
 
 
