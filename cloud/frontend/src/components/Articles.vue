@@ -266,6 +266,7 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
+import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
@@ -680,6 +681,7 @@ async function saveArticle() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchArticles()
+    invalidateOrgCatalog(props.activeOrganisationId)
     message.value = wasEdit ? t('articles.updated') : t('articles.created')
     messageType.value = 'success'
     await goToList()
@@ -697,6 +699,7 @@ async function deleteArticle(id) {
     })
     if (!response.ok) throw new Error(await response.text())
     await fetchArticles()
+    invalidateOrgCatalog(props.activeOrganisationId)
     message.value = t('articles.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {

@@ -5,6 +5,7 @@
       :key="section.id"
       class="section-nav-accordion-panel"
       :open="section.defaultOpen || undefined"
+      @toggle="onPanelToggle(section.id, $event)"
     >
       <summary class="section-nav-accordion-header">
         <span class="section-nav-accordion-title">{{ section.title }}</span>
@@ -12,7 +13,7 @@
           <v-icon icon="mdi-chevron-down" size="small" />
         </span>
       </summary>
-      <div class="section-nav-accordion-content">
+      <div v-if="isSectionMounted(section.id)" class="section-nav-accordion-content">
         <slot :name="section.id" />
       </div>
     </details>
@@ -41,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   mobile: {
@@ -75,6 +76,33 @@ const activeTabModel = computed({
     emit('update:activeTab', value)
   },
 })
+
+const mountedSections = ref(new Set())
+
+function syncDefaultMountedSections(sections) {
+  const next = new Set(mountedSections.value)
+  for (const section of sections) {
+    if (section.defaultOpen) next.add(section.id)
+  }
+  mountedSections.value = next
+}
+
+watch(
+  () => props.sections,
+  (sections) => syncDefaultMountedSections(sections),
+  { immediate: true, deep: true },
+)
+
+function isSectionMounted(id) {
+  return mountedSections.value.has(id)
+}
+
+function onPanelToggle(id, event) {
+  if (!event.target.open) return
+  const next = new Set(mountedSections.value)
+  next.add(id)
+  mountedSections.value = next
+}
 </script>
 
 <style scoped>

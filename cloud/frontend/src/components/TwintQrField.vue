@@ -2,7 +2,10 @@
   <div class="form-field twint-qr-field">
     <label>{{ t('twint.label') }}</label>
     <template v-if="editMode && activeId">
-      <div v-if="previewUrl" class="twint-qr-preview">
+      <div v-if="previewLoading" class="twint-qr-preview twint-qr-preview--loading">
+        <v-progress-circular indeterminate color="primary" size="32" />
+      </div>
+      <div v-else-if="previewUrl" class="twint-qr-preview">
         <img :src="previewUrl" :alt="t('twint.alt')" />
       </div>
       <input
@@ -49,6 +52,7 @@ defineProps({
   activeId: { type: Number, default: null },
   hasTwintQr: Boolean,
   previewUrl: { type: String, default: '' },
+  previewLoading: Boolean,
   busy: Boolean,
 })
 
@@ -67,6 +71,8 @@ function onFileChange(event) {
 .twint-qr-preview {
   display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: 5rem;
   padding: 0.75rem;
   background: rgba(var(--v-theme-on-surface), 0.04);
   border-radius: 0.5rem;

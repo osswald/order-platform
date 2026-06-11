@@ -64,6 +64,14 @@ class ArticleRead(ArticleBase):
     organisation_name: str
 
 
+class ArticleMinimalRead(BaseModel):
+    id: int
+    name: str
+    label: str
+    organisation_id: int | None
+    is_addition: bool
+
+
 class ArticleAdditionLinkIn(BaseModel):
     addition_article_id: int
     sort_order: int | None = None
@@ -77,27 +85,38 @@ class ArticleAdditionsRead(BaseModel):
     items: List[dict]
 
 
-def article_response(article: Article) -> dict:
+def article_minimal_response(article: Article) -> ArticleMinimalRead:
     category = article.article_category
     organisation = category.organisation if category else None
-    return {
-        "id": article.id,
-        "name": article.name,
-        "label": article.label,
-        "price": article.price,
-        "import_article_number": article.import_article_number,
-        "description": article.description,
-        "unit": article.unit,
-        "income_account": article.income_account,
-        "is_addition": bool(article.is_addition),
-        "monitor_stock": article.monitor_stock,
-        "in_stock": article.in_stock,
-        "article_category_id": article.article_category_id,
-        "article_category_name": category.name if category else "",
-        "organisation_id": organisation.id if organisation else None,
-        "organisation_name": organisation.name if organisation else "",
-        "organisation_currency": organisation.currency if organisation else "EUR",
-    }
+    return ArticleMinimalRead(
+        id=article.id,
+        name=article.name,
+        label=article.label,
+        organisation_id=organisation.id if organisation else None,
+        is_addition=bool(article.is_addition),
+    )
+
+
+def article_response(article: Article) -> ArticleRead:
+    category = article.article_category
+    organisation = category.organisation if category else None
+    return ArticleRead(
+        id=article.id,
+        name=article.name,
+        label=article.label,
+        price=article.price,
+        import_article_number=article.import_article_number,
+        description=article.description,
+        unit=article.unit,
+        income_account=article.income_account,
+        is_addition=bool(article.is_addition),
+        monitor_stock=article.monitor_stock,
+        in_stock=article.in_stock,
+        article_category_id=article.article_category_id,
+        article_category_name=category.name if category else "",
+        organisation_id=organisation.id if organisation else 0,
+        organisation_name=organisation.name if organisation else "",
+    )
 
 
 def readable_articles_query(db: Session, current_user: User, hire_company_id: int):
@@ -148,9 +167,11 @@ def _get_readable_article(
     )
 
 
-@router.get("/", response_model=List[ArticleRead])
+@router.get("/", response_model=List[ArticleRead] | List[ArticleMinimalRead])
 def read_articles(
     is_addition: bool | None = Query(None),
+    organisation_id: int | None = Query(None),
+    minimal: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
@@ -158,7 +179,11 @@ def read_articles(
     query = readable_articles_query(db, current_user, tenant.hire_company_id)
     if is_addition is not None:
         query = query.filter(Article.is_addition.is_(is_addition))
+    if organisation_id is not None:
+        query = query.filter(Organisation.id == organisation_id)
     articles = query.order_by(Article.name).all()
+    if minimal:
+        return [article_minimal_response(article) for article in articles]
     return [article_response(article) for article in articles]
 
 

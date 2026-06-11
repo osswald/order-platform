@@ -92,6 +92,7 @@ import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
+import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
 
@@ -273,6 +274,7 @@ async function saveWaiter() {
     if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchWaiters()
+    invalidateOrgCatalog(props.activeOrganisationId)
     message.value = wasEdit ? t('waiters.updated') : t('waiters.created')
     messageType.value = 'success'
     await goToList()
@@ -290,6 +292,7 @@ async function deleteWaiter(id) {
     })
     if (!response.ok) throw new Error(await response.text())
     await fetchWaiters()
+    invalidateOrgCatalog(props.activeOrganisationId)
     message.value = t('waiters.deleted')
     messageType.value = 'success'
     if (Number(routeEntityId.value) === Number(id)) {

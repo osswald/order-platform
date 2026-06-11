@@ -54,12 +54,22 @@ describe('SectionNavLayout', () => {
     expect(wrapper.find('[data-testid="slot-b"]').exists()).toBe(false)
   })
 
-  it('renders accordion panels with all slots on mobile', () => {
+  it('lazy-mounts accordion slots on mobile', () => {
     const wrapper = mountLayout({ mobile: true })
 
     expect(wrapper.find('.section-nav-accordion').exists()).toBe(true)
     expect(wrapper.findAll('details')).toHaveLength(2)
     expect(wrapper.find('[data-testid="slot-a"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="slot-b"]').exists()).toBe(false)
+  })
+
+  it('mounts accordion slot when panel is expanded', async () => {
+    const wrapper = mountLayout({ mobile: true })
+    const panels = wrapper.findAll('details')
+
+    panels[1].element.open = true
+    await panels[1].trigger('toggle')
+
     expect(wrapper.find('[data-testid="slot-b"]').exists()).toBe(true)
   })
 

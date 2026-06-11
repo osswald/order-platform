@@ -104,3 +104,10 @@ def test_articles_crud_and_addition_links():
     read_links = client.get(f"/articles/{base_id}/additions", headers=headers)
     assert read_links.status_code == 200
     assert len(read_links.json()["items"]) == 1
+
+    minimal = client.get(f"/articles/?organisation_id={org_id}&minimal=true", headers=headers)
+    assert minimal.status_code == 200, minimal.text
+    cola = next(a for a in minimal.json() if a["id"] == base_id)
+    assert set(cola.keys()) == {"id", "name", "label", "organisation_id", "is_addition"}
+    assert cola["name"] == "Cola"
+    assert cola["organisation_id"] == org_id

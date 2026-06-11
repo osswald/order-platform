@@ -336,14 +336,21 @@ def get_event_for_configuration(
     current_user: User,
     event_id: int,
     hire_company_id: int,
+    *,
+    include_layout_cells: bool = True,
 ) -> Event:
+    layout_load = (
+        joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles)
+        if include_layout_cells
+        else joinedload(Event.app_layouts)
+    )
     event = (
         readable_events_query(db, current_user, hire_company_id)
         .options(
             joinedload(Event.organisation),
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
-            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            layout_load,
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
             joinedload(Event.kitchen_monitor_printers),
@@ -357,7 +364,12 @@ def get_event_for_configuration(
     return event
 
 
-def serialize_event_configuration(db: Session, event: Event) -> EventConfigurationRead:
+def serialize_event_configuration(
+    db: Session,
+    event: Event,
+    *,
+    include_layout_cells: bool = True,
+) -> EventConfigurationRead:
     printers = event_printer_candidates(db, event)
     printer_options = [
         PrinterOptionRead(id=a.id, name=appliance_display_name(a) or f"Drucker #{a.id}") for a in printers
@@ -396,19 +408,20 @@ def serialize_event_configuration(db: Session, event: Event) -> EventConfigurati
     app_layouts = []
     for lo in sorted(event.app_layouts, key=lambda x: x.id):
         cells = []
-        for cell in sorted(lo.cells, key=lambda c: (c.row, c.col)):
-            v_uuids = cell_voucher_uuids_for_read(cell)
-            cells.append(
-                LayoutCellRead(
-                    row=cell.row,
-                    col=cell.col,
-                    label=cell.label or "",
-                    color=cell.color or "#eeeeee",
-                    article_ids=[a.id for a in cell.articles],
-                    voucher_definition_uuid=v_uuids[0] if v_uuids else None,
-                    voucher_definition_uuids=v_uuids,
+        if include_layout_cells:
+            for cell in sorted(lo.cells, key=lambda c: (c.row, c.col)):
+                v_uuids = cell_voucher_uuids_for_read(cell)
+                cells.append(
+                    LayoutCellRead(
+                        row=cell.row,
+                        col=cell.col,
+                        label=cell.label or "",
+                        color=cell.color or "#eeeeee",
+                        article_ids=[a.id for a in cell.articles],
+                        voucher_definition_uuid=v_uuids[0] if v_uuids else None,
+                        voucher_definition_uuids=v_uuids,
+                    )
                 )
-            )
         app_layouts.append(
             AppLayoutRead(
                 id=lo.id,
@@ -485,12 +498,20 @@ def read_event_organisations(
 @router.get("/{event_id}/configuration", response_model=EventConfigurationRead)
 def read_event_configuration(
     event_id: int,
+    fields: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
-    return serialize_event_configuration(db, event)
+    include_layout_cells = fields != "summary"
+    event = get_event_for_configuration(
+        db,
+        current_user,
+        event_id,
+        tenant.hire_company_id,
+        include_layout_cells=include_layout_cells,
+    )
+    return serialize_event_configuration(db, event, include_layout_cells=include_layout_cells)
 
 
 @router.get("/{event_id}/station-article-tree")

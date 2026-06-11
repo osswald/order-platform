@@ -41,6 +41,7 @@
               :active-id="activeId"
               :has-twint-qr="hasTwintQr"
               :twint-qr-preview-url="twintQrPreviewUrl"
+              :twint-qr-preview-loading="twintQrPreviewLoading"
               :twint-qr-busy="twintQrBusy"
               @upload="uploadTwintQr"
               @remove="removeTwintQr"
@@ -68,6 +69,7 @@
           :active-id="activeId"
           :has-twint-qr="hasTwintQr"
           :twint-qr-preview-url="twintQrPreviewUrl"
+          :twint-qr-preview-loading="twintQrPreviewLoading"
           :twint-qr-busy="twintQrBusy"
           @upload="uploadTwintQr"
           @remove="removeTwintQr"
@@ -256,6 +258,7 @@ const stammdatenDirty = computed(() => {
 })
 const hasTwintQr = ref(false)
 const twintQrPreviewUrl = ref('')
+const twintQrPreviewLoading = ref(false)
 const twintQrBusy = ref(false)
 const copyBusy = ref(false)
 
@@ -377,6 +380,7 @@ function revokeTwintQrPreview() {
 async function loadTwintQrPreview() {
   revokeTwintQrPreview()
   if (!activeId.value || !hasTwintQr.value) return
+  twintQrPreviewLoading.value = true
   try {
     const response = await apiFetch(`/events/${activeId.value}/twint-qr`)
     if (!response.ok) return
@@ -384,6 +388,8 @@ async function loadTwintQrPreview() {
     twintQrPreviewUrl.value = URL.createObjectURL(blob)
   } catch {
     /* preview optional */
+  } finally {
+    twintQrPreviewLoading.value = false
   }
 }
 
@@ -468,7 +474,7 @@ async function applyEventToForm(event) {
   organisationCurrency.value = event.organisation_currency || 'EUR'
   stammdatenBaseline.value = stammdatenSnapshot()
   message.value = ''
-  if (hasTwintQr.value) await loadTwintQrPreview()
+  if (hasTwintQr.value) void loadTwintQrPreview()
 }
 
 async function syncRouteToForm() {

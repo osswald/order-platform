@@ -104,6 +104,7 @@
         :active-id="activeId"
         :has-twint-qr="hasTwintQr"
         :preview-url="twintQrPreviewUrl"
+        :preview-loading="twintQrPreviewLoading"
         :busy="twintQrBusy"
         @upload="$emit('upload', $event)"
         @remove="$emit('remove')"
@@ -242,6 +243,10 @@ const props = defineProps({
   twintQrPreviewUrl: {
     type: String,
     default: '',
+  },
+  twintQrPreviewLoading: {
+    type: Boolean,
+    default: false,
   },
   twintQrBusy: {
     type: Boolean,

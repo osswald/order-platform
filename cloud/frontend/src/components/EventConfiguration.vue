@@ -14,6 +14,8 @@
           <slot name="stammdaten" />
         </template>
         <template #stationen>
+          <p v-if="catalogLoading" class="muted catalog-loading-hint">{{ $t('events.config.catalogLoading') }}</p>
+          <p v-else-if="catalogError" class="error">{{ catalogError }}</p>
           <div class="section-toolbar">
             <v-btn color="primary" type="button" @click="addStation">{{ $t('events.config.addStation') }}</v-btn>
           </div>
@@ -147,6 +149,8 @@
                 item-title="name"
                 item-value="value"
                 :placeholder="$t('events.config.selectArticles')"
+                :loading="catalogLoading"
+                :disabled="catalogLoading"
                 multiple
                 chips
                 closable-chips
@@ -206,7 +210,7 @@
         <template #kellner>
           <div class="section-toolbar">
             <v-btn color="primary" type="button" @click="addWaiterRow">{{ $t('events.config.addWaiter') }}</v-btn>
-            <v-btn variant="outlined" type="button" @click="openWaiterPick">{{ $t('events.config.importFromOrg') }}</v-btn>
+            <v-btn variant="outlined" type="button" :disabled="catalogLoading" @click="openWaiterPick">{{ $t('events.config.importFromOrg') }}</v-btn>
           </div>
           <VqDataTable
             :items="waitersLocal"
@@ -368,6 +372,8 @@
                   item-title="name"
                   item-value="value"
                   :placeholder="$t('events.config.selectArticles')"
+                  :loading="catalogLoading"
+                  :disabled="catalogLoading"
                   multiple
                   chips
                   closable-chips
@@ -386,10 +392,12 @@
         </template>
 
         <template #layouts>
-          <div class="section-toolbar">
+          <p v-if="layoutCellsLoading" class="muted catalog-loading-hint">{{ $t('events.config.layoutCellsLoading') }}</p>
+          <p v-else-if="layoutCellsError" class="error">{{ layoutCellsError }}</p>
+          <div v-if="!layoutCellsLoading && layoutCellsLoaded" class="section-toolbar">
             <v-btn color="primary" type="button" @click="addLayout">{{ $t('events.config.addLayout') }}</v-btn>
           </div>
-          <div v-for="(lo, li) in layoutsLocal" :key="'lo-' + li" class="config-card">
+          <div v-for="(lo, li) in layoutsLocal" v-show="!layoutCellsLoading && layoutCellsLoaded" :key="'lo-' + li" class="config-card">
             <div class="config-card-header">
               <span>{{ $t('events.config.layoutN', { n: li + 1 }) }}</span>
               <div class="layout-header-actions">
@@ -579,6 +587,8 @@
       <v-card>
         <v-card-title>{{ $t('events.config.importWaiter') }}</v-card-title>
         <v-card-text>
+          <p v-if="catalogLoading" class="muted">{{ $t('events.config.catalogLoading') }}</p>
+          <p v-else-if="catalogError" class="error">{{ catalogError }}</p>
           <div class="form-field">
             <label>{{ $t('events.config.waiter') }}</label>
             <v-select
@@ -587,6 +597,8 @@
               item-title="label"
               item-value="value"
               :placeholder="$t('events.config.selectWaiters')"
+              :loading="catalogLoading"
+              :disabled="catalogLoading"
               multiple
               chips
               closable-chips
@@ -619,6 +631,7 @@ import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
+import { loadOrgCatalog } from '../composables/useOrgCatalog'
 import SectionNavLayout from './SectionNavLayout.vue'
 import EventSaveStatusBar from './EventSaveStatusBar.vue'
 import EventStockTab from './EventStockTab.vue'
@@ -739,6 +752,11 @@ watch(
 
 const loading = ref(true)
 const loadError = ref('')
+const catalogLoading = ref(false)
+const catalogError = ref('')
+const layoutCellsLoaded = ref(false)
+const layoutCellsLoading = ref(false)
+const layoutCellsError = ref('')
 
 const receiptSaveStatus = ref('idle')
 const receiptSaveError = ref('')
@@ -1212,89 +1230,149 @@ function removeCashRegister(idx) {
   cashRegistersLocal.value.splice(idx, 1)
 }
 
+function mapLayoutCells(cells) {
+  return (cells || []).map((c) => ({
+    row: c.row,
+    col: c.col,
+    label: c.label || '',
+    color: c.color || '#eeeeee',
+    article_ids: [...(c.article_ids || [])],
+    voucher_definition_uuid: c.voucher_definition_uuid || null,
+    voucher_definition_uuids: [...cellVoucherUuids(c)],
+  }))
+}
+
+function mapLayoutFromApi(lo) {
+  return {
+    uuid: lo.uuid || newUuid(),
+    name: lo.name || '',
+    is_default: !!lo.is_default,
+    grid_width: lo.grid_width,
+    grid_height: lo.grid_height,
+    cells: mapLayoutCells(lo.cells),
+  }
+}
+
+function applyConfigurationFromResponse(cfg, { includeLayoutCells = true } = {}) {
+  printerOptions.value = cfg.printer_options || []
+  stationsLocal.value = (cfg.stations || []).map((s) => ({
+    uuid: s.uuid ?? null,
+    name: s.name,
+    printer_appliance_id: s.printer_appliance_id,
+    printer_rules: (s.printer_rules || []).map((rule, ruleIdx) => ({
+      sort_order: rule.sort_order ?? ruleIdx,
+      rule_type: rule.rule_type || 'table_range',
+      table_from: rule.table_from ?? null,
+      table_to: rule.table_to ?? null,
+      pickup_prefix: rule.pickup_prefix ? normalizePickupPrefix(rule.pickup_prefix) : '',
+      printer_appliance_id: rule.printer_appliance_id ?? null,
+    })),
+    article_ids: [...(s.article_ids || [])],
+  }))
+  kitchenMonitorsLocal.value = (cfg.kitchen_monitors || []).map((row, idx) => ({
+    printer_appliance_id: row.printer_appliance_id ?? null,
+    sort_order: row.sort_order ?? idx,
+    label: row.label || '',
+  }))
+  waiterKey = 0
+  waitersLocal.value = (cfg.event_waiters || []).map((w) => {
+    waiterKey += 1
+    return {
+      _key: `ew-${w.uuid}-${waiterKey}`,
+      uuid: w.uuid ?? null,
+      name: w.name,
+      pin: w.pin,
+      source_waiter_id: w.source_waiter_id,
+    }
+  })
+  layoutsLocal.value = (cfg.app_layouts || []).map((lo) => mapLayoutFromApi(lo))
+  ensureDefaultLayout()
+  layoutCellsLoaded.value = includeLayoutCells
+  vouchersLocal.value = (cfg.voucher_definitions || []).map((vd) => ({
+    uuid: vd.uuid ?? newUuid(),
+    name: vd.name || '',
+    kind: vd.kind || 'fixed_amount',
+    value_amount: vd.value_cents != null ? vd.value_cents / 100 : 20,
+    allowed_article_ids: [...(vd.allowed_article_ids || [])],
+    include_additions: vd.include_additions !== false,
+  }))
+  cashRegistersLocal.value = (cfg.cash_registers || []).map((reg) => ({
+    uuid: reg.uuid ?? null,
+    name: reg.name || '',
+    pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
+    pin: reg.pin || '0000',
+    layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
+    receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+  }))
+}
+
+function mergeLayoutCellsFromResponse(cfg) {
+  const remoteByUuid = new Map((cfg.app_layouts || []).map((lo) => [lo.uuid, lo]))
+  layoutsLocal.value = layoutsLocal.value.map((lo) => {
+    const remote = remoteByUuid.get(lo.uuid)
+    if (!remote) return lo
+    return {
+      ...lo,
+      cells: mapLayoutCells(remote.cells),
+    }
+  })
+  layoutCellsLoaded.value = true
+}
+
+async function loadCatalog() {
+  catalogLoading.value = true
+  catalogError.value = ''
+  try {
+    const result = await loadOrgCatalog(props.organisationId)
+    articlesRaw.value = result.articles
+    waitersOrg.value = result.waiters
+    if (result.fromCache && result.refreshPromise) {
+      catalogLoading.value = false
+      const orgId = props.organisationId
+      result.refreshPromise.then((data) => {
+        if (!data || props.organisationId !== orgId) return
+        articlesRaw.value = data.articles
+        waitersOrg.value = data.waiters
+      })
+      return
+    }
+  } catch {
+    catalogError.value = t('events.config.catalogLoadFailed')
+    articlesRaw.value = []
+    waitersOrg.value = []
+  } finally {
+    catalogLoading.value = false
+  }
+}
+
+async function loadLayoutCells() {
+  if (layoutCellsLoaded.value || layoutCellsLoading.value) return
+  layoutCellsLoading.value = true
+  layoutCellsError.value = ''
+  try {
+    const resp = await apiFetch(`/events/${props.eventId}/configuration`)
+    if (!resp.ok) throw new Error(await resp.text())
+    mergeLayoutCellsFromResponse(await resp.json())
+  } catch {
+    layoutCellsError.value = t('events.config.layoutCellsLoadFailed')
+  } finally {
+    layoutCellsLoading.value = false
+  }
+}
+
 async function loadConfiguration() {
   loading.value = true
   loadError.value = ''
+  catalogError.value = ''
+  layoutCellsError.value = ''
+  layoutCellsLoaded.value = false
+  articlesRaw.value = []
+  waitersOrg.value = []
   if (resetConfigSnapshot) resetConfigSnapshot()
   try {
-    const [cfgRes, artRes, wRes] = await Promise.all([
-      apiFetch(`/events/${props.eventId}/configuration`),
-      apiFetch('/articles/'),
-      apiFetch('/waiters/'),
-    ])
+    const cfgRes = await apiFetch(`/events/${props.eventId}/configuration?fields=summary`)
     if (!cfgRes.ok) throw new Error(await cfgRes.text())
-    if (!artRes.ok) throw new Error('articles')
-    if (!wRes.ok) throw new Error('waiters')
-    const cfg = await cfgRes.json()
-    articlesRaw.value = await artRes.json()
-    waitersOrg.value = (await wRes.json()).filter(
-      (w) => props.organisationId == null || Number(w.organisation_id) === Number(props.organisationId),
-    )
-
-    printerOptions.value = cfg.printer_options || []
-    stationsLocal.value = (cfg.stations || []).map((s) => ({
-      uuid: s.uuid ?? null,
-      name: s.name,
-      printer_appliance_id: s.printer_appliance_id,
-      printer_rules: (s.printer_rules || []).map((rule, ruleIdx) => ({
-        sort_order: rule.sort_order ?? ruleIdx,
-        rule_type: rule.rule_type || 'table_range',
-        table_from: rule.table_from ?? null,
-        table_to: rule.table_to ?? null,
-        pickup_prefix: rule.pickup_prefix ? normalizePickupPrefix(rule.pickup_prefix) : '',
-        printer_appliance_id: rule.printer_appliance_id ?? null,
-      })),
-      article_ids: [...(s.article_ids || [])],
-    }))
-    kitchenMonitorsLocal.value = (cfg.kitchen_monitors || []).map((row, idx) => ({
-      printer_appliance_id: row.printer_appliance_id ?? null,
-      sort_order: row.sort_order ?? idx,
-      label: row.label || '',
-    }))
-    waiterKey = 0
-    waitersLocal.value = (cfg.event_waiters || []).map((w) => {
-      waiterKey += 1
-      return {
-        _key: `ew-${w.uuid}-${waiterKey}`,
-        uuid: w.uuid ?? null,
-        name: w.name,
-        pin: w.pin,
-        source_waiter_id: w.source_waiter_id,
-      }
-    })
-    layoutsLocal.value = (cfg.app_layouts || []).map((lo) => ({
-      uuid: lo.uuid || newUuid(),
-      name: lo.name || '',
-      is_default: !!lo.is_default,
-      grid_width: lo.grid_width,
-      grid_height: lo.grid_height,
-      cells: (lo.cells || []).map((c) => ({
-        row: c.row,
-        col: c.col,
-        label: c.label || '',
-        color: c.color || '#eeeeee',
-        article_ids: [...(c.article_ids || [])],
-        voucher_definition_uuid: c.voucher_definition_uuid || null,
-        voucher_definition_uuids: [...cellVoucherUuids(c)],
-      })),
-    }))
-    ensureDefaultLayout()
-    vouchersLocal.value = (cfg.voucher_definitions || []).map((vd) => ({
-      uuid: vd.uuid ?? newUuid(),
-      name: vd.name || '',
-      kind: vd.kind || 'fixed_amount',
-      value_amount: vd.value_cents != null ? vd.value_cents / 100 : 20,
-      allowed_article_ids: [...(vd.allowed_article_ids || [])],
-      include_additions: vd.include_additions !== false,
-    }))
-    cashRegistersLocal.value = (cfg.cash_registers || []).map((reg) => ({
-      uuid: reg.uuid ?? null,
-      name: reg.name || '',
-      pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
-      pin: reg.pin || '0000',
-      layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
-      receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
-    }))
+    applyConfigurationFromResponse(await cfgRes.json(), { includeLayoutCells: false })
   } catch {
     loadError.value = t('events.config.loadFailed')
   } finally {
@@ -1302,6 +1380,9 @@ async function loadConfiguration() {
     if (!loadError.value && markConfigSaved) {
       markConfigSaved()
     }
+  }
+  if (!loadError.value) {
+    void loadCatalog()
   }
 }
 
@@ -1551,6 +1632,10 @@ watch(
   { immediate: true },
 )
 
+watch(activeConfigTab, (tab) => {
+  if (tab === 'layouts') void loadLayoutCells()
+})
+
 defineExpose({
   loadConfiguration,
 })
@@ -1561,6 +1646,10 @@ defineExpose({
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.catalog-loading-hint {
+  margin: 0 0 0.75rem;
 }
 
 .event-config.event-config--unified {

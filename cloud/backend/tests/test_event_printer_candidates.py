@@ -232,3 +232,13 @@ def test_configuration_api_lists_planned_printer():
     assert cfg_resp.status_code == 200, cfg_resp.text
     printer_ids = {p["id"] for p in cfg_resp.json()["printer_options"]}
     assert printer_id in printer_ids
+
+    summary_resp = client.get(
+        f"/events/{event_id}/configuration?fields=summary",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert summary_resp.status_code == 200, summary_resp.text
+    summary = summary_resp.json()
+    assert "printer_options" in summary
+    for layout in summary.get("app_layouts", []):
+        assert layout["cells"] == []

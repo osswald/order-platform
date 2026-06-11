@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
@@ -67,11 +67,15 @@ def readable_waiters_query(db: Session, current_user: User, hire_company_id: int
 
 @router.get("/", response_model=List[WaiterRead])
 def read_waiters(
+    organisation_id: int | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    waiters = readable_waiters_query(db, current_user, tenant.hire_company_id).order_by(Waiter.name).all()
+    query = readable_waiters_query(db, current_user, tenant.hire_company_id)
+    if organisation_id is not None:
+        query = query.filter(Waiter.organisation_id == organisation_id)
+    waiters = query.order_by(Waiter.name).all()
     return [waiter_response(waiter) for waiter in waiters]
 
 
