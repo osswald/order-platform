@@ -486,7 +486,7 @@ function attentionIcon(type) {
   font-size: 0.8rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .dashboard-header {
     margin-bottom: 1rem;
   }

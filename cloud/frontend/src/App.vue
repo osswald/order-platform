@@ -76,10 +76,9 @@ import Sidebar from './components/Sidebar.vue'
 import AppNavMenu from './components/AppNavMenu.vue'
 import { useAuthSession } from './composables/useAuthSession'
 import { useBreakpoint } from './composables/useBreakpoint'
+import { MOBILE_BREAKPOINT } from './constants/layout'
 import { SESSION_CONTEXT_KEY } from './sessionContext'
 import { normalizeOrganisationId } from './utils/orgId'
-
-const MOBILE_BREAKPOINT = 992
 
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const mobileNavOpen = ref(false)
@@ -180,9 +179,9 @@ body {
   width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .main-content {
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 }
 </style>

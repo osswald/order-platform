@@ -285,7 +285,7 @@ function onPanelToggle(id, event) {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .section-nav-accordion-content {
     padding: 0.85rem 0.9rem 1rem;
   }

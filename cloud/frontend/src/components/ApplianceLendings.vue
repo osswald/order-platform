@@ -110,8 +110,8 @@ const props = defineProps({
   },
 })
 
-const COL_ID = { width: '5rem' }
-const COL_NAME = { minWidth: '12rem' }
+const COL_ID = { width: '5rem', sortable: false }
+const COL_NAME = { minWidth: '12rem', sortable: false }
 const COL_TYPE = { width: '8rem', sortable: false }
 const COL_PERIOD = { width: '14rem', sortable: false }
 const COL_ACTIONS = { align: 'end', width: '9rem', sortable: false }
@@ -205,49 +205,45 @@ onMounted(() => {
   color: rgb(var(--v-theme-on-surface));
 }
 
-.lend-sections :deep(.lending-table table) {
-  table-layout: fixed;
-  width: 100%;
-}
+@media (min-width: 993px) {
+  .lend-sections :deep(.lending-table table) {
+    table-layout: fixed;
+    width: 100%;
+  }
 
-.lend-sections :deep(.lending-table th),
-.lend-sections :deep(.lending-table td) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .lend-sections :deep(.lending-table th),
+  .lend-sections :deep(.lending-table td) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-.lend-sections :deep(.lending-table th:nth-child(1)),
-.lend-sections :deep(.lending-table td:nth-child(1)) {
-  width: 5rem;
-}
+  .lend-sections :deep(.lending-table th:nth-child(1)),
+  .lend-sections :deep(.lending-table td:nth-child(1)) {
+    width: 5rem;
+  }
 
-.lend-sections :deep(.lending-table th:nth-child(2)),
-.lend-sections :deep(.lending-table td:nth-child(2)) {
-  width: auto;
-}
+  .lend-sections :deep(.lending-table th:nth-child(2)),
+  .lend-sections :deep(.lending-table td:nth-child(2)) {
+    width: auto;
+  }
 
-.lend-sections :deep(.lending-table th:nth-child(3)),
-.lend-sections :deep(.lending-table td:nth-child(3)) {
-  width: 8rem;
-}
+  .lend-sections :deep(.lending-table th:nth-child(3)),
+  .lend-sections :deep(.lending-table td:nth-child(3)) {
+    width: 8rem;
+  }
 
-.lend-sections :deep(.lending-table th:nth-child(4)),
-.lend-sections :deep(.lending-table td:nth-child(4)) {
-  width: 14rem;
-}
+  .lend-sections :deep(.lending-table th:nth-child(4)),
+  .lend-sections :deep(.lending-table td:nth-child(4)) {
+    width: 14rem;
+  }
 
-.lend-sections :deep(.lending-table--planned th:nth-child(5)),
-.lend-sections :deep(.lending-table--planned td:nth-child(5)) {
-  width: 9rem;
-}
-
-@media (max-width: 1000px) {
-  .lend-sections {
-    gap: 1.25rem;
+  .lend-sections :deep(.lending-table--planned th:nth-child(5)),
+  .lend-sections :deep(.lending-table--planned td:nth-child(5)) {
+    width: 9rem;
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 992px) {
   .lend-sections {
     gap: 1rem;
   }

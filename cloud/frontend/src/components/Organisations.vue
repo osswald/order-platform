@@ -219,6 +219,7 @@ import {
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
@@ -256,7 +257,7 @@ const cancellingLendingId = ref(null)
 const countryOptions = ['Deutschland', 'Österreich', 'Schweiz', 'Frankreich', 'Italien', 'Belgien', 'Niederlande']
 const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
 
-const { matches: isMobile } = useBreakpoint(768)
+const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const activeConfigTab = ref('stammdaten')
 
 const configSections = computed(() => {

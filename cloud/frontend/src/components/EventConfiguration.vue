@@ -630,6 +630,7 @@ import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import { loadOrgCatalog } from '../composables/useOrgCatalog'
 import SectionNavLayout from './SectionNavLayout.vue'
@@ -690,7 +691,7 @@ const props = defineProps({
 
 const slots = useSlots()
 const { t } = useI18n()
-const { matches: isMobile } = useBreakpoint(768)
+const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
   ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),

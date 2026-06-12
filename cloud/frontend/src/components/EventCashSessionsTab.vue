@@ -13,7 +13,8 @@
       :loading="loading"
       item-value="id"
       show-expand
-      class="vq-data-table"
+      class="vq-data-table list-table"
+      :mobile-breakpoint="TABLE_MOBILE_BREAKPOINT"
       @update:options="onOptionsUpdate"
     >
       <template #item.subject_type="{ item }">
@@ -59,6 +60,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
+import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 import { formatAmount } from '../utils/money'
 
 const { t } = useI18n()

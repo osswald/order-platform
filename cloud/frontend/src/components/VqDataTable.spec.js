@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defineComponent, ref } from 'vue'
 import { mount } from '@vue/test-utils'
+import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 import VqDataTable from './VqDataTable.vue'
 
 const headers = [{ title: 'ID', key: 'id' }]
@@ -42,5 +43,10 @@ describe('VqDataTable', () => {
       itemsPerPage: 20,
     })
     expect(captured.value.itemsPerPage).toBe(20)
+  })
+
+  it('passes the shared table mobile breakpoint to v-data-table', () => {
+    const { captured } = mountWithCapturedTableProps({ headers, items })
+    expect(captured.value.mobileBreakpoint).toBe(TABLE_MOBILE_BREAKPOINT)
   })
 })

@@ -73,6 +73,7 @@ import { useRoute, useRouter } from 'vue-router'
 import SectionNavLayout from './SectionNavLayout.vue'
 import HelpMarkdown from './HelpMarkdown.vue'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { MOBILE_BREAKPOINT } from '../constants/layout'
 import {
   getArticle,
   getArticlesInCategory,
@@ -82,7 +83,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const { matches: isMobile } = useBreakpoint(768)
+const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 
 const searchQuery = ref('')
 const routeSlug = computed(() => route.params.slug ?? '')
