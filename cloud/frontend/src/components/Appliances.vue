@@ -25,7 +25,16 @@
           hide-details="auto"
           required
           :rules="[rules.required]"
-        />
+        >
+          <template #item="{ item, props: itemProps }">
+            <v-list-item v-bind="itemProps" :title="undefined">
+              <ApplianceTypeChip :type="item.raw.value" />
+            </v-list-item>
+          </template>
+          <template #selection="{ item }">
+            <ApplianceTypeChip :type="item.raw.value" />
+          </template>
+        </v-select>
       </div>
 
       <div v-if="isAutoNamed" class="form-field">
@@ -259,7 +268,18 @@
             :label="t('appliances.type')"
             hide-details
             density="compact"
-          />
+          >
+            <template #item="{ item, props: itemProps }">
+              <v-list-item v-bind="itemProps" :title="undefined">
+                <ApplianceTypeChip v-if="item.raw.value" :type="item.raw.value" />
+                <span v-else>{{ item.raw.label }}</span>
+              </v-list-item>
+            </template>
+            <template #selection="{ item }">
+              <ApplianceTypeChip v-if="item.raw.value" :type="item.raw.value" />
+              <span v-else>{{ item.raw.label }}</span>
+            </template>
+          </v-select>
         </div>
         <div class="filter-field">
           <v-select
@@ -284,7 +304,9 @@
         @click:row="(_, { item }) => editAppliance(item)"
       >
         <template #item.name="{ item }">{{ applianceDisplayName(item) }}</template>
-        <template #item.type="{ item }">{{ typeLabel(item.type) }}</template>
+        <template #item.type="{ item }">
+          <ApplianceTypeChip :type="item.type" />
+        </template>
         <template #item.lending_status="{ item }">
           <v-chip
             :color="item.lending_status === 'lent' ? 'warning' : 'success'"
@@ -321,6 +343,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
+import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { parseApiErrorDetail } from '../utils/apiError'
@@ -333,6 +356,7 @@ import {
   lendingRangeHint,
   toIsoDate,
 } from '../utils/applianceLending'
+import { APPLIANCE_TYPES, applianceTypeLabel } from '../utils/applianceType'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
@@ -357,8 +381,6 @@ const messageType = ref('')
 const searchQuery = ref('')
 const typeFilter = ref('')
 const ipFilter = ref('')
-
-const APPLIANCE_TYPES = ['server', 'printer', 'mobile', 'tablet', 'router', 'ap']
 
 const tableHeaders = computed(() => [
   { title: t('appliances.table.id'), key: 'id' },
@@ -460,18 +482,12 @@ const canSubmitLend = computed(() => {
   return isValidLendingRange(lendForm.value.startDate, lendForm.value.endDate)
 })
 
-function typeLabel(type) {
-  const key = `applianceType.${type}`
-  const translated = t(key)
-  return translated !== key ? translated : type
-}
-
 function matchesSearch(device, term) {
   if (!term) return true
   return [
     device.id,
     device.name,
-    typeLabel(device.type),
+    applianceTypeLabel(device.type),
     device.type,
     device.ip_address,
     device.model,

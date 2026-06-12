@@ -70,11 +70,7 @@ export function lendingRangeHint(start, end) {
   })
 }
 
-export function applianceTypeLabel(type) {
-  const key = `applianceType.${type}`
-  const translated = t(key)
-  return translated !== key ? translated : type
-}
+export { applianceTypeLabel } from './applianceType'
 
 export function applianceDisplayName(appliance) {
   const base = appliance?.name ? appliance.name : `#${appliance?.id ?? '?'}`

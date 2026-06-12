@@ -30,7 +30,9 @@
               class="vq-data-table list-table lending-table"
             >
               <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-              <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+              <template #item.appliance_type="{ item }">
+                <ApplianceTypeChip :type="item.appliance_type" />
+              </template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
               </template>
@@ -48,7 +50,9 @@
               class="vq-data-table list-table lending-table lending-table--planned"
             >
               <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-              <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+              <template #item.appliance_type="{ item }">
+                <ApplianceTypeChip :type="item.appliance_type" />
+              </template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
               </template>
@@ -76,7 +80,9 @@
               class="vq-data-table list-table lending-table"
             >
               <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-              <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+              <template #item.appliance_type="{ item }">
+                <ApplianceTypeChip :type="item.appliance_type" />
+              </template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
               </template>
@@ -93,10 +99,10 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
+import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import { apiFetch } from '../api'
 import {
   cancelPlannedLending,
-  applianceTypeLabel,
   formatDeDate,
 } from '../utils/applianceLending'
 import VqDataTable from './VqDataTable.vue'

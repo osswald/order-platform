@@ -50,7 +50,9 @@
                   hide-default-footer
                 >
                   <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-                  <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+                  <template #item.appliance_type="{ item }">
+                    <ApplianceTypeChip :type="item.appliance_type" />
+                  </template>
                   <template #item.period="{ item }">
                     {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
                   </template>
@@ -67,7 +69,9 @@
                   hide-default-footer
                 >
                   <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
-                  <template #item.appliance_type="{ item }">{{ applianceTypeLabel(item.appliance_type) }}</template>
+                  <template #item.appliance_type="{ item }">
+                    <ApplianceTypeChip :type="item.appliance_type" />
+                  </template>
                   <template #item.period="{ item }">
                     {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
                   </template>
@@ -205,6 +209,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
+import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import OrganisationStammdatenFields from './OrganisationStammdatenFields.vue'
 import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
@@ -213,7 +218,6 @@ import { apiFetch } from '../api'
 import { validateForm } from '../utils/formRules.js'
 import {
   cancelPlannedLending,
-  applianceTypeLabel,
   formatDeDate,
 } from '../utils/applianceLending'
 import { useListDetailRouting } from '../composables/useListDetailRouting'

@@ -76,7 +76,14 @@
               :rules="[rules.requiredArray]"
               :loading="loadingAppliances"
               :disabled="!canPickAppliances"
-            />
+            >
+              <template #item="{ item, props: itemProps }">
+                <v-list-subheader v-if="item.raw.type === 'subheader'">
+                  <ApplianceTypeChip :type="item.raw.applianceType" />
+                </v-list-subheader>
+                <v-list-item v-else v-bind="itemProps" />
+              </template>
+            </v-select>
             <small v-if="loadingAppliances">{{ $t('lending.loadingAppliances') }}</small>
             <small v-else-if="!canPickAppliances">{{ $t('lending.pickDatesFirst') }}</small>
             <small v-else-if="noAppliancesAvailable" class="muted-hint">
@@ -113,6 +120,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
+import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
 import { rules, validateForm } from '../utils/formRules.js'
@@ -203,6 +211,7 @@ const applianceOptionGroups = computed(() => {
   return [...byType.entries()]
     .sort(([a], [b]) => applianceTypeLabel(a).localeCompare(applianceTypeLabel(b), locale))
     .map(([type, items]) => ({
+      type,
       label: applianceTypeLabel(type),
       items: items.sort((x, y) => x.label.localeCompare(y.label, locale)),
     }))
@@ -211,7 +220,7 @@ const applianceOptionGroups = computed(() => {
 const applianceSelectItems = computed(() => {
   const items = []
   for (const group of applianceOptionGroups.value) {
-    items.push({ type: 'subheader', title: group.label })
+    items.push({ type: 'subheader', title: group.label, applianceType: group.type })
     for (const item of group.items) {
       items.push({
         title: item.label,
