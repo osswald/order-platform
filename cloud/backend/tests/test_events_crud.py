@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import Event, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
@@ -24,8 +25,8 @@ def _setup_two_tenants():
         hc_b = HireCompany(name="Events Tenant B")
         db.add_all([hc_a, hc_b])
         db.flush()
-        org_a = Organisation(name="Org A", country="CH", hire_company_id=hc_a.id, currency="CHF")
-        org_b = Organisation(name="Org B", country="CH", hire_company_id=hc_b.id, currency="CHF")
+        org_a = Organisation(name="Org A", country_id=country_id_by_code(db, "CH"), hire_company_id=hc_a.id, currency="CHF")
+        org_b = Organisation(name="Org B", country_id=country_id_by_code(db, "CH"), hire_company_id=hc_b.id, currency="CHF")
         db.add_all([org_a, org_b])
         db.flush()
         db.add(
@@ -79,14 +80,19 @@ def test_create_event_and_status_transition():
 
 
 def test_create_organisation_with_currency():
-    _, _ = _setup_two_tenants()
+    _setup_two_tenants()
+    db = SessionLocal()
+    try:
+        ch_id = country_id_by_code(db, "CH")
+    finally:
+        db.close()
     headers = {"Authorization": f"Bearer {_token()}"}
     created = client.post(
         "/organisations/",
         headers=headers,
         json={
             "name": "CHF Org",
-            "country": "Schweiz",
+            "country_id": ch_id,
             "currency": "chf",
         },
     )

@@ -17,10 +17,16 @@ const sampleOrg = {
   address: 'Musterstraße 1',
   zip: '12345',
   city: 'Berlin',
-  country: 'Deutschland',
+  country_id: 1,
+  country: { id: 1, code: 'DE', name: 'Deutschland' },
   currency: 'EUR',
   user_ids: [],
 }
+
+const sampleCountries = [
+  { id: 1, code: 'DE', name: 'Deutschland' },
+  { id: 3, code: 'CH', name: 'Schweiz' },
+]
 
 function createOrganisationsRouter(initialPath) {
   return createRouter({
@@ -72,6 +78,9 @@ describe('Organisations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     apiFetch.mockImplementation(async (path) => {
+      if (path === '/countries/') {
+        return { ok: true, json: async () => sampleCountries }
+      }
       if (path === '/organisations/') {
         return { ok: true, json: async () => [sampleOrg] }
       }

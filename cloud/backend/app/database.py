@@ -231,6 +231,13 @@ def apply_schema_patches() -> None:
     _patch_organisation_stripe_connect()
     _patch_organisation_currency()
     _patch_tenant_admin_role()
+    _ensure_countries_table()
+    _seed_countries()
+    _patch_country_reference_columns()
+    _backfill_country_ids()
+    _drop_legacy_country_columns()
+    _ensure_tax_codes_table()
+    _seed_tax_codes()
 
 
 def _patch_tenant_admin_role() -> None:
@@ -653,6 +660,193 @@ def _relax_appliances_organisation_id() -> None:
             return
         conn.execute(text("ALTER TABLE appliances ALTER COLUMN organisation_id DROP NOT NULL"))
 
+
+
+def _drop_column_if_present(table: str, column: str) -> None:
+    try:
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        col_names = {c["name"] for c in inspector.get_columns(table)}
+    except Exception:
+        return
+    if column not in col_names:
+        return
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        if is_sqlite:
+            conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {column}"))
+        else:
+            conn.execute(text(f"ALTER TABLE {table} DROP COLUMN IF EXISTS {column}"))
+
+
+def _ensure_countries_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "countries" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import Country
+
+    Country.__table__.create(bind=engine, checkfirst=True)
+
+
+def _seed_countries() -> None:
+    from .models import Country
+    from .reference_countries import SEEDED_COUNTRIES
+
+    db = SessionLocal()
+    try:
+        if db.query(Country.id).first() is not None:
+            return
+        for code, name in SEEDED_COUNTRIES:
+            db.add(Country(code=code, name=name))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _patch_country_reference_columns() -> None:
+    _add_column_if_missing(
+        "organisations",
+        "country_id",
+        "ALTER TABLE organisations ADD COLUMN country_id INTEGER REFERENCES countries(id)",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS country_id INTEGER REFERENCES countries(id)",
+    )
+    _add_column_if_missing(
+        "hire_companies",
+        "country_id",
+        "ALTER TABLE hire_companies ADD COLUMN country_id INTEGER REFERENCES countries(id)",
+        "ALTER TABLE hire_companies ADD COLUMN IF NOT EXISTS country_id INTEGER REFERENCES countries(id)",
+    )
+
+
+def _backfill_country_ids() -> None:
+    from .reference_countries import resolve_legacy_country_code
+
+    try:
+        inspector = inspect(engine)
+        if "countries" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+
+    db = SessionLocal()
+    try:
+        from .models import Country
+
+        code_to_id = {country.code: country.id for country in db.query(Country).all()}
+    finally:
+        db.close()
+    if not code_to_id:
+        return
+
+    def _country_id_for_value(value: str | None, *, default_code: str | None) -> int | None:
+        code = resolve_legacy_country_code(value, default_code=default_code)
+        if code is None:
+            return None
+        return code_to_id.get(code)
+
+    try:
+        inspector = inspect(engine)
+        org_cols = {c["name"] for c in inspector.get_columns("organisations")}
+        hire_cols = {c["name"] for c in inspector.get_columns("hire_companies")}
+    except Exception:
+        return
+
+    with engine.begin() as conn:
+        if "country" in org_cols and "country_id" in org_cols:
+            rows = conn.execute(text("SELECT id, country, country_id FROM organisations")).fetchall()
+            for row_id, legacy_country, country_id in rows:
+                if country_id is not None:
+                    continue
+                resolved = _country_id_for_value(legacy_country, default_code="CH")
+                if resolved is not None:
+                    conn.execute(
+                        text("UPDATE organisations SET country_id = :country_id WHERE id = :id"),
+                        {"country_id": resolved, "id": row_id},
+                    )
+        if "country" in hire_cols and "country_id" in hire_cols:
+            rows = conn.execute(text("SELECT id, country, country_id FROM hire_companies")).fetchall()
+            for row_id, legacy_country, country_id in rows:
+                if country_id is not None:
+                    continue
+                resolved = _country_id_for_value(legacy_country, default_code=None)
+                conn.execute(
+                    text("UPDATE hire_companies SET country_id = :country_id WHERE id = :id"),
+                    {"country_id": resolved, "id": row_id},
+                )
+
+
+def _drop_legacy_country_columns() -> None:
+    _drop_column_if_present("organisations", "country")
+    _drop_column_if_present("hire_companies", "country")
+
+
+def _ensure_tax_codes_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "tax_codes" in inspector.get_table_names() and "tax_code_rates" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import TaxCode, TaxCodeRate
+
+    TaxCode.__table__.create(bind=engine, checkfirst=True)
+    TaxCodeRate.__table__.create(bind=engine, checkfirst=True)
+
+
+def _seed_tax_codes() -> None:
+    from datetime import date
+
+    from .models import Country, TaxCode, TaxCodeRate
+
+    seed_rows: list[tuple[str, str, float, date]] = [
+        ("DE", "Normalsatz", 19.0, date(2007, 1, 1)),
+        ("DE", "Ermäßigter Satz", 7.0, date(2007, 1, 1)),
+        ("AT", "Normalsatz", 20.0, date(2007, 1, 1)),
+        ("AT", "Ermäßigter Satz", 10.0, date(2007, 1, 1)),
+        ("AT", "Ermäßigter Satz 13%", 13.0, date(2007, 1, 1)),
+        ("CH", "Normalsatz", 8.1, date(2024, 1, 1)),
+        ("CH", "Reduzierter Satz", 2.6, date(2024, 1, 1)),
+        ("CH", "Sondersatz Beherbergung", 3.8, date(2024, 1, 1)),
+        ("FR", "Taux normal", 20.0, date(2014, 1, 1)),
+        ("FR", "Taux réduit", 5.5, date(2014, 1, 1)),
+        ("FR", "Taux intermédiaire", 10.0, date(2014, 1, 1)),
+        ("FR", "Taux super-réduit", 2.1, date(2014, 1, 1)),
+        ("IT", "Aliquota ordinaria", 22.0, date(2013, 10, 1)),
+        ("IT", "Aliquota ridotta", 10.0, date(2013, 10, 1)),
+        ("IT", "Aliquota ridotta 5%", 5.0, date(2013, 10, 1)),
+        ("IT", "Aliquota super-ridotta", 4.0, date(2013, 10, 1)),
+        ("BE", "Taux normal", 21.0, date(2014, 1, 1)),
+        ("BE", "Taux réduit", 6.0, date(2014, 1, 1)),
+        ("BE", "Taux réduit 12%", 12.0, date(2014, 1, 1)),
+        ("NL", "Hoog tarief", 21.0, date(2019, 1, 1)),
+        ("NL", "Laag tarief", 9.0, date(2019, 1, 1)),
+    ]
+
+    db = SessionLocal()
+    try:
+        if db.query(TaxCode.id).first() is not None:
+            return
+        code_to_id = {country.code: country.id for country in db.query(Country).all()}
+        for country_code, name, rate_percent, valid_from in seed_rows:
+            country_id = code_to_id.get(country_code)
+            if country_id is None:
+                continue
+            tax_code = TaxCode(country_id=country_id, name=name)
+            tax_code.rates.append(
+                TaxCodeRate(
+                    rate_percent=rate_percent,
+                    valid_from=valid_from,
+                    valid_to=None,
+                )
+            )
+            db.add(tax_code)
+        db.commit()
+    finally:
+        db.close()
 
 
 def run_migrations() -> None:

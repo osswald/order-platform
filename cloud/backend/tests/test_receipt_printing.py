@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import Event, HireCompany, Organisation
+from tests.helpers import ensure_country
 from app.receipt_printing_config import (
     copy_receipt_printing_from_hire_company,
     copy_receipt_printing_from_organisation,
@@ -41,7 +42,8 @@ def test_copy_hire_company_to_organisation(db):
     }
     store_receipt_logo(hire, "image/png", b"\x89PNG\r\n\x1a\n")
 
-    org = Organisation(name="Org", country="CH", hire_company_id=hire.id, currency="CHF")
+    ch_id = ensure_country(db, "CH")
+    org = Organisation(name="Org", country_id=ch_id, hire_company_id=hire.id, currency="CHF")
     db.add(org)
     db.flush()
     copy_receipt_printing_from_hire_company(hire, org)
@@ -52,8 +54,9 @@ def test_copy_hire_company_to_organisation(db):
 
 
 def test_copy_organisation_to_event_includes_label(db):
-    org = Organisation(name="Org", country="CH", hire_company_id=1, currency="CHF")
+    ch_id = ensure_country(db, "CH", country_id=1)
     db.add(HireCompany(id=1, name="V"))
+    org = Organisation(name="Org", country_id=ch_id, hire_company_id=1, currency="CHF")
     db.add(org)
     db.flush()
     org.receipt_printing_config = default_event_printing_config()

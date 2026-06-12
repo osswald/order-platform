@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from tests.helpers import ensure_country
 from app.event_status import (
     assert_create_status,
     purge_event_operational_data,
@@ -32,9 +33,10 @@ def db():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
+    ch_country_id = ensure_country(session, "CH", country_id=1)
     now = datetime.now(timezone.utc)
     hc = HireCompany(id=1, name="HC")
-    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH", currency="CHF")
+    org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     appliance = Appliance(id=1, hire_company_id=1, type="pi", name="Pi")
     event = Event(
         id=1,

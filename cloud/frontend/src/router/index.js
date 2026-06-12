@@ -18,12 +18,15 @@ import StripeConnectReturn from '../components/StripeConnectReturn.vue'
 import LoginPage from '../components/LoginPage.vue'
 import SectionPlaceholder from '../components/SectionPlaceholder.vue'
 import HelpCenter from '../components/HelpCenter.vue'
+import Countries from '../components/Countries.vue'
+import TaxCodes from '../components/TaxCodes.vue'
 
 const orgScoped = { requiresAuth: true, organisationScoped: true }
 const platformOnly = { requiresAuth: true, platformOnly: true }
 const tenantAdminOnly = { requiresAuth: true, tenantAdminOnly: true }
 const organisationManagerOnly = { requiresAuth: true, organisationManagerOnly: true }
 const usersOnly = { requiresAuth: true, usersOnly: true }
+const authOnly = { requiresAuth: true }
 
 const routes = [
   {
@@ -83,6 +86,8 @@ const routes = [
     meta: tenantAdminOnly,
   }),
   ...listDetailRoutes({ path: '/users', listName: 'users', component: Users, meta: usersOnly }),
+  ...listDetailRoutes({ path: '/countries', listName: 'countries', component: Countries, meta: authOnly }),
+  ...listDetailRoutes({ path: '/tax-codes', listName: 'tax-codes', component: TaxCodes, meta: authOnly }),
   {
     path: '/settings',
     name: 'settings',

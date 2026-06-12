@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from tests.helpers import ensure_country
 from app.edge_reporting import build_sales_report_v3
 from app.models import (
     Article,
@@ -30,9 +31,10 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     db = Session()
+    ch_country_id = ensure_country(db, "CH", country_id=1)
     now = datetime.now(timezone.utc)
     db.add(HireCompany(id=1, name="HC"))
-    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="EUR"))
+    db.add(Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="EUR"))
     db.add(ArticleCategory(id=1, name="Food", organisation_id=1))
     art = Article(id=10, name="Bratwurst", label="B", price=5.0, article_category_id=1)
     db.add(art)
@@ -144,9 +146,10 @@ def test_sales_report_v3_counts_orders_by_session_and_order_number_without_submi
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     db = Session()
+    ch_country_id = ensure_country(db, "CH", country_id=1)
     now = datetime.now(timezone.utc)
     db.add(HireCompany(id=1, name="HC"))
-    db.add(Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF"))
+    db.add(Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF"))
     ev = Event(
         id=1,
         name="Fest",

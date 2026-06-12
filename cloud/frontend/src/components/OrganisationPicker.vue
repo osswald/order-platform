@@ -71,8 +71,8 @@ let inFlightFetch = null
 
 function displayOrg(o) {
   const name = o.name || t('pickers.orgFallback', { id: o.id })
-  if (o.country) {
-    return `${name} (${o.country})`
+  if (o.country?.name) {
+    return `${name} (${o.country.name})`
   }
   return name
 }
@@ -85,7 +85,7 @@ const filteredChoices = computed(() => {
     if (selectedIdSet.value.has(Number(o.id))) return false
     if (!q) return true
     const name = (o.name || '').toLowerCase()
-    const country = (o.country || '').toLowerCase()
+    const country = (o.country?.name || '').toLowerCase()
     const city = (o.city || '').toLowerCase()
     return (
       name.includes(q) ||

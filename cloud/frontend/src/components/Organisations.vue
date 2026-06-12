@@ -191,6 +191,9 @@
         <template #item.location="{ item }">
           {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
         </template>
+        <template #item.country="{ item }">
+          {{ item.country?.name || $t('common.emDash') }}
+        </template>
         <template #item.user_ids="{ item }">{{ item.user_ids.length }}</template>
         <template v-if="canAccessTenantAdmin" #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteOrganisation(item.id)">
@@ -215,6 +218,7 @@ import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiFetch } from '../api'
+import { useCountries } from '../composables/useCountries'
 import { validateForm } from '../utils/formRules.js'
 import {
   cancelPlannedLending,
@@ -258,7 +262,7 @@ const userFilter = ref('')
 const orgApplianceLendings = ref(null)
 const lendingDialogVisible = ref(false)
 const cancellingLendingId = ref(null)
-const countryOptions = ['Deutschland', 'Österreich', 'Schweiz', 'Frankreich', 'Italien', 'Belgien', 'Niederlande']
+const { countryOptions, fetchCountries } = useCountries()
 const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
 
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
@@ -318,7 +322,7 @@ const form = ref({
   address: '',
   zip: '',
   city: '',
-  country: '',
+  countryId: null,
   currency: 'EUR',
   userIdsArray: [],
 })
@@ -331,7 +335,7 @@ function matchesSearch(org, term) {
     org.address,
     org.zip,
     org.city,
-    org.country,
+    org.country?.name,
     org.currency,
   ]
     .filter((value) => value !== null && value !== undefined)
@@ -339,7 +343,7 @@ function matchesSearch(org, term) {
 }
 
 const availableCountries = computed(() => {
-  return [...new Set(organisations.value.map((org) => org.country).filter(Boolean))].sort()
+  return [...new Set(organisations.value.map((org) => org.country?.name).filter(Boolean))].sort()
 })
 
 const countryFilterOptions = computed(() => [
@@ -351,7 +355,7 @@ const filteredOrganisations = computed(() => {
   const term = searchQuery.value.trim().toLowerCase()
   return organisations.value.filter((org) => {
     if (!matchesSearch(org, term)) return false
-    if (countryFilter.value && org.country !== countryFilter.value) return false
+    if (countryFilter.value && org.country?.name !== countryFilter.value) return false
     const userCount = Array.isArray(org.user_ids) ? org.user_ids.length : 0
     if (userFilter.value === 'with-users' && userCount === 0) return false
     if (userFilter.value === 'without-users' && userCount > 0) return false
@@ -417,7 +421,7 @@ const emptyOrgForm = () => ({
   address: '',
   zip: '',
   city: '',
-  country: '',
+  countryId: null,
   currency: 'EUR',
   userIdsArray: [],
 })
@@ -428,7 +432,7 @@ function applyOrganisationToForm(org) {
     address: org.address || '',
     zip: org.zip || '',
     city: org.city || '',
-    country: org.country,
+    countryId: org.country_id ?? org.country?.id ?? null,
     currency: org.currency || 'EUR',
     userIdsArray: org.user_ids ? org.user_ids.slice() : [],
   }
@@ -499,7 +503,7 @@ async function saveOrganisation() {
     address: form.value.address || null,
     zip: form.value.zip || null,
     city: form.value.city || null,
-    country: form.value.country,
+    country_id: form.value.countryId,
     currency: form.value.currency,
     user_ids: Array.isArray(form.value.userIdsArray) ? form.value.userIdsArray : parseUserIds(form.value.userIds || ''),
   }
@@ -555,7 +559,10 @@ async function deleteOrganisation(id) {
   }
 }
 
-onMounted(fetchOrganisations)
+onMounted(async () => {
+  await fetchCountries()
+  await fetchOrganisations()
+})
 </script>
 
 <style scoped>

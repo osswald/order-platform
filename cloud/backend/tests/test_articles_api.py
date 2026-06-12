@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import ArticleCategory, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
@@ -17,7 +18,7 @@ def _seed_org_admin():
         hc = HireCompany(name="Articles Tenant")
         db.add(hc)
         db.flush()
-        org = Organisation(name="Articles Org", country="CH", hire_company_id=hc.id, currency="CHF")
+        org = Organisation(name="Articles Org", country_id=country_id_by_code(db, "CH"), hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         db.add(

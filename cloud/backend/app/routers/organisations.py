@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..appliance_naming import appliance_display_name
 from ..dashboard_summary import build_organisation_dashboard_summary
 from ..models import ApplianceLending, Event, HireCompany, Organisation, User
+from ..reference_countries import country_response, get_country_or_404
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import (
@@ -28,12 +29,18 @@ from .appliances import _assert_lending_is_planned, _utc_today
 router = APIRouter()
 
 
+class CountryRead(BaseModel):
+    id: int
+    code: str
+    name: str
+
+
 class OrganisationBase(BaseModel):
     name: str = Field(..., min_length=1)
     address: str | None = None
     zip: str | None = None
     city: str | None = None
-    country: str = Field(..., min_length=2)
+    country_id: int
     currency: str = Field(..., min_length=3, max_length=3)
 
     @model_validator(mode="after")
@@ -51,7 +58,7 @@ class OrganisationUpdate(BaseModel):
     address: str | None = None
     zip: str | None = None
     city: str | None = None
-    country: str | None = None
+    country_id: int | None = None
     currency: str | None = Field(None, min_length=3, max_length=3)
     user_ids: List[int] | None = None
 
@@ -61,6 +68,7 @@ class OrganisationRead(OrganisationBase):
 
     id: int
     hire_company_id: int
+    country: CountryRead
     user_ids: List[int] = []
 
 
@@ -87,7 +95,8 @@ def organisation_response(org: Organisation) -> dict:
         "address": org.address,
         "zip": org.zip,
         "city": org.city,
-        "country": org.country,
+        "country_id": org.country_id,
+        "country": country_response(org.country),
         "currency": org.currency,
         "user_ids": [user.id for user in org.users],
     }
@@ -224,13 +233,14 @@ def create_organisation(
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
+    get_country_or_404(db, org_in.country_id)
     db_org = Organisation(
         hire_company_id=tenant.hire_company_id,
         name=org_in.name,
         address=org_in.address,
         zip=org_in.zip,
         city=org_in.city,
-        country=org_in.country,
+        country_id=org_in.country_id,
         currency=org_in.currency,
     )
     if org_in.user_ids:
@@ -243,7 +253,7 @@ def create_organisation(
 
         copy_receipt_printing_from_hire_company(hire_company, db_org)
     db.commit()
-    db.refresh(db_org)
+    db_org = ensure_org_in_tenant(db, db_org.id, tenant.hire_company_id)
     return organisation_response(db_org)
 
 
@@ -265,14 +275,15 @@ def update_organisation(
         org.zip = org_in.zip
     if org_in.city is not None:
         org.city = org_in.city
-    if org_in.country is not None:
-        org.country = org_in.country
+    if org_in.country_id is not None:
+        get_country_or_404(db, org_in.country_id)
+        org.country_id = org_in.country_id
     if org_in.currency is not None:
         org.currency = org_in.currency.upper()
     if org_in.user_ids is not None:
         org.users = ensure_users_in_tenant(db, org_in.user_ids, tenant.hire_company_id)
     db.commit()
-    db.refresh(org)
+    org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)
 
 

@@ -40,7 +40,15 @@
       </div>
       <div class="form-field">
         <label>{{ $t('common.country') }}</label>
-        <v-text-field v-model="form.country" :placeholder="$t('hireCompanies.countryPlaceholder')" hide-details="auto" />
+        <v-select
+          v-model="form.countryId"
+          :items="countryOptions"
+          item-title="title"
+          item-value="value"
+          :placeholder="$t('hireCompanies.countryPlaceholder')"
+          hide-details="auto"
+          clearable
+        />
       </div>
       <ReceiptPrintingSection
         v-if="editMode && routeEntityId"
@@ -75,6 +83,9 @@
         <template #item.standort="{ item }">
           {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
         </template>
+        <template #item.country="{ item }">
+          {{ item.country?.name || $t('common.emDash') }}
+        </template>
         <template #item.actions="{ item }">
           <v-btn color="error" variant="text" @click.stop="deleteCompany(item.id)">{{ $t('common.delete') }}</v-btn>
         </template>
@@ -92,12 +103,14 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
+import { useCountries } from '../composables/useCountries'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
+const { countryOptions, fetchCountries } = useCountries()
 
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
@@ -129,7 +142,7 @@ const form = ref({
   address: '',
   zip: '',
   city: '',
-  country: '',
+  countryId: null,
 })
 
 async function fetchCompanies() {
@@ -148,7 +161,7 @@ const emptyForm = () => ({
   address: '',
   zip: '',
   city: '',
-  country: '',
+  countryId: null,
 })
 
 function applyCompanyToForm(row) {
@@ -157,7 +170,7 @@ function applyCompanyToForm(row) {
     address: row.address || '',
     zip: row.zip || '',
     city: row.city || '',
-    country: row.country || '',
+    countryId: row.country_id ?? row.country?.id ?? null,
   }
   message.value = ''
 }
@@ -221,7 +234,7 @@ async function saveCompany() {
     address: form.value.address || null,
     zip: form.value.zip || null,
     city: form.value.city || null,
-    country: form.value.country || null,
+    country_id: form.value.countryId || null,
   }
   try {
     const path = editMode.value
@@ -266,7 +279,10 @@ async function deleteCompany(id) {
   }
 }
 
-onMounted(fetchCompanies)
+onMounted(async () => {
+  await fetchCountries()
+  await fetchCompanies()
+})
 </script>
 
 <style scoped>

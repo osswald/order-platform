@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import HireCompany, Organisation
 
@@ -26,7 +27,7 @@ def _seed_org_with_stripe_account(account_id: str = "acct_test123") -> int:
         db.flush()
         org = Organisation(
             name="Stripe Org",
-            country="CH",
+            country_id=country_id_by_code(db, "CH"),
             hire_company_id=hc.id,
             currency="CHF",
             stripe_account_id=account_id,

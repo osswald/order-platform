@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import Appliance, ApplianceLending, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
@@ -27,7 +28,7 @@ def _lending_fixture(suffix: str) -> tuple[int, int, str]:
         company = HireCompany(name=f"Lending Tenant {suffix}")
         db.add(company)
         db.flush()
-        org = Organisation(name=f"Lending Org {suffix}", country="CH", hire_company_id=company.id, currency="CHF")
+        org = Organisation(name=f"Lending Org {suffix}", country_id=country_id_by_code(db, "CH"), hire_company_id=company.id, currency="CHF")
         db.add(org)
         db.flush()
         user = User(

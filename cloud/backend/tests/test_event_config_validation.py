@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from tests.helpers import ensure_country
 from app.event_config_validation import (
     assert_cell_articles_subset_of_stations,
     assert_exactly_one_default_layout,
@@ -28,11 +29,12 @@ def db():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
     session = sessionmaker(bind=engine)()
+    ch_country_id = ensure_country(session, "CH", country_id=1)
     now = datetime.now(timezone.utc)
     session.add_all(
         [
             HireCompany(id=1, name="HC"),
-            Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF"),
+            Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF"),
             ArticleCategory(id=1, name="Food", organisation_id=1),
             Article(id=10, name="Beer", label="B", price=5.0, article_category_id=1, is_addition=False),
             Article(id=11, name="Cheese", label="C", price=2.0, article_category_id=1, is_addition=True),

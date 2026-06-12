@@ -103,7 +103,7 @@ def create_connect_account_link(
                 organisation_id=organisation.id,
                 hire_company_id=organisation.hire_company_id,
                 name=organisation.name,
-                country=organisation.country,
+                country=organisation.country.code if organisation.country else "CH",
             )
             organisation.stripe_account_id = account.id
             update_organisation_from_stripe_account(organisation, account)

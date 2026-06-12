@@ -9,7 +9,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal
+from tests.helpers import country_id_by_code, ensure_country
 from app.event_config_validation import (
     assert_printer_eligible,
     event_printer_candidates,
@@ -40,8 +41,9 @@ def printer_scenario_db():
     Base.metadata.create_all(bind=engine_local)
     Session = sessionmaker(bind=engine_local)
     db = Session()
+    ch_country_id = ensure_country(db, "CH", country_id=1)
     hc = HireCompany(id=1, name="HC")
-    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF")
+    org = Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF")
     db.add_all([hc, org])
     printer = Appliance(
         id=10,
@@ -167,7 +169,12 @@ def _api_fixture(suffix: str) -> tuple[int, int, int, str, int]:
         company = HireCompany(name=f"Printer Event HC {suffix}")
         db.add(company)
         db.flush()
-        org = Organisation(name=f"Printer Event Org {suffix}", country="CH", hire_company_id=company.id, currency="CHF")
+        org = Organisation(
+            name=f"Printer Event Org {suffix}",
+            country_id=country_id_by_code(db, "CH"),
+            hire_company_id=company.id,
+            currency="CHF",
+        )
         db.add(org)
         db.flush()
         user = User(

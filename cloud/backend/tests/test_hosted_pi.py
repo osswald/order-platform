@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.hosted_pi_manager_client import HostedPiManagerError
 from app.hosted_pi_service import expire_due_instances, reconcile_stuck_provisioning
 from app.main import app
@@ -41,7 +42,7 @@ def _setup_org_admin() -> tuple[int, str]:
         hc = HireCompany(name=f"Hosted HC {suffix}")
         db.add(hc)
         db.flush()
-        org = Organisation(name=f"Hosted Org {suffix}", country="CH", hire_company_id=hc.id, currency="CHF")
+        org = Organisation(name=f"Hosted Org {suffix}", country_id=country_id_by_code(db, "CH"), hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         db.add(

@@ -16,6 +16,7 @@ from .routers import (
     article_categories,
     articles,
     auth,
+    countries,
     edge,
     events,
     health,
@@ -27,6 +28,7 @@ from .routers import (
     stripe_terminal,
     stripe_webhooks,
     appliances,
+    tax_codes,
     users,
     waiters,
 )
@@ -142,6 +144,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(countries.router, prefix="/countries", tags=["countries"])
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(receipt_printing.router, tags=["receipt-printing"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
@@ -151,6 +154,7 @@ app.include_router(events.router, prefix="/events", tags=["events"])
 app.include_router(hosted_pi.router, prefix="/events", tags=["hosted-pi"])
 app.include_router(waiters.router, prefix="/waiters", tags=["waiters"])
 app.include_router(article_categories.router, prefix="/article-categories", tags=["article-categories"])
+app.include_router(tax_codes.router, prefix="/tax-codes", tags=["tax-codes"])
 app.include_router(articles.router, prefix="/articles", tags=["articles"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])

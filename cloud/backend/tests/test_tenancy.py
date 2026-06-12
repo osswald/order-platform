@@ -1,6 +1,7 @@
 """Multi-tenant hire company isolation."""
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.models import HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN, ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
@@ -24,7 +25,7 @@ def test_org_admin_cannot_access_other_tenant_organisation(client, auth_token):
         db.flush()
         org_b = Organisation(
             name="Org B",
-            country="CH",
+            country_id=country_id_by_code(db, "CH"),
             hire_company_id=hc_b.id,
             currency="CHF",
         )

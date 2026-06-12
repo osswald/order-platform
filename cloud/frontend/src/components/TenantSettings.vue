@@ -31,7 +31,15 @@
       </div>
       <div class="form-field">
         <label>{{ $t('common.country') }}</label>
-        <v-text-field v-model="form.country" :placeholder="$t('hireCompanies.countryPlaceholder')" hide-details="auto" />
+        <v-select
+          v-model="form.countryId"
+          :items="countryOptions"
+          item-title="title"
+          item-value="value"
+          :placeholder="$t('hireCompanies.countryPlaceholder')"
+          hide-details="auto"
+          clearable
+        />
       </div>
       <ReceiptPrintingSection
         :api-base-path="`/hire-companies/${hireCompanyId}`"
@@ -54,6 +62,7 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
+import { useCountries } from '../composables/useCountries'
 import { rules, validateForm } from '../utils/formRules.js'
 
 const props = defineProps({
@@ -61,6 +70,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
+const { countryOptions, fetchCountries } = useCountries()
 
 const hireCompanyId = computed(() => props.activeHireCompanyId)
 const form = ref({
@@ -68,7 +78,7 @@ const form = ref({
   address: '',
   zip: '',
   city: '',
-  country: '',
+  countryId: null,
 })
 const formRef = ref(null)
 const message = ref('')
@@ -82,7 +92,7 @@ function resetForm() {
     address: '',
     zip: '',
     city: '',
-    country: '',
+    countryId: null,
   }
 }
 
@@ -105,7 +115,7 @@ async function loadCompany() {
       address: data.address || '',
       zip: data.zip || '',
       city: data.city || '',
-      country: data.country || '',
+      countryId: data.country_id ?? data.country?.id ?? null,
     }
   } catch {
     if (seq !== loadSeq || id !== hireCompanyId.value) return
@@ -117,6 +127,8 @@ async function loadCompany() {
 watch(hireCompanyId, () => {
   loadCompany()
 }, { immediate: true })
+
+fetchCountries()
 
 async function saveCompany() {
   if (!(await validateForm(formRef))) return
@@ -130,7 +142,7 @@ async function saveCompany() {
         address: form.value.address || null,
         zip: form.value.zip || null,
         city: form.value.city || null,
-        country: form.value.country || null,
+        country_id: form.value.countryId || null,
       }),
     })
     if (!resp.ok) throw new Error(await resp.text())

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from tests.helpers import ensure_country
 from app.event_copy import copy_event, default_copy_name
 from app.models import (
     Article,
@@ -28,10 +29,11 @@ def db():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
+    ch_country_id = ensure_country(session, "CH", country_id=1)
     now = datetime.now(timezone.utc)
 
     hire = HireCompany(id=1, name="Vendor")
-    org = Organisation(id=1, name="Org", country="CH", hire_company_id=1, currency="CHF")
+    org = Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF")
     session.add(hire)
     cat = ArticleCategory(id=1, name="Drinks", organisation_id=1)
     art = Article(

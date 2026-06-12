@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
+from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import (
     Appliance,
@@ -28,7 +29,7 @@ def _pair_edge_credentials() -> tuple[str, str]:
         hc = HireCompany(name=f"Bundle HC {suffix}")
         db.add(hc)
         db.flush()
-        org = Organisation(name=f"Bundle Org {suffix}", country="CH", hire_company_id=hc.id, currency="CHF")
+        org = Organisation(name=f"Bundle Org {suffix}", country_id=country_id_by_code(db, "CH"), hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
         db.add(

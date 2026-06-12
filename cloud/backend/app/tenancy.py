@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from fastapi import Depends, Header, status
 from .i18n.errors import api_error
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, joinedload
 
 from .deps import get_db
 from .models import Event, HireCompany, Organisation, User
@@ -134,7 +134,12 @@ def ensure_can_manage_organisation(user: User, organisation_id: int) -> None:
 
 
 def ensure_org_in_tenant(db: Session, organisation_id: int, hire_company_id: int) -> Organisation:
-    org = db.query(Organisation).filter(Organisation.id == organisation_id).first()
+    org = (
+        db.query(Organisation)
+        .options(joinedload(Organisation.country))
+        .filter(Organisation.id == organisation_id)
+        .first()
+    )
     if not org:
         raise api_error("organisation_not_found", status.HTTP_404_NOT_FOUND)
     if org.hire_company_id != hire_company_id:
@@ -150,6 +155,7 @@ def readable_organisations(
     if can_manage_tenant(current_user):
         return (
             db.query(Organisation)
+            .options(joinedload(Organisation.country))
             .filter(Organisation.hire_company_id == hire_company_id)
             .order_by(Organisation.name)
             .all()
@@ -158,6 +164,7 @@ def readable_organisations(
     if admin_org_ids:
         return (
             db.query(Organisation)
+            .options(joinedload(Organisation.country))
             .filter(
                 Organisation.hire_company_id == hire_company_id,
                 Organisation.id.in_(admin_org_ids),

@@ -37,8 +37,10 @@
   </div>
   <div class="form-field">
     <v-select
-      v-model="form.country"
+      v-model="form.countryId"
       :items="countryOptions"
+      item-title="title"
+      item-value="value"
       :label="$t('common.country')"
       :placeholder="$t('organisations.selectCountry')"
       hide-details="auto"

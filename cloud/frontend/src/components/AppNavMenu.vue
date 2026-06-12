@@ -112,6 +112,18 @@
           @click="onNavigate"
         />
         <v-list-item
+          :to="{ name: 'countries' }"
+          prepend-icon="mdi-earth"
+          :title="$t('nav.countries')"
+          @click="onNavigate"
+        />
+        <v-list-item
+          :to="{ name: 'tax-codes' }"
+          prepend-icon="mdi-percent"
+          :title="$t('nav.taxCodes')"
+          @click="onNavigate"
+        />
+        <v-list-item
           v-if="canAccessUsers"
           :to="routeTo('users')"
           prepend-icon="mdi-account"

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from tests.helpers import ensure_country
 from app.event_transactions import build_event_transactions_page
 from app.models import (
     Appliance,
@@ -24,9 +25,10 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     db = Session()
+    ch_country_id = ensure_country(db, "CH", country_id=1)
     hc = HireCompany(id=1, name="HC")
     db.add(hc)
-    org = Organisation(id=1, hire_company_id=1, name="Org", country="CH", currency="CHF")
+    org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     db.add(org)
     now = datetime.now(timezone.utc)
     ev = Event(

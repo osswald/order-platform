@@ -16,7 +16,8 @@ function companyPayload(id, name) {
     address: `${name} street`,
     zip: '8000',
     city: 'Zurich',
-    country: 'CH',
+    country_id: 3,
+    country: { id: 3, code: 'CH', name: 'Schweiz' },
   }
 }
 
@@ -27,6 +28,9 @@ describe('TenantSettings', () => {
 
   it('reloads form data when activeHireCompanyId changes', async () => {
     apiFetch.mockImplementation(async (path) => {
+      if (path === '/countries/') {
+        return { ok: true, json: async () => [{ id: 3, code: 'CH', name: 'Schweiz' }] }
+      }
       if (path === '/hire-companies/1') {
         return { ok: true, json: async () => companyPayload(1, 'Tenant A') }
       }

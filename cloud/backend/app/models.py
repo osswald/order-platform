@@ -13,6 +13,17 @@ organisation_users = Table(
 )
 
 
+class Country(Base):
+    __tablename__ = "countries"
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(2), unique=True, nullable=False)
+    name = Column(String, unique=True, nullable=False)
+
+    organisations = relationship("Organisation", back_populates="country")
+    hire_companies = relationship("HireCompany", back_populates="country")
+    tax_codes = relationship("TaxCode", back_populates="country")
+
+
 class HireCompany(Base):
     __tablename__ = "hire_companies"
     id = Column(Integer, primary_key=True, index=True)
@@ -20,13 +31,14 @@ class HireCompany(Base):
     address = Column(String, nullable=True)
     zip = Column(String, nullable=True)
     city = Column(String, nullable=True)
-    country = Column(String, nullable=True)
+    country_id = Column(Integer, ForeignKey("countries.id"), nullable=True, index=True)
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
     receipt_logo_data = Column(Text, nullable=True)
     organisations = relationship("Organisation", back_populates="hire_company")
     appliances = relationship("Appliance", back_populates="hire_company")
     users = relationship("User", back_populates="hire_company", foreign_keys="User.hire_company_id")
+    country = relationship("Country", back_populates="hire_companies")
 
 
 class User(Base):
@@ -54,7 +66,7 @@ class Organisation(Base):
     address = Column(String, nullable=True)
     zip = Column(String, nullable=True)
     city = Column(String, nullable=True)
-    country = Column(String, nullable=False)
+    country_id = Column(Integer, ForeignKey("countries.id"), nullable=False, index=True)
     currency = Column(String(3), nullable=False, default="EUR")
     stripe_account_id = Column(String(255), nullable=True, unique=True, index=True)
     stripe_charges_enabled = Column(Boolean, nullable=False, default=False)
@@ -66,6 +78,7 @@ class Organisation(Base):
     receipt_logo_mime = Column(String(64), nullable=True)
     receipt_logo_data = Column(Text, nullable=True)
     hire_company = relationship("HireCompany", back_populates="organisations")
+    country = relationship("Country", back_populates="organisations")
     users = relationship("User", secondary=organisation_users, back_populates="organisations")
     events = relationship("Event", back_populates="organisation", cascade="all, delete-orphan")
     waiters = relationship("Waiter", back_populates="organisation", cascade="all, delete-orphan")
@@ -585,3 +598,31 @@ class EdgePayment(Base):
     amount_cents = Column(Integer, nullable=False, default=0)
     payload = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TaxCode(Base):
+    __tablename__ = "tax_codes"
+    __table_args__ = (UniqueConstraint("country_id", "name", name="uq_tax_code_country_name"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    country_id = Column(Integer, ForeignKey("countries.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    country = relationship("Country", back_populates="tax_codes")
+    rates = relationship(
+        "TaxCodeRate",
+        back_populates="tax_code",
+        cascade="all, delete-orphan",
+        order_by="TaxCodeRate.valid_from",
+    )
+
+
+class TaxCodeRate(Base):
+    __tablename__ = "tax_code_rates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tax_code_id = Column(Integer, ForeignKey("tax_codes.id", ondelete="CASCADE"), nullable=False, index=True)
+    rate_percent = Column(Float, nullable=False)
+    valid_from = Column(Date, nullable=False)
+    valid_to = Column(Date, nullable=True)
+    tax_code = relationship("TaxCode", back_populates="rates")
