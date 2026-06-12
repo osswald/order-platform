@@ -1,4 +1,4 @@
-import { ref, computed, unref, watch } from 'vue'
+import { ref, computed, toValue, watch } from 'vue'
 import { apiFetch } from '../api'
 
 const cache = new Map()
@@ -43,7 +43,7 @@ export function useTaxCodes(countryIdRef) {
   )
 
   async function load() {
-    const countryId = unref(countryIdRef)
+    const countryId = toValue(countryIdRef)
     if (countryId == null) {
       taxCodes.value = []
       return
@@ -70,7 +70,7 @@ export function useTaxCodes(countryIdRef) {
   }
 
   watch(
-    () => unref(countryIdRef),
+    () => toValue(countryIdRef),
     () => {
       load()
     },
