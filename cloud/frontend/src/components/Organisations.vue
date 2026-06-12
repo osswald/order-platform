@@ -105,8 +105,8 @@
             />
           </template>
 
-          <template #mwst>
-            <OrganisationVatSection
+          <template #buchhaltung>
+            <OrganisationAccountingSection
               :organisation-id="activeId"
               :country-id="form.countryId"
             />
@@ -219,7 +219,7 @@ import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import OrganisationStammdatenFields from './OrganisationStammdatenFields.vue'
 import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
-import OrganisationVatSection from './OrganisationVatSection.vue'
+import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiFetch } from '../api'
 import { useCountries } from '../composables/useCountries'
@@ -279,7 +279,7 @@ const configSections = computed(() => {
     { id: 'geraete', title: t('organisations.config.sectionGeraete') },
     { id: 'stripe', title: t('organisations.config.sectionStripe') },
     { id: 'belegvorlagen', title: t('organisations.config.sectionBelegvorlagen') },
-    { id: 'mwst', title: t('organisations.config.sectionMwst') },
+    { id: 'buchhaltung', title: t('organisations.config.sectionBuchhaltung') },
   ]
 })
 

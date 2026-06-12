@@ -79,6 +79,7 @@ class Organisation(Base):
     receipt_logo_data = Column(Text, nullable=True)
     vat_liable = Column(Boolean, nullable=False, default=False)
     default_tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
+    accounts_enabled = Column(Boolean, nullable=False, default=False)
     hire_company = relationship("HireCompany", back_populates="organisations")
     country = relationship("Country", back_populates="organisations")
     default_tax_code = relationship("TaxCode", foreign_keys=[default_tax_code_id])
@@ -236,12 +237,67 @@ class Waiter(Base):
     organisation = relationship("Organisation", back_populates="waiters")
 
 
+class PaymentType(Base):
+    __tablename__ = "payment_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(32), nullable=False, unique=True, index=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccountingAccount(Base):
+    __tablename__ = "accounting_accounts"
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "number", name="uq_accounting_account_org_number"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    number = Column(String, nullable=False)
+    is_default_for_article_categories = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    organisation = relationship("Organisation", backref="accounting_accounts")
+    payment_type_defaults = relationship(
+        "AccountingAccountPaymentTypeDefault",
+        back_populates="accounting_account",
+        cascade="all, delete-orphan",
+    )
+
+
+class AccountingAccountPaymentTypeDefault(Base):
+    __tablename__ = "accounting_account_payment_type_defaults"
+    __table_args__ = (
+        UniqueConstraint(
+            "organisation_id",
+            "payment_type_id",
+            name="uq_org_payment_type_default_account",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    payment_type_id = Column(Integer, ForeignKey("payment_types.id"), nullable=False, index=True)
+    accounting_account_id = Column(
+        Integer, ForeignKey("accounting_accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    organisation = relationship("Organisation", backref="payment_type_account_defaults")
+    payment_type = relationship("PaymentType")
+    accounting_account = relationship("AccountingAccount", back_populates="payment_type_defaults")
+
+
 class ArticleCategory(Base):
     __tablename__ = "article_categories"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
+    accounting_account_id = Column(
+        Integer, ForeignKey("accounting_accounts.id"), nullable=True, index=True
+    )
     organisation = relationship("Organisation", back_populates="article_categories")
+    accounting_account = relationship("AccountingAccount", foreign_keys=[accounting_account_id])
     articles = relationship("Article", back_populates="article_category")
 
 
@@ -269,13 +325,16 @@ class Article(Base):
     import_article_number = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     unit = Column(String, nullable=True)
-    income_account = Column(Integer, nullable=True)
+    accounting_account_id = Column(
+        Integer, ForeignKey("accounting_accounts.id"), nullable=True, index=True
+    )
     tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     is_addition = Column(Boolean, nullable=False, default=False)
     monitor_stock = Column(Boolean, nullable=False, default=False)
     in_stock = Column(Integer, nullable=True)
     article_category_id = Column(Integer, ForeignKey("article_categories.id"), nullable=False)
     article_category = relationship("ArticleCategory", back_populates="articles")
+    accounting_account = relationship("AccountingAccount", foreign_keys=[accounting_account_id])
     tax_code = relationship("TaxCode", foreign_keys=[tax_code_id])
     event_stations = relationship(
         "EventStation",

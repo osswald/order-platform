@@ -239,6 +239,29 @@ def apply_schema_patches() -> None:
     _ensure_tax_codes_table()
     _seed_tax_codes()
     _ensure_keine_tax_codes()
+    _ensure_payment_types_table()
+    _seed_payment_types()
+    _refresh_payment_types_cache()
+    _ensure_accounting_accounts_tables()
+    _add_column_if_missing(
+        "organisations",
+        "accounts_enabled",
+        "ALTER TABLE organisations ADD COLUMN accounts_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS accounts_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "article_categories",
+        "accounting_account_id",
+        "ALTER TABLE article_categories ADD COLUMN accounting_account_id INTEGER",
+        "ALTER TABLE article_categories ADD COLUMN IF NOT EXISTS accounting_account_id INTEGER",
+    )
+    _add_column_if_missing(
+        "articles",
+        "accounting_account_id",
+        "ALTER TABLE articles ADD COLUMN accounting_account_id INTEGER",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS accounting_account_id INTEGER",
+    )
+    _drop_column_if_present("articles", "income_account")
     _add_column_if_missing(
         "organisations",
         "vat_liable",
@@ -906,6 +929,62 @@ def _ensure_keine_tax_codes() -> None:
         db.commit()
     finally:
         db.close()
+
+
+def _ensure_payment_types_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "payment_types" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import PaymentType
+
+    PaymentType.__table__.create(bind=engine, checkfirst=True)
+
+
+def _seed_payment_types() -> None:
+    from .models import PaymentType
+
+    seed_rows = [
+        ("cash", 0),
+        ("twint", 1),
+        ("sumup", 2),
+        ("stripe_terminal", 3),
+    ]
+    db = SessionLocal()
+    try:
+        if db.query(PaymentType.id).first() is not None:
+            return
+        for slug, sort_order in seed_rows:
+            db.add(PaymentType(slug=slug, sort_order=sort_order, is_active=True))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _refresh_payment_types_cache() -> None:
+    from .payment_types_config import refresh_payment_types_cache
+
+    db = SessionLocal()
+    try:
+        refresh_payment_types_cache(db)
+    finally:
+        db.close()
+
+
+def _ensure_accounting_accounts_tables() -> None:
+    try:
+        inspector = inspect(engine)
+        names = set(inspector.get_table_names())
+        if "accounting_accounts" in names and "accounting_account_payment_type_defaults" in names:
+            return
+    except Exception:
+        return
+    from .models import AccountingAccount, AccountingAccountPaymentTypeDefault
+
+    AccountingAccount.__table__.create(bind=engine, checkfirst=True)
+    AccountingAccountPaymentTypeDefault.__table__.create(bind=engine, checkfirst=True)
 
 
 def run_migrations() -> None:

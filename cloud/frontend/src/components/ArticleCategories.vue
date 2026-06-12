@@ -23,6 +23,20 @@
           />
         </div>
 
+        <div v-if="showAccountingAccountField" class="form-field">
+          <v-select
+            v-model="form.accountingAccountId"
+            :items="accountingAccountOptions"
+            item-title="title"
+            item-value="value"
+            :label="$t('articleCategories.accountingAccount')"
+            :placeholder="$t('common.optional')"
+            :loading="accountingAccountsLoading"
+            hide-details="auto"
+            clearable
+          />
+        </div>
+
         <div class="actions">
           <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
           <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
@@ -88,6 +102,7 @@ import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
@@ -119,16 +134,32 @@ const tableHeaders = computed(() => [
 ])
 
 const categories = ref([])
+const organisationsList = ref([])
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
 
 const emptyForm = () => ({
   name: '',
+  accountingAccountId: null,
 })
 
 const form = ref(emptyForm())
 const formRef = ref(null)
+
+const showAccountingAccountField = computed(() => {
+  if (props.activeOrganisationId == null) return false
+  const org = organisationsList.value.find(
+    (row) => Number(row.id) === Number(props.activeOrganisationId),
+  )
+  return Boolean(org?.accounts_enabled)
+})
+
+const {
+  options: accountingAccountOptions,
+  loading: accountingAccountsLoading,
+  categoryDefaultAccountId,
+} = useAccountingAccounts(() => props.activeOrganisationId)
 
 const canCreateCategories = computed(() => props.activeOrganisationId != null)
 
@@ -165,6 +196,16 @@ watch(
   },
 )
 
+async function fetchOrganisations() {
+  try {
+    const response = await apiFetch('/organisations/')
+    if (!response.ok) throw new Error(await response.text())
+    organisationsList.value = await response.json()
+  } catch {
+    organisationsList.value = []
+  }
+}
+
 async function fetchCategories() {
   try {
     const response = await apiFetch('/article-categories/')
@@ -177,12 +218,18 @@ async function fetchCategories() {
 }
 
 function applyCategoryToForm(category) {
-  form.value = { name: category.name || '' }
+  form.value = {
+    name: category.name || '',
+    accountingAccountId: category.accounting_account_id ?? null,
+  }
   message.value = ''
 }
 
 function clearFormState() {
-  form.value = emptyForm()
+  form.value = {
+    name: '',
+    accountingAccountId: categoryDefaultAccountId.value,
+  }
   message.value = ''
 }
 
@@ -240,6 +287,7 @@ async function saveCategory() {
   if (!(await validateForm(formRef))) return
   const payload = {
     name: form.value.name,
+    accounting_account_id: showAccountingAccountField.value ? form.value.accountingAccountId : null,
   }
   if (!editMode.value) {
     payload.organisation_id = props.activeOrganisationId
@@ -288,7 +336,10 @@ async function deleteCategory(id) {
   }
 }
 
-onMounted(fetchCategories)
+onMounted(async () => {
+  await fetchOrganisations()
+  await fetchCategories()
+})
 </script>
 
 <style scoped>

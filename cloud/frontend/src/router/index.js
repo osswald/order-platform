@@ -20,6 +20,7 @@ import SectionPlaceholder from '../components/SectionPlaceholder.vue'
 import HelpCenter from '../components/HelpCenter.vue'
 import Countries from '../components/Countries.vue'
 import TaxCodes from '../components/TaxCodes.vue'
+import PaymentTypes from '../components/PaymentTypes.vue'
 
 const orgScoped = { requiresAuth: true, organisationScoped: true }
 const platformOnly = { requiresAuth: true, platformOnly: true }
@@ -88,6 +89,7 @@ const routes = [
   ...listDetailRoutes({ path: '/users', listName: 'users', component: Users, meta: usersOnly }),
   ...listDetailRoutes({ path: '/countries', listName: 'countries', component: Countries, meta: authOnly }),
   ...listDetailRoutes({ path: '/tax-codes', listName: 'tax-codes', component: TaxCodes, meta: authOnly }),
+  ...listDetailRoutes({ path: '/payment-types', listName: 'payment-types', component: PaymentTypes, meta: authOnly }),
   {
     path: '/settings',
     name: 'settings',

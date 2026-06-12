@@ -77,6 +77,7 @@
     "users": "Benutzer",
     "countries": "Länder",
     "taxCodes": "Umsatzsteuer",
+    "paymentTypes": "Zahlungsarten",
     "settings": "Einstellungen",
     "help": "Hilfe"
   },
@@ -213,7 +214,8 @@
     "saveError": "Fehler beim Speichern der Kategorie.",
     "deleteConfirm": "Artikelkategorie wirklich löschen?",
     "deleted": "Kategorie gelöscht.",
-    "deleteError": "Kategorie kann nur gelöscht werden, wenn keine Artikel verknüpft sind."
+    "deleteError": "Kategorie kann nur gelöscht werden, wenn keine Artikel verknüpft sind.",
+    "accountingAccount": "Buchhaltungskonto"
   },
   "articles": {
     "title": "Artikel",
@@ -230,7 +232,7 @@
     "importArticleNumberPlaceholder": "z. B. 4711",
     "descriptionPlaceholder": "Optionale Beschreibung",
     "unitPlaceholder": "z. B. Stk., l, kg",
-    "incomeAccount": "Erlöskonto",
+    "accountingAccount": "Buchhaltungskonto",
     "taxCode": "Steuercode",
     "isAddition": "Ist Zusatz",
     "additionPriceHint": "Preis: 0 = kostenlos, positiv = Aufpreis, negativ = Abzug (vom Artikelpreis).",
@@ -378,6 +380,32 @@
     "deleted": "Steuercode gelöscht.",
     "deleteError": "Steuercode konnte nicht gelöscht werden."
   },
+  "paymentTypes": {
+    "title": "Zahlungsarten",
+    "subtitle": "Zahlungsarten für Veranstaltungen (Schlüssel und Reihenfolge).",
+    "createLabel": "Neue Zahlungsart",
+    "editTitle": "Zahlungsart bearbeiten",
+    "newTitle": "Neue Zahlungsart",
+    "allTitle": "Alle Zahlungsarten",
+    "slug": "Schlüssel",
+    "slugPlaceholder": "cash",
+    "slugHint": "Angezeigtes Label kommt aus der Übersetzung paymentTypes.*.",
+    "sortOrder": "Reihenfolge",
+    "isActive": "Aktiv",
+    "noData": "Keine Zahlungsarten gefunden.",
+    "loadError": "Zahlungsarten konnten nicht geladen werden.",
+    "notFound": "Zahlungsart nicht gefunden.",
+    "created": "Zahlungsart erstellt.",
+    "updated": "Zahlungsart aktualisiert.",
+    "saveError": "Zahlungsart konnte nicht gespeichert werden.",
+    "deleteConfirm": "Zahlungsart wirklich löschen? Nur möglich, wenn sie nirgends verwendet wird.",
+    "deleted": "Zahlungsart gelöscht.",
+    "deleteError": "Zahlungsart konnte nicht gelöscht werden.",
+    "cash": "Bargeld",
+    "twint": "TWINT",
+    "sumup": "SumUp",
+    "stripe_terminal": "Karte (Stripe Terminal)"
+  },
   "organisations": {
     "title": "Organisationen",
     "subtitle": "Veranstalter verwalten und Benutzer zuordnen.",
@@ -416,15 +444,42 @@
       "sectionGeraete": "Geräte/Ausleihen",
       "sectionStripe": "Kartenzahlung (Stripe)",
       "sectionBelegvorlagen": "Belegvorlagen",
-      "sectionMwst": "Mehrwert-/Umsatzsteuer"
+      "sectionBuchhaltung": "Buchhaltung"
     },
     "vat": {
+      "sectionTitle": "Mehrwert-/Umsatzsteuer",
       "vatLiable": "Umsatzsteuer pflichtig",
       "defaultTaxCode": "Standard-Code",
       "loading": "Umsatzsteuer-Einstellungen werden geladen…",
       "loadError": "Umsatzsteuer-Einstellungen konnten nicht geladen werden.",
       "saved": "Umsatzsteuer-Einstellungen gespeichert.",
       "saveError": "Umsatzsteuer-Einstellungen konnten nicht gespeichert werden."
+    },
+    "accounting": {
+      "sectionTitle": "Kontenführung",
+      "accountsEnabled": "Kontenführung aktiv",
+      "accountsEnabledHint": "Erlöskonten für Artikelkategorien und Artikel zuweisen.",
+      "accountsTitle": "Buchhaltungskonten",
+      "createAccount": "Neues Konto",
+      "editAccount": "Konto bearbeiten",
+      "accountNumber": "Kontonummer",
+      "defaultForCategories": "Standard für Artikelkategorien",
+      "paymentTypeDefaultsTitle": "Standardkonten je Zahlungsart",
+      "paymentTypeDefaultsHint": "Pro Zahlungsart kann ein Standard-Buchhaltungskonto hinterlegt werden.",
+      "defaultAccount": "Standardkonto",
+      "saveDefaults": "Standardkonten speichern",
+      "noAccounts": "Noch keine Buchhaltungskonten angelegt.",
+      "loading": "Buchhaltungseinstellungen werden geladen…",
+      "loadError": "Buchhaltungseinstellungen konnten nicht geladen werden.",
+      "saved": "Buchhaltungseinstellungen gespeichert.",
+      "saveError": "Buchhaltungseinstellungen konnten nicht gespeichert werden.",
+      "accountSaved": "Buchhaltungskonto gespeichert.",
+      "accountSaveError": "Buchhaltungskonto konnte nicht gespeichert werden.",
+      "accountDeleted": "Buchhaltungskonto gelöscht.",
+      "accountDeleteError": "Buchhaltungskonto konnte nicht gelöscht werden.",
+      "deleteConfirm": "Buchhaltungskonto wirklich löschen?",
+      "defaultsSaved": "Standardkonten für Zahlungsarten gespeichert.",
+      "defaultsSaveError": "Standardkonten konnten nicht gespeichert werden."
     }
   },
   "pickers": {

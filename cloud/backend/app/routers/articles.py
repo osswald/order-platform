@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
 from ..currency import organisation_currency
+from ..accounting_validation import resolve_article_accounting_account_id, validate_article_accounting_account
 from ..models import Article, ArticleCategory, Organisation, User
 from ..tax_code_validation import validate_article_tax_code
 from ..auth_deps import get_current_user
@@ -24,7 +25,7 @@ class ArticleBase(BaseModel):
     import_article_number: str | None = None
     description: str | None = None
     unit: str | None = None
-    income_account: int | None = None
+    accounting_account_id: int | None = None
     tax_code_id: int | None = None
     is_addition: bool = False
     monitor_stock: bool = False
@@ -51,7 +52,7 @@ class ArticleUpdate(BaseModel):
     import_article_number: str | None = None
     description: str | None = None
     unit: str | None = None
-    income_account: int | None = None
+    accounting_account_id: int | None = None
     tax_code_id: int | None = None
     is_addition: bool | None = None
     monitor_stock: bool | None = None
@@ -68,6 +69,8 @@ class ArticleRead(ArticleBase):
     organisation_name: str
     organisation_currency: str
     tax_code_name: str | None = None
+    accounting_account_name: str | None = None
+    accounting_account_number: str | None = None
 
 
 class ArticleMinimalRead(BaseModel):
@@ -107,6 +110,7 @@ def article_response(article: Article) -> ArticleRead:
     category = article.article_category
     organisation = category.organisation if category else None
     tax_code_name = article.tax_code.name if article.tax_code is not None else None
+    accounting_account = article.accounting_account
     return ArticleRead(
         id=article.id,
         name=article.name,
@@ -115,7 +119,7 @@ def article_response(article: Article) -> ArticleRead:
         import_article_number=article.import_article_number,
         description=article.description,
         unit=article.unit,
-        income_account=article.income_account,
+        accounting_account_id=article.accounting_account_id,
         tax_code_id=article.tax_code_id,
         is_addition=bool(article.is_addition),
         monitor_stock=article.monitor_stock,
@@ -126,6 +130,8 @@ def article_response(article: Article) -> ArticleRead:
         organisation_name=organisation.name if organisation else "",
         organisation_currency=organisation_currency(organisation),
         tax_code_name=tax_code_name,
+        accounting_account_name=accounting_account.name if accounting_account else None,
+        accounting_account_number=accounting_account.number if accounting_account else None,
     )
 
 
@@ -135,6 +141,7 @@ def readable_articles_query(db: Session, current_user: User, hire_company_id: in
         .options(
             joinedload(Article.article_category).joinedload(ArticleCategory.organisation),
             joinedload(Article.tax_code),
+            joinedload(Article.accounting_account),
         )
         .join(Article.article_category)
         .join(ArticleCategory.organisation)
@@ -265,6 +272,9 @@ def create_article(
     category = ensure_user_can_use_category(db, current_user, article_in.article_category_id, tenant.hire_company_id)
     organisation = category.organisation
     validate_article_tax_code(db, organisation, article_in.tax_code_id)
+    accounting_account_id = resolve_article_accounting_account_id(
+        db, organisation, category, article_in.accounting_account_id
+    )
     article = Article(
         name=article_in.name,
         label=article_in.label,
@@ -272,7 +282,7 @@ def create_article(
         import_article_number=article_in.import_article_number,
         description=article_in.description,
         unit=article_in.unit,
-        income_account=article_in.income_account,
+        accounting_account_id=accounting_account_id,
         tax_code_id=article_in.tax_code_id if organisation.vat_liable else None,
         is_addition=article_in.is_addition,
         monitor_stock=article_in.monitor_stock,
@@ -312,8 +322,10 @@ def update_article(
     for field in ("import_article_number", "description", "unit"):
         if field in update_fields:
             setattr(article, field, update_fields[field])
-    if "income_account" in update_fields:
-        article.income_account = update_fields["income_account"]
+    if "accounting_account_id" in update_fields:
+        article.accounting_account_id = validate_article_accounting_account(
+            db, organisation, update_fields["accounting_account_id"]
+        )
     if "tax_code_id" in update_fields:
         validate_article_tax_code(db, organisation, update_fields["tax_code_id"])
         article.tax_code_id = update_fields["tax_code_id"] if organisation.vat_liable else None

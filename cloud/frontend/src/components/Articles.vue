@@ -60,15 +60,6 @@
         <div class="form-field">
           <v-text-field v-model="form.unit" :label="$t('common.unit')" :placeholder="$t('articles.unitPlaceholder')" hide-details="auto" />
         </div>
-        <div class="form-field">
-          <v-text-field
-            v-model.number="form.incomeAccount"
-            type="number"
-            :label="$t('articles.incomeAccount')"
-            :placeholder="$t('common.optional')"
-            hide-details="auto"
-          />
-        </div>
       </div>
 
       <div v-if="showTaxCodeField" class="form-field">
@@ -119,6 +110,20 @@
             :rules="[rules.required]"
           />
         </div>
+      </div>
+
+      <div v-if="showAccountingAccountField" class="form-field">
+        <v-select
+          v-model="form.accountingAccountId"
+          :items="accountingAccountOptions"
+          item-title="title"
+          item-value="value"
+          :label="$t('articles.accountingAccount')"
+          :placeholder="$t('common.optional')"
+          :loading="accountingAccountsLoading"
+          hide-details="auto"
+          clearable
+        />
       </div>
 
       <div class="stock-field">
@@ -285,6 +290,7 @@ import { matchesActiveOrganisation } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
+import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import VqDataTable from './VqDataTable.vue'
 
 const { t, locale } = useI18n()
@@ -348,7 +354,7 @@ const emptyForm = () => ({
   importArticleNumber: '',
   description: '',
   unit: '',
-  incomeAccount: null,
+  accountingAccountId: null,
   taxCodeId: null,
   price: 0,
   isAddition: false,
@@ -373,6 +379,7 @@ const activeOrganisation = computed(() => {
 })
 
 const showTaxCodeField = computed(() => Boolean(activeOrganisation.value?.vat_liable))
+const showAccountingAccountField = computed(() => Boolean(activeOrganisation.value?.accounts_enabled))
 
 const activeOrganisationCountryId = computed(() => activeOrganisation.value?.country_id ?? null)
 
@@ -380,6 +387,12 @@ const {
   options: taxCodeOptions,
   loading: taxCodesLoading,
 } = useTaxCodes(activeOrganisationCountryId)
+
+const {
+  options: accountingAccountOptions,
+  loading: accountingAccountsLoading,
+  categoryDefaultAccountId,
+} = useAccountingAccounts(() => props.activeOrganisationId)
 
 const visibleCategories = computed(() =>
   categories.value.filter((category) =>
@@ -441,6 +454,24 @@ const taxCodeRules = computed(() => {
   return [rules.required]
 })
 
+function resolveDefaultAccountingAccountId(categoryId) {
+  if (!showAccountingAccountField.value) return null
+  const category = categories.value.find((row) => Number(row.id) === Number(categoryId))
+  if (category?.accounting_account_id != null) {
+    return category.accounting_account_id
+  }
+  return categoryDefaultAccountId.value
+}
+
+watch(
+  () => form.value.articleCategoryId,
+  (categoryId) => {
+    if (editMode.value || categoryId == null) return
+    if (form.value.accountingAccountId != null) return
+    form.value.accountingAccountId = resolveDefaultAccountingAccountId(categoryId)
+  },
+)
+
 function defaultTaxCodeIdForActiveOrganisation() {
   if (!showTaxCodeField.value) return null
   return activeOrganisation.value?.default_tax_code_id ?? null
@@ -477,7 +508,7 @@ function matchesSearch(article, term) {
     article.label,
     article.description,
     article.unit,
-    article.income_account,
+    article.accounting_account_number,
     article.price,
     article.article_category_name,
     article.organisation_name,
@@ -564,7 +595,7 @@ async function applyArticleToForm(article) {
     importArticleNumber: article.import_article_number || '',
     description: article.description || '',
     unit: article.unit || '',
-    incomeAccount: article.income_account ?? null,
+    accountingAccountId: article.accounting_account_id ?? null,
     taxCodeId: article.tax_code_id ?? null,
     price: article.price ?? 0,
     isAddition: !!article.is_addition,
@@ -705,7 +736,7 @@ async function saveArticle() {
     import_article_number: form.value.importArticleNumber || null,
     description: form.value.description || null,
     unit: form.value.unit || null,
-    income_account: form.value.incomeAccount,
+    accounting_account_id: showAccountingAccountField.value ? form.value.accountingAccountId : null,
     tax_code_id: showTaxCodeField.value ? form.value.taxCodeId : null,
     is_addition: form.value.isAddition,
     monitor_stock: form.value.monitorStock,

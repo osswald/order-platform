@@ -142,6 +142,14 @@
     "invalid_tax_code_for_country": "Steuercode gehört nicht zum Land der Organisation.",
     "default_tax_code_required": "Standard-Steuercode ist erforderlich, wenn Umsatzsteuerpflicht aktiv ist.",
     "article_tax_code_required": "Steuercode ist für diesen Artikel erforderlich.",
-    "article_tax_code_not_allowed": "Steuercode ist für diese Organisation nicht erlaubt."
+    "article_tax_code_not_allowed": "Steuercode ist für diese Organisation nicht erlaubt.",
+    "payment_type_not_found": "Zahlungsart nicht gefunden.",
+    "payment_type_slug_exists": "Zahlungsart-Schlüssel ist bereits vergeben.",
+    "payment_type_in_use": "Zahlungsart wird verwendet und kann nicht gelöscht werden.",
+    "payment_type_default_duplicate": "Jede Zahlungsart darf nur einmal als Standardkonto zugewiesen werden.",
+    "accounting_account_not_found": "Buchhaltungskonto nicht gefunden.",
+    "accounting_account_in_use": "Buchhaltungskonto wird verwendet und kann nicht gelöscht werden.",
+    "accounting_account_number_exists": "Kontonummer ist in dieser Organisation bereits vergeben.",
+    "organisation_required": "Organisation ist erforderlich."
   }
 }

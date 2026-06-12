@@ -64,6 +64,7 @@ class OrganisationUpdate(BaseModel):
     user_ids: List[int] | None = None
     vat_liable: bool | None = None
     default_tax_code_id: int | None = None
+    accounts_enabled: bool | None = None
 
 
 class TaxCodeSummaryRead(BaseModel):
@@ -81,6 +82,7 @@ class OrganisationRead(OrganisationBase):
     vat_liable: bool = False
     default_tax_code_id: int | None = None
     default_tax_code: TaxCodeSummaryRead | None = None
+    accounts_enabled: bool = False
 
 
 class OrgApplianceLendingItem(BaseModel):
@@ -116,6 +118,7 @@ def organisation_response(org: Organisation) -> dict:
         "vat_liable": bool(org.vat_liable),
         "default_tax_code_id": org.default_tax_code_id,
         "default_tax_code": default_tax_code,
+        "accounts_enabled": bool(org.accounts_enabled),
     }
 
 
@@ -316,6 +319,8 @@ def update_organisation(
         vat_liable_set="vat_liable" in update_fields,
         default_tax_code_id_set="default_tax_code_id" in update_fields,
     )
+    if "accounts_enabled" in update_fields:
+        org.accounts_enabled = bool(org_in.accounts_enabled)
     db.commit()
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)

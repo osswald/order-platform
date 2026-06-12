@@ -5,7 +5,8 @@ from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import Article, ArticleCategory, Organisation, User
+from ..accounting_validation import validate_category_accounting_account
+from ..models import AccountingAccount, Article, ArticleCategory, Organisation, User
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
@@ -17,16 +18,19 @@ router = APIRouter()
 class ArticleCategoryBase(BaseModel):
     name: str = Field(..., min_length=1)
     organisation_id: int
+    accounting_account_id: int | None = None
 
 
 class ArticleCategoryCreate(BaseModel):
     name: str = Field(..., min_length=1)
     organisation_id: int | None = None
+    accounting_account_id: int | None = None
 
 
 class ArticleCategoryUpdate(BaseModel):
     name: str | None = Field(None, min_length=1)
     organisation_id: int | None = None
+    accounting_account_id: int | None = None
 
 
 class ArticleCategoryRead(ArticleCategoryBase):
@@ -44,6 +48,7 @@ def category_response(category: ArticleCategory) -> dict:
         "organisation_id": category.organisation_id,
         "organisation_name": category.organisation.name if category.organisation else "",
         "article_count": len(category.articles or []),
+        "accounting_account_id": category.accounting_account_id,
     }
 
 
@@ -100,11 +105,32 @@ def create_article_category(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
+    if category_in.organisation_id is None:
+        raise api_error("organisation_required", status.HTTP_400_BAD_REQUEST)
     organisation = ensure_user_can_use_organisation(
         db, current_user, category_in.organisation_id, tenant.hire_company_id
     )
-    category = ArticleCategory(name=category_in.name, organisation_id=organisation.id)
+    accounting_account_id = validate_category_accounting_account(
+        db, organisation, category_in.accounting_account_id
+    )
+    category = ArticleCategory(
+        name=category_in.name,
+        organisation_id=organisation.id,
+        accounting_account_id=accounting_account_id,
+    )
     db.add(category)
+    db.flush()
+    if category.accounting_account_id is None and organisation.accounts_enabled:
+        default = (
+            db.query(AccountingAccount)
+            .filter(
+                AccountingAccount.organisation_id == organisation.id,
+                AccountingAccount.is_default_for_article_categories.is_(True),
+            )
+            .first()
+        )
+        if default:
+            category.accounting_account_id = default.id
     db.commit()
     db.refresh(category)
     return category_response(category)
@@ -126,6 +152,7 @@ def update_article_category(
     if not category:
         raise api_error("article_category_not_found", status.HTTP_404_NOT_FOUND)
 
+    organisation = category.organisation
     if category_in.organisation_id is not None:
         if db.query(Article).filter(Article.article_category_id == category.id).count():
             raise api_error("cannot_move_category_with_articles", status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -135,6 +162,11 @@ def update_article_category(
         category.organisation_id = organisation.id
     if category_in.name is not None:
         category.name = category_in.name
+    update_fields = category_in.model_dump(exclude_unset=True)
+    if "accounting_account_id" in update_fields:
+        category.accounting_account_id = validate_category_accounting_account(
+            db, organisation, category_in.accounting_account_id
+        )
 
     db.commit()
     db.refresh(category)

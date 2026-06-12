@@ -59,7 +59,7 @@ async function mountOrganisations(path) {
         },
         OrganisationStripeSection: { template: '<div data-testid="stripe-section" />' },
         ReceiptPrintingSection: { template: '<div data-testid="receipt-section" />' },
-        OrganisationVatSection: { template: '<div data-testid="vat-section" />' },
+        OrganisationAccountingSection: { template: '<div data-testid="accounting-section" />' },
         OrganisationLendingDialog: { template: '<div />' },
         VqDataTable: { template: '<div data-testid="vq-data-table" />' },
         'v-icon': true,
@@ -113,19 +113,19 @@ describe('Organisations', () => {
       'Geräte/Ausleihen',
       'Kartenzahlung (Stripe)',
       'Belegvorlagen',
-      'Mehrwert-/Umsatzsteuer',
+      'Buchhaltung',
     ])
   })
 
-  it('shows the VAT section when the MWST tab is active', async () => {
+  it('shows the accounting section when the Buchhaltung tab is active', async () => {
     const wrapper = await mountOrganisations('/organisations/1')
     const layout = wrapper.findComponent(SectionNavLayout)
-    const mwstButton = layout.findAll('.section-nav-item').find((button) =>
-      button.text().includes('Mehrwert-/Umsatzsteuer'),
+    const buchhaltungButton = layout.findAll('.section-nav-item').find((button) =>
+      button.text().includes('Buchhaltung'),
     )
 
-    await mwstButton.trigger('click')
+    await buchhaltungButton.trigger('click')
 
-    expect(wrapper.find('[data-testid="vat-section"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="accounting-section"]').exists()).toBe(true)
   })
 })

@@ -13,6 +13,7 @@ from .database import SessionLocal, apply_schema_patches, run_migrations, engine
 from .models import User
 from .roles import ROLE_PLATFORM_ADMIN
 from .routers import (
+    accounting_accounts,
     article_categories,
     articles,
     auth,
@@ -24,6 +25,7 @@ from .routers import (
     hosted_pi,
     receipt_printing,
     organisations,
+    payment_types,
     stripe_connect,
     stripe_terminal,
     stripe_webhooks,
@@ -155,6 +157,8 @@ app.include_router(hosted_pi.router, prefix="/events", tags=["hosted-pi"])
 app.include_router(waiters.router, prefix="/waiters", tags=["waiters"])
 app.include_router(article_categories.router, prefix="/article-categories", tags=["article-categories"])
 app.include_router(tax_codes.router, prefix="/tax-codes", tags=["tax-codes"])
+app.include_router(payment_types.router, prefix="/payment-types", tags=["payment-types"])
+app.include_router(accounting_accounts.router, prefix="/accounting-accounts", tags=["accounting-accounts"])
 app.include_router(articles.router, prefix="/articles", tags=["articles"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])

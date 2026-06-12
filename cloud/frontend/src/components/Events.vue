@@ -157,7 +157,7 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
-import VqDataTable from './VqDataTable.vue'
+import { usePaymentTypes } from '../composables/usePaymentTypes'
 
 const { t } = useI18n()
 
@@ -192,7 +192,8 @@ const statusFilter = ref('')
 
 const STATUS_VALUES = ['config', 'test', 'prod', 'archive']
 const PAYMENT_MODE_VALUES = ['instant', 'pay_now', 'pay_later']
-const PAYMENT_TYPE_VALUES = ['cash', 'twint', 'sumup', 'stripe_terminal']
+
+const { options: paymentTypeOptionsFromApi } = usePaymentTypes({ activeOnly: true })
 
 const statusOptions = computed(() =>
   STATUS_VALUES.map((value) => ({ value, label: t(`eventStatus.${value}`) })),
@@ -205,7 +206,10 @@ const paymentModeOptions = computed(() =>
   PAYMENT_MODE_VALUES.map((value) => ({ value, label: t(`events.paymentMode.${value}`) })),
 )
 const paymentTypeOptions = computed(() =>
-  PAYMENT_TYPE_VALUES.map((value) => ({ value, label: t(`events.paymentType.${value}`) })),
+  paymentTypeOptionsFromApi.value.map((option) => ({
+    value: option.value,
+    label: option.label,
+  })),
 )
 
 const organisationCurrency = ref('EUR')

@@ -101,7 +101,6 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
             "import_article_number": a.import_article_number,
             "description": a.description,
             "unit": a.unit,
-            "income_account": a.income_account,
             "is_addition": bool(a.is_addition),
             **fields,
         }

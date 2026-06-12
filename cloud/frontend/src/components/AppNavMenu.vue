@@ -126,6 +126,13 @@
           @click="onNavigate"
         />
         <v-list-item
+          v-if="isPlatformAdmin"
+          :to="{ name: 'payment-types' }"
+          prepend-icon="mdi-credit-card-outline"
+          :title="$t('nav.paymentTypes')"
+          @click="onNavigate"
+        />
+        <v-list-item
           v-if="canAccessUsers"
           :to="routeTo('users')"
           prepend-icon="mdi-account"
