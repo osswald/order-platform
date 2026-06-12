@@ -1,10 +1,10 @@
 :root {
-  --vq-breakpoint-md: 768px;
+  --vq-breakpoint-mobile: 992px;
   --vq-mobile-page-padding: 1rem;
   --vq-mobile-control-min-height: 2.75rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .v-card .v-card-text {
     padding: 1rem !important;
   }
@@ -26,12 +26,47 @@
     width: 100%;
   }
 
+  .section-toolbar .v-select,
+  .section-toolbar .v-text-field,
+  .section-toolbar .filter-field {
+    width: 100%;
+  }
+
   .table-header {
     align-items: flex-start !important;
     flex-direction: column !important;
   }
 
+  .list-controls {
+    grid-template-columns: 1fr !important;
+  }
+
+  .list-controls .v-select,
+  .list-controls .v-text-field,
+  .search-field,
+  .filter-field {
+    width: 100%;
+  }
+
   /* Vuetify v-data-table mobile rows (mobile-breakpoint on VqDataTable) */
+  .vq-data-table .v-table__wrapper {
+    overflow-x: visible;
+    width: 100%;
+  }
+
+  .vq-data-table table {
+    min-width: 0 !important;
+    table-layout: auto !important;
+    width: 100% !important;
+  }
+
+  .vq-data-table th,
+  .vq-data-table td {
+    max-width: none !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
   .vq-data-table .v-data-table__tr--mobile {
     border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
     border-radius: 12px;
@@ -39,13 +74,17 @@
     display: block;
     margin-bottom: 0.75rem;
     overflow: hidden;
+    width: 100%;
   }
 
   .vq-data-table .v-data-table__tr--mobile > td {
+    align-items: stretch !important;
     border: none !important;
-    display: block;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
     height: auto !important;
-    min-height: 0;
+    min-height: 0 !important;
     padding: 0.65rem 1rem !important;
     width: 100% !important;
   }
@@ -62,6 +101,21 @@
     margin-bottom: 0.25rem;
     opacity: 0.65;
     text-transform: uppercase;
+  }
+
+  .vq-data-table .v-data-table__td-value {
+    text-align: start !important;
+    width: 100%;
+    word-break: break-word;
+  }
+
+  .vq-data-table .v-data-table__td-sort-select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .vq-data-table .v-data-table-header__content {
+    width: 100%;
   }
 
   .vq-data-table .v-data-table__tr--mobile .v-btn {
