@@ -138,6 +138,10 @@
     "country_name_taken": "Ländername ist bereits vergeben.",
     "tax_code_not_found": "Steuercode nicht gefunden.",
     "tax_code_overlap": "Steuersätze überschneiden sich im Gültigkeitszeitraum.",
-    "tax_code_in_use": "Steuercode wird verwendet und kann nicht gelöscht werden."
+    "tax_code_in_use": "Steuercode wird verwendet und kann nicht gelöscht werden.",
+    "invalid_tax_code_for_country": "Steuercode gehört nicht zum Land der Organisation.",
+    "default_tax_code_required": "Standard-Steuercode ist erforderlich, wenn Umsatzsteuerpflicht aktiv ist.",
+    "article_tax_code_required": "Steuercode ist für diesen Artikel erforderlich.",
+    "article_tax_code_not_allowed": "Steuercode ist für diese Organisation nicht erlaubt."
   }
 }

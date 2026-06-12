@@ -136,7 +136,7 @@ def ensure_can_manage_organisation(user: User, organisation_id: int) -> None:
 def ensure_org_in_tenant(db: Session, organisation_id: int, hire_company_id: int) -> Organisation:
     org = (
         db.query(Organisation)
-        .options(joinedload(Organisation.country))
+        .options(joinedload(Organisation.country), joinedload(Organisation.default_tax_code))
         .filter(Organisation.id == organisation_id)
         .first()
     )
@@ -155,7 +155,7 @@ def readable_organisations(
     if can_manage_tenant(current_user):
         return (
             db.query(Organisation)
-            .options(joinedload(Organisation.country))
+            .options(joinedload(Organisation.country), joinedload(Organisation.default_tax_code))
             .filter(Organisation.hire_company_id == hire_company_id)
             .order_by(Organisation.name)
             .all()
@@ -164,7 +164,7 @@ def readable_organisations(
     if admin_org_ids:
         return (
             db.query(Organisation)
-            .options(joinedload(Organisation.country))
+            .options(joinedload(Organisation.country), joinedload(Organisation.default_tax_code))
             .filter(
                 Organisation.hire_company_id == hire_company_id,
                 Organisation.id.in_(admin_org_ids),

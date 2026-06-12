@@ -231,6 +231,7 @@
     "descriptionPlaceholder": "Optionale Beschreibung",
     "unitPlaceholder": "z. B. Stk., l, kg",
     "incomeAccount": "Erlöskonto",
+    "taxCode": "Steuercode",
     "isAddition": "Ist Zusatz",
     "additionPriceHint": "Preis: 0 = kostenlos, positiv = Aufpreis, negativ = Abzug (vom Artikelpreis).",
     "selectCategory": "Kategorie wählen",
@@ -415,8 +416,15 @@
       "sectionGeraete": "Geräte/Ausleihen",
       "sectionStripe": "Kartenzahlung (Stripe)",
       "sectionBelegvorlagen": "Belegvorlagen",
-      "sectionMwst": "Mehrwert-/Umsatzsteuer",
-      "taxComingSoon": "Inhalt folgt."
+      "sectionMwst": "Mehrwert-/Umsatzsteuer"
+    },
+    "vat": {
+      "vatLiable": "Umsatzsteuer pflichtig",
+      "defaultTaxCode": "Standard-Code",
+      "loading": "Umsatzsteuer-Einstellungen werden geladen…",
+      "loadError": "Umsatzsteuer-Einstellungen konnten nicht geladen werden.",
+      "saved": "Umsatzsteuer-Einstellungen gespeichert.",
+      "saveError": "Umsatzsteuer-Einstellungen konnten nicht gespeichert werden."
     }
   },
   "pickers": {

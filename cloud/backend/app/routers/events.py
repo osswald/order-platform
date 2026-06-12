@@ -492,7 +492,17 @@ def read_event_organisations(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    return [{"id": org.id, "name": org.name, "currency": org.currency} for org in readable_organisations(db, current_user, tenant.hire_company_id)]
+    return [
+        {
+            "id": org.id,
+            "name": org.name,
+            "currency": org.currency,
+            "country_id": org.country_id,
+            "vat_liable": bool(org.vat_liable),
+            "default_tax_code_id": org.default_tax_code_id,
+        }
+        for org in readable_organisations(db, current_user, tenant.hire_company_id)
+    ]
 
 
 @router.get("/{event_id}/configuration", response_model=EventConfigurationRead)

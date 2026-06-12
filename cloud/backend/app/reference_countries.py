@@ -6,7 +6,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from .i18n.errors import api_error
-from .models import Country, HireCompany, Organisation, TaxCode
+from .models import Article, Country, HireCompany, Organisation, TaxCode
 
 SEEDED_COUNTRIES: list[tuple[str, str]] = [
     ("DE", "Deutschland"),
@@ -78,5 +78,12 @@ def assert_country_deletable(db: Session, country_id: int) -> None:
 
 
 def assert_tax_code_deletable(db: Session, tax_code_id: int) -> None:
-    # Extend with additional referrer tables when tax codes are linked elsewhere.
-    _ = db, tax_code_id
+    if (
+        db.query(Organisation.id)
+        .filter(Organisation.default_tax_code_id == tax_code_id)
+        .first()
+        is not None
+    ):
+        raise api_error("tax_code_in_use", status.HTTP_400_BAD_REQUEST)
+    if db.query(Article.id).filter(Article.tax_code_id == tax_code_id).first() is not None:
+        raise api_error("tax_code_in_use", status.HTTP_400_BAD_REQUEST)

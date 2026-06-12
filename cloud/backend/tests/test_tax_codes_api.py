@@ -40,6 +40,22 @@ def _setup_users():
         db.close()
 
 
+def test_list_tax_codes_includes_keine_for_reference_countries():
+    _setup_users()
+    headers = {"Authorization": f"Bearer {_token('taxcodes-member@test.local')}"}
+    listed = client.get("/tax-codes/", headers=headers)
+    assert listed.status_code == 200, listed.text
+    db = SessionLocal()
+    try:
+        de_id = country_id_by_code(db, "DE")
+    finally:
+        db.close()
+    de_codes = [row for row in listed.json() if row["country_id"] == de_id]
+    assert any(row["name"] == "Keine" for row in de_codes)
+    keine = next(row for row in de_codes if row["name"] == "Keine")
+    assert keine["rates"][0]["rate_percent"] == 0.0
+
+
 def test_list_tax_codes_seeded():
     _setup_users()
     headers = {"Authorization": f"Bearer {_token('taxcodes-member@test.local')}"}

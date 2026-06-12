@@ -71,6 +71,20 @@
         </div>
       </div>
 
+      <div v-if="showTaxCodeField" class="form-field">
+        <v-select
+          v-model="form.taxCodeId"
+          :items="taxCodeOptions"
+          item-title="title"
+          item-value="value"
+          :label="$t('articles.taxCode')"
+          :loading="taxCodesLoading"
+          hide-details="auto"
+          required
+          :rules="taxCodeRules"
+        />
+      </div>
+
       <div class="stock-field">
         <v-checkbox v-model="form.isAddition" :label="$t('articles.isAddition')" hide-details density="compact" />
       </div>
@@ -270,6 +284,7 @@ import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
+import { useTaxCodes } from '../composables/useTaxCodes'
 import VqDataTable from './VqDataTable.vue'
 
 const { t, locale } = useI18n()
@@ -334,6 +349,7 @@ const emptyForm = () => ({
   description: '',
   unit: '',
   incomeAccount: null,
+  taxCodeId: null,
   price: 0,
   isAddition: false,
   monitorStock: false,
@@ -348,6 +364,22 @@ const typeFilterOptions = computed(() => [
 ])
 
 const form = ref(emptyForm())
+
+const activeOrganisation = computed(() => {
+  if (props.activeOrganisationId == null) return null
+  return organisationsList.value.find(
+    (org) => Number(org.id) === Number(props.activeOrganisationId),
+  ) ?? null
+})
+
+const showTaxCodeField = computed(() => Boolean(activeOrganisation.value?.vat_liable))
+
+const activeOrganisationCountryId = computed(() => activeOrganisation.value?.country_id ?? null)
+
+const {
+  options: taxCodeOptions,
+  loading: taxCodesLoading,
+} = useTaxCodes(activeOrganisationCountryId)
 
 const visibleCategories = computed(() =>
   categories.value.filter((category) =>
@@ -403,6 +435,16 @@ const priceRules = computed(() => {
   if (!form.value.isAddition) base.push(rules.minNumber(0))
   return base
 })
+
+const taxCodeRules = computed(() => {
+  if (!showTaxCodeField.value) return []
+  return [rules.required]
+})
+
+function defaultTaxCodeIdForActiveOrganisation() {
+  if (!showTaxCodeField.value) return null
+  return activeOrganisation.value?.default_tax_code_id ?? null
+}
 
 function formatPrice(value, currency = 'EUR') {
   return formatPriceWithCurrency(value, currency || 'EUR', locale.value)
@@ -510,6 +552,7 @@ function clearFormState() {
   if (categoryOptions.value.length > 0) {
     form.value.articleCategoryId = categoryOptions.value[0].value
   }
+  form.value.taxCodeId = defaultTaxCodeIdForActiveOrganisation()
   message.value = ''
   syncFormCurrencyFromContext()
 }
@@ -522,6 +565,7 @@ async function applyArticleToForm(article) {
     description: article.description || '',
     unit: article.unit || '',
     incomeAccount: article.income_account ?? null,
+    taxCodeId: article.tax_code_id ?? null,
     price: article.price ?? 0,
     isAddition: !!article.is_addition,
     monitorStock: !!article.monitor_stock,
@@ -662,6 +706,7 @@ async function saveArticle() {
     description: form.value.description || null,
     unit: form.value.unit || null,
     income_account: form.value.incomeAccount,
+    tax_code_id: showTaxCodeField.value ? form.value.taxCodeId : null,
     is_addition: form.value.isAddition,
     monitor_stock: form.value.monitorStock,
     in_stock: form.value.monitorStock ? form.value.inStock : null,

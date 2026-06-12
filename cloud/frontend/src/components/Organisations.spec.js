@@ -59,6 +59,7 @@ async function mountOrganisations(path) {
         },
         OrganisationStripeSection: { template: '<div data-testid="stripe-section" />' },
         ReceiptPrintingSection: { template: '<div data-testid="receipt-section" />' },
+        OrganisationVatSection: { template: '<div data-testid="vat-section" />' },
         OrganisationLendingDialog: { template: '<div />' },
         VqDataTable: { template: '<div data-testid="vq-data-table" />' },
         'v-icon': true,
@@ -116,7 +117,7 @@ describe('Organisations', () => {
     ])
   })
 
-  it('shows the MWST coming-soon placeholder when the MWST tab is active', async () => {
+  it('shows the VAT section when the MWST tab is active', async () => {
     const wrapper = await mountOrganisations('/organisations/1')
     const layout = wrapper.findComponent(SectionNavLayout)
     const mwstButton = layout.findAll('.section-nav-item').find((button) =>
@@ -125,6 +126,6 @@ describe('Organisations', () => {
 
     await mwstButton.trigger('click')
 
-    expect(wrapper.text()).toContain('Inhalt folgt.')
+    expect(wrapper.find('[data-testid="vat-section"]').exists()).toBe(true)
   })
 })

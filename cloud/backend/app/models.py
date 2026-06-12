@@ -77,8 +77,11 @@ class Organisation(Base):
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
     receipt_logo_data = Column(Text, nullable=True)
+    vat_liable = Column(Boolean, nullable=False, default=False)
+    default_tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     hire_company = relationship("HireCompany", back_populates="organisations")
     country = relationship("Country", back_populates="organisations")
+    default_tax_code = relationship("TaxCode", foreign_keys=[default_tax_code_id])
     users = relationship("User", secondary=organisation_users, back_populates="organisations")
     events = relationship("Event", back_populates="organisation", cascade="all, delete-orphan")
     waiters = relationship("Waiter", back_populates="organisation", cascade="all, delete-orphan")
@@ -267,11 +270,13 @@ class Article(Base):
     description = Column(Text, nullable=True)
     unit = Column(String, nullable=True)
     income_account = Column(Integer, nullable=True)
+    tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     is_addition = Column(Boolean, nullable=False, default=False)
     monitor_stock = Column(Boolean, nullable=False, default=False)
     in_stock = Column(Integer, nullable=True)
     article_category_id = Column(Integer, ForeignKey("article_categories.id"), nullable=False)
     article_category = relationship("ArticleCategory", back_populates="articles")
+    tax_code = relationship("TaxCode", foreign_keys=[tax_code_id])
     event_stations = relationship(
         "EventStation",
         secondary=event_station_articles,

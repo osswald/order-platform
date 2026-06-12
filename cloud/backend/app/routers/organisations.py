@@ -10,6 +10,7 @@ from ..appliance_naming import appliance_display_name
 from ..dashboard_summary import build_organisation_dashboard_summary
 from ..models import ApplianceLending, Event, HireCompany, Organisation, User
 from ..reference_countries import country_response, get_country_or_404
+from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import (
@@ -61,6 +62,13 @@ class OrganisationUpdate(BaseModel):
     country_id: int | None = None
     currency: str | None = Field(None, min_length=3, max_length=3)
     user_ids: List[int] | None = None
+    vat_liable: bool | None = None
+    default_tax_code_id: int | None = None
+
+
+class TaxCodeSummaryRead(BaseModel):
+    id: int
+    name: str
 
 
 class OrganisationRead(OrganisationBase):
@@ -70,6 +78,9 @@ class OrganisationRead(OrganisationBase):
     hire_company_id: int
     country: CountryRead
     user_ids: List[int] = []
+    vat_liable: bool = False
+    default_tax_code_id: int | None = None
+    default_tax_code: TaxCodeSummaryRead | None = None
 
 
 class OrgApplianceLendingItem(BaseModel):
@@ -88,6 +99,9 @@ class OrganisationApplianceLendingsRead(BaseModel):
 
 
 def organisation_response(org: Organisation) -> dict:
+    default_tax_code = None
+    if org.default_tax_code_id is not None and org.default_tax_code is not None:
+        default_tax_code = {"id": org.default_tax_code.id, "name": org.default_tax_code.name}
     return {
         "id": org.id,
         "hire_company_id": org.hire_company_id,
@@ -99,6 +113,9 @@ def organisation_response(org: Organisation) -> dict:
         "country": country_response(org.country),
         "currency": org.currency,
         "user_ids": [user.id for user in org.users],
+        "vat_liable": bool(org.vat_liable),
+        "default_tax_code_id": org.default_tax_code_id,
+        "default_tax_code": default_tax_code,
     }
 
 
@@ -277,11 +294,28 @@ def update_organisation(
         org.city = org_in.city
     if org_in.country_id is not None:
         get_country_or_404(db, org_in.country_id)
-        org.country_id = org_in.country_id
+        new_country_id = org_in.country_id
+        if (
+            new_country_id != org.country_id
+            and org.default_tax_code_id is not None
+            and org.vat_liable
+        ):
+            ensure_tax_code_for_country(db, org.default_tax_code_id, new_country_id)
+        org.country_id = new_country_id
     if org_in.currency is not None:
         org.currency = org_in.currency.upper()
     if org_in.user_ids is not None:
         org.users = ensure_users_in_tenant(db, org_in.user_ids, tenant.hire_company_id)
+
+    update_fields = org_in.model_dump(exclude_unset=True)
+    apply_organisation_vat_settings(
+        db,
+        org,
+        vat_liable=org_in.vat_liable,
+        default_tax_code_id=org_in.default_tax_code_id,
+        vat_liable_set="vat_liable" in update_fields,
+        default_tax_code_id_set="default_tax_code_id" in update_fields,
+    )
     db.commit()
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)

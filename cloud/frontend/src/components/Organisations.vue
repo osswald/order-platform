@@ -106,7 +106,10 @@
           </template>
 
           <template #mwst>
-            <p class="muted">{{ $t('organisations.config.taxComingSoon') }}</p>
+            <OrganisationVatSection
+              :organisation-id="activeId"
+              :country-id="form.countryId"
+            />
           </template>
         </SectionNavLayout>
 
@@ -216,6 +219,7 @@ import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import OrganisationStammdatenFields from './OrganisationStammdatenFields.vue'
 import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
+import OrganisationVatSection from './OrganisationVatSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiFetch } from '../api'
 import { useCountries } from '../composables/useCountries'

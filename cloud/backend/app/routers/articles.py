@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
 from ..currency import organisation_currency
 from ..models import Article, ArticleCategory, Organisation, User
+from ..tax_code_validation import validate_article_tax_code
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
@@ -24,6 +25,7 @@ class ArticleBase(BaseModel):
     description: str | None = None
     unit: str | None = None
     income_account: int | None = None
+    tax_code_id: int | None = None
     is_addition: bool = False
     monitor_stock: bool = False
     in_stock: int | None = Field(None, ge=0)
@@ -50,6 +52,7 @@ class ArticleUpdate(BaseModel):
     description: str | None = None
     unit: str | None = None
     income_account: int | None = None
+    tax_code_id: int | None = None
     is_addition: bool | None = None
     monitor_stock: bool | None = None
     in_stock: int | None = Field(None, ge=0)
@@ -64,6 +67,7 @@ class ArticleRead(ArticleBase):
     organisation_id: int
     organisation_name: str
     organisation_currency: str
+    tax_code_name: str | None = None
 
 
 class ArticleMinimalRead(BaseModel):
@@ -102,6 +106,7 @@ def article_minimal_response(article: Article) -> ArticleMinimalRead:
 def article_response(article: Article) -> ArticleRead:
     category = article.article_category
     organisation = category.organisation if category else None
+    tax_code_name = article.tax_code.name if article.tax_code is not None else None
     return ArticleRead(
         id=article.id,
         name=article.name,
@@ -111,6 +116,7 @@ def article_response(article: Article) -> ArticleRead:
         description=article.description,
         unit=article.unit,
         income_account=article.income_account,
+        tax_code_id=article.tax_code_id,
         is_addition=bool(article.is_addition),
         monitor_stock=article.monitor_stock,
         in_stock=article.in_stock,
@@ -119,13 +125,17 @@ def article_response(article: Article) -> ArticleRead:
         organisation_id=organisation.id if organisation else 0,
         organisation_name=organisation.name if organisation else "",
         organisation_currency=organisation_currency(organisation),
+        tax_code_name=tax_code_name,
     )
 
 
 def readable_articles_query(db: Session, current_user: User, hire_company_id: int):
     query = (
         db.query(Article)
-        .options(joinedload(Article.article_category).joinedload(ArticleCategory.organisation))
+        .options(
+            joinedload(Article.article_category).joinedload(ArticleCategory.organisation),
+            joinedload(Article.tax_code),
+        )
         .join(Article.article_category)
         .join(ArticleCategory.organisation)
         .filter(Organisation.hire_company_id == hire_company_id)
@@ -253,6 +263,8 @@ def create_article(
     tenant: TenantContext = Depends(get_current_tenant),
 ):
     category = ensure_user_can_use_category(db, current_user, article_in.article_category_id, tenant.hire_company_id)
+    organisation = category.organisation
+    validate_article_tax_code(db, organisation, article_in.tax_code_id)
     article = Article(
         name=article_in.name,
         label=article_in.label,
@@ -261,6 +273,7 @@ def create_article(
         description=article_in.description,
         unit=article_in.unit,
         income_account=article_in.income_account,
+        tax_code_id=article_in.tax_code_id if organisation.vat_liable else None,
         is_addition=article_in.is_addition,
         monitor_stock=article_in.monitor_stock,
         in_stock=article_in.in_stock,
@@ -284,9 +297,11 @@ def update_article(
     if not article:
         raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
 
+    category = article.article_category
     if article_in.article_category_id is not None:
         category = ensure_user_can_use_category(db, current_user, article_in.article_category_id, tenant.hire_company_id)
         article.article_category_id = category.id
+    organisation = category.organisation
     if article_in.name is not None:
         article.name = article_in.name
     if article_in.label is not None:
@@ -299,6 +314,11 @@ def update_article(
             setattr(article, field, update_fields[field])
     if "income_account" in update_fields:
         article.income_account = update_fields["income_account"]
+    if "tax_code_id" in update_fields:
+        validate_article_tax_code(db, organisation, update_fields["tax_code_id"])
+        article.tax_code_id = update_fields["tax_code_id"] if organisation.vat_liable else None
+    elif not organisation.vat_liable:
+        article.tax_code_id = None
     if article_in.is_addition is not None:
         article.is_addition = article_in.is_addition
     if article_in.monitor_stock is not None:

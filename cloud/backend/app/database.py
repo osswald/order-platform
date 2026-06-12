@@ -238,6 +238,25 @@ def apply_schema_patches() -> None:
     _drop_legacy_country_columns()
     _ensure_tax_codes_table()
     _seed_tax_codes()
+    _ensure_keine_tax_codes()
+    _add_column_if_missing(
+        "organisations",
+        "vat_liable",
+        "ALTER TABLE organisations ADD COLUMN vat_liable BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS vat_liable BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "organisations",
+        "default_tax_code_id",
+        "ALTER TABLE organisations ADD COLUMN default_tax_code_id INTEGER",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS default_tax_code_id INTEGER",
+    )
+    _add_column_if_missing(
+        "articles",
+        "tax_code_id",
+        "ALTER TABLE articles ADD COLUMN tax_code_id INTEGER",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS tax_code_id INTEGER",
+    )
 
 
 def _patch_tenant_admin_role() -> None:
@@ -824,6 +843,13 @@ def _seed_tax_codes() -> None:
         ("BE", "Taux réduit 12%", 12.0, date(2014, 1, 1)),
         ("NL", "Hoog tarief", 21.0, date(2019, 1, 1)),
         ("NL", "Laag tarief", 9.0, date(2019, 1, 1)),
+        ("DE", "Keine", 0.0, date(2007, 1, 1)),
+        ("AT", "Keine", 0.0, date(2007, 1, 1)),
+        ("CH", "Keine", 0.0, date(2007, 1, 1)),
+        ("FR", "Keine", 0.0, date(2007, 1, 1)),
+        ("IT", "Keine", 0.0, date(2007, 1, 1)),
+        ("BE", "Keine", 0.0, date(2007, 1, 1)),
+        ("NL", "Keine", 0.0, date(2007, 1, 1)),
     ]
 
     db = SessionLocal()
@@ -840,6 +866,39 @@ def _seed_tax_codes() -> None:
                 TaxCodeRate(
                     rate_percent=rate_percent,
                     valid_from=valid_from,
+                    valid_to=None,
+                )
+            )
+            db.add(tax_code)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _ensure_keine_tax_codes() -> None:
+    """Backfill 0% 'Keine' tax code for the seven reference countries only."""
+    from datetime import date
+
+    from .models import Country, TaxCode, TaxCodeRate
+    from .reference_countries import SEEDED_COUNTRIES
+
+    db = SessionLocal()
+    try:
+        reference_codes = [code for code, _ in SEEDED_COUNTRIES]
+        countries = db.query(Country).filter(Country.code.in_(reference_codes)).all()
+        for country in countries:
+            exists = (
+                db.query(TaxCode.id)
+                .filter(TaxCode.country_id == country.id, TaxCode.name == "Keine")
+                .first()
+            )
+            if exists is not None:
+                continue
+            tax_code = TaxCode(country_id=country.id, name="Keine")
+            tax_code.rates.append(
+                TaxCodeRate(
+                    rate_percent=0.0,
+                    valid_from=date(2007, 1, 1),
                     valid_to=None,
                 )
             )
