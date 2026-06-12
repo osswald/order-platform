@@ -112,12 +112,14 @@
           @click="onNavigate"
         />
         <v-list-item
+          v-if="isPlatformAdmin"
           :to="{ name: 'countries' }"
           prepend-icon="mdi-earth"
           :title="$t('nav.countries')"
           @click="onNavigate"
         />
         <v-list-item
+          v-if="isPlatformAdmin"
           :to="{ name: 'tax-codes' }"
           prepend-icon="mdi-percent"
           :title="$t('nav.taxCodes')"
