@@ -14,11 +14,11 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.4",
+    "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.8",
     "@vue/test-utils": "^2.4.11",
     "happy-dom": "^20.10.1",
-    "vite": "^6.4.2",
+    "vite": "^8.0.16",
     "vitest": "^4.1.8"
   }
 }
