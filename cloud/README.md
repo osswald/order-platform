@@ -4,6 +4,41 @@ Production stack: **Caddy** (HTTPS) → **nginx** (admin SPA) + **FastAPI/gunico
 
 Local development still uses `docker compose up` with the dev Dockerfiles (Vite dev server + uvicorn).
 
+## Local development
+
+```bash
+cd cloud
+cp .env.example .env
+# Set local dev values (see comments in .env.example), then:
+docker compose up --build
+```
+
+- API: `http://localhost:8000` (health: `/health`)
+- Admin UI: `http://localhost:5173`
+
+Suggested dev settings in `.env`:
+
+| Variable | Local value |
+|----------|-------------|
+| `POSTGRES_USER` | `cloud` |
+| `POSTGRES_PASSWORD` | `devpass123` |
+| `POSTGRES_DB` | `cloud` |
+| `SECRET_KEY` | `devsecretkey123456789` |
+| `ADMIN_EMAIL` | `admin@vendiqo.local` |
+| `ADMIN_PASSWORD` | `admin123` |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` |
+| `REFRESH_COOKIE_SECURE` | `false` |
+| `ENABLE_OPENAPI` | `true` |
+
+Postgres credentials are written into the Docker volume **only on first init**. If you change `POSTGRES_USER` or `POSTGRES_PASSWORD` later, reset the local volume (this deletes local DB data):
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Do **not** run `docker compose down -v` on production.
+
 ## Files
 
 | File | Purpose |
