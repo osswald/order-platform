@@ -158,6 +158,7 @@ import { matchesActiveOrganisation } from '../utils/orgScope'
 import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
+import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
 
