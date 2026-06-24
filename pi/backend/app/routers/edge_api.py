@@ -1016,6 +1016,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     pm = (ev.get("payment_mode") or "pay_later").lower()
     arts = _article_map(ev)
     payments = list(body.payments or [])
+    _validate_payment_types(ev, payments)
     normalized_order_discount = validate_submit_discounts(ev, body.lines, body.order_discount, arts)
     validate_submit_position_notes(bundle, body.lines)
     line_cents, _ = order_lines_total_cents(body.lines, ev, arts, normalized_order_discount)
@@ -1033,8 +1034,6 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             articles=arts,
         )
     expected_cents = max(0, line_cents - voucher_credit)
-    if has_voucher_sale and order_source != "cash_register" and pm not in ("instant",) and not payments:
-        raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
     instant_bill = None
     if order_source == "cash_register":
         if not payments:
@@ -1046,9 +1045,6 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         instant_bill = ensure_instant_collective_bill(db, ev)
         if not instant_bill:
             raise HTTPException(status_code=400, detail="Sammelrechnung für Sofort-Zahlung nicht konfiguriert")
-
-    if payments:
-        _validate_payment_types(ev, payments)
 
     payment_status = "paid" if order_source == "cash_register" else _payment_status_for_create(ev, payments)
     if has_voucher_sale and payment_status != "paid":

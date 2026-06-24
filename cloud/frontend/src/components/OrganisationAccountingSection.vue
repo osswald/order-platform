@@ -331,6 +331,7 @@ async function saveOrganisationSettings() {
     if (accountsEnabled.value) {
       await reloadAccounts()
       await loadPaymentTypeDefaults()
+      await loadTaxCodeDefaults()
     }
   } catch (e) {
     message.value = e.message || t('organisations.accounting.saveError')
@@ -516,10 +517,12 @@ watch(
 watch(accountsEnabled, async (enabled) => {
   if (!enabled) {
     paymentTypeDefaults.value = []
+    taxCodeDefaults.value = []
     return
   }
   await reloadAccounts()
   await loadPaymentTypeDefaults()
+  await loadTaxCodeDefaults()
 })
 
 watch(vatLiable, (enabled) => {

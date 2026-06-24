@@ -114,11 +114,11 @@ def test_planned_lending_overlapping_event_included(printer_scenario_db):
 
 def test_current_lending_overlapping_event_included(printer_scenario_db):
     db, event, printer, _other = printer_scenario_db
-    today = datetime.now(timezone.utc).date()
+    # Already-active lending during the event (extends past event end).
     _add_lending(
         db,
         appliance_id=printer.id,
-        start=datetime(today.year, today.month, today.day, tzinfo=timezone.utc),
+        start=_utc_dt(2026, 6, 10),
         end=_utc_dt(2026, 6, 15),
     )
     assert printer.id in _candidate_ids(db, event)
