@@ -217,11 +217,7 @@ const hasSalesSection = computed(() => {
 })
 
 function routeTo(name: string) {
-  const query: Record<string, string> = {}
-  if (props.activeOrganisationId != null) {
-    query.organisation = String(props.activeOrganisationId)
-  }
-  return { name, query }
+  return { name }
 }
 
 function statusChipColor(status: string) {

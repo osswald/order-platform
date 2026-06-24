@@ -529,16 +529,6 @@ watch([searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId
   }
 })
 
-watch(
-  () => props.activeOrganisationId,
-  () => {
-    if (showDetail.value && isCreateMode.value) {
-      syncFormCurrencyFromContext()
-    }
-    if (showDetail.value) goToList()
-  },
-)
-
 async function fetchArticles() {
   try {
     articles.value = await apiJson<ArticleRead[]>('/articles/')

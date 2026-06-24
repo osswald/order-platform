@@ -194,13 +194,6 @@ const categoriesInActiveOrganisation = computed(() =>
   )
 )
 
-watch(
-  () => props.activeOrganisationId,
-  () => {
-    if (showDetail.value) goToList()
-  },
-)
-
 onMounted(async () => {
   await fetchCategories()
 })

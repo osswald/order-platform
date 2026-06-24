@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { LocationQueryRaw, RouteRecordName, RouteRecordRaw, RouteMeta } from 'vue-router'
+import type { RouteRecordName, RouteRecordRaw, RouteMeta } from 'vue-router'
 import type { Component } from 'vue'
 import '@/router/meta'
 
@@ -8,10 +8,6 @@ function parseRouteId(value: unknown): number | null {
   if (value == null || value === '') return null
   const id = Number(value)
   return Number.isFinite(id) ? id : null
-}
-
-export interface OrganisationQuery extends LocationQueryRaw {
-  organisation?: string
 }
 
 /**
@@ -31,27 +27,18 @@ export function useListDetailRouting(listRouteName: RouteRecordName) {
     editMode.value ? parseRouteId(route.params.id) : null,
   )
 
-  function organisationQuery(): OrganisationQuery {
-    const query: OrganisationQuery = {}
-    if (route.query.organisation != null && route.query.organisation !== '') {
-      query.organisation = String(route.query.organisation)
-    }
-    return query
-  }
-
   function goToList() {
-    return router.push({ name: listRouteName, query: organisationQuery() })
+    return router.push({ name: listRouteName })
   }
 
   function goToCreate() {
-    return router.push({ name: newRouteName, query: organisationQuery() })
+    return router.push({ name: newRouteName })
   }
 
   function goToDetail(id: number | string) {
     return router.push({
       name: detailRouteName,
       params: { id: String(id) },
-      query: organisationQuery(),
     })
   }
 
@@ -60,7 +47,6 @@ export function useListDetailRouting(listRouteName: RouteRecordName) {
     editMode,
     showDetail,
     routeEntityId,
-    organisationQuery,
     goToList,
     goToCreate,
     goToDetail,

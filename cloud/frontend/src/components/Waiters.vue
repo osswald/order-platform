@@ -174,13 +174,6 @@ const waitersInActiveOrganisation = computed(() =>
   ),
 )
 
-watch(
-  () => props.activeOrganisationId,
-  () => {
-    if (showDetail.value) goToList()
-  },
-)
-
 async function fetchWaiters() {
   try {
     waiters.value = await apiJson<WaiterRead[]>('/waiters/')

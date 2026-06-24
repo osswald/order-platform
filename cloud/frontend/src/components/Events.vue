@@ -368,13 +368,6 @@ const { currentPage, pageSize } = useClientPagination(filteredEvents, {
   resetOn: [searchQuery, statusFilter, () => props.activeOrganisationId],
 })
 
-watch(
-  () => props.activeOrganisationId,
-  () => {
-    if (showDetail.value) goToList()
-  },
-)
-
 async function fetchEvents() {
   try {
     events.value = await apiJson<EventRead[]>('/events/')

@@ -20,6 +20,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createStripeAccountLink, refreshStripeConnectStatus } from '../utils/stripeConnect'
 import { getErrorMessage } from '@/types/api'
+import { normalizeOrganisationId } from '@/utils/orgId'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -33,16 +34,12 @@ const title = computed(() =>
 )
 
 function resolveOrganisationId() {
-  const q = route.query.organisation_id
-  if (q != null && String(q).trim() !== '') return Number(q)
-  const stored = localStorage.getItem('active_organisation_id')
-  if (stored) return Number(stored)
-  return null
+  return normalizeOrganisationId(localStorage.getItem('active_organisation_id'))
 }
 
 onMounted(async () => {
   const orgId = resolveOrganisationId()
-  if (!orgId || Number.isNaN(orgId)) {
+  if (orgId == null) {
     busy.value = false
     error.value = t('stripe.noOrganisation')
     return

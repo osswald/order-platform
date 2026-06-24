@@ -2,6 +2,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { apiFetch, apiJson, clearAuthStorage } from '@/api'
 import { normalizeOrganisationId } from '@/utils/orgId'
+import {
+  readLegacyOrganisationQuery,
+  resolveContextReloadPath,
+} from '@/utils/contextReload'
 import { isApiError } from '@/types/api'
 import type { AuthMeResponse, HireCompanyBrief, OrganisationRead } from '@/types/api'
 
@@ -29,7 +33,7 @@ export function useAuthSession() {
   const hireCompanies = ref<HireCompanyBrief[]>([])
   const activeHireCompanyId = ref(parseId(localStorage.getItem('active_hire_company_id')))
   const accessibleOrganisations = ref<OrganisationRead[]>([])
-  const activeOrganisationId = ref(parseId(route.query.organisation))
+  const activeOrganisationId = ref(parseId(localStorage.getItem('active_organisation_id')))
 
   const isAdmin = computed(() => isPlatformAdmin.value)
   const isTenantAdminRole = computed(() => userRole.value === ROLE_TENANT_ADMIN)
@@ -45,6 +49,25 @@ export function useAuthSession() {
   const canAccessUsers = computed(
     () => canAccessTenantAdmin.value || isOrganisationAdminRole.value,
   )
+
+  function reloadAfterContextChange() {
+    const path = resolveContextReloadPath(
+      route.name == null ? null : String(route.name),
+      route.path,
+    )
+    window.location.assign(path)
+  }
+
+  function migrateLegacyOrganisationQuery() {
+    const fromQuery = readLegacyOrganisationQuery(route.query as Record<string, unknown>)
+    if (fromQuery == null) return
+
+    activeOrganisationId.value = fromQuery
+    localStorage.setItem('active_organisation_id', String(fromQuery))
+
+    const { organisation: _organisation, ...rest } = route.query
+    void router.replace({ path: route.path, query: rest })
+  }
 
   function syncActiveHireCompany() {
     if (userRole.value === ROLE_TENANT_ADMIN && userHireCompanyId.value != null) {
@@ -72,32 +95,14 @@ export function useAuthSession() {
   function setActiveHireCompany(id: number | string | null | undefined) {
     if (userRole.value === ROLE_TENANT_ADMIN) return
     const parsed = parseId(id)
+    if (parsed === activeHireCompanyId.value) return
     activeHireCompanyId.value = parsed
     if (parsed != null) {
       localStorage.setItem('active_hire_company_id', String(parsed))
     } else {
       localStorage.removeItem('active_hire_company_id')
     }
-    void fetchAccessibleOrganisations()
-  }
-
-  function updateRouteOrganisation() {
-    if (!isLoggedIn.value || route.name === 'login') return
-
-    const nextOrganisation =
-      activeOrganisationId.value == null ? undefined : String(activeOrganisationId.value)
-    const currentOrganisation = route.query.organisation
-
-    if (currentOrganisation === nextOrganisation) return
-
-    router.replace({
-      name: route.name,
-      params: route.params,
-      query: {
-        ...route.query,
-        organisation: nextOrganisation,
-      },
-    })
+    reloadAfterContextChange()
   }
 
   function applySessionData(data: AuthMeResponse) {
@@ -159,9 +164,8 @@ export function useAuthSession() {
       return
     }
 
-    const fromRoute = parseId(route.query.organisation)
     const fromStorage = parseId(localStorage.getItem('active_organisation_id'))
-    const candidate = fromRoute ?? fromStorage ?? accessibleOrganisations.value[0].id
+    const candidate = fromStorage ?? accessibleOrganisations.value[0].id
     const exists = accessibleOrganisations.value.some(
       (org) => Number(org.id) === Number(candidate),
     )
@@ -185,7 +189,6 @@ export function useAuthSession() {
     try {
       accessibleOrganisations.value = await apiJson<OrganisationRead[]>('/events/organisations')
       syncActiveOrganisation()
-      updateRouteOrganisation()
     } catch {
       accessibleOrganisations.value = []
       syncActiveOrganisation()
@@ -194,13 +197,14 @@ export function useAuthSession() {
 
   function setActiveOrganisation(id: number | string | null | undefined) {
     const parsed = normalizeOrganisationId(id)
+    if (parsed === activeOrganisationId.value) return
     activeOrganisationId.value = parsed
     if (parsed != null) {
       localStorage.setItem('active_organisation_id', String(parsed))
     } else {
       localStorage.removeItem('active_organisation_id')
     }
-    updateRouteOrganisation()
+    reloadAfterContextChange()
   }
 
   function enforceRouteAccess() {
@@ -240,40 +244,15 @@ export function useAuthSession() {
   }
 
   watch(
-    () => route.query.organisation,
-    (organisation) => {
-      if (!isLoggedIn.value) return
-      const id = parseId(organisation)
-      if (id === activeOrganisationId.value) return
-
-      if (id != null && accessibleOrganisations.value.some((org) => Number(org.id) === Number(id))) {
-        activeOrganisationId.value = id
-        localStorage.setItem('active_organisation_id', String(id))
-        return
-      }
-
-      if (accessibleOrganisations.value.length) {
-        syncActiveOrganisation()
-        updateRouteOrganisation()
-      }
-    },
-  )
-
-  watch(
     () => route.name,
     () => {
       enforceRouteAccess()
-      updateRouteOrganisation()
     },
   )
 
-  watch(activeHireCompanyId, () => {
-    if (isLoggedIn.value) {
-      void fetchAccessibleOrganisations()
-    }
-  })
-
   onMounted(async () => {
+    migrateLegacyOrganisationQuery()
+
     if (isLoggedIn.value) {
       const ok = await syncSession()
       if (!ok) {
@@ -294,7 +273,7 @@ export function useAuthSession() {
       userRole.value = localStorage.getItem('user_role') || ROLE_MEMBER
       isTenantAdmin.value = localStorage.getItem('is_tenant_admin') === 'true'
       isOrganisationAdmin.value = localStorage.getItem('is_organisation_admin') === 'true'
-      activeOrganisationId.value = parseId(route.query.organisation)
+      activeOrganisationId.value = parseId(localStorage.getItem('active_organisation_id'))
       activeHireCompanyId.value = parseId(localStorage.getItem('active_hire_company_id'))
     })
   })
@@ -307,10 +286,13 @@ export function useAuthSession() {
   }
 
   async function reloadOrganisationsAndSelect(organisationId: number | null = null) {
-    await fetchAccessibleOrganisations()
     if (organisationId != null) {
-      setActiveOrganisation(organisationId)
+      activeOrganisationId.value = organisationId
+      localStorage.setItem('active_organisation_id', String(organisationId))
+      reloadAfterContextChange()
+      return
     }
+    await fetchAccessibleOrganisations()
   }
 
   async function handleLogout() {
