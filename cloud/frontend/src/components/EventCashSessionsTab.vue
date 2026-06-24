@@ -42,7 +42,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, idx) in item.ledger" :key="`${item.id}-l-${idx}`">
+                <tr v-for="(row, idx) in ledgerRows(item)" :key="`${item.id}-l-${idx}`">
                   <td>{{ row.entry_type }}</td>
                   <td>{{ row.method || row.voucher_name || $t('common.emDash') }}</td>
                   <td class="num">{{ formatMoney(row.amount_cents) }}</td>
@@ -56,18 +56,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 import { formatAmount } from '../utils/money'
+import type { CashSessionRead, EventCashSessionsPageRead } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { CashSessionLedgerRow } from '@/types/ui'
+import type { DataTableHeader, DataTableServerOptions } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({ eventId: { type: Number, required: true } })
+const props = defineProps<{ eventId: number }>()
 
-const headers = computed(() => [
+const headers = computed((): DataTableHeader[] => [
   { title: t('events.tabs.subjectType'), key: 'subject_type', sortable: true },
   { title: t('events.tabs.subjectName'), key: 'subject_name', sortable: true },
   { title: t('events.tabs.operatorWaiter'), key: 'operator_waiter_name', sortable: false },
@@ -83,7 +87,7 @@ const headers = computed(() => [
 const loading = ref(false)
 const loadError = ref('')
 const currency = ref('CHF')
-const items = ref([])
+const items = ref<CashSessionRead[]>([])
 const totalItems = ref(0)
 const page = ref(1)
 const itemsPerPage = ref(25)
@@ -91,11 +95,15 @@ const sortBy = ref('started_at')
 const sortDesc = ref(true)
 let optionsInitialized = false
 
-function formatMoney(cents) {
+function formatMoney(cents: number | null | undefined): string {
   return `${formatAmount(cents)} ${currency.value}`
 }
 
-function buildQuery() {
+function ledgerRows(session: CashSessionRead): CashSessionLedgerRow[] {
+  return (session.ledger || []) as unknown as CashSessionLedgerRow[]
+}
+
+function buildQuery(): string {
   const params = new URLSearchParams()
   params.set('page', String(page.value))
   params.set('items_per_page', String(itemsPerPage.value))
@@ -108,12 +116,14 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const data = await apiJson(`/events/${props.eventId}/cash-sessions?${buildQuery()}`)
+    const data = await apiJson<EventCashSessionsPageRead>(
+      `/events/${props.eventId}/cash-sessions?${buildQuery()}`,
+    )
     currency.value = data.currency || 'CHF'
     items.value = data.items || []
     totalItems.value = data.total ?? 0
-  } catch (e) {
-    loadError.value = e.message || t('events.tabs.loadFailed')
+  } catch (e: unknown) {
+    loadError.value = getErrorMessage(e, t('events.tabs.loadFailed'))
     items.value = []
     totalItems.value = 0
   } finally {
@@ -121,7 +131,7 @@ async function load() {
   }
 }
 
-function onOptionsUpdate(options) {
+function onOptionsUpdate(options: DataTableServerOptions) {
   const nextPage = options.page ?? 1
   const nextPerPage = options.itemsPerPage ?? 25
   const sortEntry = options.sortBy?.[0]

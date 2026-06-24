@@ -83,7 +83,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, toRef, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PaymentReceiptProfileFields from './PaymentReceiptProfileFields.vue'
@@ -107,7 +107,7 @@ const displayHint = computed(() => props.hint)
 
 const autosave = computed(() => props.isEvent)
 
-const fileInput = ref(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const receiptTab = ref('station')
 const apiBasePathRef = toRef(props, 'apiBasePath')
 
@@ -151,10 +151,11 @@ watch(
   { immediate: true },
 )
 
-function onLogoFile(event) {
-  const file = event.target.files?.[0]
+function onLogoFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
   if (file) uploadLogo(file)
-  event.target.value = ''
+  input.value = ''
 }
 </script>
 

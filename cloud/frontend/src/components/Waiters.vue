@@ -85,29 +85,29 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import { apiJson } from '../api'
-import { rules, validateForm } from '../utils/formRules.js'
+import { rules, validateForm, type ValidatableForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
 import HelpLink from './HelpLink.vue'
+import type { WaiterRead } from '@/types/api'
+import type { WaiterForm } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  activeOrganisationId: {
-    type: Number,
-    default: null,
-  },
-})
+const props = defineProps<{
+  activeOrganisationId?: number | null
+}>()
 
 const route = useRoute()
 const {
@@ -120,7 +120,7 @@ const {
   goToDetail,
 } = useListDetailRouting('waiters')
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.name'), key: 'name' },
   { title: t('common.pin'), key: 'pin' },
@@ -128,22 +128,22 @@ const tableHeaders = computed(() => [
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const waiters = ref([])
+const waiters = ref<WaiterRead[]>([])
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
 
-const emptyForm = () => ({
+const emptyForm = (): WaiterForm => ({
   name: '',
   pin: '0000',
 })
 
-const form = ref(emptyForm())
-const formRef = ref(null)
+const form = ref<WaiterForm>(emptyForm())
+const formRef = ref<ValidatableForm | null>(null)
 
 const canCreateWaiters = computed(() => props.activeOrganisationId != null)
 
-function matchesSearch(waiter, term) {
+function matchesSearch(waiter: WaiterRead, term: string): boolean {
   if (!term) return true
   return [
     waiter.id,
@@ -183,14 +183,14 @@ watch(
 
 async function fetchWaiters() {
   try {
-    waiters.value = await apiJson('/waiters/')
+    waiters.value = await apiJson<WaiterRead[]>('/waiters/')
   } catch {
     message.value = t('waiters.loadError')
     messageType.value = 'error'
   }
 }
 
-function applyWaiterToForm(waiter) {
+function applyWaiterToForm(waiter: WaiterRead) {
   form.value = {
     name: waiter.name || '',
     pin: waiter.pin || '0000',
@@ -220,7 +220,7 @@ async function syncRouteToForm() {
   let row = waiters.value.find((w) => Number(w.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/waiters/${id}`)
+      row = await apiJson<WaiterRead>(`/waiters/${id}`)
     } catch {
       message.value = t('waiters.notFound')
       messageType.value = 'error'
@@ -241,7 +241,7 @@ function openCreateForm() {
   goToCreate()
 }
 
-function editWaiter(waiter) {
+function editWaiter(waiter: WaiterRead) {
   applyWaiterToForm(waiter)
   goToDetail(waiter.id)
 }
@@ -253,12 +253,12 @@ async function saveWaiter() {
     return
   }
   if (!(await validateForm(formRef))) return
-  const payload = {
+  const payload: { name: string; pin: string; organisation_id?: number } = {
     name: form.value.name,
     pin: form.value.pin || '0000',
   }
   if (!editMode.value) {
-    payload.organisation_id = props.activeOrganisationId
+    payload.organisation_id = props.activeOrganisationId!
   }
 
   try {
@@ -283,7 +283,7 @@ async function saveWaiter() {
   }
 }
 
-async function deleteWaiter(id) {
+async function deleteWaiter(id: number) {
   if (!confirm(t('waiters.deleteConfirm'))) return
   try {
     await apiJson(`/waiters/${id}`, {

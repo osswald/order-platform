@@ -9,15 +9,18 @@
   </v-chip>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {
   applianceTypeColor,
   applianceTypeIcon,
   applianceTypeLabel,
 } from '../utils/applianceType'
 
-defineProps({
-  type: { type: String, required: true },
-  size: { type: String, default: 'small' },
-})
+withDefaults(
+  defineProps<{
+    type: string
+    size?: string
+  }>(),
+  { size: 'small' },
+)
 </script>

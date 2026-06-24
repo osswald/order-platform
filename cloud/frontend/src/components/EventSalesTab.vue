@@ -79,52 +79,55 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
+import type { EventSalesReportV3Read } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({ eventId: { type: Number, required: true } })
+const props = defineProps<{ eventId: number }>()
 const loading = ref(true)
 const loadError = ref('')
-const report = ref(null)
+const report = ref<EventSalesReportV3Read | null>(null)
 
-const COL_LABEL = { align: 'start', minWidth: '12rem' }
-const COL_MID = { align: 'end', width: '6.5rem' }
-const COL_LINE = { align: 'end', width: '10.5rem' }
-const COL_PAID = { align: 'end', width: '10.5rem' }
-const COL_PAD = { title: '', key: '_pad', align: 'end', width: '10.5rem', sortable: false }
+const COL_LABEL = { align: 'start' as const, minWidth: '12rem' }
+const COL_MID = { align: 'end' as const, width: '6.5rem' }
+const COL_LINE = { align: 'end' as const, width: '10.5rem' }
+const COL_PAID = { align: 'end' as const, width: '10.5rem' }
+const COL_PAD = { title: '', key: '_pad', align: 'end' as const, width: '10.5rem', sortable: false }
 
-const waiterHeaders = computed(() => [
+const waiterHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.waiter'), key: 'name', ...COL_LABEL },
   { title: t('events.tabs.orders'), key: 'order_count', ...COL_MID, sortable: true },
   { title: t('events.tabs.lineValue'), key: 'line_cents', ...COL_LINE },
   { title: t('events.tabs.paid'), key: 'paid_cents', ...COL_PAID },
 ])
-const stationHeaders = computed(() => [
+const stationHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.station'), key: 'name', ...COL_LABEL },
   { title: t('events.tabs.quantity'), key: 'qty', ...COL_MID, sortable: true },
   { title: t('events.tabs.lineValue'), key: 'line_cents', ...COL_LINE },
   { ...COL_PAD },
 ])
-const articleHeaders = computed(() => [
+const articleHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.article'), key: 'name', ...COL_LABEL },
   { title: t('events.tabs.quantity'), key: 'qty', ...COL_MID, sortable: true },
   { title: t('events.tabs.lineValue'), key: 'line_cents', ...COL_LINE },
   { ...COL_PAD },
 ])
-const paymentHeaders = computed(() => [
+const paymentHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.paymentType'), key: 'label', ...COL_LABEL },
   { title: '', key: '_pad_mid', ...COL_MID, sortable: false },
   { title: '', key: '_pad_line', ...COL_LINE, sortable: false },
   { title: t('events.tabs.amount'), key: 'amount_cents', ...COL_PAID },
 ])
 
-function formatMoney(cents) {
+function formatMoney(cents: number | null | undefined): string {
   const currency = report.value?.currency || 'CHF'
   return `${formatAmount(cents)} ${currency}`
 }
@@ -134,9 +137,11 @@ async function loadReport() {
   loading.value = true
   loadError.value = ''
   try {
-    report.value = await apiJson(`/events/${props.eventId}/sales-report-v3`)
-  } catch (e) {
-    loadError.value = e.message || t('events.tabs.loadFailed')
+    report.value = await apiJson<EventSalesReportV3Read>(
+      `/events/${props.eventId}/sales-report-v3`,
+    )
+  } catch (e: unknown) {
+    loadError.value = getErrorMessage(e, t('events.tabs.loadFailed'))
     report.value = null
   } finally {
     loading.value = false

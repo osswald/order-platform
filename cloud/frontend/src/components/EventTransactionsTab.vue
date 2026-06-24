@@ -87,7 +87,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(line, idx) in item.lines" :key="`${item.id}-line-${idx}`">
+                <tr v-for="(line, idx) in transactionLines(item)" :key="`${item.id}-line-${idx}`">
                   <td>
                     <div class="name-cell">
                       <span>{{ line.name }}</span>
@@ -117,7 +117,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(line, idx) in item.moved_lines" :key="`${item.id}-moved-${idx}`">
+                <tr v-for="(line, idx) in movedLines(item)" :key="`${item.id}-moved-${idx}`">
                   <td>
                     <div class="name-cell">
                       <span>{{ line.name }}</span>
@@ -143,18 +143,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { formatAmount } from '../utils/money'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
+import type { EventTransactionsPageRead, TransactionRead } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { SelectOption, TransactionLineLocal } from '@/types/ui'
+import type { DataTableHeader, DataTableServerOptions } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({ eventId: { type: Number, required: true } })
+const props = defineProps<{ eventId: number }>()
 
-const headers = computed(() => [
+const headers = computed((): DataTableHeader[] => [
   { title: t('events.tabs.time'), key: 'created_at', sortable: true },
   { title: t('events.tabs.kind'), key: 'kind', sortable: true },
   { title: t('events.tabs.order'), key: 'client_order_id', sortable: true },
@@ -168,12 +172,12 @@ const headers = computed(() => [
   { title: t('events.tabs.lineItems'), key: 'line_count', sortable: true },
 ])
 
-const paymentStatusOptions = computed(() => [
+const paymentStatusOptions = computed((): SelectOption<string>[] => [
   { value: 'open', label: t('events.tabs.paymentStatusOpen') },
   { value: 'paid', label: t('events.tabs.paymentStatusPaid') },
 ])
 
-const kindOptions = computed(() => [
+const kindOptions = computed((): SelectOption<string>[] => [
   { value: 'bestellung', label: t('events.tabs.kindOrder') },
   { value: 'teilzahlung', label: t('events.tabs.kindPartialPayment') },
   { value: 'zahlung', label: t('events.tabs.kindPayment') },
@@ -182,22 +186,22 @@ const kindOptions = computed(() => [
 const loading = ref(false)
 const loadError = ref('')
 const currency = ref('CHF')
-const items = ref([])
+const items = ref<TransactionRead[]>([])
 const totalItems = ref(0)
 const page = ref(1)
 const itemsPerPage = ref(25)
 const sortBy = ref('created_at')
 const sortDesc = ref(true)
-const filterPaymentStatus = ref(null)
-const filterKind = ref(null)
+const filterPaymentStatus = ref<string | null>(null)
+const filterKind = ref<string | null>(null)
 
 let optionsInitialized = false
 
-function formatMoney(cents) {
+function formatMoney(cents: number | null | undefined): string {
   return `${formatAmount(cents)} ${currency.value}`
 }
 
-function formatTime(iso) {
+function formatTime(iso: string | null | undefined): string {
   if (!iso) return t('common.emDash')
   try {
     return new Date(iso).toLocaleString('de-CH')
@@ -206,14 +210,14 @@ function formatTime(iso) {
   }
 }
 
-function shortId(id) {
+function shortId(id: string | null | undefined): string {
   const s = String(id || '')
   if (s.length > 14) return `${s.slice(0, 10)}…`
   return s || t('common.emDash')
 }
 
-function kindLabel(k) {
-  const map = {
+function kindLabel(k: string): string {
+  const map: Record<string, string> = {
     bestellung: t('events.tabs.kindOrder'),
     teilzahlung: t('events.tabs.kindPartialPayment'),
     zahlung: t('events.tabs.kindPayment'),
@@ -221,20 +225,28 @@ function kindLabel(k) {
   return map[k] || k
 }
 
-function kindChipColor(k) {
+function kindChipColor(k: string): string | undefined {
   if (k === 'zahlung') return 'success'
   if (k === 'teilzahlung') return 'info'
   return 'default'
 }
 
-function paymentStatusLabel(s) {
+function paymentStatusLabel(s: string | null | undefined): string {
   const v = String(s || '').toLowerCase()
   if (v === 'paid') return t('events.tabs.paymentStatusPaid')
   if (v === 'open') return t('events.tabs.paymentStatusOpen')
   return s || t('common.emDash')
 }
 
-function buildQuery() {
+function transactionLines(item: TransactionRead): TransactionLineLocal[] {
+  return (item.lines || []) as unknown as TransactionLineLocal[]
+}
+
+function movedLines(item: TransactionRead): TransactionLineLocal[] {
+  return (item.moved_lines || []) as unknown as TransactionLineLocal[]
+}
+
+function buildQuery(): string {
   const params = new URLSearchParams()
   params.set('page', String(page.value))
   params.set('items_per_page', String(itemsPerPage.value))
@@ -249,12 +261,14 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const data = await apiJson(`/events/${props.eventId}/transactions?${buildQuery()}`)
+    const data = await apiJson<EventTransactionsPageRead>(
+      `/events/${props.eventId}/transactions?${buildQuery()}`,
+    )
     currency.value = data.currency || 'CHF'
     items.value = data.items || []
     totalItems.value = data.total ?? 0
-  } catch (e) {
-    loadError.value = e.message || t('events.tabs.loadFailed')
+  } catch (e: unknown) {
+    loadError.value = getErrorMessage(e, t('events.tabs.loadFailed'))
     items.value = []
     totalItems.value = 0
   } finally {
@@ -262,7 +276,7 @@ async function load() {
   }
 }
 
-function onOptionsUpdate(options) {
+function onOptionsUpdate(options: DataTableServerOptions) {
   const nextPage = options.page ?? 1
   const nextPerPage = options.itemsPerPage ?? 25
   const sortEntry = options.sortBy?.[0]

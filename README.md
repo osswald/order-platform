@@ -4,7 +4,7 @@ Monorepo mit zwei Umgebungen:
 
 - `cloud`:
   - `backend`: FastAPI + PostgreSQL
-  - `frontend`: Vue.js / Vite
+  - `frontend`: Vue.js / Vite / TypeScript
 - `pi`:
   - `backend`: FastAPI + SQLite + ESC/POS Druckerunterstützung
   - `frontend`: Vue.js / Vite PWA

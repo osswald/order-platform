@@ -197,7 +197,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
@@ -210,14 +210,29 @@ import {
 import { usePaymentTypes } from '../composables/usePaymentTypes'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+import type {
+  OrganisationRead,
+  PaymentTypeAccountDefaultRead,
+  TaxCodeAccountDefaultRead,
+  AccountingAccountCreate,
+  AccountingAccountUpdate,
+} from '@/types/api'
+import { isApiError } from '@/types/api'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
-const props = defineProps({
-  organisationId: { type: [Number, String], default: null },
-  countryId: { type: [Number, String], default: null },
-})
+const props = withDefaults(
+  defineProps<{
+    organisationId?: number | string | null
+    countryId?: number | string | null
+  }>(),
+  {
+    organisationId: null,
+    countryId: null,
+  },
+)
 
 const loading = ref(false)
 const loadError = ref('')
@@ -227,11 +242,11 @@ const savingTaxCodeDefaults = ref(false)
 const message = ref('')
 const messageType = ref('')
 const vatLiable = ref(false)
-const defaultTaxCodeId = ref(null)
+const defaultTaxCodeId = ref<number | null>(null)
 const accountsEnabled = ref(false)
 
 const accountDialogVisible = ref(false)
-const accountEditId = ref(null)
+const accountEditId = ref<number | null>(null)
 const accountSaving = ref(false)
 const accountFormRef = ref(null)
 const accountForm = ref({
@@ -240,25 +255,32 @@ const accountForm = ref({
   isDefaultForArticleCategories: false,
 })
 
-const paymentTypeDefaults = ref([])
-const taxCodeDefaults = ref([])
+const paymentTypeDefaults = ref<PaymentTypeAccountDefaultRead[]>([])
+const taxCodeDefaults = ref<TaxCodeAccountDefaultRead[]>([])
+
+const organisationIdRef = computed(() =>
+  props.organisationId != null ? Number(props.organisationId) : null,
+)
+const countryIdRef = computed(() =>
+  props.countryId != null ? Number(props.countryId) : null,
+)
 
 const {
   options: taxCodeOptions,
   loading: taxCodesLoading,
   loadError: taxCodesLoadError,
-} = useTaxCodes(() => props.countryId)
+} = useTaxCodes(countryIdRef)
 
 const {
   accounts,
   options: accountSelectOptions,
   loadError: accountsLoadError,
   load: reloadAccounts,
-} = useAccountingAccounts(() => props.organisationId)
+} = useAccountingAccounts(organisationIdRef)
 
 const { paymentTypeLabel } = usePaymentTypes({ activeOnly: true })
 
-const accountHeaders = computed(() => [
+const accountHeaders = computed((): DataTableHeader[] => [
   { title: t('organisations.accounting.accountNumber'), key: 'number' },
   { title: t('common.name'), key: 'name' },
   { title: t('organisations.accounting.defaultForCategories'), key: 'is_default_for_article_categories', sortable: false },
@@ -271,12 +293,12 @@ async function loadOrganisation() {
   loadError.value = ''
   message.value = ''
   try {
-    const data = await apiJson(`/organisations/${props.organisationId}`)
+    const data = await apiJson<OrganisationRead>(`/organisations/${props.organisationId}`)
     vatLiable.value = Boolean(data.vat_liable)
     defaultTaxCodeId.value = data.default_tax_code_id ?? null
     accountsEnabled.value = Boolean(data.accounts_enabled)
-  } catch (e) {
-    loadError.value = e.message || t('organisations.accounting.loadError')
+  } catch (e: unknown) {
+    loadError.value = isApiError(e) ? e.message || t('organisations.accounting.loadError') : t('organisations.accounting.loadError')
   } finally {
     loading.value = false
   }
@@ -288,7 +310,7 @@ async function loadPaymentTypeDefaults() {
     return
   }
   try {
-    paymentTypeDefaults.value = (await apiJson(
+    paymentTypeDefaults.value = (await apiJson<PaymentTypeAccountDefaultRead[]>(
       `/accounting-accounts/payment-type-defaults?organisation_id=${props.organisationId}`,
     )).map((row) => ({ ...row }))
   } catch {
@@ -306,7 +328,7 @@ async function saveOrganisationSettings() {
       default_tax_code_id: vatLiable.value ? defaultTaxCodeId.value : null,
       accounts_enabled: accountsEnabled.value,
     }
-    const data = await apiJson(`/organisations/${props.organisationId}`, {
+    const data = await apiJson<OrganisationRead>(`/organisations/${props.organisationId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -322,8 +344,8 @@ async function saveOrganisationSettings() {
       await loadPaymentTypeDefaults()
       await loadTaxCodeDefaults()
     }
-  } catch (e) {
-    message.value = e.message || t('organisations.accounting.saveError')
+  } catch (e: unknown) {
+    message.value = isApiError(e) ? e.message || t('organisations.accounting.saveError') : t('organisations.accounting.saveError')
     messageType.value = 'error'
   } finally {
     saving.value = false
@@ -340,7 +362,7 @@ function openCreateAccount() {
   accountDialogVisible.value = true
 }
 
-function editAccount(account) {
+function editAccount(account: { id: number; name?: string | null; number?: string | null; is_default_for_article_categories?: boolean }) {
   accountEditId.value = account.id
   accountForm.value = {
     name: account.name || '',
@@ -354,7 +376,7 @@ async function saveAccount() {
   if (!(await validateForm(accountFormRef))) return
   accountSaving.value = true
   try {
-    const payload = {
+    const payload: AccountingAccountCreate | AccountingAccountUpdate = {
       name: accountForm.value.name,
       number: accountForm.value.number,
       is_default_for_article_categories: accountForm.value.isDefaultForArticleCategories,
@@ -363,39 +385,45 @@ async function saveAccount() {
       ? `/accounting-accounts/${accountEditId.value}`
       : '/accounting-accounts/'
     const method = accountEditId.value ? 'PUT' : 'POST'
-    if (!accountEditId.value) {
-      payload.organisation_id = Number(props.organisationId)
-    }
+    const body: AccountingAccountCreate | AccountingAccountUpdate = !accountEditId.value
+      ? {
+          ...payload,
+          organisation_id: Number(props.organisationId),
+          name: accountForm.value.name,
+          number: accountForm.value.number,
+          is_default_for_article_categories: accountForm.value.isDefaultForArticleCategories,
+        }
+      : payload
     await apiJson(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     })
-    invalidateAccountingAccountsCache(props.organisationId)
+    invalidateAccountingAccountsCache(organisationIdRef.value)
     await reloadAccounts()
     await loadPaymentTypeDefaults()
     accountDialogVisible.value = false
     message.value = t('organisations.accounting.accountSaved')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.accounting.accountSaveError')
+  } catch (e: unknown) {
+    message.value = isApiError(e) ? e.message || t('organisations.accounting.accountSaveError') : t('organisations.accounting.accountSaveError')
     messageType.value = 'error'
   } finally {
     accountSaving.value = false
   }
 }
 
-async function deleteAccount(accountId) {
+async function deleteAccount(accountId: number | string) {
   if (!confirm(t('organisations.accounting.deleteConfirm'))) return
   try {
     await apiJson(`/accounting-accounts/${accountId}`, { method: 'DELETE' })
-    invalidateAccountingAccountsCache(props.organisationId)
+    invalidateAccountingAccountsCache(organisationIdRef.value)
     await reloadAccounts()
     await loadPaymentTypeDefaults()
     message.value = t('organisations.accounting.accountDeleted')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.accounting.accountDeleteError')
+  } catch (e: unknown) {
+    message.value = isApiError(e) ? e.message || t('organisations.accounting.accountDeleteError') : t('organisations.accounting.accountDeleteError')
     messageType.value = 'error'
   }
 }
@@ -406,7 +434,7 @@ async function loadTaxCodeDefaults() {
     return
   }
   try {
-    taxCodeDefaults.value = (await apiJson(
+    taxCodeDefaults.value = (await apiJson<TaxCodeAccountDefaultRead[]>(
       `/accounting-accounts/tax-code-defaults?organisation_id=${props.organisationId}`,
     )).map((row) => ({ ...row }))
   } catch {
@@ -419,7 +447,7 @@ async function saveTaxCodeDefaults() {
   savingTaxCodeDefaults.value = true
   message.value = ''
   try {
-    taxCodeDefaults.value = await apiJson(
+    taxCodeDefaults.value = await apiJson<TaxCodeAccountDefaultRead[]>(
       `/accounting-accounts/tax-code-defaults?organisation_id=${props.organisationId}`,
       {
         method: 'PUT',
@@ -434,8 +462,8 @@ async function saveTaxCodeDefaults() {
     )
     message.value = t('organisations.accounting.defaultsSaved')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.accounting.defaultsSaveError')
+  } catch (e: unknown) {
+    message.value = isApiError(e) ? e.message || t('organisations.accounting.defaultsSaveError') : t('organisations.accounting.defaultsSaveError')
     messageType.value = 'error'
   } finally {
     savingTaxCodeDefaults.value = false
@@ -453,7 +481,7 @@ async function savePaymentTypeDefaults() {
         accounting_account_id: row.accounting_account_id ?? null,
       })),
     }
-    paymentTypeDefaults.value = (await apiJson(
+    paymentTypeDefaults.value = (await apiJson<PaymentTypeAccountDefaultRead[]>(
       `/accounting-accounts/payment-type-defaults?organisation_id=${props.organisationId}`,
       {
         method: 'PUT',
@@ -463,8 +491,8 @@ async function savePaymentTypeDefaults() {
     )).map((row) => ({ ...row }))
     message.value = t('organisations.accounting.defaultsSaved')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.accounting.defaultsSaveError')
+  } catch (e: unknown) {
+    message.value = isApiError(e) ? e.message || t('organisations.accounting.defaultsSaveError') : t('organisations.accounting.defaultsSaveError')
     messageType.value = 'error'
   } finally {
     savingDefaults.value = false

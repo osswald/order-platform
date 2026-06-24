@@ -41,45 +41,37 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import type { SectionNavSection } from '@/types/ui'
 
-const props = defineProps({
-  mobile: {
-    type: Boolean,
-    default: false,
-  },
-  sections: {
-    type: Array,
-    default: () => [],
-  },
-  activeTab: {
-    type: String,
-    default: '',
-  },
-  navAriaLabel: {
-    type: String,
-    required: true,
-  },
-})
+const props = defineProps<{
+  mobile?: boolean
+  sections?: SectionNavSection[]
+  activeTab?: string
+  navAriaLabel: string
+}>()
 
-const emit = defineEmits(['update:activeTab'])
+const emit = defineEmits<{
+  'update:activeTab': [value: string]
+}>()
 
 const activeTabModel = computed({
   get() {
-    if (props.activeTab && props.sections.some((s) => s.id === props.activeTab)) {
+    const sections = props.sections ?? []
+    if (props.activeTab && sections.some((s) => s.id === props.activeTab)) {
       return props.activeTab
     }
-    return props.sections[0]?.id ?? ''
+    return sections[0]?.id ?? ''
   },
-  set(value) {
+  set(value: string) {
     emit('update:activeTab', value)
   },
 })
 
-const mountedSections = ref(new Set())
+const mountedSections = ref(new Set<string>())
 
-function syncDefaultMountedSections(sections) {
+function syncDefaultMountedSections(sections: SectionNavSection[]) {
   const next = new Set(mountedSections.value)
   for (const section of sections) {
     if (section.defaultOpen) next.add(section.id)
@@ -89,16 +81,17 @@ function syncDefaultMountedSections(sections) {
 
 watch(
   () => props.sections,
-  (sections) => syncDefaultMountedSections(sections),
+  (sections) => syncDefaultMountedSections(sections ?? []),
   { immediate: true, deep: true },
 )
 
-function isSectionMounted(id) {
+function isSectionMounted(id: string): boolean {
   return mountedSections.value.has(id)
 }
 
-function onPanelToggle(id, event) {
-  if (!event.target.open) return
+function onPanelToggle(id: string, event: ToggleEvent) {
+  const target = event.target
+  if (!(target instanceof HTMLDetailsElement) || !target.open) return
   const next = new Set(mountedSections.value)
   next.add(id)
   mountedSections.value = next

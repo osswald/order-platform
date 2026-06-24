@@ -27,7 +27,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const model = defineModel({ type: Object, required: true })
 </script>
 

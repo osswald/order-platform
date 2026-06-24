@@ -39,31 +39,33 @@
   </v-dialog>
 </template>
 
-<script setup>
-defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false,
-  },
-  catalogLoading: {
-    type: Boolean,
-    default: false,
-  },
-  catalogError: {
-    type: String,
-    default: '',
-  },
-  waiterOptions: {
-    type: Array,
-    default: () => [],
-  },
-})
+<script setup lang="ts">
+import type { SelectOption } from '@/types/ui'
 
-const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
+withDefaults(
+  defineProps<{
+    modelValue?: boolean
+    catalogLoading?: boolean
+    catalogError?: string
+    waiterOptions?: SelectOption<number>[]
+  }>(),
+  {
+    modelValue: false,
+    catalogLoading: false,
+    catalogError: '',
+    waiterOptions: () => [],
+  },
+)
 
-const pickedWaiterIds = defineModel('pickedWaiterIds', { type: Array, default: () => [] })
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  confirm: [ids: number[]]
+  cancel: []
+}>()
 
-function onVisibleChange(value) {
+const pickedWaiterIds = defineModel<number[]>('pickedWaiterIds', { default: () => [] })
+
+function onVisibleChange(value: boolean) {
   emit('update:modelValue', value)
   if (!value) {
     pickedWaiterIds.value = []

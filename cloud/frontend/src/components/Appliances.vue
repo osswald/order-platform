@@ -301,7 +301,7 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editAppliance(item)"
+        @click:row="onApplianceRowClick"
       >
         <template #item.name="{ item }">{{ applianceDisplayName(item) }}</template>
         <template #item.type="{ item }">
@@ -337,7 +337,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -359,6 +359,14 @@ import { APPLIANCE_TYPES, applianceTypeLabel } from '../utils/applianceType'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
+import type {
+  ApplianceRead,
+  AppliancePairingSessionRead,
+  OrganisationRead,
+} from '@/types/api'
+import { isApiError } from '@/types/api'
+import type { ApplianceFormState, LendFormState } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
@@ -373,7 +381,7 @@ const {
   goToDetail,
 } = useListDetailRouting('appliances')
 
-const appliances = ref([])
+const appliances = ref<ApplianceRead[]>([])
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
@@ -381,7 +389,7 @@ const searchQuery = ref('')
 const typeFilter = ref('')
 const ipFilter = ref('')
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('appliances.table.id'), key: 'id' },
   { title: t('appliances.table.name'), key: 'name', sortable: false },
   { title: t('appliances.table.type'), key: 'type', sortable: false },
@@ -393,7 +401,7 @@ const tableHeaders = computed(() => [
   { title: t('appliances.table.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const edgeCredentialsHeaders = computed(() => [
+const edgeCredentialsHeaders = computed((): DataTableHeader[] => [
   { title: t('appliances.table.sdCard'), key: 'label', sortable: false },
   { title: t('appliances.table.clientId'), key: 'edge_client_id', sortable: false },
   { title: t('appliances.table.status'), key: 'status', sortable: false },
@@ -401,7 +409,7 @@ const edgeCredentialsHeaders = computed(() => [
   { title: t('appliances.table.action'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const lendingHistoryHeaders = computed(() => [
+const lendingHistoryHeaders = computed((): DataTableHeader[] => [
   { title: t('appliances.table.organisation'), key: 'organisation_name' },
   { title: t('appliances.table.from'), key: 'start_date', sortable: false },
   { title: t('appliances.table.to'), key: 'end_date', sortable: false },
@@ -409,22 +417,22 @@ const lendingHistoryHeaders = computed(() => [
   { title: t('appliances.table.action'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const organisations = ref([])
-const applianceDetail = ref(null)
+const organisations = ref<OrganisationRead[]>([])
+const applianceDetail = ref<ApplianceRead | null>(null)
 const lendingMessage = ref('')
 const lendingMessageType = ref('')
-const pairingSession = ref(null)
+const pairingSession = ref<AppliancePairingSessionRead | null>(null)
 const pairingMessage = ref('')
 const pairingMessageType = ref('')
 const pairingLoading = ref(false)
-const cancellingLendingId = ref(null)
-const lendForm = ref({
+const cancellingLendingId = ref<number | null>(null)
+const lendForm = ref<LendFormState>({
   organisationId: null,
   startDate: null,
   endDate: null,
 })
 
-const emptyForm = () => ({
+const emptyForm = (): ApplianceFormState => ({
   type: '',
   name: '',
   ip_address: '',
@@ -468,7 +476,7 @@ const organisationOptions = computed(() =>
 
 const lendingStatusLent = computed(() => applianceDetail.value?.lending_status === 'lent')
 
-const lendEndDateRule = (value) =>
+const lendEndDateRule = (value: Date | null) =>
   isValidLendingRange(lendForm.value.startDate, value) ||
   t('appliances.lending.endDateAfterStart')
 
@@ -481,7 +489,7 @@ const canSubmitLend = computed(() => {
   return isValidLendingRange(lendForm.value.startDate, lendForm.value.endDate)
 })
 
-function matchesSearch(device, term) {
+function matchesSearch(device: ApplianceRead, term: string) {
   if (!term) return true
   return [
     device.id,
@@ -497,25 +505,25 @@ function matchesSearch(device, term) {
     .some((value) => String(value).toLowerCase().includes(term))
 }
 
-function lendingStatusLabel(status) {
+function lendingStatusLabel(status: string) {
   return status === 'lent' ? t('appliances.lending.statusLent') : t('appliances.lending.statusAvailable')
 }
 
-function lendingHistoryStatusLabel(row) {
+function lendingHistoryStatusLabel(row: { returned_at?: string | null; segment?: string }) {
   if (row.returned_at) return t('appliances.lending.historyReturned')
   if (row.segment === 'current') return t('appliances.lending.historyActive')
   if (row.segment === 'future') return t('appliances.lending.historyPlanned')
   return t('appliances.lending.historyExpired')
 }
 
-function formatDeDate(iso) {
+function formatDeDate(iso: string | null | undefined) {
   if (!iso) return t('common.emDash')
   const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
   if (!y || !m || !d) return iso
   return new Date(y, m - 1, d).toLocaleDateString('de-DE')
 }
 
-function formatDeDateTime(iso) {
+function formatDeDateTime(iso: string | null | undefined) {
   if (!iso) return t('common.emDash')
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -540,7 +548,7 @@ const { currentPage, pageSize } = useClientPagination(filteredAppliances, {
 
 async function fetchAppliances() {
   try {
-    appliances.value = await apiJson('/appliances/')
+    appliances.value = await apiJson<ApplianceRead[]>('/appliances/')
   } catch {
     message.value = t('appliances.messages.loadFailed')
     messageType.value = 'error'
@@ -549,16 +557,16 @@ async function fetchAppliances() {
 
 async function fetchOrganisations() {
   try {
-    organisations.value = await apiJson('/organisations/')
+    organisations.value = await apiJson<OrganisationRead[]>('/organisations/')
   } catch {
     organisations.value = []
   }
 }
 
-async function fetchApplianceDetail(id) {
+async function fetchApplianceDetail(id: number | string) {
   lendingMessage.value = ''
   try {
-    applianceDetail.value = await apiJson(`/appliances/${id}`)
+    applianceDetail.value = await apiJson<ApplianceRead>(`/appliances/${id}`)
   } catch {
     applianceDetail.value = null
     lendingMessage.value = t('appliances.lending.detailsLoadFailed')
@@ -585,7 +593,7 @@ function clearDetailState() {
   lendingMessage.value = ''
 }
 
-function applyDeviceToForm(device) {
+function applyDeviceToForm(device: ApplianceRead) {
   pairingSession.value = null
   pairingMessage.value = ''
   form.value = {
@@ -617,7 +625,7 @@ async function syncRouteToForm() {
   let row = appliances.value.find((d) => Number(d.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/appliances/${id}`)
+      row = await apiJson<ApplianceRead>(`/appliances/${id}`)
     } catch {
       message.value = t('appliances.messages.notFound')
       messageType.value = 'error'
@@ -639,14 +647,25 @@ function openCreateForm() {
   goToCreate()
 }
 
-function editAppliance(device) {
+function editAppliance(device: ApplianceRead) {
   applyDeviceToForm(device)
   goToDetail(device.id)
   fetchApplianceDetail(device.id)
 }
 
+function onApplianceRowClick(_event: Event, { item }: { item: ApplianceRead }) {
+  editAppliance(item)
+}
+
 function buildPayload() {
-  const payload = {
+  const payload: {
+    type: string
+    model: string | null
+    comment: string | null
+    name?: string
+    ip_address?: string | null
+    escpos_feed_lines?: number
+  } = {
     type: form.value.type,
     model: form.value.model?.trim() || null,
     comment: form.value.comment?.trim() || null,
@@ -670,7 +689,7 @@ async function saveAppliance() {
     const path = editMode.value ? `/appliances/${activeId.value}` : '/appliances/'
     const method = editMode.value ? 'PUT' : 'POST'
     const wasEdit = editMode.value
-    const body = await apiJson(path, {
+    const body = await apiJson<ApplianceRead>(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -700,7 +719,10 @@ async function createPairingSession() {
   pairingMessage.value = ''
   pairingSession.value = null
   try {
-    pairingSession.value = await apiJson(`/appliances/${activeId.value}/pairing-sessions`, { method: 'POST' })
+    pairingSession.value = await apiJson<AppliancePairingSessionRead>(
+      `/appliances/${activeId.value}/pairing-sessions`,
+      { method: 'POST' },
+    )
     pairingMessage.value = t('appliances.edge.pairingCreated')
     pairingMessageType.value = 'success'
   } catch {
@@ -711,13 +733,14 @@ async function createPairingSession() {
   }
 }
 
-async function revokeEdgeCredential(credentialId) {
+async function revokeEdgeCredential(credentialId: number | string) {
   if (!activeId.value || !credentialId) return
   if (!confirm(t('appliances.edge.confirmRevoke'))) return
   try {
-    applianceDetail.value = await apiJson(`/appliances/${activeId.value}/edge-credentials/${credentialId}/revoke`, {
-      method: 'POST',
-    })
+    applianceDetail.value = await apiJson<ApplianceRead>(
+      `/appliances/${activeId.value}/edge-credentials/${credentialId}/revoke`,
+      { method: 'POST' },
+    )
     await fetchAppliances()
     message.value = t('appliances.edge.revoked')
     messageType.value = 'success'
@@ -727,7 +750,7 @@ async function revokeEdgeCredential(credentialId) {
   }
 }
 
-async function deleteEdgeCredential(credentialId) {
+async function deleteEdgeCredential(credentialId: number | string) {
   if (!activeId.value || !credentialId) return
   if (!confirm(t('appliances.edge.confirmDelete'))) return
   try {
@@ -744,7 +767,7 @@ async function deleteEdgeCredential(credentialId) {
   }
 }
 
-async function deleteAppliance(id) {
+async function deleteAppliance(id: number | string) {
   if (!confirm(t('appliances.messages.confirmDelete'))) {
     return
   }
@@ -768,7 +791,7 @@ async function submitLend() {
   if (!activeId.value || !canSubmitLend.value) return
   lendingMessage.value = ''
   try {
-    applianceDetail.value = await apiJson(`/appliances/${activeId.value}/lendings`, {
+    applianceDetail.value = await apiJson<ApplianceRead>(`/appliances/${activeId.value}/lendings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -781,17 +804,17 @@ async function submitLend() {
     resetLendForm()
     lendingMessage.value = t('appliances.lending.lentCreated')
     lendingMessageType.value = 'success'
-  } catch (e) {
-    lendingMessage.value = e.message || t('appliances.lending.lendFailed')
+  } catch (e: unknown) {
+    lendingMessage.value = isApiError(e) ? e.message || t('appliances.lending.lendFailed') : t('appliances.lending.lendFailed')
     lendingMessageType.value = 'error'
   }
 }
 
-async function returnLending(lendingId) {
+async function returnLending(lendingId: number | string) {
   if (!activeId.value) return
   lendingMessage.value = ''
   try {
-    applianceDetail.value = await apiJson(
+    applianceDetail.value = await apiJson<ApplianceRead>(
       `/appliances/${activeId.value}/lendings/${lendingId}/return`,
       { method: 'POST' },
     )
@@ -804,19 +827,19 @@ async function returnLending(lendingId) {
   }
 }
 
-async function cancelPlannedLendingRow(lendingId) {
+async function cancelPlannedLendingRow(lendingId: number | string) {
   if (!activeId.value) return
   if (!confirm(t('appliances.lending.confirmCancel'))) return
-  cancellingLendingId.value = lendingId
+  cancellingLendingId.value = Number(lendingId)
   lendingMessage.value = ''
   try {
-    await cancelPlannedLendingForAppliance(activeId.value, lendingId)
+    await cancelPlannedLendingForAppliance(activeId.value, Number(lendingId))
     await fetchApplianceDetail(activeId.value)
     await fetchAppliances()
     lendingMessage.value = t('appliances.lending.cancelled')
     lendingMessageType.value = 'success'
-  } catch (e) {
-    lendingMessage.value = e.message || t('appliances.lending.cancelFailed')
+  } catch (e: unknown) {
+    lendingMessage.value = isApiError(e) ? e.message || t('appliances.lending.cancelFailed') : t('appliances.lending.cancelFailed')
     lendingMessageType.value = 'error'
   } finally {
     cancellingLendingId.value = null

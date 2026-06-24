@@ -53,7 +53,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HelpLink from './HelpLink.vue'
@@ -61,15 +61,17 @@ import {
   createStripeAccountLink,
   fetchStripeConnectStatus,
   refreshStripeConnectStatus,
+  type StripeConnectStatusView,
 } from '../utils/stripeConnect'
+import { getErrorMessage } from '@/types/api'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  organisationId: { type: [Number, String], default: null },
-})
+const props = defineProps<{
+  organisationId?: number | string | null
+}>()
 
-const status = ref(null)
+const status = ref<StripeConnectStatusView | null>(null)
 const loading = ref(false)
 const loadError = ref('')
 const busy = ref(false)
@@ -77,7 +79,7 @@ const busyAction = ref('')
 const actionMessage = ref('')
 const actionMessageType = ref('')
 
-function truncateAccount(id) {
+function truncateAccount(id: unknown): string {
   const s = String(id || '')
   if (s.length <= 16) return s
   return `${s.slice(0, 10)}…${s.slice(-4)}`
@@ -94,15 +96,16 @@ async function loadStatus() {
   actionMessage.value = ''
   try {
     status.value = await fetchStripeConnectStatus(id)
-  } catch (e) {
+  } catch (e: unknown) {
     status.value = null
-    loadError.value = e.message || t('stripe.statusLoadFailed')
+    loadError.value = getErrorMessage(e, t('stripe.statusLoadFailed'))
   } finally {
     loading.value = false
   }
 }
 
 async function startOnboarding() {
+  if (props.organisationId == null) return
   busy.value = true
   busyAction.value = 'link'
   actionMessage.value = ''
@@ -114,8 +117,8 @@ async function startOnboarding() {
     }
     actionMessage.value = t('stripe.noOnboardingLink')
     actionMessageType.value = 'error-text'
-  } catch (e) {
-    actionMessage.value = e.message || t('stripe.onboardingFailed')
+  } catch (e: unknown) {
+    actionMessage.value = getErrorMessage(e, t('stripe.onboardingFailed'))
     actionMessageType.value = 'error-text'
   } finally {
     busy.value = false
@@ -124,6 +127,7 @@ async function startOnboarding() {
 }
 
 async function refreshStatus() {
+  if (props.organisationId == null) return
   busy.value = true
   busyAction.value = 'refresh'
   actionMessage.value = ''
@@ -131,8 +135,8 @@ async function refreshStatus() {
     status.value = { configured: true, ...(await refreshStripeConnectStatus(props.organisationId)) }
     actionMessage.value = t('stripe.statusUpdated')
     actionMessageType.value = 'success-text'
-  } catch (e) {
-    actionMessage.value = e.message || t('stripe.refreshFailed')
+  } catch (e: unknown) {
+    actionMessage.value = getErrorMessage(e, t('stripe.refreshFailed'))
     actionMessageType.value = 'error-text'
   } finally {
     busy.value = false

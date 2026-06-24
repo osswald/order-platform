@@ -76,18 +76,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
+import type { CollectiveBillRead, EventCollectiveBillsListRead } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { CollectiveBillLineGroup, CollectiveBillPositionRow } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({ eventId: { type: Number, required: true } })
+const props = defineProps<{ eventId: number }>()
 
-const positionHeaders = computed(() => [
+const positionHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.article'), key: 'name' },
   { title: t('events.tabs.quantity'), key: 'qty', align: 'end' },
   { title: t('events.tabs.amount'), key: 'line_cents', align: 'end' },
@@ -95,13 +99,13 @@ const positionHeaders = computed(() => [
 
 const loading = ref(false)
 const loadError = ref('')
-const data = ref(null)
+const data = ref<EventCollectiveBillsListRead | null>(null)
 
-function formatMoney(cents) {
+function formatMoney(cents: number | null | undefined): string {
   return `${formatAmount(cents)} ${data.value?.currency || 'CHF'}`
 }
 
-function formatTime(iso) {
+function formatTime(iso: string | null | undefined): string {
   if (!iso) return t('common.emDash')
   try {
     return new Date(iso).toLocaleString('de-CH')
@@ -110,22 +114,23 @@ function formatTime(iso) {
   }
 }
 
-function statusLabel(v) {
+function statusLabel(v: string | null | undefined): string {
   const s = String(v || '').toLowerCase()
   if (s === 'closed' || s === 'paid') return t('events.tabs.statusClosed')
   if (s === 'open') return t('events.tabs.statusOpen')
   return v || t('common.emDash')
 }
 
-function statusChipColor(v) {
+function statusChipColor(v: string | null | undefined): string {
   const s = String(v || '').toLowerCase()
   if (s === 'closed' || s === 'paid') return 'success'
   if (s === 'open') return 'warning'
   return 'default'
 }
 
-function positionRows(bill) {
-  return (bill.line_groups || []).map((g, i) => ({
+function positionRows(bill: CollectiveBillRead): CollectiveBillPositionRow[] {
+  const groups = (bill.line_groups || []) as CollectiveBillLineGroup[]
+  return groups.map((g, i) => ({
     rowKey: `${g.article_id}-${i}`,
     name: g.name || t('common.emDash'),
     additions: g.additions || [],
@@ -138,9 +143,11 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    data.value = await apiJson(`/events/${props.eventId}/collective-bills`)
-  } catch (e) {
-    loadError.value = e.message || t('events.tabs.loadFailed')
+    data.value = await apiJson<EventCollectiveBillsListRead>(
+      `/events/${props.eventId}/collective-bills`,
+    )
+  } catch (e: unknown) {
+    loadError.value = getErrorMessage(e, t('events.tabs.loadFailed'))
     data.value = null
   } finally {
     loading.value = false

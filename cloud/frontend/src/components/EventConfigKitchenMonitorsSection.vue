@@ -45,27 +45,31 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import type { EventKitchenMonitorLocal } from '@/types/ui'
+import type { PrinterOptionRead } from '@/types/api'
 
-const props = defineProps({
-  printerOptions: {
-    type: Array,
-    default: () => [],
+const props = withDefaults(
+  defineProps<{
+    printerOptions?: PrinterOptionRead[]
+    kitchenMonitorPrinterOptions?: PrinterOptionRead[]
+  }>(),
+  {
+    printerOptions: () => [],
+    kitchenMonitorPrinterOptions: () => [],
   },
-  kitchenMonitorPrinterOptions: {
-    type: Array,
-    default: () => [],
-  },
-})
+)
 
-const kitchenMonitors = defineModel({ type: Array, required: true })
+const kitchenMonitors = defineModel<EventKitchenMonitorLocal[]>({ required: true })
 
 const { t } = useI18n()
 
-function kitchenMonitorLabel(row) {
+function kitchenMonitorLabel(row: EventKitchenMonitorLocal): string {
   if ((row.label || '').trim()) return row.label.trim()
-  const match = props.printerOptions.find((opt) => Number(opt.id) === Number(row.printer_appliance_id))
+  const match = props.printerOptions.find(
+    (opt) => Number(opt.id) === Number(row.printer_appliance_id),
+  )
   return match?.name || t('events.config.printerFallback', { id: row.printer_appliance_id || '?' })
 }
 
@@ -76,7 +80,7 @@ function addKitchenMonitorPrinter() {
   })
 }
 
-function removeKitchenMonitorPrinter(idx) {
+function removeKitchenMonitorPrinter(idx: number) {
   kitchenMonitors.value.splice(idx, 1)
 }
 </script>

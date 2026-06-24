@@ -84,7 +84,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -92,14 +92,18 @@ import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import VqDataTable from './VqDataTable.vue'
 import { apiJson } from '../api'
-import { rules, validateForm } from '../utils/formRules.js'
+import { rules, validateForm, type ValidatableForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidatePaymentTypesCache, paymentTypeLabel as labelForSlug } from '../composables/usePaymentTypes'
+import type { PaymentTypeRead } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { PaymentTypeForm } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
-const props = defineProps({
-  isAdmin: { type: Boolean, default: false },
-})
+const props = defineProps<{
+  isAdmin?: boolean
+}>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -113,19 +117,19 @@ const {
   goToDetail,
 } = useListDetailRouting('payment-types')
 
-const paymentTypes = ref([])
+const paymentTypes = ref<PaymentTypeRead[]>([])
 const message = ref('')
 const messageType = ref('')
-const formRef = ref(null)
+const formRef = ref<ValidatableForm | null>(null)
 
-const form = ref({
+const form = ref<PaymentTypeForm>({
   slug: '',
   sortOrder: 0,
   isActive: true,
 })
 
-const tableHeaders = computed(() => {
-  const headers = [
+const tableHeaders = computed((): DataTableHeader[] => {
+  const headers: DataTableHeader[] = [
     { title: t('common.id'), key: 'id' },
     { title: t('paymentTypes.slug'), key: 'slug' },
     { title: t('common.label'), key: 'label', sortable: false },
@@ -138,13 +142,13 @@ const tableHeaders = computed(() => {
   return headers
 })
 
-function paymentTypeLabel(slug) {
+function paymentTypeLabel(slug: string): string {
   return labelForSlug(slug, t)
 }
 
 const { currentPage, pageSize } = useClientPagination(paymentTypes)
 
-function applyToForm(row) {
+function applyToForm(row: PaymentTypeRead) {
   form.value = {
     slug: row.slug || '',
     sortOrder: row.sort_order ?? 0,
@@ -160,7 +164,7 @@ function clearFormState() {
 
 async function fetchPaymentTypes() {
   try {
-    paymentTypes.value = await apiJson('/payment-types/')
+    paymentTypes.value = await apiJson<PaymentTypeRead[]>('/payment-types/')
   } catch {
     message.value = t('paymentTypes.loadError')
     messageType.value = 'error'
@@ -184,7 +188,7 @@ async function syncRouteToForm() {
   let row = paymentTypes.value.find((item) => Number(item.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/payment-types/${id}`)
+      row = await apiJson<PaymentTypeRead>(`/payment-types/${id}`)
     } catch {
       message.value = t('paymentTypes.notFound')
       messageType.value = 'error'
@@ -205,7 +209,7 @@ function openCreateForm() {
   goToCreate()
 }
 
-function openDetail(item) {
+function openDetail(item: PaymentTypeRead) {
   applyToForm(item)
   goToDetail(item.id)
 }
@@ -231,13 +235,13 @@ async function savePaymentType() {
     message.value = editMode.value ? t('paymentTypes.updated') : t('paymentTypes.created')
     messageType.value = 'success'
     await goToList()
-  } catch (error) {
-    message.value = error.message || t('paymentTypes.saveError')
+  } catch (error: unknown) {
+    message.value = getErrorMessage(error, t('paymentTypes.saveError'))
     messageType.value = 'error'
   }
 }
 
-async function deletePaymentType(id) {
+async function deletePaymentType(id: number) {
   if (!confirm(t('paymentTypes.deleteConfirm'))) return
   try {
     await apiJson(`/payment-types/${id}`, { method: 'DELETE' })
@@ -248,8 +252,8 @@ async function deletePaymentType(id) {
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
-  } catch (error) {
-    message.value = error.message || t('paymentTypes.deleteError')
+  } catch (error: unknown) {
+    message.value = getErrorMessage(error, t('paymentTypes.deleteError'))
     messageType.value = 'error'
   }
 }

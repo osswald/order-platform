@@ -85,15 +85,18 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
+import type { OrganisationRead, PositionCommentPresetRead } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { DataTableHeader } from '@/types/vuetify'
 import VqDataTable from './VqDataTable.vue'
 
-const props = defineProps({
-  organisationId: { type: Number, default: null },
-})
+const props = defineProps<{
+  organisationId?: number | null
+}>()
 
 const { t } = useI18n()
 
@@ -103,14 +106,14 @@ const saving = ref(false)
 const message = ref('')
 const messageType = ref('success')
 const enabled = ref(false)
-const presets = ref([])
+const presets = ref<PositionCommentPresetRead[]>([])
 
 const dialogOpen = ref(false)
-const editingId = ref(null)
+const editingId = ref<number | null>(null)
 const draftText = ref('')
 const presetSaving = ref(false)
 
-const presetHeaders = computed(() => [
+const presetHeaders = computed((): DataTableHeader[] => [
   { title: t('organisations.positionComments.presetText'), key: 'text' },
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
@@ -122,13 +125,13 @@ async function loadSettings() {
   message.value = ''
   try {
     const [org, presetsData] = await Promise.all([
-      apiJson(`/organisations/${props.organisationId}`),
-      apiJson(`/organisations/${props.organisationId}/position-comments`),
+      apiJson<OrganisationRead>(`/organisations/${props.organisationId}`),
+      apiJson<PositionCommentPresetRead[]>(`/organisations/${props.organisationId}/position-comments`),
     ])
     enabled.value = Boolean(org.position_comments_enabled)
     presets.value = presetsData
-  } catch (e) {
-    loadError.value = e.message || t('organisations.positionComments.loadError')
+  } catch (e: unknown) {
+    loadError.value = getErrorMessage(e, t('organisations.positionComments.loadError'))
   } finally {
     loading.value = false
   }
@@ -139,7 +142,7 @@ async function saveAll() {
   saving.value = true
   message.value = ''
   try {
-    const data = await apiJson(`/organisations/${props.organisationId}`, {
+    const data = await apiJson<OrganisationRead>(`/organisations/${props.organisationId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position_comments_enabled: enabled.value }),
@@ -152,8 +155,8 @@ async function saveAll() {
     }
     message.value = t('organisations.positionComments.saved')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.positionComments.saveError')
+  } catch (e: unknown) {
+    message.value = getErrorMessage(e, t('organisations.positionComments.saveError'))
     messageType.value = 'error'
   } finally {
     saving.value = false
@@ -162,7 +165,9 @@ async function saveAll() {
 
 async function loadPresets() {
   if (!props.organisationId) return
-  presets.value = await apiJson(`/organisations/${props.organisationId}/position-comments`)
+  presets.value = await apiJson<PositionCommentPresetRead[]>(
+    `/organisations/${props.organisationId}/position-comments`,
+  )
 }
 
 function openCreate() {
@@ -171,7 +176,7 @@ function openCreate() {
   dialogOpen.value = true
 }
 
-function openEdit(item) {
+function openEdit(item: PositionCommentPresetRead) {
   editingId.value = item.id
   draftText.value = item.text
   dialogOpen.value = true
@@ -194,15 +199,15 @@ async function savePreset() {
     await loadPresets()
     message.value = t('organisations.positionComments.presetSaved')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.positionComments.presetSaveError')
+  } catch (e: unknown) {
+    message.value = getErrorMessage(e, t('organisations.positionComments.presetSaveError'))
     messageType.value = 'error'
   } finally {
     presetSaving.value = false
   }
 }
 
-async function deletePreset(id) {
+async function deletePreset(id: number) {
   if (!props.organisationId) return
   if (!confirm(t('organisations.positionComments.deleteConfirm'))) return
   try {
@@ -212,8 +217,8 @@ async function deletePreset(id) {
     await loadPresets()
     message.value = t('organisations.positionComments.presetDeleted')
     messageType.value = 'success'
-  } catch (e) {
-    message.value = e.message || t('organisations.positionComments.deleteError')
+  } catch (e: unknown) {
+    message.value = getErrorMessage(e, t('organisations.positionComments.deleteError'))
     messageType.value = 'error'
   }
 }

@@ -91,7 +91,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -105,15 +105,20 @@ import { matchesActiveOrganisation, organisationAccountsEnabled } from '../utils
 import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+import type { ArticleCategoryRead } from '@/types/api'
+import type { AccessibleOrganisation, ArticleCategoryForm, SessionContext } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  activeOrganisationId: {
-    type: Number,
-    default: null,
+const props = withDefaults(
+  defineProps<{
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    activeOrganisationId: null,
   },
-})
+)
 
 const route = useRoute()
 const {
@@ -126,7 +131,7 @@ const {
   goToDetail,
 } = useListDetailRouting('article-categories')
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.name'), key: 'name' },
   { title: t('common.organisation'), key: 'organisation_name' },
@@ -134,9 +139,11 @@ const tableHeaders = computed(() => [
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const categories = ref([])
-const sessionContext = inject(SESSION_CONTEXT_KEY, null)
-const organisationsList = computed(() => sessionContext?.accessibleOrganisations?.value ?? [])
+const categories = ref<ArticleCategoryRead[]>([])
+const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
+const organisationsList = computed(
+  () => (sessionContext?.accessibleOrganisations?.value ?? []) as AccessibleOrganisation[],
+)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -146,7 +153,7 @@ const emptyForm = () => ({
   accountingAccountId: null,
 })
 
-const form = ref(emptyForm())
+const form = ref<ArticleCategoryForm>(emptyForm())
 const formRef = ref(null)
 
 const showAccountingAccountField = computed(() =>
@@ -161,7 +168,7 @@ const {
 
 const canCreateCategories = computed(() => props.activeOrganisationId != null)
 
-function matchesSearch(category, term) {
+function matchesSearch(category: ArticleCategoryRead, term: string) {
   if (!term) return true
   return [category.id, category.name, category.organisation_name]
     .filter((value) => value !== null && value !== undefined)
@@ -200,14 +207,14 @@ onMounted(async () => {
 
 async function fetchCategories() {
   try {
-    categories.value = await apiJson('/article-categories/')
+    categories.value = await apiJson<ArticleCategoryRead[]>('/article-categories/')
   } catch {
     message.value = t('articleCategories.loadError')
     messageType.value = 'error'
   }
 }
 
-function applyCategoryToForm(category) {
+function applyCategoryToForm(category: ArticleCategoryRead) {
   form.value = {
     name: category.name || '',
     accountingAccountId: category.accounting_account_id ?? null,
@@ -240,7 +247,7 @@ async function syncRouteToForm() {
   let row = categories.value.find((c) => Number(c.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/article-categories/${id}`)
+      row = await apiJson<ArticleCategoryRead>(`/article-categories/${id}`)
     } catch {
       message.value = t('articleCategories.notFound')
       messageType.value = 'error'
@@ -261,7 +268,7 @@ function openCreateForm() {
   goToCreate()
 }
 
-function editCategory(category) {
+function editCategory(category: ArticleCategoryRead) {
   applyCategoryToForm(category)
   goToDetail(category.id)
 }
@@ -273,11 +280,15 @@ async function saveCategory() {
     return
   }
   if (!(await validateForm(formRef))) return
-  const payload = {
+  const payload: {
+    name: string
+    accounting_account_id: number | null
+    organisation_id?: number
+  } = {
     name: form.value.name,
     accounting_account_id: showAccountingAccountField.value ? form.value.accountingAccountId : null,
   }
-  if (!editMode.value) {
+  if (!editMode.value && props.activeOrganisationId != null) {
     payload.organisation_id = props.activeOrganisationId
   }
 
@@ -304,7 +315,7 @@ async function saveCategory() {
   }
 }
 
-async function deleteCategory(id) {
+async function deleteCategory(id: number | string) {
   if (!confirm(t('articleCategories.deleteConfirm'))) return
   try {
     await apiJson(`/article-categories/${id}`, {

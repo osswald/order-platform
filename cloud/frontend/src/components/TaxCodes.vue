@@ -142,7 +142,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -150,13 +150,17 @@ import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import VqDataTable from './VqDataTable.vue'
 import { apiJson } from '../api'
-import { rules, validateForm } from '../utils/formRules.js'
+import { rules, validateForm, type ValidatableForm } from '../utils/formRules.js'
 import { useCountries } from '../composables/useCountries'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import type { TaxCodeRead, TaxCodeRateRead } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { TaxCodeForm } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
-const props = defineProps({
-  isAdmin: { type: Boolean, default: false },
-})
+const props = defineProps<{
+  isAdmin?: boolean
+}>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -171,26 +175,26 @@ const {
   goToDetail,
 } = useListDetailRouting('tax-codes')
 
-const taxCodes = ref([])
-const countryFilter = ref(null)
+const taxCodes = ref<TaxCodeRead[]>([])
+const countryFilter = ref<number | null>(null)
 const message = ref('')
 const messageType = ref('')
-const formRef = ref(null)
+const formRef = ref<ValidatableForm | null>(null)
 
 const emptyRate = () => ({
-  ratePercent: null,
+  ratePercent: null as number | null,
   validFrom: '',
   validTo: '',
 })
 
-const form = ref({
+const form = ref<TaxCodeForm>({
   name: '',
   countryId: null,
   rates: [emptyRate()],
 })
 
-const tableHeaders = computed(() => {
-  const headers = [
+const tableHeaders = computed((): DataTableHeader[] => {
+  const headers: DataTableHeader[] = [
     { title: t('common.id'), key: 'id' },
     { title: t('common.country'), key: 'country', sortable: false },
     { title: t('common.name'), key: 'name' },
@@ -212,16 +216,20 @@ const filteredTaxCodes = computed(() => {
   return taxCodes.value.filter((row) => Number(row.country_id) === Number(countryFilter.value))
 })
 
-function formatCurrentRate(item) {
+function formatCurrentRate(item: TaxCodeRead): string {
   const rates = Array.isArray(item.rates) ? item.rates : []
   if (!rates.length) return t('common.emDash')
-  const open = rates.filter((rate) => !rate.valid_to)
-  const chosen = (open.length ? open : rates).slice().sort((a, b) => String(b.valid_from).localeCompare(String(a.valid_from)))[0]
+  const open = rates.filter((rate: TaxCodeRateRead) => !rate.valid_to)
+  const chosen = (open.length ? open : rates)
+    .slice()
+    .sort((a: TaxCodeRateRead, b: TaxCodeRateRead) =>
+      String(b.valid_from).localeCompare(String(a.valid_from)),
+    )[0]
   if (!chosen) return t('common.emDash')
   return `${chosen.rate_percent}%`
 }
 
-function mapRatesToForm(rates) {
+function mapRatesToForm(rates: TaxCodeRateRead[] | null | undefined) {
   if (!Array.isArray(rates) || !rates.length) return [emptyRate()]
   return rates.map((rate) => ({
     ratePercent: rate.rate_percent,
@@ -230,7 +238,7 @@ function mapRatesToForm(rates) {
   }))
 }
 
-function mapRatesToPayload(rates) {
+function mapRatesToPayload(rates: TaxCodeForm['rates']) {
   return rates.map((rate) => ({
     rate_percent: Number(rate.ratePercent),
     valid_from: rate.validFrom,
@@ -238,7 +246,7 @@ function mapRatesToPayload(rates) {
   }))
 }
 
-function applyTaxCodeToForm(row) {
+function applyTaxCodeToForm(row: TaxCodeRead) {
   form.value = {
     name: row.name || '',
     countryId: row.country_id ?? row.country?.id ?? null,
@@ -260,13 +268,13 @@ function addRateRow() {
   form.value.rates.push(emptyRate())
 }
 
-function removeRateRow(index) {
+function removeRateRow(index: number) {
   form.value.rates.splice(index, 1)
 }
 
 async function fetchTaxCodes() {
   try {
-    taxCodes.value = await apiJson('/tax-codes/')
+    taxCodes.value = await apiJson<TaxCodeRead[]>('/tax-codes/')
   } catch {
     message.value = t('taxCodes.loadError')
     messageType.value = 'error'
@@ -290,7 +298,7 @@ async function syncRouteToForm() {
   let row = taxCodes.value.find((taxCode) => Number(taxCode.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/tax-codes/${id}`)
+      row = await apiJson<TaxCodeRead>(`/tax-codes/${id}`)
     } catch {
       message.value = t('taxCodes.notFound')
       messageType.value = 'error'
@@ -312,7 +320,7 @@ function openCreateForm() {
   goToCreate()
 }
 
-function openDetail(row) {
+function openDetail(row: TaxCodeRead) {
   applyTaxCodeToForm(row)
   goToDetail(row.id)
 }
@@ -340,13 +348,13 @@ async function saveTaxCode() {
     message.value = editMode.value ? t('taxCodes.updated') : t('taxCodes.created')
     messageType.value = 'success'
     await goToList()
-  } catch (error) {
-    message.value = error.message || t('taxCodes.saveError')
+  } catch (error: unknown) {
+    message.value = getErrorMessage(error, t('taxCodes.saveError'))
     messageType.value = 'error'
   }
 }
 
-async function deleteTaxCodeRow(id) {
+async function deleteTaxCodeRow(id: number) {
   if (!props.isAdmin) return
   if (!confirm(t('taxCodes.deleteConfirm'))) return
   try {
@@ -357,8 +365,8 @@ async function deleteTaxCodeRow(id) {
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
-  } catch (error) {
-    message.value = error.message || t('taxCodes.deleteError')
+  } catch (error: unknown) {
+    message.value = getErrorMessage(error, t('taxCodes.deleteError'))
     messageType.value = 'error'
   }
 }

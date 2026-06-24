@@ -62,10 +62,10 @@
         hide-default-footer
         :no-data-text="$t('countries.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => openDetail(item)"
+        @click:row="onCountryRowClick"
       >
         <template v-if="isAdmin" #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteCountryRow(item.id)">
+          <v-btn color="error" variant="text" @click.stop="deleteCountryRowFromTable(item)">
             {{ $t('common.delete') }}
           </v-btn>
         </template>
@@ -74,7 +74,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -85,10 +85,14 @@ import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useCountries } from '../composables/useCountries'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
+import type { CountryRead, CountryCreate } from '@/types/api'
+import { isApiError } from '@/types/api'
+import type { DataTableHeader } from '@/types/vuetify'
+import type { ValidatableForm } from '../utils/formRules.js'
 
-const props = defineProps({
-  isAdmin: { type: Boolean, default: false },
-})
+const props = defineProps<{
+  isAdmin?: boolean
+}>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -103,8 +107,8 @@ const {
   goToDetail,
 } = useListDetailRouting('countries')
 
-const tableHeaders = computed(() => {
-  const headers = [
+const tableHeaders = computed((): DataTableHeader[] => {
+  const headers: DataTableHeader[] = [
     { title: t('common.id'), key: 'id' },
     { title: t('countries.code'), key: 'code' },
     { title: t('common.name'), key: 'name' },
@@ -117,12 +121,12 @@ const tableHeaders = computed(() => {
 
 const message = ref('')
 const messageType = ref('')
-const formRef = ref(null)
+const formRef = ref<ValidatableForm | null>(null)
 const form = ref({ code: '', name: '' })
 
 const emptyForm = () => ({ code: '', name: '' })
 
-function applyCountryToForm(row) {
+function applyCountryToForm(row: CountryRead) {
   form.value = {
     code: row.code || '',
     name: row.name || '',
@@ -161,7 +165,7 @@ async function syncRouteToForm() {
   let row = countries.value.find((country) => Number(country.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/countries/${id}`)
+      row = await apiJson<CountryRead>(`/countries/${id}`)
     } catch {
       message.value = t('countries.notFound')
       messageType.value = 'error'
@@ -183,15 +187,23 @@ function openCreateForm() {
   goToCreate()
 }
 
-function openDetail(row) {
+function openDetail(row: CountryRead) {
   applyCountryToForm(row)
   goToDetail(row.id)
+}
+
+function onCountryRowClick(_event: Event, { item }: { item: CountryRead }) {
+  openDetail(item)
+}
+
+function deleteCountryRowFromTable(item: CountryRead) {
+  return deleteCountryRow(item.id)
 }
 
 async function saveCountry() {
   if (!props.isAdmin) return
   if (!(await validateForm(formRef))) return
-  const payload = {
+  const payload: CountryCreate = {
     code: form.value.code.trim().toUpperCase(),
     name: form.value.name.trim(),
   }
@@ -208,13 +220,13 @@ async function saveCountry() {
     message.value = editMode.value ? t('countries.updated') : t('countries.created')
     messageType.value = 'success'
     await goToList()
-  } catch (error) {
-    message.value = error.message || t('countries.saveError')
+  } catch (error: unknown) {
+    message.value = isApiError(error) ? error.message || t('countries.saveError') : t('countries.saveError')
     messageType.value = 'error'
   }
 }
 
-async function deleteCountryRow(id) {
+async function deleteCountryRow(id: number | string) {
   if (!props.isAdmin) return
   if (!confirm(t('countries.deleteConfirm'))) return
   try {
@@ -226,8 +238,8 @@ async function deleteCountryRow(id) {
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
-  } catch (error) {
-    message.value = error.message || t('countries.deleteError')
+  } catch (error: unknown) {
+    message.value = isApiError(error) ? error.message || t('countries.deleteError') : t('countries.deleteError')
     messageType.value = 'error'
   }
 }

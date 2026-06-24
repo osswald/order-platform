@@ -60,7 +60,7 @@
   </v-card>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHostedPi } from '../composables/useHostedPi'
@@ -77,7 +77,7 @@ const { instance, loading, starting, error, load, start, stop } = useHostedPi(
 
 const activeStatuses = new Set(['provisioning', 'running', 'stopping'])
 
-const isActive = computed(() => activeStatuses.has(instance.value?.status))
+const isActive = computed(() => activeStatuses.has(instance.value?.status ?? ''))
 
 const showStartingMessage = computed(
   () => starting.value || instance.value?.status === 'provisioning',
@@ -102,7 +102,7 @@ const expiresLabel = computed(() => {
   return t('hostedPi.expires.remainingMinutes', { minutes })
 })
 
-let pollTimer = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function startPolling() {
   stopPolling()

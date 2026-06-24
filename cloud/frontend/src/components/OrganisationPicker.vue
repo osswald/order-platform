@@ -44,32 +44,39 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 
+import type { OrganisationRead } from '@/types/api'
+import type { OrganisationPickerEntry } from '@/types/ui'
+
 const { t } = useI18n()
 
-const props = defineProps({
-  modelValue: {
-    type: Array,
-    default: () => [],
+const props = withDefaults(
+  defineProps<{
+    modelValue?: number[]
+  }>(),
+  {
+    modelValue: () => [],
   },
-})
-const emit = defineEmits(['update:modelValue'])
+)
+const emit = defineEmits<{
+  'update:modelValue': [ids: number[]]
+}>()
 
-const rootEl = ref(null)
-const inputRef = ref(null)
+const rootEl = ref<HTMLElement | null>(null)
+const inputRef = ref<HTMLInputElement | null>(null)
 const term = ref('')
 const loading = ref(false)
 const dropdownOpen = ref(false)
-const directory = ref([])
-const selectedOrgs = ref([])
+const directory = ref<OrganisationRead[]>([])
+const selectedOrgs = ref<OrganisationPickerEntry[]>([])
 
-let inFlightFetch = null
+let inFlightFetch: Promise<void> | null = null
 
-function displayOrg(o) {
+function displayOrg(o: OrganisationPickerEntry) {
   const name = o.name || t('pickers.orgFallback', { id: o.id })
   if (o.country?.name) {
     return `${name} (${o.country.name})`
@@ -101,7 +108,7 @@ async function fetchDirectory() {
   loading.value = true
   inFlightFetch = (async () => {
     try {
-      directory.value = await apiJson('/organisations/')
+      directory.value = await apiJson<OrganisationRead[]>('/organisations/')
     } catch {
       directory.value = []
     } finally {
@@ -153,7 +160,7 @@ function closeDropdown() {
   dropdownOpen.value = false
 }
 
-function add(o) {
+function add(o: OrganisationRead) {
   const prev = (props.modelValue || []).map((x) => Number(x))
   const id = Number(o.id)
   if (prev.includes(id)) return
@@ -164,16 +171,16 @@ function add(o) {
   inputRef.value?.focus()
 }
 
-function remove(id) {
+function remove(id: number | string) {
   const n = Number(id)
   const ids = (props.modelValue || []).filter((x) => Number(x) !== n)
   emit('update:modelValue', ids)
 }
 
-function onDocPointerDown(e) {
+function onDocPointerDown(e: PointerEvent) {
   if (!dropdownOpen.value) return
   const el = rootEl.value
-  if (el && !el.contains(e.target)) {
+  if (el && e.target instanceof Node && !el.contains(e.target)) {
     closeDropdown()
   }
 }

@@ -42,7 +42,7 @@
   </template>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HelpMarkdown from './HelpMarkdown.vue'
@@ -51,25 +51,19 @@ import { i18n } from '../i18n'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  slug: {
-    type: String,
-    required: true,
+const props = withDefaults(
+  defineProps<{
+    slug: string
+    label?: string
+    variant?: 'link' | 'icon' | 'dialog'
+    size?: string
+  }>(),
+  {
+    label: () => i18n.global.t('help.title'),
+    variant: 'icon',
+    size: 'small',
   },
-  label: {
-    type: String,
-    default: () => i18n.global.t('help.title'),
-  },
-  variant: {
-    type: String,
-    default: 'icon',
-    validator: (value) => ['link', 'icon', 'dialog'].includes(value),
-  },
-  size: {
-    type: String,
-    default: 'small',
-  },
-})
+)
 
 const dialogOpen = ref(false)
 

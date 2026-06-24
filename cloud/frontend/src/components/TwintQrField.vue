@@ -41,7 +41,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -58,12 +58,13 @@ defineProps({
 
 const emit = defineEmits(['upload', 'remove'])
 
-const fileInput = ref(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
-function onFileChange(event) {
-  const file = event.target.files?.[0]
+function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
   if (file) emit('upload', file)
-  event.target.value = ''
+  input.value = ''
 }
 </script>
 

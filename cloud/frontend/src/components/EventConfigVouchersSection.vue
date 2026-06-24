@@ -72,33 +72,32 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
+import type { ArticleSelectOption, EventVoucherDefinitionLocal, SelectOption } from '@/types/ui'
 
-defineProps({
-  articleOptions: {
-    type: Array,
-    default: () => [],
+withDefaults(
+  defineProps<{
+    articleOptions?: ArticleSelectOption[]
+    catalogLoading?: boolean
+    currencyLabel?: string
+    voucherKindOptions?: SelectOption<string>[]
+  }>(),
+  {
+    articleOptions: () => [],
+    catalogLoading: false,
+    currencyLabel: 'EUR',
+    voucherKindOptions: () => [],
   },
-  catalogLoading: {
-    type: Boolean,
-    default: false,
-  },
-  currencyLabel: {
-    type: String,
-    default: 'EUR',
-  },
-  voucherKindOptions: {
-    type: Array,
-    default: () => [],
-  },
-})
+)
 
-const emit = defineEmits(['voucher-removed'])
-const vouchers = defineModel({ type: Array, required: true })
+const emit = defineEmits<{
+  'voucher-removed': [uuid: string]
+}>()
+const vouchers = defineModel<EventVoucherDefinitionLocal[]>({ required: true })
 
-function newUuid() {
+function newUuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -114,7 +113,7 @@ function addVoucher() {
   })
 }
 
-function removeVoucher(idx) {
+function removeVoucher(idx: number) {
   const removed = vouchers.value[idx]
   vouchers.value.splice(idx, 1)
   if (removed?.uuid) {

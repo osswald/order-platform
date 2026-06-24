@@ -11,6 +11,7 @@ ENV VITE_BUILD_TIME=$VITE_BUILD_TIME
 COPY pi/frontend/package.json pi/frontend/package-lock.json* ./
 RUN npm ci
 COPY pi/frontend/ .
+COPY packages/frontend-shared /app/packages/frontend-shared
 COPY scripts /app/scripts
 COPY VERSION /app/VERSION
 RUN npm run build

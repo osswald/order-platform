@@ -116,7 +116,7 @@
   </v-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
@@ -136,38 +136,42 @@ import {
   toIsoDate,
   toLocalCalendarDate,
 } from '../utils/applianceLending'
+import type { ApplianceRead } from '@/types/api'
+import { isApiError } from '@/types/api'
+import type { LendingSubmitFailure } from '@/types/ui'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  visible: {
-    type: Boolean,
-    default: false,
+const props = withDefaults(
+  defineProps<{
+    visible?: boolean
+    organisationId?: number | null
+    organisationName?: string
+  }>(),
+  {
+    visible: false,
+    organisationId: null,
+    organisationName: '',
   },
-  organisationId: {
-    type: Number,
-    default: null,
-  },
-  organisationName: {
-    type: String,
-    default: '',
-  },
-})
+)
 
-const emit = defineEmits(['update:visible', 'completed'])
+const emit = defineEmits<{
+  'update:visible': [value: boolean]
+  completed: []
+}>()
 
 const formRef = ref(null)
-const startDate = ref(null)
-const endDate = ref(null)
+const startDate = ref<Date | null>(null)
+const endDate = ref<Date | null>(null)
 const startDateMenuOpen = ref(false)
 const endDateMenuOpen = ref(false)
-const selectedIds = ref([])
-const appliances = ref([])
+const selectedIds = ref<number[]>([])
+const appliances = ref<ApplianceRead[]>([])
 const loadingAppliances = ref(false)
 const submitting = ref(false)
 const submitMessage = ref('')
 const submitMessageType = ref('')
-const submitFailures = ref([])
+const submitFailures = ref<LendingSubmitFailure[]>([])
 
 const startDateDisplay = computed(() =>
   startDate.value ? formatDeDate(startDate.value) : '',
@@ -185,7 +189,7 @@ const canPickAppliances = computed(() => isValidLendingRange(startDate.value, en
 const rangeHint = computed(() => lendingRangeHint(startDate.value, endDate.value))
 
 const applianceById = computed(() => {
-  const map = new Map()
+  const map = new Map<number, ApplianceRead>()
   for (const a of appliances.value) {
     map.set(a.id, a)
   }
@@ -212,7 +216,7 @@ const applianceOptionGroups = computed(() => {
     .map(([type, items]) => ({
       type,
       label: applianceTypeLabel(type),
-      items: items.sort((x, y) => x.label.localeCompare(y.label, locale)),
+      items: items.sort((x: { label: string }, y: { label: string }) => x.label.localeCompare(y.label, locale)),
     }))
 })
 
@@ -234,21 +238,21 @@ const noAppliancesAvailable = computed(
   () => canPickAppliances.value && !loadingAppliances.value && lendableAppliances.value.length === 0,
 )
 
-function onStartDatePick(value) {
+function onStartDatePick(value: Date | string | null) {
   startDate.value = toLocalCalendarDate(value)
   startDateMenuOpen.value = false
-  if (endDate.value && !isValidLendingRange(startDate.value, endDate.value)) {
+  if (startDate.value && endDate.value && !isValidLendingRange(startDate.value, endDate.value)) {
     endDate.value = defaultLendingEndDate(startDate.value)
   }
 }
 
-function onEndDatePick(value) {
+function onEndDatePick(value: Date | string | null) {
   endDate.value = toLocalCalendarDate(value)
   endDateMenuOpen.value = false
 }
 
 function resetForm() {
-  const start = toLocalCalendarDate(new Date())
+  const start = toLocalCalendarDate(new Date()) ?? new Date()
   startDate.value = start
   endDate.value = defaultLendingEndDate(start)
   startDateMenuOpen.value = false
@@ -273,11 +277,15 @@ async function fetchAppliances() {
   try {
     const start = toIsoDate(startDate.value)
     const duration = inclusiveDurationDays(startDate.value, endDate.value)
+    if (start == null || duration == null) {
+      appliances.value = []
+      return
+    }
     const params = new URLSearchParams({
       lend_check_start: start,
       lend_check_duration: String(duration),
     })
-    appliances.value = await apiJson(`/appliances/?${params}`)
+    appliances.value = await apiJson<ApplianceRead[]>(`/appliances/?${params}`)
     const allowed = new Set(appliances.value.filter((a) => a.lendable !== false).map((a) => a.id))
     selectedIds.value = selectedIds.value.filter((id) => allowed.has(id))
   } catch {
@@ -302,8 +310,8 @@ async function submit() {
   const duration = inclusiveDurationDays(startDate.value, endDate.value)
   const orgId = props.organisationId
   let ok = 0
-  const failures = []
-  const failedIds = []
+  const failures: LendingSubmitFailure[] = []
+  const failedIds: number[] = []
 
   for (const applianceId of selectedIds.value) {
     const appliance = applianceById.value.get(applianceId)
@@ -319,8 +327,11 @@ async function submit() {
         }),
       })
       ok += 1
-    } catch (err) {
-      failures.push({ name, detail: err.message || t('lending.requestFailed') })
+    } catch (err: unknown) {
+      failures.push({
+        name,
+        detail: isApiError(err) ? err.message || t('lending.requestFailed') : t('lending.requestFailed'),
+      })
       failedIds.push(applianceId)
     }
   }

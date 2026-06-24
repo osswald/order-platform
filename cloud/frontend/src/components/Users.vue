@@ -164,7 +164,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -175,17 +175,20 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
 import { apiJson } from '../api'
-import { rules, validateForm } from '../utils/formRules.js'
+import { rules, validateForm, type ValidatableForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
+import type { UserRead } from '@/types/api'
+import type { UserForm } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  isAdmin: { type: Boolean, default: false },
-  isTenantAdmin: { type: Boolean, default: false },
-  isOrganisationAdmin: { type: Boolean, default: false },
-})
+const props = defineProps<{
+  isAdmin?: boolean
+  isTenantAdmin?: boolean
+  isOrganisationAdmin?: boolean
+}>()
 
 const route = useRoute()
 const {
@@ -198,7 +201,7 @@ const {
   goToDetail,
 } = useListDetailRouting('users')
 
-const users = ref([])
+const users = ref<UserRead[]>([])
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
@@ -207,7 +210,7 @@ const roleFilter = ref('')
 const organisationFilter = ref('')
 const showPassword = ref(false)
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.name'), key: 'name' },
   { title: t('common.email'), key: 'email' },
@@ -242,7 +245,7 @@ const roleOptions = computed(() => {
   return opts
 })
 
-function roleLabel(role) {
+function roleLabel(role: string): string {
   if (role === 'platform_admin') return t('users.rolePlatformAdmin')
   if (role === 'tenant_admin') return t('users.roleTenantAdminSingular')
   if (role === 'organisation_admin') return t('users.roleOrganisationAdminSingular')
@@ -255,7 +258,7 @@ const organisationFilterOptions = computed(() => [
   { value: 'without-orgs', label: t('users.withoutOrganisation') },
 ])
 
-const form = ref({
+const form = ref<UserForm>({
   name: '',
   email: '',
   role: 'member',
@@ -265,7 +268,7 @@ const form = ref({
   hasEventAdminPin: false,
   clearEventAdminPin: false,
 })
-const formRef = ref(null)
+const formRef = ref<ValidatableForm | null>(null)
 
 const hasOrganisations = computed(() => (form.value.organisationIdsArray?.length || 0) > 0)
 
@@ -276,7 +279,7 @@ const currentUserId = computed(() => {
   return Number.isNaN(n) ? null : n
 })
 
-function formatOrgs(u) {
+function formatOrgs(u: UserRead): string {
   if (u.organisations?.length) {
     return u.organisations.map((o) => o.name).join(', ')
   }
@@ -286,18 +289,18 @@ function formatOrgs(u) {
   return t('common.emDash')
 }
 
-function organisationsTitle(u) {
+function organisationsTitle(u: UserRead): string {
   const text = formatOrgs(u)
   return text === t('common.emDash') ? '' : text
 }
 
-function organisationCount(u) {
+function organisationCount(u: UserRead): number {
   if (Array.isArray(u.organisations)) return u.organisations.length
   if (Array.isArray(u.organisation_ids)) return u.organisation_ids.length
   return 0
 }
 
-function matchesSearch(u, term) {
+function matchesSearch(u: UserRead, term: string): boolean {
   if (!term) return true
   return [
     u.id,
@@ -327,14 +330,14 @@ const { currentPage, pageSize } = useClientPagination(filteredUsers, {
 
 async function fetchUsers() {
   try {
-    users.value = await apiJson('/users/')
+    users.value = await apiJson<UserRead[]>('/users/')
   } catch {
     message.value = t('users.loadError')
     messageType.value = 'error'
   }
 }
 
-const emptyUserForm = () => ({
+const emptyUserForm = (): UserForm => ({
   name: '',
   email: '',
   role: 'member',
@@ -345,7 +348,7 @@ const emptyUserForm = () => ({
   clearEventAdminPin: false,
 })
 
-function applyUserToForm(u) {
+function applyUserToForm(u: UserRead) {
   form.value = {
     name: u.name || '',
     email: u.email || '',
@@ -398,14 +401,14 @@ function openCreateForm() {
   goToCreate()
 }
 
-function editUser(u) {
+function editUser(u: UserRead) {
   applyUserToForm(u)
   goToDetail(u.id)
 }
 
 async function saveUser() {
   if (!(await validateForm(formRef))) return
-  const payload = {
+  const payload: Record<string, unknown> = {
     name: form.value.name,
     email: form.value.email,
     role: form.value.role,
@@ -442,7 +445,7 @@ async function saveUser() {
   }
 }
 
-async function deleteUser(id) {
+async function deleteUser(id: number) {
   if (!confirm(t('users.deleteConfirm'))) {
     return
   }

@@ -171,7 +171,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -182,14 +182,18 @@ import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  activeOrganisationId: {
-    type: Number,
-    default: null,
-  },
-})
+import type { DataTableHeader } from '@/types/vuetify'
 
-const salesEventHeaders = computed(() => [
+const props = withDefaults(
+  defineProps<{
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    activeOrganisationId: null,
+  },
+)
+
+const salesEventHeaders = computed((): DataTableHeader[] => [
   { title: t('dashboard.salesTable.event'), key: 'name' },
   { title: t('dashboard.salesTable.period'), key: 'period', sortable: false },
   { title: t('dashboard.salesTable.orders'), key: 'distinct_orders_count', align: 'end' },
@@ -200,7 +204,7 @@ const salesEventHeaders = computed(() => [
 const orgIdRef = toRef(props, 'activeOrganisationId')
 const { summary, loading, loadError, reload } = useDashboardSummary(orgIdRef)
 
-const statusOrder = ['prod', 'test', 'config', 'archive']
+const statusOrder = ['prod', 'test', 'config', 'archive'] as const
 
 const eventsDetail = computed(() => {
   if (!summary.value) return ''
@@ -212,25 +216,25 @@ const hasSalesSection = computed(() => {
   return (summary.value.events_by_status?.prod || 0) > 0
 })
 
-function routeTo(name) {
-  const query = {}
+function routeTo(name: string) {
+  const query: Record<string, string> = {}
   if (props.activeOrganisationId != null) {
     query.organisation = String(props.activeOrganisationId)
   }
   return { name, query }
 }
 
-function statusChipColor(status) {
-  const map = { prod: 'success', test: 'warning', config: 'info', archive: undefined }
+function statusChipColor(status: string) {
+  const map: Record<string, string | undefined> = { prod: 'success', test: 'warning', config: 'info', archive: undefined }
   return map[status]
 }
 
-function attentionClass(type) {
+function attentionClass(type: string) {
   if (type === 'missing_twint_qr') return 'warn'
   return 'info'
 }
 
-function attentionIcon(type) {
+function attentionIcon(type: string) {
   if (type === 'missing_twint_qr') return 'mdi-alert'
   return 'mdi-information'
 }

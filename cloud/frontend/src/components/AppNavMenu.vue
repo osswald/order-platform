@@ -162,56 +162,46 @@
   </nav>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  isPlatformAdmin: {
-    type: Boolean,
-    default: false,
-  },
-  canAccessTenantAdmin: {
-    type: Boolean,
-    default: false,
-  },
-  canAccessOrganisationSettings: {
-    type: Boolean,
-    default: false,
-  },
-  canAccessUsers: {
-    type: Boolean,
-    default: false,
-  },
-  isTenantAdminRole: {
-    type: Boolean,
-    default: false,
-  },
-  hireCompanies: {
-    type: Array,
-    default: () => [],
-  },
-  activeHireCompanyId: {
-    type: Number,
-    default: null,
-  },
-  showHireCompanyPicker: {
-    type: Boolean,
-    default: false,
-  },
-  organisations: {
-    type: Array,
-    default: () => [],
-  },
-  activeOrganisationId: {
-    type: Number,
-    default: null,
-  },
-})
+import type { HireCompanyBrief, OrganisationRead } from '@/types/api'
 
-const emit = defineEmits(['change-organisation', 'change-hire-company', 'navigate'])
+const props = withDefaults(
+  defineProps<{
+    isPlatformAdmin?: boolean
+    canAccessTenantAdmin?: boolean
+    canAccessOrganisationSettings?: boolean
+    canAccessUsers?: boolean
+    isTenantAdminRole?: boolean
+    hireCompanies?: HireCompanyBrief[]
+    activeHireCompanyId?: number | null
+    showHireCompanyPicker?: boolean
+    organisations?: OrganisationRead[]
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    isPlatformAdmin: false,
+    canAccessTenantAdmin: false,
+    canAccessOrganisationSettings: false,
+    canAccessUsers: false,
+    isTenantAdminRole: false,
+    hireCompanies: () => [],
+    activeHireCompanyId: null,
+    showHireCompanyPicker: false,
+    organisations: () => [],
+    activeOrganisationId: null,
+  },
+)
+
+const emit = defineEmits<{
+  'change-organisation': [id: number | null]
+  'change-hire-company': [id: number | null]
+  navigate: []
+}>()
 
 const organisationOptions = computed(() => props.organisations)
 const hireCompanyOptions = computed(() => props.hireCompanies)
@@ -230,19 +220,19 @@ const activeOrganisationName = computed(() => {
   return org?.name ?? organisationOptions.value[0]?.name ?? t('common.emDash')
 })
 
-function routeTo(name) {
-  const query = {}
+function routeTo(name: string) {
+  const query: Record<string, string> = {}
   if (props.activeOrganisationId != null) {
     query.organisation = String(props.activeOrganisationId)
   }
   return { name, query }
 }
 
-function changeOrganisation(id) {
+function changeOrganisation(id: number | null) {
   emit('change-organisation', id)
 }
 
-function changeHireCompany(id) {
+function changeHireCompany(id: number | null) {
   emit('change-hire-company', id)
 }
 

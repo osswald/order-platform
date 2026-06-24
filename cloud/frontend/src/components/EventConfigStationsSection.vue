@@ -149,43 +149,37 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
+import type { ArticleSelectOption, EventStationLocal, SelectOption } from '@/types/ui'
+import type { PrinterOptionRead } from '@/types/api'
 
-defineProps({
-  catalogLoading: {
-    type: Boolean,
-    default: false,
+withDefaults(
+  defineProps<{
+    catalogLoading?: boolean
+    catalogError?: string
+    printerOptions?: PrinterOptionRead[]
+    articleOptions?: ArticleSelectOption[]
+    alternativePrintersEnabled?: boolean
+    printerRuleTypeOptions?: SelectOption<string>[]
+  }>(),
+  {
+    catalogLoading: false,
+    catalogError: '',
+    printerOptions: () => [],
+    articleOptions: () => [],
+    alternativePrintersEnabled: false,
+    printerRuleTypeOptions: () => [],
   },
-  catalogError: {
-    type: String,
-    default: '',
-  },
-  printerOptions: {
-    type: Array,
-    default: () => [],
-  },
-  articleOptions: {
-    type: Array,
-    default: () => [],
-  },
-  alternativePrintersEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  printerRuleTypeOptions: {
-    type: Array,
-    default: () => [],
-  },
-})
+)
 
-const stations = defineModel({ type: Array, required: true })
+const stations = defineModel<EventStationLocal[]>({ required: true })
 
 const { t } = useI18n()
 
-function normalizePickupPrefix(value) {
+function normalizePickupPrefix(value: string | null | undefined): string {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
 }
 
@@ -198,11 +192,11 @@ function addStation() {
   })
 }
 
-function removeStation(idx) {
+function removeStation(idx: number) {
   stations.value.splice(idx, 1)
 }
 
-function addPrinterRule(stationIdx) {
+function addPrinterRule(stationIdx: number) {
   const st = stations.value[stationIdx]
   if (!st) return
   if (!Array.isArray(st.printer_rules)) st.printer_rules = []
@@ -215,7 +209,7 @@ function addPrinterRule(stationIdx) {
   })
 }
 
-function removePrinterRule(stationIdx, ruleIdx) {
+function removePrinterRule(stationIdx: number, ruleIdx: number) {
   const st = stations.value[stationIdx]
   if (!st?.printer_rules) return
   st.printer_rules.splice(ruleIdx, 1)

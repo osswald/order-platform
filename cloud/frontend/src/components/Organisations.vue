@@ -111,7 +111,7 @@
           <template #buchhaltung>
             <OrganisationAccountingSection
               :organisation-id="activeId"
-              :country-id="form.countryId"
+              :country-id="form.countryId ?? undefined"
             />
           </template>
 
@@ -216,7 +216,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -243,14 +243,23 @@ import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 import HelpLink from './HelpLink.vue'
+import type {
+  OrganisationApplianceLendingsRead,
+  OrganisationRead,
+  OrgApplianceLendingItem,
+} from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type { OrganisationStammdatenForm, SectionNavSection } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
+import type { SessionContext } from '@/types/ui'
 
-const props = defineProps({
-  canAccessTenantAdmin: { type: Boolean, default: false },
-})
+const props = defineProps<{
+  canAccessTenantAdmin?: boolean
+}>()
 
 const { t } = useI18n()
 
-const sessionContext = inject(SESSION_CONTEXT_KEY, null)
+const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
 const tenantHireCompanyId = computed(() => sessionContext?.activeHireCompanyId?.value ?? null)
 const canManageTenant = computed(() => props.canAccessTenantAdmin)
 
@@ -265,23 +274,23 @@ const {
   goToDetail,
 } = useListDetailRouting('organisations')
 
-const organisations = ref([])
+const organisations = ref<OrganisationRead[]>([])
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
 const countryFilter = ref('')
 const userFilter = ref('')
-const orgApplianceLendings = ref(null)
+const orgApplianceLendings = ref<OrganisationApplianceLendingsRead | null>(null)
 const lendingDialogVisible = ref(false)
-const cancellingLendingId = ref(null)
+const cancellingLendingId = ref<number | null>(null)
 const { countryOptions, fetchCountries } = useCountries()
 const currencyOptions = ['EUR', 'CHF', 'USD', 'GBP']
 
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const activeConfigTab = ref('stammdaten')
 
-const configSections = computed(() => {
+const configSections = computed((): SectionNavSection[] => {
   if (!editMode.value || !activeId.value) return []
   return [
     { id: 'stammdaten', title: t('organisations.config.sectionStammdaten'), defaultOpen: true },
@@ -309,7 +318,7 @@ const userFilterOptions = computed(() => [
   { value: 'without-users', label: t('organisations.withoutUsers') },
 ])
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.name'), key: 'name' },
   { title: t('common.location'), key: 'location', sortable: false },
@@ -319,19 +328,19 @@ const tableHeaders = computed(() => [
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const lendingHeaders = computed(() => [
+const lendingHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'appliance_id' },
   { title: t('common.appliance'), key: 'appliance_name', sortable: false },
   { title: t('common.type'), key: 'appliance_type', sortable: false },
   { title: t('common.period'), key: 'period', sortable: false },
 ])
 
-const plannedLendingHeaders = computed(() => [
+const plannedLendingHeaders = computed((): DataTableHeader[] => [
   ...lendingHeaders.value,
   { title: t('common.action'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const form = ref({
+const form = ref<OrganisationStammdatenForm>({
   name: '',
   address: '',
   zip: '',
@@ -341,7 +350,7 @@ const form = ref({
   userIdsArray: [],
 })
 
-function matchesSearch(org, term) {
+function matchesSearch(org: OrganisationRead, term: string): boolean {
   if (!term) return true
   return [
     org.id,
@@ -381,34 +390,27 @@ const { currentPage, pageSize } = useClientPagination(filteredOrganisations, {
   resetOn: [searchQuery, countryFilter, userFilter],
 })
 
-function parseUserIds(value) {
-  return value
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean)
-    .map(Number)
-    .filter((id) => !Number.isNaN(id))
-}
-
 async function fetchOrganisations() {
   try {
-    organisations.value = await apiJson('/organisations/')
+    organisations.value = await apiJson<OrganisationRead[]>('/organisations/')
   } catch {
     message.value = t('organisations.loadError')
     messageType.value = 'error'
   }
 }
 
-async function fetchOrgApplianceLendings(orgId) {
+async function fetchOrgApplianceLendings(orgId: number) {
   orgApplianceLendings.value = null
   try {
-    orgApplianceLendings.value = await apiJson(`/organisations/${orgId}/appliance-lendings`)
+    orgApplianceLendings.value = await apiJson<OrganisationApplianceLendingsRead>(
+      `/organisations/${orgId}/appliance-lendings`,
+    )
   } catch {
     orgApplianceLendings.value = { current: [], planned: [], past: [] }
   }
 }
 
-async function cancelPlannedLendingRow(row) {
+async function cancelPlannedLendingRow(row: OrgApplianceLendingItem) {
   if (!activeId.value || !row?.lending_id) return
   const label = row.appliance_name || t('lending.deviceFallback', { id: row.appliance_id })
   if (!confirm(t('lending.cancelConfirm', { label }))) return
@@ -419,15 +421,15 @@ async function cancelPlannedLendingRow(row) {
     message.value = t('lending.cancelSuccess')
     messageType.value = 'success'
     await fetchOrgApplianceLendings(activeId.value)
-  } catch (e) {
-    message.value = e.message || t('lending.cancelFailed')
+  } catch (e: unknown) {
+    message.value = getErrorMessage(e, t('lending.cancelFailed'))
     messageType.value = 'error'
   } finally {
     cancellingLendingId.value = null
   }
 }
 
-const emptyOrgForm = () => ({
+const emptyOrgForm = (): OrganisationStammdatenForm => ({
   name: '',
   address: '',
   zip: '',
@@ -437,7 +439,7 @@ const emptyOrgForm = () => ({
   userIdsArray: [],
 })
 
-function applyOrganisationToForm(org) {
+function applyOrganisationToForm(org: OrganisationRead) {
   form.value = {
     name: org.name,
     address: org.address || '',
@@ -475,7 +477,7 @@ async function syncRouteToForm() {
   let row = organisations.value.find((o) => Number(o.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/organisations/${id}`)
+      row = await apiJson<OrganisationRead>(`/organisations/${id}`)
     } catch {
       message.value = t('organisations.notFound')
       messageType.value = 'error'
@@ -497,7 +499,7 @@ function openCreateForm() {
   goToCreate()
 }
 
-function editOrganisation(org) {
+function editOrganisation(org: OrganisationRead) {
   applyOrganisationToForm(org)
   goToDetail(org.id)
   fetchOrgApplianceLendings(org.id)
@@ -514,13 +516,13 @@ async function saveOrganisation() {
     city: form.value.city || null,
     country_id: form.value.countryId,
     currency: form.value.currency,
-    user_ids: Array.isArray(form.value.userIdsArray) ? form.value.userIdsArray : parseUserIds(form.value.userIds || ''),
+    user_ids: form.value.userIdsArray,
   }
 
   try {
     const path = editMode.value ? `/organisations/${activeId.value}` : '/organisations/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const saved = await apiJson(path, {
+    const saved = await apiJson<OrganisationRead>(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -541,7 +543,7 @@ async function saveOrganisation() {
   }
 }
 
-async function deleteOrganisation(id) {
+async function deleteOrganisation(id: number) {
   if (!confirm(t('organisations.deleteConfirm'))) {
     return
   }

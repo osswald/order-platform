@@ -94,7 +94,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
@@ -109,12 +109,21 @@ import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  activeOrganisationId: {
-    type: Number,
-    default: null,
+import type {
+  OrgApplianceLendingItem,
+  OrganisationApplianceLendingsRead,
+} from '@/types/api'
+import { isApiError } from '@/types/api'
+import type { DataTableHeader } from '@/types/vuetify'
+
+const props = withDefaults(
+  defineProps<{
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    activeOrganisationId: null,
   },
-})
+)
 
 const COL_ID = { width: '5rem', sortable: false }
 const COL_NAME = { minWidth: '12rem', sortable: false }
@@ -122,7 +131,7 @@ const COL_TYPE = { width: '8rem', sortable: false }
 const COL_PERIOD = { width: '14rem', sortable: false }
 const COL_ACTIONS = { align: 'end', width: '9rem', sortable: false }
 
-const lendingHeaders = computed(() => [
+const lendingHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'appliance_id', ...COL_ID },
   { title: t('common.appliance'), key: 'appliance_name', ...COL_NAME, sortable: false },
   { title: t('common.type'), key: 'appliance_type', ...COL_TYPE },
@@ -134,10 +143,10 @@ const plannedLendingHeaders = computed(() => [
   { title: t('common.action'), key: 'actions', ...COL_ACTIONS },
 ])
 
-const lendings = ref(null)
+const lendings = ref<OrganisationApplianceLendingsRead | null>(null)
 const message = ref('')
 const messageType = ref('')
-const cancellingLendingId = ref(null)
+const cancellingLendingId = ref<number | null>(null)
 
 async function fetchLendings() {
   message.value = ''
@@ -145,7 +154,7 @@ async function fetchLendings() {
   if (props.activeOrganisationId == null) return
 
   try {
-    lendings.value = await apiJson(
+    lendings.value = await apiJson<OrganisationApplianceLendingsRead>(
       `/organisations/${props.activeOrganisationId}/appliance-lendings`,
     )
   } catch {
@@ -154,7 +163,7 @@ async function fetchLendings() {
   }
 }
 
-async function cancelPlannedLendingRow(row) {
+async function cancelPlannedLendingRow(row: OrgApplianceLendingItem) {
   if (props.activeOrganisationId == null || !row?.lending_id) return
   const label = row.appliance_name || t('lending.deviceFallback', { id: row.appliance_id })
   if (!confirm(t('lending.cancelConfirm', { label }))) return
@@ -165,8 +174,8 @@ async function cancelPlannedLendingRow(row) {
     message.value = t('lending.cancelSuccess')
     messageType.value = 'success'
     await fetchLendings()
-  } catch (e) {
-    message.value = e.message || t('lending.cancelFailed')
+  } catch (e: unknown) {
+    message.value = isApiError(e) ? e.message || t('lending.cancelFailed') : t('lending.cancelFailed')
     messageType.value = 'error'
   } finally {
     cancellingLendingId.value = null

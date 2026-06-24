@@ -14,11 +14,12 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createStripeAccountLink, refreshStripeConnectStatus } from '../utils/stripeConnect'
+import { getErrorMessage } from '@/types/api'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -61,8 +62,8 @@ onMounted(async () => {
       await refreshStripeConnectStatus(orgId)
       message.value = t('stripe.accountUpdated')
     }
-  } catch (e) {
-    error.value = e.message || t('stripe.returnFailed')
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, t('stripe.returnFailed'))
   } finally {
     busy.value = false
   }

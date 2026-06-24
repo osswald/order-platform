@@ -255,7 +255,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -271,15 +271,21 @@ import { useTaxCodes } from '../composables/useTaxCodes'
 import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+import type { ArticleRead, ArticleCategoryRead, ArticleAdditionsRead } from '@/types/api'
+import { isApiError } from '@/types/api'
+import type { AccessibleOrganisation, AdditionLinkLocal, ArticleForm, SessionContext } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t, locale } = useI18n()
 
-const props = defineProps({
-  activeOrganisationId: {
-    type: Number,
-    default: null,
+const props = withDefaults(
+  defineProps<{
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    activeOrganisationId: null,
   },
-})
+)
 
 const route = useRoute()
 const {
@@ -292,23 +298,25 @@ const {
   goToDetail,
 } = useListDetailRouting('articles')
 
-const articles = ref([])
-const categories = ref([])
-const sessionContext = inject(SESSION_CONTEXT_KEY, null)
-const organisationsList = computed(() => sessionContext?.accessibleOrganisations?.value ?? [])
+const articles = ref<ArticleRead[]>([])
+const categories = ref<ArticleCategoryRead[]>([])
+const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
+const organisationsList = computed(
+  () => (sessionContext?.accessibleOrganisations?.value ?? []) as AccessibleOrganisation[],
+)
 const formCurrency = ref('EUR')
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
-const categoryFilter = ref(null)
+const categoryFilter = ref<number | null>(null)
 const typeFilter = ref('articles')
-const additionsLocal = ref([])
-const additionPickIds = ref([])
+const additionsLocal = ref<AdditionLinkLocal[]>([])
+const additionPickIds = ref<number[]>([])
 const additionsMessage = ref('')
 const additionsMessageType = ref('')
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.type'), key: 'is_addition', sortable: false },
   { title: t('common.name'), key: 'name' },
@@ -321,13 +329,13 @@ const tableHeaders = computed(() => [
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const additionsHeaders = computed(() => [
+const additionsHeaders = computed((): DataTableHeader[] => [
   { title: t('articles.additionColumn'), key: 'name' },
   { title: t('common.price'), key: 'price', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
 ])
 
-const emptyForm = () => ({
+const emptyForm = (): ArticleForm => ({
   name: '',
   label: '',
   importArticleNumber: '',
@@ -346,7 +354,7 @@ const typeFilterOptions = computed(() => [
   { value: 'all', label: t('articles.typeAll') },
 ])
 
-const form = ref(emptyForm())
+const form = ref<ArticleForm>(emptyForm())
 
 const activeOrganisation = computed(() => {
   if (props.activeOrganisationId == null) return null
@@ -419,7 +427,7 @@ const formRef = ref(null)
 
 const labelRules = computed(() => [
   rules.required,
-  (v) => String(v || '').length <= 22 || t('articles.labelMaxLength'),
+  (v: string) => String(v || '').length <= 22 || t('articles.labelMaxLength'),
 ])
 
 const priceRules = computed(() => {
@@ -433,7 +441,7 @@ const taxCodeRules = computed(() => {
   return [rules.required]
 })
 
-function resolveDefaultAccountingAccountId(categoryId) {
+function resolveDefaultAccountingAccountId(categoryId: number | null) {
   if (!showAccountingAccountField.value) return null
   const category = categories.value.find((row) => Number(row.id) === Number(categoryId))
   if (category?.accounting_account_id != null) {
@@ -456,17 +464,17 @@ function defaultTaxCodeIdForActiveOrganisation() {
   return activeOrganisation.value?.default_tax_code_id ?? null
 }
 
-function formatPrice(value, currency = 'EUR') {
+function formatPrice(value: number | string, currency = 'EUR') {
   return formatPriceWithCurrency(value, currency || 'EUR', locale.value)
 }
 
-function currencyForOrganisationId(organisationId) {
+function currencyForOrganisationId(organisationId: number | null | undefined) {
   if (organisationId == null) return 'EUR'
   const org = organisationsList.value.find((o) => Number(o.id) === Number(organisationId))
   return org?.currency || 'EUR'
 }
 
-function syncFormCurrencyFromContext(article = null) {
+function syncFormCurrencyFromContext(article: ArticleRead | null = null) {
   if (article?.organisation_currency) {
     formCurrency.value = article.organisation_currency
     return
@@ -478,7 +486,7 @@ function syncFormCurrencyFromContext(article = null) {
   formCurrency.value = currencyForOrganisationId(props.activeOrganisationId)
 }
 
-function matchesSearch(article, term) {
+function matchesSearch(article: ArticleRead, term: string) {
   if (!term) return true
   return [
     article.id,
@@ -533,7 +541,7 @@ watch(
 
 async function fetchArticles() {
   try {
-    articles.value = await apiJson('/articles/')
+    articles.value = await apiJson<ArticleRead[]>('/articles/')
   } catch {
     message.value = t('articles.loadError')
     messageType.value = 'error'
@@ -542,7 +550,7 @@ async function fetchArticles() {
 
 async function fetchCategories() {
   try {
-    categories.value = await apiJson('/article-categories/')
+    categories.value = await apiJson<ArticleCategoryRead[]>('/article-categories/')
   } catch {
     message.value = t('articles.categoriesLoadError')
     messageType.value = 'error'
@@ -562,7 +570,7 @@ function clearFormState() {
   syncFormCurrencyFromContext()
 }
 
-async function applyArticleToForm(article) {
+async function applyArticleToForm(article: ArticleRead) {
   form.value = {
     name: article.name || '',
     label: article.label || '',
@@ -600,7 +608,7 @@ async function syncRouteToForm() {
   let row = articles.value.find((a) => Number(a.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/articles/${id}`)
+      row = await apiJson<ArticleRead>(`/articles/${id}`)
     } catch {
       message.value = t('articles.notFound')
       messageType.value = 'error'
@@ -621,27 +629,27 @@ function openCreateForm() {
   goToCreate()
 }
 
-async function loadAdditions(articleId) {
+async function loadAdditions(articleId: number | string) {
   additionsLocal.value = []
   try {
-    const data = await apiJson(`/articles/${articleId}/additions`)
+    const data = await apiJson<ArticleAdditionsRead>(`/articles/${articleId}/additions`)
     additionsLocal.value = (data.items || []).map((row, idx) => ({
-      addition_article_id: row.addition_article_id,
-      name: row.name,
-      price: row.price,
-      sort_order: row.sort_order ?? idx,
+      addition_article_id: Number(row.addition_article_id),
+      name: String(row.name ?? ''),
+      price: Number(row.price ?? 0),
+      sort_order: Number(row.sort_order ?? idx),
     }))
   } catch {
     additionsLocal.value = []
   }
 }
 
-async function editArticle(article) {
+async function editArticle(article: ArticleRead) {
   await applyArticleToForm(article)
   goToDetail(article.id)
 }
 
-function onAdditionPick(ids) {
+function onAdditionPick(ids: number | number[]) {
   const list = Array.isArray(ids) ? ids : []
   for (const id of list) {
     const art = articles.value.find((a) => a.id === id)
@@ -656,7 +664,7 @@ function onAdditionPick(ids) {
   additionPickIds.value = []
 }
 
-function removeAdditionLink(row) {
+function removeAdditionLink(row: AdditionLinkLocal) {
   additionsLocal.value = additionsLocal.value.filter((l) => l.addition_article_id !== row.addition_article_id)
 }
 
@@ -664,7 +672,7 @@ async function saveAdditions() {
   if (!activeId.value) return
   additionsMessage.value = ''
   try {
-    const data = await apiJson(`/articles/${activeId.value}/additions`, {
+    const data = await apiJson<ArticleAdditionsRead>(`/articles/${activeId.value}/additions`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -675,15 +683,15 @@ async function saveAdditions() {
       }),
     })
     additionsLocal.value = (data.items || []).map((row, idx) => ({
-      addition_article_id: row.addition_article_id,
-      name: row.name,
-      price: row.price,
-      sort_order: row.sort_order ?? idx,
+      addition_article_id: Number(row.addition_article_id),
+      name: String(row.name ?? ''),
+      price: Number(row.price ?? 0),
+      sort_order: Number(row.sort_order ?? idx),
     }))
     additionsMessage.value = t('articles.additionsSaved')
     additionsMessageType.value = 'success'
-  } catch (e) {
-    additionsMessage.value = e.message || t('common.saveFailed')
+  } catch (e: unknown) {
+    additionsMessage.value = isApiError(e) ? e.message || t('common.saveFailed') : t('common.saveFailed')
     additionsMessageType.value = 'error'
   }
 }
@@ -730,7 +738,7 @@ async function saveArticle() {
   }
 }
 
-async function deleteArticle(id) {
+async function deleteArticle(id: number | string) {
   if (!confirm(t('articles.deleteConfirm'))) return
   try {
     await apiJson(`/articles/${id}`, {

@@ -138,7 +138,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
@@ -164,53 +164,65 @@ import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
+import type {
+  ArticleRead,
+  EventConfigurationIn,
+  EventConfigurationRead,
+  EventWaiterConfigIn,
+  PrinterOptionRead,
+  StationConfigIn,
+  VoucherDefinitionIn,
+  CashRegisterIn,
+  WaiterRead,
+} from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import type {
+  ArticleSelectOption,
+  EventCashRegisterLocal,
+  EventKitchenMonitorLocal,
+  EventLayoutCellLocal,
+  EventLayoutLocal,
+  EventStationLocal,
+  EventVoucherDefinitionLocal,
+  EventWaiterLocal,
+  LayoutOption,
+  LayoutRemovedPayload,
+  SaveStatus,
+  SectionNavSection,
+  SelectOption,
+  SessionContext,
+  StatusChangePayload,
+} from '@/types/ui'
 
-const props = defineProps({
-  eventId: {
-    type: Number,
-    required: true,
+const props = withDefaults(
+  defineProps<{
+    eventId: number
+    organisationId?: number | null
+    organisationCurrency?: string
+    eventStatus?: string
+    cashRegistersEnabled?: boolean
+    vouchersEnabled?: boolean
+    shiftSettlementEnabled?: boolean
+    alternativePrintersEnabled?: boolean
+    kitchenMonitorsEnabled?: boolean
+    stammdatenDirty?: boolean
+  }>(),
+  {
+    organisationId: null,
+    organisationCurrency: 'EUR',
+    eventStatus: 'config',
+    cashRegistersEnabled: false,
+    vouchersEnabled: false,
+    shiftSettlementEnabled: false,
+    alternativePrintersEnabled: false,
+    kitchenMonitorsEnabled: false,
+    stammdatenDirty: false,
   },
-  organisationId: {
-    type: Number,
-    default: null,
-  },
-  organisationCurrency: {
-    type: String,
-    default: 'EUR',
-  },
-  eventStatus: {
-    type: String,
-    default: 'config',
-  },
-  cashRegistersEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  vouchersEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  shiftSettlementEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  alternativePrintersEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  kitchenMonitorsEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  stammdatenDirty: {
-    type: Boolean,
-    default: false,
-  },
-})
+)
 
 const slots = useSlots()
 const { t } = useI18n()
-const sessionContext = inject(SESSION_CONTEXT_KEY, null)
+const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
@@ -222,8 +234,8 @@ const accountsEnabled = computed(() =>
 )
 const showBookkeepingTab = computed(() => showOperationalTabs.value && accountsEnabled.value)
 
-const configSections = computed(() => {
-  const list = []
+const configSections = computed((): SectionNavSection[] => {
+  const list: SectionNavSection[] = []
   if (slots.stammdaten) {
     list.push({ id: 'stammdaten', title: t('events.config.sectionStammdaten'), defaultOpen: true })
   }
@@ -278,50 +290,50 @@ const loadError = ref('')
 const catalogLoading = ref(false)
 const catalogError = ref('')
 
-const layoutsSectionRef = ref(null)
+const layoutsSectionRef = ref<InstanceType<typeof EventConfigLayoutsSection> | null>(null)
 const cellDialogOpen = ref(false)
 
-const receiptSaveStatus = ref('idle')
+const receiptSaveStatus = ref<SaveStatus>('idle')
 const receiptSaveError = ref('')
-const stockSaveStatus = ref('idle')
+const stockSaveStatus = ref<SaveStatus>('idle')
 const stockSaveError = ref('')
 
-function onReceiptStatusChange({ status, errorMessage }) {
+function onReceiptStatusChange({ status, errorMessage }: StatusChangePayload) {
   receiptSaveStatus.value = status || 'idle'
   receiptSaveError.value = errorMessage || ''
 }
 
-function onStockStatusChange({ status, errorMessage }) {
+function onStockStatusChange({ status, errorMessage }: StatusChangePayload) {
   stockSaveStatus.value = status || 'idle'
   stockSaveError.value = errorMessage || ''
 }
 
-const printerOptions = ref([])
-const stationsLocal = ref([])
-const kitchenMonitorsLocal = ref([])
-const waitersLocal = ref([])
-const layoutsLocal = ref([])
-const cashRegistersLocal = ref([])
-const vouchersLocal = ref([])
-const articlesRaw = ref([])
+const printerOptions = ref<PrinterOptionRead[]>([])
+const stationsLocal = ref<EventStationLocal[]>([])
+const kitchenMonitorsLocal = ref<EventKitchenMonitorLocal[]>([])
+const waitersLocal = ref<EventWaiterLocal[]>([])
+const layoutsLocal = ref<EventLayoutLocal[]>([])
+const cashRegistersLocal = ref<EventCashRegisterLocal[]>([])
+const vouchersLocal = ref<EventVoucherDefinitionLocal[]>([])
+const articlesRaw = ref<ArticleRead[]>([])
 const currencyLabel = computed(() => props.organisationCurrency || 'EUR')
 
-const voucherKindOptions = computed(() => [
+const voucherKindOptions = computed((): SelectOption<string>[] => [
   { label: t('events.config.voucherKindFixedAmount'), value: 'fixed_amount' },
   { label: t('events.config.voucherKindArticleEntitlement'), value: 'article_entitlement' },
 ])
-const printerRuleTypeOptions = computed(() => [
+const printerRuleTypeOptions = computed((): SelectOption<string>[] => [
   { label: t('events.config.ruleTypeTableRange'), value: 'table_range' },
   { label: t('events.config.ruleTypePickupPrefix'), value: 'pickup_prefix' },
 ])
-const waitersOrg = ref([])
+const waitersOrg = ref<WaiterRead[]>([])
 
 const showWaiterPick = ref(false)
-const pickedWaiterIds = ref([])
+const pickedWaiterIds = ref<number[]>([])
 
 let waiterKey = 0
 
-const articleOptions = computed(() => {
+const articleOptions = computed((): ArticleSelectOption[] => {
   const oid = props.organisationId
   return articlesRaw.value
     .filter((a) => !a.is_addition && (oid == null || Number(a.organisation_id) === Number(oid)))
@@ -331,8 +343,8 @@ const articleOptions = computed(() => {
     }))
 })
 
-const kitchenMonitorPrinterOptions = computed(() => {
-  const ids = new Set()
+const kitchenMonitorPrinterOptions = computed((): PrinterOptionRead[] => {
+  const ids = new Set<number>()
   for (const st of stationsLocal.value) {
     if (st.printer_appliance_id != null) ids.add(Number(st.printer_appliance_id))
     for (const rule of st.printer_rules || []) {
@@ -345,29 +357,29 @@ const kitchenMonitorPrinterOptions = computed(() => {
   return printerOptions.value.filter((opt) => ids.has(Number(opt.id)))
 })
 
-const waiterOptions = computed(() =>
+const waiterOptions = computed((): SelectOption<number>[] =>
   waitersOrg.value.map((w) => ({ label: w.name, value: w.id })),
 )
 
-const layoutOptions = computed(() =>
+const layoutOptions = computed((): LayoutOption[] =>
   layoutsLocal.value.map((lo, idx) => ({
     name: lo.name?.trim() || t('events.config.layoutN', { n: idx + 1 }),
     value: lo.uuid,
   })),
 )
 
-function cellVoucherUuids(c) {
+function cellVoucherUuids(c: EventLayoutCellLocal | null | undefined): string[] {
   const list = c?.voucher_definition_uuids
   if (Array.isArray(list) && list.length) return list.map(String)
   if (c?.voucher_definition_uuid) return [String(c.voucher_definition_uuid)]
   return []
 }
 
-function isCellInGrid(c, width, height) {
+function isCellInGrid(c: EventLayoutCellLocal, width: number, height: number): boolean {
   return c.row >= 0 && c.col >= 0 && c.row < height && c.col < width
 }
 
-function onVoucherRemoved(uuid) {
+function onVoucherRemoved(uuid: string) {
   for (const lo of layoutsLocal.value) {
     for (const c of lo.cells || []) {
       const uuids = cellVoucherUuids(c).filter((u) => u !== uuid)
@@ -377,22 +389,22 @@ function onVoucherRemoved(uuid) {
   }
 }
 
-function onLayoutRemoved({ removedUuid, fallbackUuid }) {
+function onLayoutRemoved({ removedUuid, fallbackUuid }: LayoutRemovedPayload) {
   cashRegistersLocal.value.forEach((reg) => {
     if (reg.layout_uuid === removedUuid) reg.layout_uuid = fallbackUuid
   })
 }
 
-function newUuid() {
+function newUuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function normalizePickupPrefix(value) {
+function normalizePickupPrefix(value: string | null | undefined): string {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
 }
 
-function configurationValidationError() {
+function configurationValidationError(): string | null {
   for (const s of stationsLocal.value) {
     if (!(s.name || '').trim()) {
       return t('events.config.validationStationName')
@@ -423,19 +435,25 @@ function configurationValidationError() {
   return null
 }
 
-function mapLayoutCells(cells) {
-  return (cells || []).map((c) => ({
-    row: c.row,
-    col: c.col,
-    label: c.label || '',
-    color: c.color || '#eeeeee',
-    article_ids: [...(c.article_ids || [])],
-    voucher_definition_uuid: c.voucher_definition_uuid || null,
-    voucher_definition_uuids: [...cellVoucherUuids(c)],
-  }))
+function mapLayoutCells(
+  cells: EventConfigurationRead['app_layouts'][number]['cells'] | undefined,
+): EventLayoutCellLocal[] {
+  return (cells || []).map((c) => {
+    const local: EventLayoutCellLocal = {
+      row: c.row,
+      col: c.col,
+      label: c.label || '',
+      color: c.color || '#eeeeee',
+      article_ids: [...(c.article_ids || [])],
+      voucher_definition_uuid: c.voucher_definition_uuid || null,
+      voucher_definition_uuids: [],
+    }
+    local.voucher_definition_uuids = [...cellVoucherUuids(local)]
+    return local
+  })
 }
 
-function mapLayoutFromApi(lo) {
+function mapLayoutFromApi(lo: EventConfigurationRead['app_layouts'][number]): EventLayoutLocal {
   return {
     uuid: lo.uuid || newUuid(),
     name: lo.name || '',
@@ -446,7 +464,10 @@ function mapLayoutFromApi(lo) {
   }
 }
 
-function applyConfigurationFromResponse(cfg, { includeLayoutCells = true } = {}) {
+function applyConfigurationFromResponse(
+  cfg: EventConfigurationRead,
+  { includeLayoutCells = true }: { includeLayoutCells?: boolean } = {},
+) {
   printerOptions.value = cfg.printer_options || []
   stationsLocal.value = (cfg.stations || []).map((s) => ({
     uuid: s.uuid ?? null,
@@ -539,7 +560,7 @@ async function loadConfiguration() {
   if (resetConfigSnapshot) resetConfigSnapshot()
   try {
     applyConfigurationFromResponse(
-      await apiJson(`/events/${props.eventId}/configuration?fields=summary`),
+      await apiJson<EventConfigurationRead>(`/events/${props.eventId}/configuration?fields=summary`),
       { includeLayoutCells: false },
     )
   } catch {
@@ -565,7 +586,7 @@ function closeWaiterPick() {
   pickedWaiterIds.value = []
 }
 
-function confirmPickWaiter(ids = pickedWaiterIds.value) {
+function confirmPickWaiter(ids: number[] = pickedWaiterIds.value) {
   const existingSourceIds = new Set(
     waitersLocal.value
       .map((row) => row.source_waiter_id)
@@ -587,11 +608,11 @@ function confirmPickWaiter(ids = pickedWaiterIds.value) {
   closeWaiterPick()
 }
 
-function buildPutPayload() {
+function buildPutPayload(): EventConfigurationIn {
   layoutsSectionRef.value?.ensureDefaultLayout()
   return {
     stations: stationsLocal.value.map((s) => {
-      const row = {
+      const row: StationConfigIn = {
         name: s.name,
         printer_appliance_id: s.printer_appliance_id ?? null,
         article_ids: Array.isArray(s.article_ids) ? s.article_ids : [],
@@ -611,7 +632,7 @@ function buildPutPayload() {
       return row
     }),
     event_waiters: waitersLocal.value.map((w) => {
-      const row = {
+      const row: EventWaiterConfigIn = {
         name: w.name,
         pin: w.pin,
         source_waiter_id: w.source_waiter_id ?? null,
@@ -642,7 +663,7 @@ function buildPutPayload() {
         }),
     })),
     voucher_definitions: vouchersLocal.value.map((vd) => {
-      const row = {
+      const row: VoucherDefinitionIn = {
         name: vd.name,
         kind: vd.kind,
         allowed_article_ids: Array.isArray(vd.allowed_article_ids) ? vd.allowed_article_ids : [],
@@ -655,7 +676,7 @@ function buildPutPayload() {
       return row
     }),
     cash_registers: cashRegistersLocal.value.map((reg) => {
-      const row = {
+      const row: CashRegisterIn = {
         name: reg.name,
         pickup_code_prefix: normalizePickupPrefix(reg.pickup_code_prefix || 'A'),
         pin: reg.pin || '0000',
@@ -681,15 +702,15 @@ async function persistConfiguration() {
     return false
   }
   try {
-    const cfg = await apiJson(`/events/${props.eventId}/configuration`, {
+    const cfg = await apiJson<EventConfigurationRead>(`/events/${props.eventId}/configuration`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(buildPutPayload()),
     })
     printerOptions.value = cfg.printer_options || []
     return true
-  } catch (err) {
-    setConfigAutosaveError(err.message || t('events.config.saveFailed'))
+  } catch (err: unknown) {
+    setConfigAutosaveError(getErrorMessage(err, t('events.config.saveFailed')))
     return false
   }
 }
@@ -733,7 +754,7 @@ const hasUnsavedChanges = computed(
     stockSaveStatus.value === 'saving',
 )
 
-function onBeforeUnload(event) {
+function onBeforeUnload(event: BeforeUnloadEvent) {
   if (!hasUnsavedChanges.value) return
   event.preventDefault()
   event.returnValue = ''

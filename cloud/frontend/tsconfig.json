@@ -1,0 +1,17 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@vendiqo/frontend-shared": ["../../packages/frontend-shared/src"],
+      "@vendiqo/frontend-shared/*": ["../../packages/frontend-shared/src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

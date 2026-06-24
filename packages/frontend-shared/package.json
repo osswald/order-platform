@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./colorContrast": "./src/colorContrast.js",
-    "./apiError": "./src/apiError.js",
+    "./colorContrast": "./src/colorContrast.ts",
+    "./apiError": "./src/apiError.ts",
     "./useAppVersion": "./src/useAppVersion.js",
-    "./stockByStation": "./src/stockByStation.js"
+    "./stockByStation": "./src/stockByStation.ts"
   }
 }

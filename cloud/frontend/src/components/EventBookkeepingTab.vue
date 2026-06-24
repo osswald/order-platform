@@ -52,23 +52,38 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import VqDataTable from './VqDataTable.vue'
+import { getErrorMessage } from '@/types/api'
+import type {
+  BookkeepingAccountRef,
+  BookkeepingDetailEntry,
+  BookkeepingDetailLine,
+  BookkeepingSummaryRow,
+  BookkeepingTaxCodeRef,
+  EventBookkeepingReport,
+} from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
-const props = defineProps({
-  eventId: { type: Number, required: true },
-  currency: { type: String, default: 'CHF' },
-})
+const props = withDefaults(
+  defineProps<{
+    eventId: number
+    currency?: string
+  }>(),
+  {
+    currency: 'CHF',
+  },
+)
 
 const { t } = useI18n()
 const loading = ref(false)
 const loadError = ref('')
-const report = ref(null)
+const report = ref<EventBookkeepingReport | null>(null)
 
-const summaryHeaders = computed(() => [
+const summaryHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.bookkeepingDebit'), key: 'debit_account' },
   { title: t('events.tabs.bookkeepingCredit'), key: 'credit_account' },
   { title: t('events.tabs.bookkeepingTaxCode'), key: 'tax_code' },
@@ -79,7 +94,7 @@ const summaryHeaders = computed(() => [
   { title: t('events.tabs.bookkeepingCollectiveBill'), key: 'collective_bill_name' },
 ])
 
-const detailHeaders = computed(() => [
+const detailHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.bookkeepingSide'), key: 'side' },
   { title: t('events.tabs.bookkeepingAccount'), key: 'account' },
   { title: t('events.tabs.bookkeepingAmount'), key: 'amount_cents', align: 'end' },
@@ -87,7 +102,7 @@ const detailHeaders = computed(() => [
   { title: t('events.tabs.bookkeepingSubsidiary'), key: 'subsidiary' },
 ])
 
-function formatMoney(cents) {
+function formatMoney(cents: number | null | undefined): string {
   const value = (Number(cents) || 0) / 100
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -95,42 +110,42 @@ function formatMoney(cents) {
   }).format(value)
 }
 
-function accountLabel(account) {
+function accountLabel(account: BookkeepingAccountRef | null | undefined): string {
   if (!account) return '—'
   return `${account.number} ${account.name}`.trim()
 }
 
-function taxLabel(taxCode) {
+function taxLabel(taxCode: BookkeepingTaxCodeRef | null | undefined): string {
   if (!taxCode?.name) return '—'
   const rate = taxCode.rate_percent != null ? ` (${taxCode.rate_percent}%)` : ''
   return `${taxCode.name}${rate}`
 }
 
-function subsidiaryLabel(item) {
+function subsidiaryLabel(item: BookkeepingSummaryRow): string {
   const code = item.subsidiary_code
   const name = item.subsidiary_name
   if (code && name) return `${code} · ${name}`
   return code || name || '—'
 }
 
-function subsidiaryLineLabel(item) {
+function subsidiaryLineLabel(item: BookkeepingDetailLine): string {
   const code = item.subsidiary_code
   const name = item.subsidiary_name
   if (code && name) return `${code} · ${name}`
   return code || name || '—'
 }
 
-function sideLabel(side) {
+function sideLabel(side: string | null | undefined): string {
   if (side === 'debit') return t('events.tabs.bookkeepingSoll')
   if (side === 'credit') return t('events.tabs.bookkeepingHaben')
   return side || '—'
 }
 
-function detailKey(entry) {
+function detailKey(entry: BookkeepingDetailEntry): string {
   return `${entry.kind}-${entry.payment_id || entry.submission_id || entry.collective_bill_uuid}`
 }
 
-function detailTitle(entry) {
+function detailTitle(entry: BookkeepingDetailEntry): string {
   if (entry.kind === 'payment') {
     return `${entry.method_label || entry.method} · ${formatMoney(entry.amount_cents)}`
   }
@@ -144,9 +159,11 @@ async function loadReport() {
   loading.value = true
   loadError.value = ''
   try {
-    report.value = await apiJson(`/events/${props.eventId}/bookkeeping?view=both`)
-  } catch (e) {
-    loadError.value = e.message || t('events.tabs.bookkeepingLoadError')
+    report.value = await apiJson<EventBookkeepingReport>(
+      `/events/${props.eventId}/bookkeeping?view=both`,
+    )
+  } catch (e: unknown) {
+    loadError.value = getErrorMessage(e, t('events.tabs.bookkeepingLoadError'))
     report.value = null
   } finally {
     loading.value = false

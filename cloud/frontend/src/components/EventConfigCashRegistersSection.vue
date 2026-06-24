@@ -74,35 +74,33 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
+import type { EventCashRegisterLocal, LayoutOption } from '@/types/ui'
+import type { PrinterOptionRead } from '@/types/api'
 
-const props = defineProps({
-  layoutOptions: {
-    type: Array,
-    default: () => [],
+const props = withDefaults(
+  defineProps<{
+    layoutOptions?: LayoutOption[]
+    defaultLayoutUuid?: string
+    printerOptions?: PrinterOptionRead[]
+    accountsEnabled?: boolean
+  }>(),
+  {
+    layoutOptions: () => [],
+    defaultLayoutUuid: '',
+    printerOptions: () => [],
+    accountsEnabled: false,
   },
-  defaultLayoutUuid: {
-    type: String,
-    default: '',
-  },
-  printerOptions: {
-    type: Array,
-    default: () => [],
-  },
-  accountsEnabled: {
-    type: Boolean,
-    default: false,
-  },
-})
+)
 
-const cashRegisters = defineModel({ type: Array, required: true })
+const cashRegisters = defineModel<EventCashRegisterLocal[]>({ required: true })
 
 const { t } = useI18n()
 
-function normalizePickupPrefix(value) {
+function normalizePickupPrefix(value: string | null | undefined): string {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
 }
 
@@ -117,7 +115,7 @@ function addCashRegister() {
   })
 }
 
-function removeCashRegister(idx) {
+function removeCashRegister(idx: number) {
   cashRegisters.value.splice(idx, 1)
 }
 </script>

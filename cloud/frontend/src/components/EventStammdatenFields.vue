@@ -112,7 +112,7 @@
       <TwintQrField
         v-if="showTwintQrSection"
         :edit-mode="editMode"
-        :active-id="activeId"
+        :active-id="activeId ?? undefined"
         :has-twint-qr="hasTwintQr"
         :preview-url="twintQrPreviewUrl"
         :preview-loading="twintQrPreviewLoading"
@@ -210,76 +210,61 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import TwintQrField from './TwintQrField.vue'
 import { rules } from '../utils/formRules.js'
+import type { EventStammdatenForm, SelectOption } from '@/types/ui'
 
 const { t } = useI18n()
 
-const form = defineModel('form', { type: Object, required: true })
+const form = defineModel<EventStammdatenForm>('form', { required: true })
 
-defineProps({
-  selectableStatusOptions: {
-    type: Array,
-    required: true,
+withDefaults(
+  defineProps<{
+    selectableStatusOptions: SelectOption<string>[]
+    paymentModeOptions: SelectOption<string>[]
+    paymentTypeOptions: SelectOption<string>[]
+    showTwintQrSection?: boolean
+    editMode?: boolean
+    activeId?: number | null
+    hasTwintQr?: boolean
+    twintQrPreviewUrl?: string
+    twintQrPreviewLoading?: boolean
+    twintQrBusy?: boolean
+  }>(),
+  {
+    showTwintQrSection: false,
+    editMode: false,
+    activeId: null,
+    hasTwintQr: false,
+    twintQrPreviewUrl: '',
+    twintQrPreviewLoading: false,
+    twintQrBusy: false,
   },
-  paymentModeOptions: {
-    type: Array,
-    required: true,
-  },
-  paymentTypeOptions: {
-    type: Array,
-    required: true,
-  },
-  showTwintQrSection: {
-    type: Boolean,
-    default: false,
-  },
-  editMode: {
-    type: Boolean,
-    default: false,
-  },
-  activeId: {
-    type: [Number, String],
-    default: null,
-  },
-  hasTwintQr: {
-    type: Boolean,
-    default: false,
-  },
-  twintQrPreviewUrl: {
-    type: String,
-    default: '',
-  },
-  twintQrPreviewLoading: {
-    type: Boolean,
-    default: false,
-  },
-  twintQrBusy: {
-    type: Boolean,
-    default: false,
-  },
-})
+)
 
-defineEmits(['upload', 'remove'])
+defineEmits<{
+  upload: [file: File]
+  remove: []
+}>()
 
 const isInstantMode = computed(() => (form.value.paymentMode || 'pay_later') === 'instant')
 
-function pad2(n) {
+function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-function formatLocalDatetime(value) {
+function formatLocalDatetime(value: Date | null | undefined): string {
   if (!value || !(value instanceof Date) || Number.isNaN(value.getTime())) {
     return ''
   }
   return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}T${pad2(value.getHours())}:${pad2(value.getMinutes())}`
 }
 
-function parseLocalDatetime(value) {
+function parseLocalDatetime(value: string | null | undefined): Date | null {
   if (!value) return null
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? null : parsed

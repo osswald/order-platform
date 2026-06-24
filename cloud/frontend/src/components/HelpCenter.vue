@@ -67,7 +67,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SectionNavLayout from './SectionNavLayout.vue'
@@ -86,7 +86,7 @@ const router = useRouter()
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 
 const searchQuery = ref('')
-const routeSlug = computed(() => route.params.slug ?? '')
+const routeSlug = computed(() => String(route.params.slug ?? ''))
 const currentArticle = computed(() => (routeSlug.value ? getArticle(routeSlug.value) : null))
 const notFound = computed(() => routeSlug.value && !currentArticle.value)
 
@@ -109,7 +109,7 @@ const categoryArticles = computed(() => {
 })
 
 const articleBodies = computed(() => {
-  const bodies = {}
+  const bodies: Record<string, NonNullable<ReturnType<typeof getArticle>>> = {}
   for (const article of categoryArticles.value) {
     const loaded = getArticle(article.slug)
     if (loaded) bodies[article.slug] = loaded

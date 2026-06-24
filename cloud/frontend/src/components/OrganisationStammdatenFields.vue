@@ -66,7 +66,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import UserPicker from './UserPicker.vue'
 import { rules } from '../utils/formRules.js'
 

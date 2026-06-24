@@ -52,31 +52,35 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import VqDataTable from './VqDataTable.vue'
 import { rules } from '../utils/formRules.js'
+import type { EventWaiterLocal } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
-const props = defineProps({
-  catalogLoading: {
-    type: Boolean,
-    default: false,
+const props = withDefaults(
+  defineProps<{
+    catalogLoading?: boolean
+    accountsEnabled?: boolean
+  }>(),
+  {
+    catalogLoading: false,
+    accountsEnabled: false,
   },
-  accountsEnabled: {
-    type: Boolean,
-    default: false,
-  },
-})
+)
 
-defineEmits(['import-from-org'])
+defineEmits<{
+  'import-from-org': []
+}>()
 
-const waiters = defineModel({ type: Array, required: true })
+const waiters = defineModel<EventWaiterLocal[]>({ required: true })
 
 const { t } = useI18n()
 
-const waiterHeaders = computed(() => {
-  const headers = [
+const waiterHeaders = computed((): DataTableHeader[] => {
+  const headers: DataTableHeader[] = [
     { title: t('events.config.waiterNameHeader'), key: 'name', sortable: false },
     { title: t('events.config.waiterPinHeader'), key: 'pin', sortable: false },
   ]
@@ -100,7 +104,7 @@ function addWaiterRow() {
   })
 }
 
-function removeWaiterByIndex(ix) {
+function removeWaiterByIndex(ix: number) {
   if (ix >= 0) waiters.value.splice(ix, 1)
 }
 </script>

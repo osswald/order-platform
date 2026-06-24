@@ -17,23 +17,41 @@
   </aside>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import AppNavMenu from './AppNavMenu.vue'
+import type { HireCompanyBrief, OrganisationRead } from '@/types/api'
 
-defineProps({
-  isPlatformAdmin: { type: Boolean, default: false },
-  canAccessTenantAdmin: { type: Boolean, default: false },
-  canAccessOrganisationSettings: { type: Boolean, default: false },
-  canAccessUsers: { type: Boolean, default: false },
-  isTenantAdminRole: { type: Boolean, default: false },
-  hireCompanies: { type: Array, default: () => [] },
-  activeHireCompanyId: { type: Number, default: null },
-  showHireCompanyPicker: { type: Boolean, default: false },
-  organisations: { type: Array, default: () => [] },
-  activeOrganisationId: { type: Number, default: null },
-})
+withDefaults(
+  defineProps<{
+    isPlatformAdmin?: boolean
+    canAccessTenantAdmin?: boolean
+    canAccessOrganisationSettings?: boolean
+    canAccessUsers?: boolean
+    isTenantAdminRole?: boolean
+    hireCompanies?: HireCompanyBrief[]
+    activeHireCompanyId?: number | null
+    showHireCompanyPicker?: boolean
+    organisations?: OrganisationRead[]
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    isPlatformAdmin: false,
+    canAccessTenantAdmin: false,
+    canAccessOrganisationSettings: false,
+    canAccessUsers: false,
+    isTenantAdminRole: false,
+    hireCompanies: () => [],
+    activeHireCompanyId: null,
+    showHireCompanyPicker: false,
+    organisations: () => [],
+    activeOrganisationId: null,
+  },
+)
 
-defineEmits(['change-organisation', 'change-hire-company'])
+defineEmits<{
+  'change-organisation': [id: number | null]
+  'change-hire-company': [id: number | null]
+}>()
 </script>
 
 <style scoped>

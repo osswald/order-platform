@@ -150,30 +150,39 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
+import type { EventConfigurationRead } from '@/types/api'
+import type {
+  EventCellEditState,
+  EventLayoutCellLocal,
+  EventLayoutLocal,
+  EventVoucherDefinitionLocal,
+  LayoutRemovedPayload,
+  StationArticleTreeNode,
+  StationArticleTreeResponse,
+} from '@/types/ui'
 
-const props = defineProps({
-  eventId: {
-    type: Number,
-    required: true,
+const props = withDefaults(
+  defineProps<{
+    eventId: number
+    vouchersEnabled?: boolean
+    voucherDefinitions?: EventVoucherDefinitionLocal[]
+  }>(),
+  {
+    vouchersEnabled: false,
+    voucherDefinitions: () => [],
   },
-  vouchersEnabled: {
-    type: Boolean,
-    default: false,
-  },
-  voucherDefinitions: {
-    type: Array,
-    default: () => [],
-  },
-})
+)
 
-const emit = defineEmits(['layout-removed'])
-const layouts = defineModel({ type: Array, required: true })
-const cellDialogVisible = defineModel('cellDialogOpen', { type: Boolean, default: false })
+const emit = defineEmits<{
+  'layout-removed': [payload: LayoutRemovedPayload]
+}>()
+const layouts = defineModel<EventLayoutLocal[]>({ required: true })
+const cellDialogVisible = defineModel<boolean>('cellDialogOpen', { default: false })
 
 const { t } = useI18n()
 
@@ -184,17 +193,23 @@ const layoutCellsError = ref('')
 const cellEditLayoutIndex = ref(0)
 const cellEditRow = ref(0)
 const cellEditCol = ref(0)
-const cellEdit = ref({
+const cellEdit = ref<EventCellEditState>({
   label: '',
   color: '#eeeeee',
   article_ids: [],
   voucher_definition_uuid: null,
   voucher_definition_uuids: [],
 })
-const cellTreeNodesRaw = ref([])
-const cellTreeSelection = ref([])
+const cellTreeNodesRaw = ref<StationArticleTreeNode[]>([])
+const cellTreeSelection = ref<string[]>([])
 const cellTreeFilter = ref('')
 const treeLoading = ref(false)
+
+interface TreeViewNode {
+  key: string
+  title: string
+  children?: TreeViewNode[]
+}
 
 const fixedAmountVoucherOptions = computed(() =>
   props.voucherDefinitions
@@ -213,7 +228,7 @@ const filteredCellTreeItems = computed(() => {
   return filterTreeNodes(cellTreeItems.value, q)
 })
 
-function mapTreeNodes(nodes) {
+function mapTreeNodes(nodes: StationArticleTreeNode[]): TreeViewNode[] {
   return (nodes || []).map((n) => ({
     key: n.key,
     title: n.label,
@@ -221,8 +236,8 @@ function mapTreeNodes(nodes) {
   }))
 }
 
-function filterTreeNodes(nodes, query) {
-  const out = []
+function filterTreeNodes(nodes: TreeViewNode[], query: string): TreeViewNode[] {
+  const out: TreeViewNode[] = []
   for (const node of nodes) {
     if (node.children?.length) {
       const filteredChildren = filterTreeNodes(node.children, query)
@@ -238,20 +253,20 @@ function filterTreeNodes(nodes, query) {
   return out
 }
 
-function newUuid() {
+function newUuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function cellVoucherUuids(c) {
+function cellVoucherUuids(c: EventLayoutCellLocal | null | undefined): string[] {
   const list = c?.voucher_definition_uuids
   if (Array.isArray(list) && list.length) return list.map(String)
   if (c?.voucher_definition_uuid) return [String(c.voucher_definition_uuid)]
   return []
 }
 
-function gridPositions(lo) {
-  const out = []
+function gridPositions(lo: EventLayoutLocal): Array<{ row: number; col: number }> {
+  const out: Array<{ row: number; col: number }> = []
   for (let row = 0; row < lo.grid_height; row += 1) {
     for (let col = 0; col < lo.grid_width; col += 1) {
       out.push({ row, col })
@@ -260,7 +275,7 @@ function gridPositions(lo) {
   return out
 }
 
-function displayCell(lo, row, col) {
+function displayCell(lo: EventLayoutLocal, row: number, col: number): EventLayoutCellLocal {
   const c = lo.cells.find((x) => x.row === row && x.col === col)
   return (
     c || {
@@ -275,7 +290,7 @@ function displayCell(lo, row, col) {
   )
 }
 
-function previewCellStyle(cell) {
+function previewCellStyle(cell: EventLayoutCellLocal): { background: string; color: string } {
   const background = cell.color || '#eeeeee'
   return {
     background,
@@ -283,17 +298,17 @@ function previewCellStyle(cell) {
   }
 }
 
-function clampGridDim(value, fallback = 4) {
+function clampGridDim(value: number | string | null | undefined, fallback = 4): number {
   const n = Math.round(Number(value))
   if (!Number.isFinite(n)) return fallback
   return Math.min(64, Math.max(1, n))
 }
 
-function isCellInGrid(c, width, height) {
+function isCellInGrid(c: EventLayoutCellLocal, width: number, height: number): boolean {
   return c.row >= 0 && c.col >= 0 && c.row < height && c.col < width
 }
 
-function cellHasData(c) {
+function cellHasData(c: EventLayoutCellLocal): boolean {
   if ((c.label || '').trim()) return true
   if ((c.article_ids || []).length > 0) return true
   if (cellVoucherUuids(c).length > 0) return true
@@ -302,7 +317,7 @@ function cellHasData(c) {
   return false
 }
 
-function applyGridSizeChange(lo, nextW, nextH) {
+function applyGridSizeChange(lo: EventLayoutLocal, nextW: number | string | null | undefined, nextH: number | string | null | undefined): boolean {
   const prevW = lo.grid_width
   const prevH = lo.grid_height
   nextW = clampGridDim(nextW, prevW)
@@ -342,25 +357,25 @@ function applyGridSizeChange(lo, nextW, nextH) {
   return true
 }
 
-function onGridWidthChange(lo, value) {
+function onGridWidthChange(lo: EventLayoutLocal, value: number | string | null | undefined) {
   applyGridSizeChange(lo, value, lo.grid_height)
 }
 
-function onGridHeightChange(lo, value) {
+function onGridHeightChange(lo: EventLayoutLocal, value: number | string | null | undefined) {
   applyGridSizeChange(lo, lo.grid_width, value)
 }
 
-function cellPreviewMeta(lo, row, col) {
+function cellPreviewMeta(lo: EventLayoutLocal, row: number, col: number): string {
   const c = displayCell(lo, row, col)
   const vCount = cellVoucherUuids(c).length
   const aCount = c.article_ids?.length || 0
-  const parts = []
-  if (vCount) parts.push(t('events.config.voucherCount', vCount, { count: vCount }))
+  const parts: string[] = []
+  if (vCount) parts.push(t('events.config.voucherCount', { count: vCount }))
   if (aCount) parts.push(t('events.config.articleCount', { count: aCount }))
   return parts.join(' · ')
 }
 
-function ensureCell(lo, row, col) {
+function ensureCell(lo: EventLayoutLocal, row: number, col: number): EventLayoutCellLocal {
   let c = lo.cells.find((x) => x.row === row && x.col === col)
   if (!c) {
     c = {
@@ -377,11 +392,11 @@ function ensureCell(lo, row, col) {
   return c
 }
 
-function articleIdsToTreeSelection(ids) {
+function articleIdsToTreeSelection(ids: number[]): string[] {
   return (ids || []).map((id) => `art-${id}`)
 }
 
-function treeSelectionToArticleIds(sel) {
+function treeSelectionToArticleIds(sel: string[]): number[] {
   if (!Array.isArray(sel)) return []
   return sel
     .filter((k) => typeof k === 'string' && k.startsWith('art-'))
@@ -402,13 +417,13 @@ function ensureDefaultLayout() {
   }
 }
 
-function setOnlyDefault(idx) {
+function setOnlyDefault(idx: number) {
   layouts.value.forEach((lo, i) => {
     lo.is_default = i === idx
   })
 }
 
-function onDefaultLayoutChange(layoutIndex, checked) {
+function onDefaultLayoutChange(layoutIndex: number, checked: boolean | null) {
   if (checked) {
     setOnlyDefault(layoutIndex)
   } else {
@@ -432,7 +447,7 @@ function addLayout() {
   })
 }
 
-function removeLayout(idx) {
+function removeLayout(idx: number) {
   const removed = layouts.value[idx]
   layouts.value.splice(idx, 1)
   if (!layouts.value.some((l) => l.is_default) && layouts.value.length) {
@@ -446,7 +461,7 @@ function removeLayout(idx) {
   }
 }
 
-function mapLayoutCells(cells) {
+function mapLayoutCells(cells: EventLayoutCellLocal[] | undefined) {
   return (cells || []).map((c) => ({
     row: c.row,
     col: c.col,
@@ -458,14 +473,14 @@ function mapLayoutCells(cells) {
   }))
 }
 
-function mergeLayoutCellsFromResponse(cfg) {
+function mergeLayoutCellsFromResponse(cfg: EventConfigurationRead) {
   const remoteByUuid = new Map((cfg.app_layouts || []).map((lo) => [lo.uuid, lo]))
   layouts.value = layouts.value.map((lo) => {
     const remote = remoteByUuid.get(lo.uuid)
     if (!remote) return lo
     return {
       ...lo,
-      cells: mapLayoutCells(remote.cells),
+      cells: mapLayoutCells(remote.cells as EventLayoutCellLocal[]),
     }
   })
   layoutCellsLoaded.value = true
@@ -476,7 +491,9 @@ async function loadLayoutCells() {
   layoutCellsLoading.value = true
   layoutCellsError.value = ''
   try {
-    mergeLayoutCellsFromResponse(await apiJson(`/events/${props.eventId}/configuration`))
+    mergeLayoutCellsFromResponse(
+      await apiJson<EventConfigurationRead>(`/events/${props.eventId}/configuration`),
+    )
   } catch {
     layoutCellsError.value = t('events.config.layoutCellsLoadFailed')
   } finally {
@@ -484,7 +501,7 @@ async function loadLayoutCells() {
   }
 }
 
-async function openCellDialog(layoutIndex, row, col) {
+async function openCellDialog(layoutIndex: number, row: number, col: number) {
   cellEditLayoutIndex.value = layoutIndex
   cellEditRow.value = row
   cellEditCol.value = col
@@ -504,7 +521,9 @@ async function openCellDialog(layoutIndex, row, col) {
   treeLoading.value = true
   cellTreeNodesRaw.value = []
   try {
-    const data = await apiJson(`/events/${props.eventId}/station-article-tree`)
+    const data = await apiJson<StationArticleTreeResponse>(
+      `/events/${props.eventId}/station-article-tree`,
+    )
     cellTreeNodesRaw.value = data.nodes || []
   } catch {
     /* tree optional */

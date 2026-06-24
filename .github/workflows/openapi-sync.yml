@@ -1,0 +1,59 @@
+name: OpenAPI sync
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "cloud/backend/**"
+      - "cloud/frontend/openapi.json"
+      - "cloud/frontend/src/types/api.generated.ts"
+      - ".github/workflows/openapi-sync.yml"
+  pull_request:
+    paths:
+      - "cloud/backend/**"
+      - "cloud/frontend/openapi.json"
+      - "cloud/frontend/src/types/api.generated.ts"
+      - ".github/workflows/openapi-sync.yml"
+
+jobs:
+  openapi-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install shared package
+        run: pip install -e packages/vendiqo_shared
+
+      - name: Install cloud backend dependencies
+        working-directory: cloud/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Export OpenAPI schema
+        working-directory: cloud/backend
+        run: python scripts/export_openapi.py
+
+      - name: Verify openapi.json matches committed snapshot
+        run: git diff --exit-code cloud/frontend/openapi.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: cloud/frontend/package-lock.json
+
+      - name: Regenerate TypeScript API types
+        working-directory: cloud/frontend
+        run: |
+          npm ci
+          npm run generate:api-types
+
+      - name: Verify api.generated.ts matches committed snapshot
+        run: git diff --exit-code cloud/frontend/src/types/api.generated.ts

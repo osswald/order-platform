@@ -11,7 +11,7 @@
   </v-data-table>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, useAttrs, useSlots } from 'vue'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 
@@ -27,9 +27,13 @@ const tableClass = computed(() => {
   return ['vq-data-table', extra]
 })
 
-const resolvedItemsPerPage = computed(() => {
-  if (attrs['items-per-page'] != null) return attrs['items-per-page']
-  if (attrs.itemsPerPage != null) return attrs.itemsPerPage
+const resolvedItemsPerPage = computed((): number => {
+  const raw = attrs['items-per-page'] ?? attrs.itemsPerPage
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'string' && raw !== '') {
+    const parsed = Number(raw)
+    if (Number.isFinite(parsed)) return parsed
+  }
   return -1
 })
 </script>

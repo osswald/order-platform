@@ -1,0 +1,59 @@
+import { computed, ref } from 'vue'
+import { apiJson } from '../api'
+import type { CountryRead } from '@/types/api'
+
+const countries = ref<CountryRead[]>([])
+const loading = ref(false)
+let loadPromise: Promise<CountryRead[]> | null = null
+
+export function useCountries() {
+  const countryOptions = computed(() =>
+    countries.value.map((country) => ({
+      title: country.name,
+      value: country.id,
+    })),
+  )
+
+  async function fetchCountries({ force = false } = {}) {
+    if (!force && countries.value.length) {
+      return countries.value
+    }
+    if (loadPromise && !force) {
+      return loadPromise
+    }
+    loading.value = true
+    loadPromise = (async () => {
+      try {
+        countries.value = await apiJson<CountryRead[]>('/countries/')
+        return countries.value
+      } finally {
+        loading.value = false
+        loadPromise = null
+      }
+    })()
+    return loadPromise
+  }
+
+  function invalidateCountries() {
+    countries.value = []
+    loadPromise = null
+  }
+
+  function countryById(id: number | string | null | undefined) {
+    return countries.value.find((country) => Number(country.id) === Number(id)) || null
+  }
+
+  function countryName(id: number | string | null | undefined) {
+    return countryById(id)?.name || ''
+  }
+
+  return {
+    countries,
+    loading,
+    countryOptions,
+    fetchCountries,
+    invalidateCountries,
+    countryById,
+    countryName,
+  }
+}

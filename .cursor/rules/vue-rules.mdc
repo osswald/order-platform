@@ -27,17 +27,16 @@ src/
   store/
   assets/
   App.vue
-  main.js
+  main.ts
 `;
 
 // Additional instructions
 
 const additionalInstructions = `
-1. Use TypeScript for type safety
-2. Implement proper props and emits definitions
-3. Utilize Vue 3's Teleport component when needed
-4. Use Suspense for async components
-5. Implement proper error handling
-6. Follow Vue 3 style guide and naming conventions
-7. Use Vite for fast development and building
+1. Cloud frontend uses TypeScript: <script setup lang="ts">, typed defineProps/emits/models
+2. API calls use @/api (openapi-fetch client + apiJson<T> for dynamic paths)
+3. Vuetify data-table slots: type slot props via @/types/vuetify (no implicit any)
+4. Implement proper error handling with catch (e: unknown)
+5. Follow Vue 3 style guide and naming conventions
+6. Regenerate OpenAPI types when backend schemas change (see AGENTS.md)
 `;

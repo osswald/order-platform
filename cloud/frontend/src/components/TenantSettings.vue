@@ -61,7 +61,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
@@ -69,24 +69,26 @@ import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
-import { rules, validateForm } from '../utils/formRules.js'
+import { rules, validateForm, type ValidatableForm } from '../utils/formRules.js'
+import type { HireCompanyRead } from '@/types/api'
+import type { TenantSettingsForm } from '@/types/ui'
 
-const props = defineProps({
-  activeHireCompanyId: { type: Number, default: null },
-})
+const props = defineProps<{
+  activeHireCompanyId?: number | null
+}>()
 
 const { t } = useI18n()
 const { countryOptions, fetchCountries } = useCountries()
 
 const hireCompanyId = computed(() => props.activeHireCompanyId)
-const form = ref({
+const form = ref<TenantSettingsForm>({
   name: '',
   address: '',
   zip: '',
   city: '',
   countryId: null,
 })
-const formRef = ref(null)
+const formRef = ref<ValidatableForm | null>(null)
 const message = ref('')
 const messageType = ref('')
 
@@ -112,7 +114,7 @@ async function loadCompany() {
   }
   const seq = ++loadSeq
   try {
-    const data = await apiJson(`/hire-companies/${id}`)
+    const data = await apiJson<HireCompanyRead>(`/hire-companies/${id}`)
     if (seq !== loadSeq || id !== hireCompanyId.value) return
     form.value = {
       name: data.name || '',

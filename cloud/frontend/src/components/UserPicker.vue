@@ -44,32 +44,40 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
+import type { UserRead } from '@/types/api'
+
+type UserPickerEntry = Pick<UserRead, 'id' | 'name' | 'email'>
+interface UserPickerSelected {
+  id: number
+  name?: string | null
+  email?: string | null
+}
 
 const { t } = useI18n()
 
-const props = defineProps({
-  modelValue: {
-    type: Array,
-    default: () => [],
-  },
-})
-const emit = defineEmits(['update:modelValue'])
+const props = defineProps<{
+  modelValue?: number[]
+}>()
 
-const rootEl = ref(null)
-const inputRef = ref(null)
+const emit = defineEmits<{
+  'update:modelValue': [value: number[]]
+}>()
+
+const rootEl = ref<HTMLElement | null>(null)
+const inputRef = ref<HTMLInputElement | null>(null)
 const term = ref('')
 const loading = ref(false)
 const dropdownOpen = ref(false)
-const directory = ref([])
-const selectedUsers = ref([])
+const directory = ref<UserPickerEntry[]>([])
+const selectedUsers = ref<UserPickerSelected[]>([])
 
-let inFlightFetch = null
+let inFlightFetch: Promise<void> | null = null
 
-function displayUser(u) {
+function displayUser(u: UserPickerSelected): string {
   if (u.name && String(u.name).trim()) {
     return u.email ? `${u.name} (${u.email})` : u.name
   }
@@ -94,7 +102,7 @@ async function fetchDirectory() {
   loading.value = true
   inFlightFetch = (async () => {
     try {
-      directory.value = await apiJson('/users/')
+      directory.value = await apiJson<UserPickerEntry[]>('/users/')
     } catch {
       directory.value = []
     } finally {
@@ -126,7 +134,7 @@ watch(
     }
     syncSelectedFromModel()
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 )
 
 watch(directory, () => {
@@ -146,7 +154,7 @@ function closeDropdown() {
   dropdownOpen.value = false
 }
 
-function add(u) {
+function add(u: UserPickerEntry) {
   const prev = (props.modelValue || []).map((x) => Number(x))
   const id = Number(u.id)
   if (prev.includes(id)) return
@@ -157,16 +165,16 @@ function add(u) {
   inputRef.value?.focus()
 }
 
-function remove(id) {
+function remove(id: number) {
   const n = Number(id)
   const ids = (props.modelValue || []).filter((x) => Number(x) !== n)
   emit('update:modelValue', ids)
 }
 
-function onDocPointerDown(e) {
+function onDocPointerDown(e: PointerEvent) {
   if (!dropdownOpen.value) return
   const el = rootEl.value
-  if (el && !el.contains(e.target)) {
+  if (el && e.target instanceof Node && !el.contains(e.target)) {
     closeDropdown()
   }
 }

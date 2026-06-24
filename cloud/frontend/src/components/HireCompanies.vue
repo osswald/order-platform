@@ -94,7 +94,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { inject, onMounted, ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -108,6 +108,9 @@ import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+
+import type { HireCompanyRead } from '@/types/api'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 const { countryOptions, fetchCountries } = useCountries()
@@ -125,7 +128,7 @@ const {
   goToDetail,
 } = useListDetailRouting('hire-companies')
 
-const tableHeaders = computed(() => [
+const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.name'), key: 'name' },
   { title: t('common.location'), key: 'standort', sortable: false },
@@ -133,11 +136,17 @@ const tableHeaders = computed(() => [
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const companies = ref([])
+const companies = ref<HireCompanyRead[]>([])
 const message = ref('')
 const messageType = ref('')
 
-const form = ref({
+const form = ref<{
+  name: string
+  address: string
+  zip: string
+  city: string
+  countryId: number | null
+}>({
   name: '',
   address: '',
   zip: '',
@@ -147,7 +156,7 @@ const form = ref({
 
 async function fetchCompanies() {
   try {
-    companies.value = await apiJson('/hire-companies/')
+    companies.value = await apiJson<HireCompanyRead[]>('/hire-companies/')
   } catch {
     message.value = t('hireCompanies.loadError')
     messageType.value = 'error'
@@ -159,10 +168,10 @@ const emptyForm = () => ({
   address: '',
   zip: '',
   city: '',
-  countryId: null,
+  countryId: null as number | null,
 })
 
-function applyCompanyToForm(row) {
+function applyCompanyToForm(row: HireCompanyRead) {
   form.value = {
     name: row.name || '',
     address: row.address || '',
@@ -195,7 +204,7 @@ async function syncRouteToForm() {
   let row = companies.value.find((c) => Number(c.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/hire-companies/${id}`)
+      row = await apiJson<HireCompanyRead>(`/hire-companies/${id}`)
     } catch {
       message.value = t('hireCompanies.notFound')
       messageType.value = 'error'
@@ -216,7 +225,7 @@ function openCreateForm() {
   goToCreate()
 }
 
-function editCompany(row) {
+function editCompany(row: HireCompanyRead) {
   applyCompanyToForm(row)
   goToDetail(row.id)
 }
@@ -237,7 +246,7 @@ async function saveCompany() {
       ? `/hire-companies/${routeEntityId.value}`
       : '/hire-companies/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const saved = await apiJson(path, {
+    const saved = await apiJson<HireCompanyRead>(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -256,7 +265,7 @@ async function saveCompany() {
   }
 }
 
-async function deleteCompany(id) {
+async function deleteCompany(id: number | string) {
   if (!confirm(t('hireCompanies.deleteConfirm'))) return
   try {
     await apiJson(`/hire-companies/${id}`, { method: 'DELETE' })

@@ -143,7 +143,7 @@
   </ListDetailLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -160,19 +160,22 @@ import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
 import VqDataTable from './VqDataTable.vue'
+import type { EventRead, EventCreate, EventUpdate } from '@/types/api'
+import type { EventStammdatenForm } from '@/types/ui'
+import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  isAdmin: {
-    type: Boolean,
-    default: false,
+const props = withDefaults(
+  defineProps<{
+    isAdmin?: boolean
+    activeOrganisationId?: number | null
+  }>(),
+  {
+    isAdmin: false,
+    activeOrganisationId: null,
   },
-  activeOrganisationId: {
-    type: Number,
-    default: null,
-  },
-})
+)
 
 const route = useRoute()
 const {
@@ -185,7 +188,7 @@ const {
   goToDetail,
 } = useListDetailRouting('events')
 
-const events = ref([])
+const events = ref<EventRead[]>([])
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
 const messageType = ref('')
@@ -216,7 +219,7 @@ const paymentTypeOptions = computed(() =>
 
 const organisationCurrency = ref('EUR')
 
-const emptyForm = () => ({
+const emptyForm = (): EventStammdatenForm => ({
   name: '',
   status: 'config',
   start: null,
@@ -233,9 +236,9 @@ const emptyForm = () => ({
   instantCollectiveBillName: '',
 })
 
-const form = ref(emptyForm())
+const form = ref<EventStammdatenForm>(emptyForm())
 const stammdatenFormRef = ref(null)
-const eventConfigurationRef = ref(null)
+const eventConfigurationRef = ref<InstanceType<typeof EventConfiguration> | null>(null)
 const stammdatenBaseline = ref('')
 const originalStatus = ref('config')
 
@@ -287,17 +290,18 @@ const selectableStatusOptions = computed(() => {
   return statusOptions.value.filter((o) => allowed.has(o.value))
 })
 
-function statusChipColor(status) {
-  return {
+function statusChipColor(status: string): string | undefined {
+  const colors: Record<string, string | undefined> = {
     config: undefined,
     test: 'info',
     prod: 'success',
     archive: 'warning',
-  }[status]
+  }
+  return colors[status]
 }
 
-const tableHeaders = computed(() => {
-  const headers = [
+const tableHeaders = computed((): DataTableHeader[] => {
+  const headers: DataTableHeader[] = [
     { title: t('events.table.id'), key: 'id' },
     { title: t('events.table.name'), key: 'name' },
     { title: t('events.table.status'), key: 'status', sortable: false },
@@ -311,7 +315,7 @@ const tableHeaders = computed(() => {
   return headers
 })
 
-function formatDateTime(value) {
+function formatDateTime(value: string | null | undefined): string {
   if (!value) return t('common.emDash')
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
@@ -319,15 +323,19 @@ function formatDateTime(value) {
   }).format(new Date(value))
 }
 
-function parseDate(value) {
+function parseDate(value: string | null | undefined): Date | null {
   return value ? new Date(value) : null
 }
 
-function toIso(value) {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
+function toIso(value: Date | null | undefined): string {
+  if (value == null) {
+    throw new Error('Date value is required')
+  }
+  if (value instanceof Date) return value.toISOString()
+  return new Date(value).toISOString()
 }
 
-function matchesSearch(event, term) {
+function matchesSearch(event: EventRead, term: string): boolean {
   if (!term) return true
   return [
     event.id,
@@ -369,7 +377,7 @@ watch(
 
 async function fetchEvents() {
   try {
-    events.value = await apiJson('/events/')
+    events.value = await apiJson<EventRead[]>('/events/')
   } catch {
     message.value = t('events.messages.loadFailed')
     messageType.value = 'error'
@@ -399,7 +407,7 @@ async function loadTwintQrPreview() {
   }
 }
 
-async function uploadTwintQr(file) {
+async function uploadTwintQr(file: File) {
   if (!activeId.value || !file) return
   twintQrBusy.value = true
   try {
@@ -451,7 +459,7 @@ function clearFormState() {
   message.value = ''
 }
 
-async function applyEventToForm(event) {
+async function applyEventToForm(event: EventRead) {
   hasTwintQr.value = Boolean(event.has_twint_qr)
   revokeTwintQrPreview()
   form.value = {
@@ -496,7 +504,7 @@ async function syncRouteToForm() {
   let row = events.value.find((e) => Number(e.id) === Number(id))
   if (!row) {
     try {
-      row = await apiJson(`/events/${id}`)
+      row = await apiJson<EventRead>(`/events/${id}`)
     } catch {
       message.value = t('events.messages.notFound')
       messageType.value = 'error'
@@ -517,12 +525,12 @@ function openCreateForm() {
   goToCreate()
 }
 
-async function editEvent(event) {
+async function editEvent(event: EventRead) {
   await applyEventToForm(event)
   goToDetail(event.id)
 }
 
-function defaultCopyName(name) {
+function defaultCopyName(name: string | null | undefined): string {
   const base = (name || '').trim() || t('events.copy.defaultName')
   const suffix = t('events.copy.defaultSuffix')
   return base.endsWith(suffix) ? base : `${base}${suffix}`
@@ -542,7 +550,7 @@ async function copyEvent() {
   }
   copyBusy.value = true
   try {
-    const created = await apiJson(`/events/${activeId.value}/copy`, {
+    const created = await apiJson<EventRead>(`/events/${activeId.value}/copy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -576,7 +584,7 @@ async function saveEvent() {
     return
   }
 
-  const payload = {
+  const payload: EventCreate | EventUpdate = {
     name: form.value.name,
     status: form.value.status,
     start: toIso(form.value.start),
@@ -594,7 +602,7 @@ async function saveEvent() {
     offer_payment_receipt: Boolean(form.value.offerPaymentReceipt),
   }
   if (!editMode.value) {
-    payload.organisation_id = props.activeOrganisationId
+    (payload as EventCreate).organisation_id = props.activeOrganisationId
   }
 
   try {
@@ -622,7 +630,7 @@ async function saveEvent() {
   }
 }
 
-async function deleteEvent(id) {
+async function deleteEvent(id: number | string) {
   if (!confirm(t('events.confirmDelete'))) return
   try {
     await apiJson(`/events/${id}`, {

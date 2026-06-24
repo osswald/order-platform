@@ -9,7 +9,7 @@ This is the **Vendiqo Order Platform** monorepo — a multi-tenant event/venue P
 | Service | Stack | Port | Run command |
 |---------|-------|------|-------------|
 | Cloud Backend | FastAPI + PostgreSQL | :8000 | `docker compose -f cloud/docker-compose.yml up` |
-| Cloud Frontend | Vue 3 / Vite | :5173 | `docker compose -f cloud/docker-compose.yml up` |
+| Cloud Frontend | Vue 3 / Vite / TypeScript | :5173 | `docker compose -f cloud/docker-compose.yml up` |
 | Pi Backend | FastAPI + SQLite | :8001 | `docker compose -f pi/docker-compose.yml up` |
 | Pi Frontend | Vue 3 / Vite PWA | :5174 | `docker compose -f pi/docker-compose.yml up` |
 
@@ -53,16 +53,27 @@ CI runs both suites via `.github/workflows/backend-tests.yml` on changes under `
 
 **Pi frontend**: `cd pi/frontend && npm ci && npm test` (Vitest; no Docker required)
 
-**Cloud frontend**: `cd cloud/frontend && npm ci && npm test`
+**Cloud frontend**: `cd cloud/frontend && npm ci && npm test` (TypeScript; run `npm run typecheck` before build)
 
 With coverage report:
 
 ```bash
 cd pi/frontend && npm ci && npm run test:coverage
 cd cloud/frontend && npm ci && npm run test:coverage
+cd cloud/frontend && npm run typecheck
 ```
 
-CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes under `cloud/frontend/**` or `pi/frontend/**`.
+CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes under `cloud/frontend/**` or `pi/frontend/**`. Cloud PRs also run `npm run typecheck`. Backend schema changes trigger `.github/workflows/openapi-sync.yml`.
+
+### Cloud frontend TypeScript and OpenAPI
+
+The cloud frontend uses **strict TypeScript**, **openapi-fetch** (`src/api/client.ts`), and generated types from `cloud/frontend/openapi.json`.
+
+When changing Pydantic schemas, routes, or response models under `cloud/backend/app/**`:
+
+1. Run `python cloud/backend/scripts/export_openapi.py`
+2. Run `cd cloud/frontend && npm run generate:api-types`
+3. Commit updated `cloud/frontend/openapi.json` and `cloud/frontend/src/types/api.generated.ts` in the same PR
 
 ### Building frontends
 

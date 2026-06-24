@@ -17,10 +17,10 @@
           :can-access-users="canAccessUsers"
           :is-tenant-admin-role="isTenantAdminRole"
           :hire-companies="hireCompanies"
-          :active-hire-company-id="activeHireCompanyId"
+          :active-hire-company-id="activeHireCompanyIdForViews ?? undefined"
           :show-hire-company-picker="isPlatformAdmin"
           :organisations="accessibleOrganisations"
-          :active-organisation-id="activeOrganisationIdForViews"
+          :active-organisation-id="activeOrganisationIdForViews ?? undefined"
           @change-organisation="setActiveOrganisation"
           @change-hire-company="setActiveHireCompany"
         />
@@ -54,10 +54,10 @@
             :can-access-users="canAccessUsers"
             :is-tenant-admin-role="isTenantAdminRole"
             :hire-companies="hireCompanies"
-            :active-hire-company-id="activeHireCompanyId"
+            :active-hire-company-id="activeHireCompanyIdForViews ?? undefined"
             :show-hire-company-picker="isPlatformAdmin"
             :organisations="accessibleOrganisations"
-            :active-organisation-id="activeOrganisationIdForViews"
+            :active-organisation-id="activeOrganisationIdForViews ?? undefined"
             @change-organisation="setActiveOrganisation"
             @change-hire-company="setActiveHireCompany"
             @navigate="mobileNavOpen = false"
@@ -68,7 +68,7 @@
   </v-app>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, provide, ref, unref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Header from './components/Header.vue'
