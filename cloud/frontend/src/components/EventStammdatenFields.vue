@@ -36,7 +36,7 @@
             :placeholder="t('events.stammdaten.startPlaceholder')"
             hide-details="auto"
             required
-            :rules="[() => rules.requiredDate(props.form.start)]"
+            :rules="[() => rules.requiredDate(form.start)]"
             @update:model-value="form.start = parseLocalDatetime($event)"
           />
         </div>
@@ -48,7 +48,7 @@
             :placeholder="t('events.stammdaten.endPlaceholder')"
             hide-details="auto"
             required
-            :rules="[() => rules.requiredDate(props.form.end)]"
+            :rules="[() => rules.requiredDate(form.end)]"
             @update:model-value="form.end = parseLocalDatetime($event)"
           />
         </div>
@@ -219,11 +219,9 @@ import { rules } from '../utils/formRules.js'
 
 const { t } = useI18n()
 
-const props = defineProps({
-  form: {
-    type: Object,
-    required: true,
-  },
+const form = defineModel('form', { type: Object, required: true })
+
+defineProps({
   selectableStatusOptions: {
     type: Array,
     required: true,
@@ -268,7 +266,7 @@ const props = defineProps({
 
 defineEmits(['upload', 'remove'])
 
-const isInstantMode = computed(() => (props.form.paymentMode || 'pay_later') === 'instant')
+const isInstantMode = computed(() => (form.value.paymentMode || 'pay_later') === 'instant')
 
 function pad2(n) {
   return String(n).padStart(2, '0')

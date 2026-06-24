@@ -19,6 +19,7 @@ from ..roles import (
 from ..security import get_password_hash
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..tenancy import (
     TenantContext,
     ensure_organisation_ids_in_admin_scope,
@@ -41,6 +42,10 @@ from ..rate_limit import USERS_RATE_LIMIT, limiter
 router = APIRouter()
 
 _EVENT_ADMIN_PIN_RE = re.compile(r"^\d{6}$")
+
+
+def _raise_email_already_registered() -> None:
+    raise api_error("email_already_registered", status.HTTP_400_BAD_REQUEST)
 
 
 def _apply_event_admin_pin(user: User, pin: str | None, *, has_orgs: bool) -> None:
@@ -272,7 +277,7 @@ def create_user(
         has_orgs=bool(user_in.organisation_ids),
     )
     sync_user_role_fields(db_user)
-    db.commit()
+    commit_or_raise(db, on_integrity=_raise_email_already_registered)
     out = db.query(User).options(joinedload(User.organisations)).filter(User.id == db_user.id).first()
     return user_to_read(out)
 
@@ -319,7 +324,7 @@ def update_user(
         )
         _apply_event_admin_pin(u, update_data["event_admin_pin"], has_orgs=bool(org_ids))
     sync_user_role_fields(u)
-    db.commit()
+    commit_or_raise(db, on_integrity=_raise_email_already_registered)
     out = db.query(User).options(joinedload(User.organisations)).filter(User.id == user_id).first()
     return user_to_read(out)
 
@@ -340,5 +345,5 @@ def delete_user(
         if not other_super:
             raise api_error("cannot_delete_last_admin", status.HTTP_400_BAD_REQUEST)
     db.delete(u)
-    db.commit()
+    commit_or_raise(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

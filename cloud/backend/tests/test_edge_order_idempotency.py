@@ -186,3 +186,71 @@ def test_edge_order_parallel_duplicate_requests():
         assert count == 1
     finally:
         db.close()
+
+
+def test_operational_chunk_duplicate_returns_ack():
+    headers, event_id = _edge_fixture()
+    chunk_id = f"chunk-{uuid4().hex}"
+    payload = {
+        "chunk_id": chunk_id,
+        "event_id": event_id,
+        "entity_type": "cash_session",
+        "payload": {
+            "entity_type": "cash_session",
+            "session_uuid": str(uuid4()),
+            "opened_at": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+    first = client.post("/edge/v1/sync/operational/chunk", headers=headers, json=payload)
+    assert first.status_code == 200, first.text
+    assert first.json()["accepted"] == 1
+
+    second = client.post("/edge/v1/sync/operational/chunk", headers=headers, json=payload)
+    assert second.status_code == 200, second.text
+    assert second.json()["accepted"] == 0
+
+    db = SessionLocal()
+    try:
+        count = (
+            db.query(EdgeSubmittedOrder)
+            .filter(EdgeSubmittedOrder.client_order_id == chunk_id)
+            .count()
+        )
+        assert count == 1
+    finally:
+        db.close()
+
+
+def test_operational_chunk_parallel_duplicate_requests():
+    """Simultaneous duplicate chunk POSTs must create only one idempotency row."""
+    headers, event_id = _edge_fixture()
+    chunk_id = f"chunk-parallel-{uuid4().hex}"
+    payload = {
+        "chunk_id": chunk_id,
+        "event_id": event_id,
+        "entity_type": "kitchen_tickets",
+        "payload": {"entity_type": "kitchen_tickets", "tickets": []},
+    }
+
+    def _submit():
+        worker = TestClient(app)
+        return worker.post("/edge/v1/sync/operational/chunk", headers=headers, json=payload)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(_submit) for _ in range(4)]
+        results = [future.result() for future in as_completed(futures)]
+
+    assert all(r.status_code == 200 for r in results), [r.text for r in results]
+    accepted = sum(1 for r in results if r.json().get("accepted") == 1)
+    assert accepted == 1
+
+    db = SessionLocal()
+    try:
+        count = (
+            db.query(EdgeSubmittedOrder)
+            .filter(EdgeSubmittedOrder.client_order_id == chunk_id)
+            .count()
+        )
+        assert count == 1
+    finally:
+        db.close()

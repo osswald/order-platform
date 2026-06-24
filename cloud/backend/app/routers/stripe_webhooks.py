@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..i18n.errors import api_error
 from ..models import Organisation, StripeWebhookEvent
 from ..stripe_client import STRIPE_API_VERSION
@@ -112,5 +113,5 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
             metadata_json=metadata_json,
         )
     )
-    db.commit()
+    commit_or_raise(db)
     return {"received": "true"}

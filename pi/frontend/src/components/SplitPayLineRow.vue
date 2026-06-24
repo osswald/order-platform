@@ -45,7 +45,7 @@ import {
   discountLabel,
   formatAmount,
   lineGrossCents,
-  lineTotalCents,
+  lineTotalCents as computeLineTotalCents,
   normalizeDiscount,
 } from '../utils/money'
 
@@ -93,7 +93,7 @@ function netCentsForQty(qty) {
     additions: [],
     discount: props.discount,
   }
-  return lineTotalCents(line, props.articles, props.event)
+  return computeLineTotalCents(line, props.articles, props.event)
 }
 
 const lineTotal = computed(() => formatAmount(netCentsForQty(displayQty.value)))

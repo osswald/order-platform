@@ -70,11 +70,9 @@
 import UserPicker from './UserPicker.vue'
 import { rules } from '../utils/formRules.js'
 
+const form = defineModel('form', { type: Object, required: true })
+
 defineProps({
-  form: {
-    type: Object,
-    required: true,
-  },
   countryOptions: {
     type: Array,
     required: true,

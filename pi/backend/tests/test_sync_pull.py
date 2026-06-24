@@ -1,6 +1,7 @@
 """Sync pull error handling and cloud gateway responses."""
 
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -78,3 +79,16 @@ def test_sync_pull_cloud_unreachable_returns_502(client, monkeypatch, tmp_path):
     response = client.post("/v1/sync/pull")
 
     assert response.status_code == 502, response.text
+
+
+def test_sync_pull_success_returns_event_count(client, monkeypatch, tmp_path):
+    _isolate_edge_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        "app.routers.edge_sync.pull_and_restore",
+        AsyncMock(return_value={"event_count": 2, "restore": None}),
+    )
+
+    response = client.post("/v1/sync/pull")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"ok": True, "event_count": 2}

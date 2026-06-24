@@ -32,6 +32,24 @@ Für getrennte physische Deployments (zwei Terminals empfohlen):
 
 Android-App (Debug/Emulator): lädt Pi-Frontend von `http://localhost:5174` (`adb reverse tcp:5174 tcp:5174`); API `http://localhost:8001`.
 
+## Tests
+
+Backend (pytest):
+
+```bash
+cd cloud/backend && pip install -r requirements.txt -r requirements-dev.txt && python3 -m pytest tests/ -v
+cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && python3 -m pytest tests/ -v
+```
+
+Frontend (Vitest):
+
+```bash
+cd cloud/frontend && npm ci && npm test
+cd pi/frontend && npm ci && npm test
+```
+
+Siehe [AGENTS.md](AGENTS.md) für Coverage-Befehle und CI-Details.
+
 ## Struktur
 
 - `cloud/backend`
@@ -42,8 +60,16 @@ Android-App (Debug/Emulator): lädt Pi-Frontend von `http://localhost:5174` (`ad
 - `packages/frontend-shared`
 - `android`
 
-## Notes
+## Konventionen
 
 - Cloud-Backend nutzt PostgreSQL; Pi-Backend nutzt SQLite (lokal auf dem Gerät).
+- DB-Schreibvorgänge in Routern nutzen `commit_or_raise()` (siehe `cloud/backend/app/db_errors.py`).
+- FastAPI-Routen mit synchronem SQLAlchemy-Session-Zugriff sind `def` (nicht `async def`), damit kein Event-Loop blockiert wird.
+- Gemeinsame Python-Logik (z. B. VAT-Split) liegt in `packages/vendiqo_shared` und wird von cloud/pi re-exportiert.
+- Produktion: Alembic-Migration schlägt laut fehl — kein stilles `create_all`-Fallback (Cloud und Pi).
 - Frontends werden als Vite-Dev-Server gestartet.
 - Stripe Connect/Terminal Integrationspfad: `docs/stripe-connect-terminal.md`.
+
+## Lockfiles
+
+`cloud/backend/requirements.lock` und `pi/backend/requirements.lock` werden mit `pip-compile --generate-hashes --allow-unsafe` erzeugt (siehe Kommentar in den Lockfiles).

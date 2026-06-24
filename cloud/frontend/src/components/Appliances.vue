@@ -541,7 +541,7 @@ const { currentPage, pageSize } = useClientPagination(filteredAppliances, {
 async function fetchAppliances() {
   try {
     appliances.value = await apiJson('/appliances/')
-  } catch (error) {
+  } catch {
     message.value = t('appliances.messages.loadFailed')
     messageType.value = 'error'
   }
@@ -688,7 +688,7 @@ async function saveAppliance() {
       messageType.value = 'success'
       await goToList()
     }
-  } catch (error) {
+  } catch {
     message.value = t('appliances.messages.saveFailed')
     messageType.value = 'error'
   }

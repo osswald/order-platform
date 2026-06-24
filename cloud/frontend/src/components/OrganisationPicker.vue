@@ -102,7 +102,7 @@ async function fetchDirectory() {
   inFlightFetch = (async () => {
     try {
       directory.value = await apiJson('/organisations/')
-    } catch (e) {
+    } catch {
       directory.value = []
     } finally {
       loading.value = false

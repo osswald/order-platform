@@ -201,7 +201,7 @@ onMounted(async () => {
 async function fetchCategories() {
   try {
     categories.value = await apiJson('/article-categories/')
-  } catch (error) {
+  } catch {
     message.value = t('articleCategories.loadError')
     messageType.value = 'error'
   }

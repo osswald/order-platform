@@ -239,7 +239,6 @@ const {
   decrementCartLine,
   availableQty,
   getArticle,
-  articleName,
   clearCart,
 } = useCart()
 const { waiter, showToast, patchEventArticles } = useEventContext()

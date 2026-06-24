@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useEventContext } from '../composables/useEventContext'
 import { api } from '../api'
 import { formatAmount } from '../utils/money'

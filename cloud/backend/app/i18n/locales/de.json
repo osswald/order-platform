@@ -139,6 +139,7 @@
     "country_in_use": "Land wird verwendet und kann nicht gelöscht werden.",
     "country_code_taken": "Ländercode ist bereits vergeben.",
     "country_name_taken": "Ländername ist bereits vergeben.",
+    "tax_code_name_taken": "Steuercode-Name ist für dieses Land bereits vergeben.",
     "tax_code_not_found": "Steuercode nicht gefunden.",
     "tax_code_overlap": "Steuersätze überschneiden sich im Gültigkeitszeitraum.",
     "tax_code_in_use": "Steuercode wird verwendet und kann nicht gelöscht werden.",

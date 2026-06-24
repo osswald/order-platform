@@ -328,7 +328,7 @@ const { currentPage, pageSize } = useClientPagination(filteredUsers, {
 async function fetchUsers() {
   try {
     users.value = await apiJson('/users/')
-  } catch (e) {
+  } catch {
     message.value = t('users.loadError')
     messageType.value = 'error'
   }

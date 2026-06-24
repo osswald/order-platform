@@ -7,12 +7,17 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..i18n.errors import api_error
 from ..models import TaxCode, TaxCodeRate, User
 from ..reference_countries import assert_tax_code_deletable, country_response, get_country_or_404
 from ..tenancy import get_current_platform_admin
 
 router = APIRouter()
+
+
+def _raise_tax_code_name_taken() -> None:
+    raise api_error("tax_code_name_taken", status.HTTP_400_BAD_REQUEST)
 
 
 class TaxCodeRateBase(BaseModel):
@@ -157,7 +162,7 @@ def create_tax_code(
     tax_code = TaxCode(country_id=body.country_id, name=body.name.strip())
     _apply_rates(tax_code, body.rates)
     db.add(tax_code)
-    db.commit()
+    commit_or_raise(db, on_integrity=_raise_tax_code_name_taken)
     db.refresh(tax_code)
     tax_code = _get_tax_code_or_404(db, tax_code.id)
     return _tax_code_response(tax_code)
@@ -178,7 +183,7 @@ def update_tax_code(
         tax_code.name = body.name.strip()
     if body.rates is not None:
         _apply_rates(tax_code, body.rates)
-    db.commit()
+    commit_or_raise(db, on_integrity=_raise_tax_code_name_taken)
     tax_code = _get_tax_code_or_404(db, tax_code_id)
     return _tax_code_response(tax_code)
 
@@ -192,5 +197,5 @@ def delete_tax_code(
     tax_code = _get_tax_code_or_404(db, tax_code_id)
     assert_tax_code_deletable(db, tax_code_id)
     db.delete(tax_code)
-    db.commit()
+    commit_or_raise(db)
     return None

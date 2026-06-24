@@ -25,7 +25,7 @@
           <template #stammdaten>
             <v-form ref="formRef" @submit.prevent="saveOrganisation">
               <OrganisationStammdatenFields
-                :form="form"
+                v-model:form="form"
                 :country-options="countryOptions"
                 :currency-options="currencyOptions"
               />
@@ -130,7 +130,7 @@
 
       <v-form v-else ref="formRef" @submit.prevent="saveOrganisation">
         <OrganisationStammdatenFields
-          :form="form"
+          v-model:form="form"
           :country-options="countryOptions"
           :currency-options="currencyOptions"
         />
@@ -393,7 +393,7 @@ function parseUserIds(value) {
 async function fetchOrganisations() {
   try {
     organisations.value = await apiJson('/organisations/')
-  } catch (error) {
+  } catch {
     message.value = t('organisations.loadError')
     messageType.value = 'error'
   }

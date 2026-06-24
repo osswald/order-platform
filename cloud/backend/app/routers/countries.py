@@ -115,5 +115,5 @@ def delete_country(
     country = get_country_or_404(db, country_id)
     assert_country_deletable(db, country_id)
     db.delete(country)
-    db.commit()
+    commit_or_raise(db)
     return None

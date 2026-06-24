@@ -43,231 +43,36 @@
         </template>
 
         <template v-if="cashRegistersEnabled" #kassen>
-          <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addCashRegister">{{ $t('events.config.addCashRegister') }}</v-btn>
-          </div>
-          <div v-for="(reg, ri) in cashRegistersLocal" :key="'reg-' + ri" class="config-card">
-            <div class="config-card-header">
-              <span>{{ reg.name || $t('events.config.unnamedCashRegister') }}</span>
-              <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeCashRegister(ri)" />
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <FormLabel required>{{ $t('events.config.name') }}</FormLabel>
-                <v-text-field
-                  v-model="reg.name"
-                  :placeholder="$t('events.config.cashRegisterPlaceholder')"
-                  density="compact"
-                  hide-details="auto"
-                  required
-                  :rules="[rules.required]"
-                />
-              </div>
-              <div class="form-field">
-                <label>{{ $t('events.config.pickupCodeLetters') }}</label>
-                <v-text-field
-                  :model-value="reg.pickup_code_prefix"
-                  maxlength="3"
-                  placeholder="A"
-                  density="compact"
-                  hide-details
-                  @update:model-value="(v) => { reg.pickup_code_prefix = normalizePickupPrefix(v) }"
-                />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <label>{{ $t('events.config.pin') }}</label>
-                <v-text-field v-model="reg.pin" maxlength="4" placeholder="0000" density="compact" hide-details />
-              </div>
-              <div v-if="accountsEnabled" class="form-field">
-                <label>{{ $t('events.config.subsidiaryCode') }}</label>
-                <v-text-field
-                  v-model="reg.subsidiary_code"
-                  maxlength="32"
-                  density="compact"
-                  hide-details
-                />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <label>{{ $t('events.config.layout') }}</label>
-                <v-select
-                  v-model="reg.layout_uuid"
-                  :items="layoutOptions"
-                  item-title="name"
-                  item-value="value"
-                  :placeholder="$t('events.config.selectLayout')"
-                  density="compact"
-                  hide-details
-                />
-              </div>
-              <div class="form-field">
-                <label>{{ $t('events.config.customerPrinter') }}</label>
-                <v-select
-                  v-model="reg.receipt_printer_appliance_id"
-                  :items="printerOptions"
-                  item-title="name"
-                  item-value="id"
-                  :placeholder="$t('events.config.noPrinter')"
-                  clearable
-                  density="compact"
-                  hide-details
-                />
-              </div>
-            </div>
-          </div>
-          <p v-if="!cashRegistersLocal.length" class="muted">{{ $t('events.config.noCashRegisters') }}</p>
+          <EventConfigCashRegistersSection
+            v-model="cashRegistersLocal"
+            :layout-options="layoutOptions"
+            :default-layout-uuid="layoutsLocal[0]?.uuid || ''"
+            :printer-options="printerOptions"
+            :accounts-enabled="accountsEnabled"
+          />
         </template>
 
         <template v-if="vouchersEnabled" #gutscheine>
-          <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addVoucher">{{ $t('events.config.addVoucher') }}</v-btn>
-          </div>
-          <p v-if="!vouchersLocal.length" class="muted">{{ $t('events.config.noVouchers') }}</p>
-          <div v-for="(vd, vi) in vouchersLocal" :key="'vd-' + vi" class="config-card">
-            <div class="config-card-header">
-              <span>{{ vd.name || $t('events.config.unnamedVoucher') }}</span>
-              <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeVoucher(vi)" />
-            </div>
-            <div class="form-field">
-              <FormLabel required>{{ $t('events.config.name') }}</FormLabel>
-              <v-text-field
-                v-model="vd.name"
-                :placeholder="$t('events.config.voucherPlaceholder')"
-                density="compact"
-                hide-details="auto"
-                required
-                :rules="[rules.required]"
-              />
-            </div>
-            <div class="form-field">
-              <label>{{ $t('events.config.kind') }}</label>
-              <v-select
-                v-model="vd.kind"
-                :items="voucherKindOptions"
-                item-title="label"
-                item-value="value"
-                density="compact"
-                hide-details
-              />
-            </div>
-            <div v-if="vd.kind === 'fixed_amount'" class="form-field">
-              <label>{{ $t('events.config.amountWithCurrency', { currency: currencyLabel }) }}</label>
-              <v-number-input
-                v-model="vd.value_amount"
-                :min="0.01"
-                :max="9999"
-                :step="0.01"
-                control-variant="stacked"
-                density="compact"
-                hide-details
-              />
-            </div>
-            <template v-else>
-              <div class="form-field">
-                <label>{{ $t('events.config.eligibleArticles') }}</label>
-                <v-select
-                  v-model="vd.allowed_article_ids"
-                  :items="articleOptions"
-                  item-title="name"
-                  item-value="value"
-                  :placeholder="$t('events.config.selectArticles')"
-                  :loading="catalogLoading"
-                  :disabled="catalogLoading"
-                  multiple
-                  chips
-                  closable-chips
-                  density="compact"
-                  hide-details
-                />
-              </div>
-              <v-checkbox
-                v-model="vd.include_additions"
-                :label="$t('events.config.includeAdditions')"
-                hide-details
-                density="compact"
-              />
-            </template>
-          </div>
+          <EventConfigVouchersSection
+            v-model="vouchersLocal"
+            :article-options="articleOptions"
+            :catalog-loading="catalogLoading"
+            :currency-label="currencyLabel"
+            :voucher-kind-options="voucherKindOptions"
+            @voucher-removed="onVoucherRemoved"
+          />
         </template>
 
         <template #layouts>
-          <p v-if="layoutCellsLoading" class="muted catalog-loading-hint">{{ $t('events.config.layoutCellsLoading') }}</p>
-          <p v-else-if="layoutCellsError" class="error">{{ layoutCellsError }}</p>
-          <div v-if="!layoutCellsLoading && layoutCellsLoaded" class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addLayout">{{ $t('events.config.addLayout') }}</v-btn>
-          </div>
-          <div v-for="(lo, li) in layoutsLocal" v-show="!layoutCellsLoading && layoutCellsLoaded" :key="'lo-' + li" class="config-card">
-            <div class="config-card-header">
-              <span>{{ $t('events.config.layoutN', { n: li + 1 }) }}</span>
-              <div class="layout-header-actions">
-                <v-checkbox
-                  :model-value="lo.is_default"
-                  :label="$t('events.config.default')"
-                  hide-details
-                  density="compact"
-                  @update:model-value="(v) => onDefaultLayoutChange(li, v)"
-                />
-                <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeLayout(li)" />
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="form-field">
-                <label>{{ $t('events.config.name') }}</label>
-                <v-text-field v-model="lo.name" :placeholder="$t('events.config.optional')" density="compact" hide-details />
-              </div>
-              <div class="form-field">
-                <label>{{ $t('events.config.width') }}</label>
-                <v-number-input
-                  :model-value="lo.grid_width"
-                  :min="1"
-                  :max="64"
-                  control-variant="stacked"
-                  density="compact"
-                  hide-details
-                  @update:model-value="(v) => onGridWidthChange(lo, v)"
-                />
-              </div>
-              <div class="form-field">
-                <label>{{ $t('events.config.height') }}</label>
-                <v-number-input
-                  :model-value="lo.grid_height"
-                  :min="1"
-                  :max="64"
-                  control-variant="stacked"
-                  density="compact"
-                  hide-details
-                  @update:model-value="(v) => onGridHeightChange(lo, v)"
-                />
-              </div>
-            </div>
-            <p class="muted small">{{ $t('events.config.clickCellsToEdit') }}</p>
-            <div class="layout-grid-wrap">
-              <div
-                class="layout-grid"
-                :style="{
-                  gridTemplateColumns: `repeat(${lo.grid_width}, minmax(0, 1fr))`,
-                  gridTemplateRows: `repeat(${lo.grid_height}, minmax(2.5rem, auto))`,
-                }"
-              >
-                <button
-                  v-for="pos in gridPositions(lo)"
-                  :key="li + '-' + pos.row + '-' + pos.col"
-                  type="button"
-                  class="grid-cell"
-                  :style="previewCellStyle(displayCell(lo, pos.row, pos.col))"
-                  @click="openCellDialog(li, pos.row, pos.col)"
-                >
-                  <span class="grid-cell-label">{{ displayCell(lo, pos.row, pos.col).label || '·' }}</span>
-                  <span v-if="cellPreviewMeta(lo, pos.row, pos.col)" class="grid-cell-count">
-                    {{ cellPreviewMeta(lo, pos.row, pos.col) }}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
+          <EventConfigLayoutsSection
+            ref="layoutsSectionRef"
+            v-model="layoutsLocal"
+            v-model:cell-dialog-open="cellDialogOpen"
+            :event-id="eventId"
+            :vouchers-enabled="vouchersEnabled"
+            :voucher-definitions="vouchersLocal"
+            @layout-removed="onLayoutRemoved"
+          />
         </template>
 
         <template #belege>
@@ -321,112 +126,15 @@
       />
     </template>
 
-    <v-dialog v-model="cellDialogVisible" max-width="32rem" class="cell-dialog">
-      <v-card>
-        <v-card-title>{{ $t('events.config.editCell') }}</v-card-title>
-        <v-card-text>
-          <div class="form-field">
-            <label>{{ $t('events.config.label') }}</label>
-            <v-text-field v-model="cellEdit.label" density="compact" hide-details />
-          </div>
-          <div class="form-field">
-            <label>{{ $t('events.config.color') }}</label>
-            <v-color-picker v-model="cellEdit.color" mode="hex" hide-inputs />
-            <v-text-field
-              v-model="cellEdit.color"
-              density="compact"
-              hide-details
-              placeholder="#eeeeee"
-              class="color-hex-input"
-            />
-          </div>
-          <div v-if="vouchersEnabled" class="form-field">
-            <label>{{ $t('events.config.fixedAmountVouchers') }}</label>
-            <v-select
-              v-model="cellEdit.voucher_definition_uuids"
-              :items="fixedAmountVoucherOptions"
-              item-title="label"
-              item-value="value"
-              :placeholder="$t('events.config.selectVouchers')"
-              multiple
-              chips
-              closable-chips
-              density="compact"
-              hide-details
-            />
-          </div>
-          <div class="form-field">
-            <label>{{ $t('events.config.stationArticlesOnly') }}</label>
-            <v-text-field
-              v-model="cellTreeFilter"
-              :placeholder="$t('events.config.filterArticles')"
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              clearable
-              class="tree-filter"
-            />
-            <v-progress-linear v-if="treeLoading" indeterminate color="primary" class="tree-loading" />
-            <v-treeview
-              v-else
-              v-model:selected="cellTreeSelection"
-              :items="filteredCellTreeItems"
-              item-value="key"
-              item-title="title"
-              item-children="children"
-              selectable
-              select-strategy="leaf"
-              open-all
-              density="compact"
-            />
-          </div>
-        </v-card-text>
-        <v-card-actions class="dialog-actions">
-          <v-spacer />
-          <v-btn variant="outlined" type="button" @click="cellDialogVisible = false">{{ $t('common.cancel') }}</v-btn>
-          <v-btn color="primary" type="button" @click="applyCellDialog">{{ $t('events.config.apply') }}</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="showWaiterPick" max-width="32rem">
-      <v-card>
-        <v-card-title>{{ $t('events.config.importWaiter') }}</v-card-title>
-        <v-card-text>
-          <p v-if="catalogLoading" class="muted">{{ $t('events.config.catalogLoading') }}</p>
-          <p v-else-if="catalogError" class="error">{{ catalogError }}</p>
-          <div class="form-field">
-            <label>{{ $t('events.config.waiter') }}</label>
-            <v-select
-              v-model="pickedWaiterIds"
-              :items="waiterOptions"
-              item-title="label"
-              item-value="value"
-              :placeholder="$t('events.config.selectWaiters')"
-              :loading="catalogLoading"
-              :disabled="catalogLoading"
-              multiple
-              chips
-              closable-chips
-              density="compact"
-              hide-details
-            />
-          </div>
-        </v-card-text>
-        <v-card-actions class="dialog-actions">
-          <v-spacer />
-          <v-btn variant="outlined" type="button" @click="closeWaiterPick">{{ $t('common.cancel') }}</v-btn>
-          <v-btn
-            color="primary"
-            type="button"
-            :disabled="!pickedWaiterIds.length"
-            @click="confirmPickWaiter"
-          >
-            {{ $t('events.config.apply') }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <EventConfigWaiterImportDialog
+      v-model="showWaiterPick"
+      v-model:picked-waiter-ids="pickedWaiterIds"
+      :catalog-loading="catalogLoading"
+      :catalog-error="catalogError"
+      :waiter-options="waiterOptions"
+      @confirm="confirmPickWaiter"
+      @cancel="closeWaiterPick"
+    />
   </div>
 </template>
 
@@ -436,13 +144,17 @@ import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
-import { useDirtyAutosave } from '../composables/useDirtyAutosave'
+import { useEventConfigurationAutosave } from '../composables/useEventConfigurationAutosave'
 import { loadOrgCatalog } from '../composables/useOrgCatalog'
 import SectionNavLayout from './SectionNavLayout.vue'
 import EventSaveStatusBar from './EventSaveStatusBar.vue'
 import EventConfigStationsSection from './EventConfigStationsSection.vue'
 import EventConfigKitchenMonitorsSection from './EventConfigKitchenMonitorsSection.vue'
 import EventConfigWaitersSection from './EventConfigWaitersSection.vue'
+import EventConfigCashRegistersSection from './EventConfigCashRegistersSection.vue'
+import EventConfigVouchersSection from './EventConfigVouchersSection.vue'
+import EventConfigLayoutsSection from './EventConfigLayoutsSection.vue'
+import EventConfigWaiterImportDialog from './EventConfigWaiterImportDialog.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
@@ -450,9 +162,6 @@ import EventTransactionsTab from './EventTransactionsTab.vue'
 import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
-import FormLabel from './FormLabel.vue'
-import { rules } from '../utils/formRules.js'
-import { textColorForBackground } from '../utils/colorContrast.js'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 
@@ -568,9 +277,9 @@ const loading = ref(true)
 const loadError = ref('')
 const catalogLoading = ref(false)
 const catalogError = ref('')
-const layoutCellsLoaded = ref(false)
-const layoutCellsLoading = ref(false)
-const layoutCellsError = ref('')
+
+const layoutsSectionRef = ref(null)
+const cellDialogOpen = ref(false)
 
 const receiptSaveStatus = ref('idle')
 const receiptSaveError = ref('')
@@ -606,22 +315,6 @@ const printerRuleTypeOptions = computed(() => [
   { label: t('events.config.ruleTypePickupPrefix'), value: 'pickup_prefix' },
 ])
 const waitersOrg = ref([])
-
-const cellDialogVisible = ref(false)
-const cellEditLayoutIndex = ref(0)
-const cellEditRow = ref(0)
-const cellEditCol = ref(0)
-const cellEdit = ref({
-  label: '',
-  color: '#eeeeee',
-  article_ids: [],
-  voucher_definition_uuid: null,
-  voucher_definition_uuids: [],
-})
-const cellTreeNodesRaw = ref([])
-const cellTreeSelection = ref([])
-const cellTreeFilter = ref('')
-const treeLoading = ref(false)
 
 const showWaiterPick = ref(false)
 const pickedWaiterIds = ref([])
@@ -663,46 +356,31 @@ const layoutOptions = computed(() =>
   })),
 )
 
-const fixedAmountVoucherOptions = computed(() =>
-  vouchersLocal.value
-    .filter((vd) => vd.kind === 'fixed_amount' && vd.uuid)
-    .map((vd) => ({
-      label: vd.name || t('events.config.voucherFallback'),
-      value: vd.uuid,
-    })),
-)
-
-const cellTreeItems = computed(() => mapTreeNodes(cellTreeNodesRaw.value))
-
-const filteredCellTreeItems = computed(() => {
-  const q = cellTreeFilter.value.trim().toLowerCase()
-  if (!q) return cellTreeItems.value
-  return filterTreeNodes(cellTreeItems.value, q)
-})
-
-function mapTreeNodes(nodes) {
-  return (nodes || []).map((n) => ({
-    key: n.key,
-    title: n.label,
-    children: n.children?.length ? mapTreeNodes(n.children) : undefined,
-  }))
+function cellVoucherUuids(c) {
+  const list = c?.voucher_definition_uuids
+  if (Array.isArray(list) && list.length) return list.map(String)
+  if (c?.voucher_definition_uuid) return [String(c.voucher_definition_uuid)]
+  return []
 }
 
-function filterTreeNodes(nodes, query) {
-  const out = []
-  for (const node of nodes) {
-    if (node.children?.length) {
-      const filteredChildren = filterTreeNodes(node.children, query)
-      if (filteredChildren.length) {
-        out.push({ ...node, children: filteredChildren })
-      } else if (node.title.toLowerCase().includes(query)) {
-        out.push({ ...node })
-      }
-    } else if (node.title.toLowerCase().includes(query)) {
-      out.push({ ...node })
+function isCellInGrid(c, width, height) {
+  return c.row >= 0 && c.col >= 0 && c.row < height && c.col < width
+}
+
+function onVoucherRemoved(uuid) {
+  for (const lo of layoutsLocal.value) {
+    for (const c of lo.cells || []) {
+      const uuids = cellVoucherUuids(c).filter((u) => u !== uuid)
+      c.voucher_definition_uuids = uuids
+      c.voucher_definition_uuid = uuids[0] || null
     }
   }
-  return out
+}
+
+function onLayoutRemoved({ removedUuid, fallbackUuid }) {
+  cashRegistersLocal.value.forEach((reg) => {
+    if (reg.layout_uuid === removedUuid) reg.layout_uuid = fallbackUuid
+  })
 }
 
 function newUuid() {
@@ -712,208 +390,6 @@ function newUuid() {
 
 function normalizePickupPrefix(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
-}
-
-function gridPositions(lo) {
-  const out = []
-  for (let row = 0; row < lo.grid_height; row += 1) {
-    for (let col = 0; col < lo.grid_width; col += 1) {
-      out.push({ row, col })
-    }
-  }
-  return out
-}
-
-function displayCell(lo, row, col) {
-  const c = lo.cells.find((x) => x.row === row && x.col === col)
-  return c || {
-    row,
-    col,
-    label: '',
-    color: '#eeeeee',
-    article_ids: [],
-    voucher_definition_uuid: null,
-    voucher_definition_uuids: [],
-  }
-}
-
-function previewCellStyle(cell) {
-  const background = cell.color || '#eeeeee'
-  return {
-    background,
-    color: textColorForBackground(background),
-  }
-}
-
-function cellVoucherUuids(c) {
-  const list = c?.voucher_definition_uuids
-  if (Array.isArray(list) && list.length) return list.map(String)
-  if (c?.voucher_definition_uuid) return [String(c.voucher_definition_uuid)]
-  return []
-}
-
-function clampGridDim(value, fallback = 4) {
-  const n = Math.round(Number(value))
-  if (!Number.isFinite(n)) return fallback
-  return Math.min(64, Math.max(1, n))
-}
-
-function isCellInGrid(c, width, height) {
-  return c.row >= 0 && c.col >= 0 && c.row < height && c.col < width
-}
-
-function cellHasData(c) {
-  if ((c.label || '').trim()) return true
-  if ((c.article_ids || []).length > 0) return true
-  if (cellVoucherUuids(c).length > 0) return true
-  const color = (c.color || '').toLowerCase()
-  if (color && color !== '#eeeeee' && color !== '#eee') return true
-  return false
-}
-
-function applyGridSizeChange(lo, nextW, nextH) {
-  const prevW = lo.grid_width
-  const prevH = lo.grid_height
-  nextW = clampGridDim(nextW, prevW)
-  nextH = clampGridDim(nextH, prevH)
-  if (nextW === prevW && nextH === prevH) return true
-
-  if (nextW >= prevW && nextH >= prevH) {
-    lo.grid_width = nextW
-    lo.grid_height = nextH
-    return true
-  }
-
-  if (!Array.isArray(lo.cells)) lo.cells = []
-
-  lo.cells = lo.cells.filter((c) => {
-    if (isCellInGrid(c, nextW, nextH)) return true
-    return !cellHasData(c)
-  })
-
-  const oobWithData = lo.cells.filter((c) => !isCellInGrid(c, nextW, nextH) && cellHasData(c))
-  if (oobWithData.length) {
-    const examples = oobWithData
-      .slice(0, 3)
-      .map((c) => t('events.config.gridRowCol', { row: c.row + 1, col: c.col + 1 }))
-      .join('; ')
-    const more = oobWithData.length > 3 ? t('events.config.gridConfirmMore') : ''
-    const msg =
-      oobWithData.length === 1
-        ? t('events.config.gridConfirmSingle', { examples })
-        : t('events.config.gridConfirmMultiple', { count: oobWithData.length, examples, more })
-    if (!confirm(msg)) return false
-    lo.cells = lo.cells.filter((c) => isCellInGrid(c, nextW, nextH))
-  }
-
-  lo.grid_width = nextW
-  lo.grid_height = nextH
-  return true
-}
-
-function onGridWidthChange(lo, value) {
-  applyGridSizeChange(lo, value, lo.grid_height)
-}
-
-function onGridHeightChange(lo, value) {
-  applyGridSizeChange(lo, lo.grid_width, value)
-}
-
-function cellPreviewMeta(lo, row, col) {
-  const c = displayCell(lo, row, col)
-  const vCount = cellVoucherUuids(c).length
-  const aCount = c.article_ids?.length || 0
-  const parts = []
-  if (vCount) parts.push(t('events.config.voucherCount', vCount, { count: vCount }))
-  if (aCount) parts.push(t('events.config.articleCount', { count: aCount }))
-  return parts.join(' · ')
-}
-
-function addVoucher() {
-  vouchersLocal.value.push({
-    uuid: newUuid(),
-    name: '',
-    kind: 'fixed_amount',
-    value_amount: 20,
-    allowed_article_ids: [],
-    include_additions: true,
-  })
-}
-
-function removeVoucher(idx) {
-  const removed = vouchersLocal.value[idx]
-  vouchersLocal.value.splice(idx, 1)
-  if (!removed?.uuid) return
-  for (const lo of layoutsLocal.value) {
-    for (const c of lo.cells || []) {
-      const uuids = cellVoucherUuids(c).filter((u) => u !== removed.uuid)
-      c.voucher_definition_uuids = uuids
-      c.voucher_definition_uuid = uuids[0] || null
-    }
-  }
-}
-
-function ensureCell(lo, row, col) {
-  let c = lo.cells.find((x) => x.row === row && x.col === col)
-  if (!c) {
-    c = {
-      row,
-      col,
-      label: '',
-      color: '#eeeeee',
-      article_ids: [],
-      voucher_definition_uuid: null,
-      voucher_definition_uuids: [],
-    }
-    lo.cells.push(c)
-  }
-  return c
-}
-
-/** Map article IDs to v-treeview selected keys (art-{id}). */
-function articleIdsToTreeSelection(ids) {
-  return (ids || []).map((id) => `art-${id}`)
-}
-
-/** Extract article IDs from v-treeview selected keys. */
-function treeSelectionToArticleIds(sel) {
-  if (!Array.isArray(sel)) return []
-  return sel
-    .filter((k) => typeof k === 'string' && k.startsWith('art-'))
-    .map((k) => Number(k.replace(/^art-/, '')))
-    .filter((n) => !Number.isNaN(n))
-}
-
-function ensureDefaultLayout() {
-  if (!layoutsLocal.value.length) {
-    layoutsLocal.value.push({
-      uuid: newUuid(),
-      name: t('events.config.defaultLayoutName'),
-      is_default: true,
-      grid_width: 4,
-      grid_height: 4,
-      cells: [],
-    })
-  }
-}
-
-function setOnlyDefault(idx) {
-  layoutsLocal.value.forEach((lo, i) => {
-    lo.is_default = i === idx
-  })
-}
-
-function onDefaultLayoutChange(layoutIndex, checked) {
-  if (checked) {
-    setOnlyDefault(layoutIndex)
-  } else {
-    const lo = layoutsLocal.value[layoutIndex]
-    if (lo) lo.is_default = false
-    if (!layoutsLocal.value.some((l) => l.is_default)) {
-      const first = layoutsLocal.value[0]
-      if (first) first.is_default = true
-    }
-  }
 }
 
 function configurationValidationError() {
@@ -945,46 +421,6 @@ function configurationValidationError() {
     }
   }
   return null
-}
-
-function addLayout() {
-  layoutsLocal.value.push({
-    uuid: newUuid(),
-    name: t('events.config.layoutN', { n: layoutsLocal.value.length + 1 }),
-    is_default: false,
-    grid_width: 4,
-    grid_height: 4,
-    cells: [],
-  })
-}
-
-function removeLayout(idx) {
-  const removed = layoutsLocal.value[idx]
-  layoutsLocal.value.splice(idx, 1)
-  if (!layoutsLocal.value.some((l) => l.is_default) && layoutsLocal.value.length) {
-    layoutsLocal.value[0].is_default = true
-  }
-  if (removed) {
-    const fallback = layoutsLocal.value[0]?.uuid || ''
-    cashRegistersLocal.value.forEach((reg) => {
-      if (reg.layout_uuid === removed.uuid) reg.layout_uuid = fallback
-    })
-  }
-}
-
-function addCashRegister() {
-  cashRegistersLocal.value.push({
-    name: t('events.config.cashRegisterFallback', { n: cashRegistersLocal.value.length + 1 }),
-    pickup_code_prefix: String.fromCharCode(65 + (cashRegistersLocal.value.length % 26)),
-    pin: '0000',
-    layout_uuid: layoutsLocal.value[0]?.uuid || '',
-    receipt_printer_appliance_id: null,
-    subsidiary_code: '',
-  })
-}
-
-function removeCashRegister(idx) {
-  cashRegistersLocal.value.splice(idx, 1)
 }
 
 function mapLayoutCells(cells) {
@@ -1044,8 +480,10 @@ function applyConfigurationFromResponse(cfg, { includeLayoutCells = true } = {})
     }
   })
   layoutsLocal.value = (cfg.app_layouts || []).map((lo) => mapLayoutFromApi(lo))
-  ensureDefaultLayout()
-  layoutCellsLoaded.value = includeLayoutCells
+  layoutsSectionRef.value?.ensureDefaultLayout()
+  if (!includeLayoutCells) {
+    layoutsSectionRef.value?.resetLayoutCellsState()
+  }
   vouchersLocal.value = (cfg.voucher_definitions || []).map((vd) => ({
     uuid: vd.uuid ?? newUuid(),
     name: vd.name || '',
@@ -1063,19 +501,6 @@ function applyConfigurationFromResponse(cfg, { includeLayoutCells = true } = {})
     receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
     subsidiary_code: reg.subsidiary_code || '',
   }))
-}
-
-function mergeLayoutCellsFromResponse(cfg) {
-  const remoteByUuid = new Map((cfg.app_layouts || []).map((lo) => [lo.uuid, lo]))
-  layoutsLocal.value = layoutsLocal.value.map((lo) => {
-    const remote = remoteByUuid.get(lo.uuid)
-    if (!remote) return lo
-    return {
-      ...lo,
-      cells: mapLayoutCells(remote.cells),
-    }
-  })
-  layoutCellsLoaded.value = true
 }
 
 async function loadCatalog() {
@@ -1104,25 +529,11 @@ async function loadCatalog() {
   }
 }
 
-async function loadLayoutCells() {
-  if (layoutCellsLoaded.value || layoutCellsLoading.value) return
-  layoutCellsLoading.value = true
-  layoutCellsError.value = ''
-  try {
-    mergeLayoutCellsFromResponse(await apiJson(`/events/${props.eventId}/configuration`))
-  } catch {
-    layoutCellsError.value = t('events.config.layoutCellsLoadFailed')
-  } finally {
-    layoutCellsLoading.value = false
-  }
-}
-
 async function loadConfiguration() {
   loading.value = true
   loadError.value = ''
   catalogError.value = ''
-  layoutCellsError.value = ''
-  layoutCellsLoaded.value = false
+  layoutsSectionRef.value?.resetLayoutCellsState()
   articlesRaw.value = []
   waitersOrg.value = []
   if (resetConfigSnapshot) resetConfigSnapshot()
@@ -1144,47 +555,6 @@ async function loadConfiguration() {
   }
 }
 
-async function openCellDialog(layoutIndex, row, col) {
-  cellEditLayoutIndex.value = layoutIndex
-  cellEditRow.value = row
-  cellEditCol.value = col
-  cellTreeFilter.value = ''
-  const lo = layoutsLocal.value[layoutIndex]
-  const c = displayCell(lo, row, col)
-  const vUuids = cellVoucherUuids(c)
-  cellEdit.value = {
-    label: c.label || '',
-    color: c.color || '#eeeeee',
-    article_ids: [...(c.article_ids || [])],
-    voucher_definition_uuid: vUuids[0] || null,
-    voucher_definition_uuids: [...vUuids],
-  }
-  cellTreeSelection.value = articleIdsToTreeSelection(c.article_ids)
-  cellDialogVisible.value = true
-  treeLoading.value = true
-  cellTreeNodesRaw.value = []
-  try {
-    const data = await apiJson(`/events/${props.eventId}/station-article-tree`)
-    cellTreeNodesRaw.value = data.nodes || []
-  } catch {
-    /* tree optional */
-  } finally {
-    treeLoading.value = false
-  }
-}
-
-function applyCellDialog() {
-  const lo = layoutsLocal.value[cellEditLayoutIndex.value]
-  const c = ensureCell(lo, cellEditRow.value, cellEditCol.value)
-  c.label = cellEdit.value.label || ''
-  c.color = cellEdit.value.color || '#eeeeee'
-  const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
-  c.voucher_definition_uuids = vUuids
-  c.voucher_definition_uuid = vUuids[0] || null
-  c.article_ids = treeSelectionToArticleIds(cellTreeSelection.value)
-  cellDialogVisible.value = false
-}
-
 function openWaiterPick() {
   pickedWaiterIds.value = []
   showWaiterPick.value = true
@@ -1195,13 +565,13 @@ function closeWaiterPick() {
   pickedWaiterIds.value = []
 }
 
-function confirmPickWaiter() {
+function confirmPickWaiter(ids = pickedWaiterIds.value) {
   const existingSourceIds = new Set(
     waitersLocal.value
       .map((row) => row.source_waiter_id)
       .filter((id) => id != null),
   )
-  for (const id of pickedWaiterIds.value) {
+  for (const id of ids) {
     if (existingSourceIds.has(id)) continue
     const w = waitersOrg.value.find((x) => x.id === id)
     if (!w) continue
@@ -1218,7 +588,7 @@ function confirmPickWaiter() {
 }
 
 function buildPutPayload() {
-  ensureDefaultLayout()
+  layoutsSectionRef.value?.ensureDefaultLayout()
   return {
     stations: stationsLocal.value.map((s) => {
       const row = {
@@ -1333,7 +703,7 @@ const configWatchSource = computed(() => ({
 }))
 
 const configAutosaveEnabled = computed(
-  () => !loading.value && !loadError.value && !cellDialogVisible.value,
+  () => !loading.value && !loadError.value && !cellDialogOpen.value,
 )
 
 const {
@@ -1341,10 +711,9 @@ const {
   errorMessage: configAutosaveError,
   markSaved: markConfigSaved,
   resetSnapshot: resetConfigSnapshot,
-  flush: flushConfigAutosave,
   setError: setConfigAutosaveError,
   isDirty: configIsDirty,
-} = useDirtyAutosave({
+} = useEventConfigurationAutosave({
   getSnapshot: buildPutPayload,
   saveFn: persistConfiguration,
   watchSource: configWatchSource,
@@ -1387,7 +756,7 @@ watch(
 )
 
 watch(activeConfigTab, (tab) => {
-  if (tab === 'layouts') void loadLayoutCells()
+  if (tab === 'layouts') layoutsSectionRef.value?.loadLayoutCells()
 })
 
 defineExpose({
@@ -1548,7 +917,10 @@ label {
 .event-config .section-toolbar,
 .event-config-stations-section .section-toolbar,
 .event-config-kitchen-monitors-section .section-toolbar,
-.event-config-waiters-section .section-toolbar {
+.event-config-waiters-section .section-toolbar,
+.event-config-cash-registers-section .section-toolbar,
+.event-config-vouchers-section .section-toolbar,
+.event-config-layouts-section .section-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -1557,7 +929,10 @@ label {
 
 .event-config .config-card,
 .event-config-stations-section .config-card,
-.event-config-kitchen-monitors-section .config-card {
+.event-config-kitchen-monitors-section .config-card,
+.event-config-cash-registers-section .config-card,
+.event-config-vouchers-section .config-card,
+.event-config-layouts-section .config-card {
   border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;
   padding: 1rem;

@@ -199,7 +199,7 @@ def update_payment_type_account_defaults(
                 accounting_account_id=item.accounting_account_id,
             )
         )
-    db.commit()
+    commit_or_raise(db)
     return read_payment_type_account_defaults(
         organisation_id=organisation_id,
         db=db,
@@ -272,7 +272,7 @@ def update_tax_code_account_defaults(
                 accounting_account_id=item.accounting_account_id,
             )
         )
-    db.commit()
+    commit_or_raise(db)
     return read_tax_code_account_defaults(
         organisation_id=organisation_id,
         db=db,
@@ -356,5 +356,5 @@ def delete_accounting_account(
     ensure_user_can_use_organisation(db, current_user, account.organisation_id, tenant.hire_company_id)
     assert_accounting_account_deletable(db, account_id)
     db.delete(account)
-    db.commit()
+    commit_or_raise(db)
     return None

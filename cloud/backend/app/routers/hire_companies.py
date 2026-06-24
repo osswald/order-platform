@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..models import Appliance, HireCompany, Organisation, User
 from ..reference_countries import country_response, get_country_or_404
 from ..tenancy import ensure_can_access_hire_company, get_current_platform_admin
@@ -111,7 +112,7 @@ def create_hire_company(
         country_id=company_in.country_id,
     )
     db.add(company)
-    db.commit()
+    commit_or_raise(db)
     company = _load_hire_company(db, company.id)
     return hire_company_response(company)
 
@@ -138,7 +139,7 @@ def update_hire_company(
     if company_in.country_id is not None:
         get_country_or_404(db, company_in.country_id)
         company.country_id = company_in.country_id
-    db.commit()
+    commit_or_raise(db)
     company = _load_hire_company(db, hire_company_id)
     return hire_company_response(company)
 
@@ -160,5 +161,5 @@ def delete_hire_company(
     if db.query(Appliance.id).filter(Appliance.hire_company_id == hire_company_id).first() is not None:
         raise api_error("verleiher_has_appliances", status.HTTP_400_BAD_REQUEST)
     db.delete(company)
-    db.commit()
+    commit_or_raise(db)
     return None

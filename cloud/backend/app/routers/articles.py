@@ -12,6 +12,7 @@ from ..models import Article, ArticleCategory, Organisation, User
 from ..tax_code_validation import validate_article_tax_code
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
 from ..user_access import can_manage_tenant
 
@@ -225,7 +226,7 @@ def put_article_additions(
             base,
             [{"addition_article_id": i.addition_article_id, "sort_order": i.sort_order} for i in body.items],
         )
-        db.commit()
+        commit_or_raise(db)
     except HTTPException:
         db.rollback()
         raise
@@ -274,7 +275,7 @@ def create_article(
         article_category_id=category.id,
     )
     db.add(article)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(article)
     return article_response(article)
 
@@ -318,7 +319,7 @@ def update_article(
     if article_in.is_addition is not None:
         article.is_addition = article_in.is_addition
 
-    db.commit()
+    commit_or_raise(db)
     db.refresh(article)
     return article_response(article)
 
@@ -334,5 +335,5 @@ def delete_article(
     if not article:
         raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(article)
-    db.commit()
+    commit_or_raise(db)
     return None

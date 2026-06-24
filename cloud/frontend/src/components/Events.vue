@@ -33,7 +33,7 @@
           <HostedPiCard v-if="form.status === 'config'" :event-id="activeId" />
           <v-form ref="stammdatenFormRef" @submit.prevent="saveEvent">
             <EventStammdatenFields
-              :form="form"
+              v-model:form="form"
               :selectable-status-options="selectableStatusOptions"
               :payment-mode-options="paymentModeOptions"
               :payment-type-options="paymentTypeOptions"
@@ -61,7 +61,7 @@
 
       <v-form v-else ref="stammdatenFormRef" @submit.prevent="saveEvent">
         <EventStammdatenFields
-          :form="form"
+          v-model:form="form"
           :selectable-status-options="selectableStatusOptions"
           :payment-mode-options="paymentModeOptions"
           :payment-type-options="paymentTypeOptions"
@@ -370,7 +370,7 @@ watch(
 async function fetchEvents() {
   try {
     events.value = await apiJson('/events/')
-  } catch (error) {
+  } catch {
     message.value = t('events.messages.loadFailed')
     messageType.value = 'error'
   }

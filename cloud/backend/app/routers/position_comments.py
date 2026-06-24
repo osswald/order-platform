@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..i18n.errors import api_error
 from ..models import Organisation, OrganisationPositionComment, User
 from ..tenancy import (
@@ -105,7 +106,7 @@ def create_position_comment(
         sort_order=body.sort_order,
     )
     db.add(row)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(row)
     return _preset_response(row)
 
@@ -137,7 +138,7 @@ def update_position_comment(
         row.text = body.text.strip()
     if body.sort_order is not None:
         row.sort_order = body.sort_order
-    db.commit()
+    commit_or_raise(db)
     db.refresh(row)
     return _preset_response(row)
 
@@ -165,5 +166,5 @@ def delete_position_comment(
     if not row:
         raise api_error("position_comment_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(row)
-    db.commit()
+    commit_or_raise(db)
     return None

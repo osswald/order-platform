@@ -16,7 +16,7 @@ import {
   WAITER_SESSION_KEY,
   waiter,
 } from './sessions'
-import { cartLines, clearCart, orderDiscount, setOrderDiscount } from './cart'
+import { cartLines, clearCart, orderDiscount } from './cart'
 import { bundle, getArticle, selectedEvent, setAfterBundleLoaded } from './bundle'
 
 export { cartLines, clearCart, orderDiscount, setOrderDiscount } from './cart'

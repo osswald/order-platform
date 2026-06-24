@@ -13,6 +13,7 @@ from ..auth_deps import get_current_user
 from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, Organisation, User
 from ..security import get_password_hash
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
 
 router = APIRouter()
@@ -415,7 +416,7 @@ def create_appliance(
         appliance.name = (appliance_in.name or "").strip() or None
 
     db.add(appliance)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(appliance)
     today = _utc_today()
     return _appliance_to_read(appliance, today=today, active_by_appliance_id={}, include_lendings=False)
@@ -457,7 +458,7 @@ def update_appliance(
     elif appliance_in.name is not None:
         appliance.name = appliance_in.name.strip() or None
 
-    db.commit()
+    commit_or_raise(db)
     db.refresh(appliance)
     today = _utc_today()
     active_rows = (
@@ -504,7 +505,7 @@ def create_appliance_pairing_session(
         created_by_user_id=current_user.id,
     )
     db.add(session)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(session)
     return AppliancePairingSessionRead(
         id=session.id,
@@ -539,7 +540,7 @@ def revoke_appliance_edge_credential(
     now = datetime.now(timezone.utc)
     credential.status = "revoked"
     credential.revoked_at = now
-    db.commit()
+    commit_or_raise(db)
     db.refresh(appliance)
     appliance = (
         db.query(Appliance)
@@ -577,7 +578,7 @@ def delete_appliance_edge_credential(
     if credential.status != "revoked":
         raise api_error("only_revoked_sd_cards_deleted", status.HTTP_400_BAD_REQUEST)
     db.delete(credential)
-    db.commit()
+    commit_or_raise(db)
     return None
 
 
@@ -592,7 +593,7 @@ def delete_appliance(
 ):
     appliance = _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
     db.delete(appliance)
-    db.commit()
+    commit_or_raise(db)
     return None
 
 
@@ -633,7 +634,7 @@ def create_appliance_lending(
         returned_at=None,
     )
     db.add(lending)
-    db.commit()
+    commit_or_raise(db)
 
     today = _utc_today()
     appliance = (
@@ -674,7 +675,7 @@ def return_appliance_lending(
         raise api_error("lending_already_returned", status.HTTP_400_BAD_REQUEST)
 
     lending.returned_at = datetime.now(timezone.utc)
-    db.commit()
+    commit_or_raise(db)
 
     today = _utc_today()
     appliance = (
@@ -713,5 +714,5 @@ def cancel_planned_appliance_lending(
 
     _assert_lending_is_planned(lending, _utc_today())
     db.delete(lending)
-    db.commit()
+    commit_or_raise(db)
     return None

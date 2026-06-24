@@ -252,7 +252,6 @@ const {
 const {
   accounts,
   options: accountSelectOptions,
-  loading: accountsLoading,
   loadError: accountsLoadError,
   load: reloadAccounts,
 } = useAccountingAccounts(() => props.organisationId)

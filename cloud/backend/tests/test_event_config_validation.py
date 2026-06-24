@@ -21,7 +21,7 @@ from app.event_config_validation import (
     station_article_union_from_payload,
 )
 from app.models import Article, ArticleCategory, Event, HireCompany, Organisation, Waiter
-from app.routers.events import AppLayoutIn, LayoutCellIn, StationConfigIn
+from app.schemas.events import AppLayoutIn, LayoutCellIn, StationConfigIn
 
 
 @pytest.fixture

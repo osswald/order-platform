@@ -57,7 +57,7 @@ The cloud API is multi-tenant: each **Verleiher** (`hire_companies`) owns applia
 | Role | Who | Cloud access |
 |------|-----|----------------|
 | **Plattform-Admin** (`platform_admin`, `is_superuser`) | Vendiqo operators | CRUD Verleiher; operational UI requires **Aktiver Verleiher** + header `X-Hire-Company-Id` |
-| **Organisations-Admin** (`org_admin`) | Staff of one Verleiher | Full admin within their Verleiher (organisations, appliances, users, lendings) |
+| **Organisations-Admin** (`tenant_admin`) | Staff of one Verleiher | Full admin within their Verleiher (organisations, appliances, users, lendings) |
 | **Mitglied** (`member`) | Event customer users | Assigned organisations only (events, catalog) |
 
 **Migration:** On startup, `apply_schema_patches()` creates a default Verleiher named **Vendiqo** (override with `DEFAULT_HIRE_COMPANY_NAME`) and assigns existing organisations and appliances to it. Existing superusers become `platform_admin`.

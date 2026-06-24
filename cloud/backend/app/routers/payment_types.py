@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..i18n.errors import api_error
 from ..models import PaymentType, User
 from ..payment_type_reference import assert_payment_type_deletable, get_payment_type_or_404
@@ -13,6 +14,10 @@ from ..payment_types_config import refresh_payment_types_cache
 from ..tenancy import get_current_platform_admin
 
 router = APIRouter()
+
+
+def _raise_payment_type_slug_exists() -> None:
+    raise api_error("payment_type_slug_exists", status.HTTP_400_BAD_REQUEST)
 
 
 class PaymentTypeRead(BaseModel):
@@ -99,7 +104,7 @@ def create_payment_type(
         is_active=body.is_active,
     )
     db.add(payment_type)
-    db.commit()
+    commit_or_raise(db, on_integrity=_raise_payment_type_slug_exists)
     db.refresh(payment_type)
     refresh_payment_types_cache(db)
     return _payment_type_response(payment_type)
@@ -122,7 +127,7 @@ def update_payment_type(
         payment_type.sort_order = body.sort_order
     if body.is_active is not None:
         payment_type.is_active = body.is_active
-    db.commit()
+    commit_or_raise(db, on_integrity=_raise_payment_type_slug_exists)
     db.refresh(payment_type)
     refresh_payment_types_cache(db)
     return _payment_type_response(payment_type)
@@ -137,6 +142,6 @@ def delete_payment_type(
     payment_type = get_payment_type_or_404(db, payment_type_id)
     assert_payment_type_deletable(db, payment_type)
     db.delete(payment_type)
-    db.commit()
+    commit_or_raise(db)
     refresh_payment_types_cache(db)
     return None

@@ -13,6 +13,7 @@ from ..reference_countries import country_response, get_country_or_404
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..tenancy import (
     TenantContext,
     ensure_can_manage_organisation,
@@ -235,7 +236,7 @@ def cancel_organisation_planned_lending(
 
     _assert_lending_is_planned(lending, _utc_today())
     db.delete(lending)
-    db.commit()
+    commit_or_raise(db)
     return None
 
 
@@ -275,7 +276,7 @@ def create_organisation(
         from ..receipt_printing_config import copy_receipt_printing_from_hire_company
 
         copy_receipt_printing_from_hire_company(hire_company, db_org)
-    db.commit()
+    commit_or_raise(db)
     db_org = ensure_org_in_tenant(db, db_org.id, tenant.hire_company_id)
     return organisation_response(db_org)
 
@@ -326,7 +327,7 @@ def update_organisation(
         org.accounts_enabled = bool(org_in.accounts_enabled)
     if "position_comments_enabled" in update_fields:
         org.position_comments_enabled = bool(org_in.position_comments_enabled)
-    db.commit()
+    commit_or_raise(db)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)
 
@@ -339,5 +340,5 @@ def delete_organisation(
 ):
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     db.delete(org)
-    db.commit()
+    commit_or_raise(db)
     return {"detail": "Organisation deleted"}

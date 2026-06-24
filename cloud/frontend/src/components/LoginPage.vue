@@ -157,7 +157,7 @@ async function submit() {
     setTimeout(() => {
       window.location.href = target
     }, 500)
-  } catch (e) {
+  } catch {
     message.value = t('login.networkError')
     messageType.value = 'error'
   } finally {

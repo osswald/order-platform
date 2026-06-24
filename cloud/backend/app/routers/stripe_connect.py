@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..models import Organisation, User
 from ..stripe_client import StripeConfigError, stripe_error
 from .. import stripe_client
@@ -108,7 +109,7 @@ def create_connect_account_link(
         raise stripe_error(exc) from exc
 
     organisation.stripe_onboarding_started_at = datetime.now(timezone.utc)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(organisation)
     return StripeAccountLinkResponse(**_status_response(organisation).model_dump(), url=link.url)
 
@@ -129,6 +130,6 @@ def refresh_connect_status(
     except Exception as exc:
         raise stripe_error(exc) from exc
     update_organisation_from_stripe_account(organisation, account)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(organisation)
     return _status_response(organisation)

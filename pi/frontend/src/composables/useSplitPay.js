@@ -7,7 +7,6 @@ import { buildPayment } from '../utils/paymentTypes'
 import { resolvePaymentsForAmount } from '../utils/resolvePayment'
 import {
   basketCentsAfterVoucher,
-  groupBasketCents,
   sumGroupBasketCents,
   sumVoucherCreditCents,
 } from '../utils/splitPay'

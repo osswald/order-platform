@@ -9,6 +9,7 @@ from ..accounting_validation import validate_category_accounting_account
 from ..models import AccountingAccount, Article, ArticleCategory, Organisation, User
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
 from ..user_access import can_manage_tenant
 
@@ -131,7 +132,7 @@ def create_article_category(
         )
         if default:
             category.accounting_account_id = default.id
-    db.commit()
+    commit_or_raise(db)
     db.refresh(category)
     return category_response(category)
 
@@ -168,7 +169,7 @@ def update_article_category(
             db, organisation, category_in.accounting_account_id
         )
 
-    db.commit()
+    commit_or_raise(db)
     db.refresh(category)
     return category_response(category)
 
@@ -190,5 +191,5 @@ def delete_article_category(
     if db.query(Article).filter(Article.article_category_id == category.id).count():
         raise api_error("cannot_delete_category_with_articles", status.HTTP_422_UNPROCESSABLE_CONTENT)
     db.delete(category)
-    db.commit()
+    commit_or_raise(db)
     return None

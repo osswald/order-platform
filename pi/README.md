@@ -112,6 +112,7 @@ For local Docker development, copy `pi/.env.example` to `pi/.env` and set the cl
 | `PI_SETUP_UNPAIR_SECRET` | Enables `POST /v1/setup/unpair` with matching `unpair_secret` (factory reset). |
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
+| `SYNC_PUSH_ENABLED` | `1` by default. Set `0` to disable outbox push to cloud (pull still runs when sync is enabled). |
 | `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
 | `RESTORE_FROM_CLOUD` | `1` by default. After bundle pull, auto-import open ops from cloud when local state differs (SD/appliance takeover). |
 | `ESCPOS_PRINTER_HOST_OVERRIDE` | Optional. Redirect all TCP print jobs to one reachable host (e.g. a LAN printer IP). Omit to use printer IPs from the synced cloud bundle. |

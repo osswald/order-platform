@@ -28,7 +28,7 @@ const sampleCountries = [
   { id: 3, code: 'CH', name: 'Schweiz' },
 ]
 
-function createOrganisationsRouter(initialPath) {
+function createOrganisationsRouter(_initialPath) {
   return createRouter({
     history: createMemoryHistory(),
     routes: [

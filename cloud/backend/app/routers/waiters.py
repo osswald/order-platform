@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..models import Organisation, User, Waiter
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..tenancy import (
     TenantContext,
     ensure_user_can_use_organisation,
@@ -112,7 +113,7 @@ def create_waiter(
         organisation_id=organisation.id,
     )
     db.add(waiter)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(waiter)
     return waiter_response(waiter)
 
@@ -143,7 +144,7 @@ def update_waiter(
     if waiter_in.pin is not None:
         waiter.pin = waiter_in.pin or "0000"
 
-    db.commit()
+    commit_or_raise(db)
     db.refresh(waiter)
     return waiter_response(waiter)
 
@@ -163,5 +164,5 @@ def delete_waiter(
     if not waiter:
         raise api_error("waiter_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(waiter)
-    db.commit()
+    commit_or_raise(db)
     return None

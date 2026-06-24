@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..models import Event, HireCompany, Organisation, User
 from ..receipt_printing_config import (
     EventReceiptPrintingUpdate,
@@ -68,7 +69,7 @@ def put_hire_company_receipt_printing(
 ):
     company = _ensure_hire_company_access(db, hire_company_id, current_user, tenant)
     apply_vendor_or_org_printing_update(company, body)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(company)
     return read_printing_response(company, is_event=False)
 
@@ -103,7 +104,7 @@ async def put_hire_company_receipt_logo(
         store_receipt_logo(company, mime, raw)
     except ValueError as e:
         raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
-    db.commit()
+    commit_or_raise(db)
     return {"ok": True, "has_receipt_logo": True}
 
 
@@ -116,7 +117,7 @@ def delete_hire_company_receipt_logo(
 ):
     company = _ensure_hire_company_access(db, hire_company_id, current_user, tenant)
     clear_receipt_logo(company)
-    db.commit()
+    commit_or_raise(db)
 
 
 @router.get("/organisations/{organisation_id}/receipt-printing", response_model=ReceiptPrintingRead)
@@ -142,7 +143,7 @@ def put_organisation_receipt_printing(
     ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     apply_vendor_or_org_printing_update(org, body)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(org)
     return read_printing_response(org, is_event=False)
 
@@ -179,7 +180,7 @@ async def put_organisation_receipt_logo(
         store_receipt_logo(org, mime, raw)
     except ValueError as e:
         raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
-    db.commit()
+    commit_or_raise(db)
     return {"ok": True, "has_receipt_logo": True}
 
 
@@ -193,7 +194,7 @@ def delete_organisation_receipt_logo(
     ensure_can_manage_organisation(current_user, organisation_id)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     clear_receipt_logo(org)
-    db.commit()
+    commit_or_raise(db)
 
 
 def _get_event_for_printing(db, current_user, event_id, hire_company_id) -> Event:
@@ -223,7 +224,7 @@ def put_event_receipt_printing(
 ):
     event = _get_event_for_printing(db, current_user, event_id, tenant.hire_company_id)
     apply_event_printing_update(event, body)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(event)
     return read_printing_response(event, is_event=True)
 
@@ -258,7 +259,7 @@ async def put_event_receipt_logo(
         store_receipt_logo(event, mime, raw)
     except ValueError as e:
         raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
-    db.commit()
+    commit_or_raise(db)
     return {"ok": True, "has_receipt_logo": True}
 
 
@@ -271,4 +272,4 @@ def delete_event_receipt_logo(
 ):
     event = _get_event_for_printing(db, current_user, event_id, tenant.hire_company_id)
     clear_receipt_logo(event)
-    db.commit()
+    commit_or_raise(db)

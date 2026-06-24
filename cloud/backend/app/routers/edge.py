@@ -113,7 +113,7 @@ def get_edge_server_appliance(
         raise api_error("lending_org_mismatch", status.HTTP_403_FORBIDDEN)
     if edge_credential is not None:
         edge_credential.last_seen_at = datetime.now(timezone.utc)
-        db.commit()
+        commit_or_raise(db)
     return ApplianceEdgeContext(appliance, lending.organisation_id, edge_credential=edge_credential)
 
 
@@ -347,7 +347,7 @@ def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depe
     )
     db.add(edge_credential)
     matched.consumed_at = now
-    db.commit()
+    commit_or_raise(db)
     db.refresh(edge_credential)
     return EdgePairResponse(
         appliance_id=appliance.id,
@@ -506,7 +506,7 @@ def unpair_edge_device(
     if credential.status != "revoked" or credential.revoked_at is None:
         credential.status = "revoked"
         credential.revoked_at = datetime.now(timezone.utc)
-        db.commit()
+        commit_or_raise(db)
     return EdgeUnpairAck(status="revoked")
 
 
@@ -595,7 +595,7 @@ def submit_edge_order(
         event_id=body.event_id,
         payload=payload,
     )
-    db.commit()
+    commit_or_raise(db)
     db.refresh(row)
     return EdgeOrderAck(server_order_id=row.id, duplicate=False)
 
@@ -614,12 +614,26 @@ def submit_operational_chunk(
 
     payload = body.payload or {}
     entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()
-    existing = (
-        db.query(EdgeSubmittedOrder)
-        .filter(EdgeSubmittedOrder.client_order_id == body.chunk_id)
-        .first()
+
+    row = EdgeSubmittedOrder(
+        client_order_id=body.chunk_id,
+        appliance_id=ctx.appliance.id,
+        organisation_id=ctx.organisation_id,
+        event_id=body.event_id,
+        payload={"entity_type": body.entity_type, **payload},
     )
-    if existing:
+    db.add(row)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        existing = (
+            db.query(EdgeSubmittedOrder)
+            .filter(EdgeSubmittedOrder.client_order_id == body.chunk_id)
+            .first()
+        )
+        if existing is None:
+            raise
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=0)
 
     if entity_type == "cash_session":
@@ -630,19 +644,10 @@ def submit_operational_chunk(
             event_id=body.event_id,
             payload=payload,
         )
-        db.commit()
+        commit_or_raise(db)
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
 
     if entity_type == "kitchen_tickets":
-        db.add(
-            EdgeSubmittedOrder(
-                client_order_id=body.chunk_id,
-                appliance_id=ctx.appliance.id,
-                organisation_id=ctx.organisation_id,
-                event_id=body.event_id,
-                payload={"entity_type": body.entity_type, **payload},
-            )
-        )
         upsert_edge_kitchen_ticket_snapshot(
             db,
             organisation_id=ctx.organisation_id,
@@ -650,19 +655,8 @@ def submit_operational_chunk(
             event_id=body.event_id,
             payload=payload,
         )
-        db.commit()
+        commit_or_raise(db)
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
-
-    # Keep audit trail while migrating.
-    db.add(
-        EdgeSubmittedOrder(
-            client_order_id=body.chunk_id,
-            appliance_id=ctx.appliance.id,
-            organisation_id=ctx.organisation_id,
-            event_id=body.event_id,
-            payload={"entity_type": body.entity_type, **payload},
-        )
-    )
 
     lines = payload.get("lines") or []
     payments = payload.get("payments") or []
@@ -764,5 +758,5 @@ def submit_operational_chunk(
         event_id=body.event_id,
         payload=payload,
     )
-    db.commit()
+    commit_or_raise(db)
     return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth_sessions import invalidate_user_sessions, session_claims, token_version_matches
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..rate_limit import (
     CHANGE_PASSWORD_RATE_LIMIT,
     LOGIN_RATE_LIMIT,
@@ -136,7 +137,7 @@ def login_for_access_token(
         raise exc
     if upgraded_hash:
         user.hashed_password = upgraded_hash
-        db.commit()
+        commit_or_raise(db)
     access_token, _refresh = _issue_session_tokens(user, response)
     flags = _token_for_user(user)
     return Token(

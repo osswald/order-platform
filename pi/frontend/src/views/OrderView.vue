@@ -160,7 +160,6 @@ const {
   decrementCartLine,
   availableQty,
   getArticle,
-  articleName,
   cartLineLabel,
   clearCart,
 } = useCart()

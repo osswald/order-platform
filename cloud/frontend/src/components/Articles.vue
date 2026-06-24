@@ -534,7 +534,7 @@ watch(
 async function fetchArticles() {
   try {
     articles.value = await apiJson('/articles/')
-  } catch (error) {
+  } catch {
     message.value = t('articles.loadError')
     messageType.value = 'error'
   }
@@ -543,7 +543,7 @@ async function fetchArticles() {
 async function fetchCategories() {
   try {
     categories.value = await apiJson('/article-categories/')
-  } catch (error) {
+  } catch {
     message.value = t('articles.categoriesLoadError')
     messageType.value = 'error'
   }

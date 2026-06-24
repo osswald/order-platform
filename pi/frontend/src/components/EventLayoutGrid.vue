@@ -25,7 +25,6 @@ import { showToast } from '../store'
 import { formatAmount, lineUnitCents } from '../utils/money'
 import {
   articlesForIds,
-  cellVoucherUuids,
   fixedAmountVouchersForCell,
 } from '../utils/bundleHelpers'
 import { textColorForBackground } from '../utils/colorContrast'
