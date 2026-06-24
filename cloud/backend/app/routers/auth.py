@@ -26,6 +26,7 @@ from ..security import (
     decode_refresh_token,
     get_password_hash,
     verify_password,
+    verify_password_and_maybe_upgrade,
 )
 
 router = APIRouter()
@@ -117,10 +118,20 @@ def login_for_access_token(
     db: Session = Depends(get_db),
 ) -> Token:
     user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user:
         exc = api_error("incorrect_email_or_password", status.HTTP_401_UNAUTHORIZED)
         exc.headers = {"WWW-Authenticate": "Bearer"}
         raise exc
+    valid, upgraded_hash = verify_password_and_maybe_upgrade(
+        form_data.password, user.hashed_password
+    )
+    if not valid:
+        exc = api_error("incorrect_email_or_password", status.HTTP_401_UNAUTHORIZED)
+        exc.headers = {"WWW-Authenticate": "Bearer"}
+        raise exc
+    if upgraded_hash:
+        user.hashed_password = upgraded_hash
+        db.commit()
     access_token, _refresh = _issue_session_tokens(user, response)
     flags = _token_for_user(user)
     return Token(

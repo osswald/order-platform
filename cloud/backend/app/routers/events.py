@@ -1145,7 +1145,7 @@ def copy_event_endpoint(
         raise
     except ValueError as e:
         db.rollback()
-        raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_ENTITY) from e
+        raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_CONTENT) from e
     except Exception:
         db.rollback()
         raise
@@ -1173,7 +1173,7 @@ def update_event(
     if event_in.status is not None:
         status_value = event_in.status.lower()
         if status_value not in ALLOWED_STATUSES:
-            raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_ENTITY, statuses=", ".join(sorted(ALLOWED_STATUSES)))
+            raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_CONTENT, statuses=", ".join(sorted(ALLOWED_STATUSES)))
         old_status = event.status
         validate_status_transition(old_status, status_value)
         if old_status == "test" and status_value == "prod":
@@ -1186,7 +1186,7 @@ def update_event(
     if event_in.payment_mode is not None:
         pm = event_in.payment_mode.lower()
         if pm not in PAYMENT_MODES:
-            raise api_error("payment_mode_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY, modes=", ".join(sorted(PAYMENT_MODES)))
+            raise api_error("payment_mode_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT, modes=", ".join(sorted(PAYMENT_MODES)))
         event.payment_mode = pm
     if event_in.instant_collective_bill_name is not None:
         event.instant_collective_bill_name = event_in.instant_collective_bill_name
@@ -1204,7 +1204,7 @@ def update_event(
             if "twint" not in new_types:
                 clear_twint_qr(event)
         except ValueError as e:
-            raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_ENTITY) from e
+            raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_CONTENT) from e
     if event_in.cash_registers_enabled is not None:
         event.cash_registers_enabled = bool(event_in.cash_registers_enabled)
     if event_in.shift_settlement_enabled is not None:
@@ -1220,7 +1220,7 @@ def update_event(
     if event_in.offer_payment_receipt is not None:
         event.offer_payment_receipt = bool(event_in.offer_payment_receipt)
     if event.end < event.start:
-        raise api_error("end_must_be_after_start", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("end_must_be_after_start", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
     db.commit()
     db.refresh(event)

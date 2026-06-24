@@ -257,7 +257,7 @@ def _validate_ip_for_type(ip: str | None, appliance_type: str | None) -> str | N
 def validate_type(value: str) -> str:
     lower_value = value.lower()
     if lower_value not in ALLOWED_TYPES:
-        raise api_error("appliance_type_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY, types=", ".join(sorted(ALLOWED_TYPES)))
+        raise api_error("appliance_type_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT, types=", ".join(sorted(ALLOWED_TYPES)))
     return lower_value
 
 

@@ -155,7 +155,7 @@ def update_article_category(
     organisation = category.organisation
     if category_in.organisation_id is not None:
         if db.query(Article).filter(Article.article_category_id == category.id).count():
-            raise api_error("cannot_move_category_with_articles", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            raise api_error("cannot_move_category_with_articles", status.HTTP_422_UNPROCESSABLE_CONTENT)
         organisation = ensure_user_can_use_organisation(
             db, current_user, category_in.organisation_id, tenant.hire_company_id
         )
@@ -188,7 +188,7 @@ def delete_article_category(
     if not category:
         raise api_error("article_category_not_found", status.HTTP_404_NOT_FOUND)
     if db.query(Article).filter(Article.article_category_id == category.id).count():
-        raise api_error("cannot_delete_category_with_articles", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("cannot_delete_category_with_articles", status.HTTP_422_UNPROCESSABLE_CONTENT)
     db.delete(category)
     db.commit()
     return None

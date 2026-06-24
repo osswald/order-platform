@@ -19,18 +19,18 @@ VOUCHER_KINDS = {VOUCHER_KIND_FIXED, VOUCHER_KIND_ARTICLE}
 def assert_voucher_definition_in(event: Event, vd: Any) -> None:
     kind = str(getattr(vd, "kind", "") or "").strip()
     if kind not in VOUCHER_KINDS:
-        raise api_error("invalid_voucher_kind", status.HTTP_422_UNPROCESSABLE_ENTITY, kind=kind)
+        raise api_error("invalid_voucher_kind", status.HTTP_422_UNPROCESSABLE_CONTENT, kind=kind)
     name = str(getattr(vd, "name", "") or "").strip()
     if not name:
-        raise api_error("voucher_name_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("voucher_name_required", status.HTTP_422_UNPROCESSABLE_CONTENT)
     value_cents = getattr(vd, "value_cents", None)
     if kind == VOUCHER_KIND_FIXED:
         if value_cents is None or int(value_cents) < 1:
-            raise api_error("voucher_fixed_amount_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            raise api_error("voucher_fixed_amount_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT)
     else:
         allowed = list(getattr(vd, "allowed_article_ids", None) or [])
         if not allowed:
-            raise api_error("voucher_article_entitlement_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            raise api_error("voucher_article_entitlement_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
 def assert_voucher_articles_in_org(db: Session, event: Event, article_ids: list[int]) -> None:
@@ -49,7 +49,7 @@ def assert_voucher_articles_in_org(db: Session, event: Event, article_ids: list[
         .count()
     )
     if count != len(set(article_ids)):
-        raise api_error("voucher_articles_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("voucher_articles_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
 def normalize_cell_voucher_uuids(cell) -> list[str]:
@@ -102,13 +102,13 @@ def assert_layout_cells_vouchers(
             article_ids = list(getattr(cell, "article_ids", None) or [])
             v_uuids = normalize_cell_voucher_uuids(cell)
             if not v_uuids and not article_ids:
-                raise api_error("layout_cell_requires_content", status.HTTP_422_UNPROCESSABLE_ENTITY, row=cell.row, col=cell.col)
+                raise api_error("layout_cell_requires_content", status.HTTP_422_UNPROCESSABLE_CONTENT, row=cell.row, col=cell.col)
             for v_uuid in v_uuids:
                 vd = by_uuid.get(v_uuid)
                 if not vd:
-                    raise api_error("unknown_voucher_on_cell", status.HTTP_422_UNPROCESSABLE_ENTITY, row=cell.row, col=cell.col)
+                    raise api_error("unknown_voucher_on_cell", status.HTTP_422_UNPROCESSABLE_CONTENT, row=cell.row, col=cell.col)
                 if str(getattr(vd, "kind", "")) != VOUCHER_KIND_FIXED:
-                    raise api_error("only_fixed_amount_on_cell", status.HTTP_422_UNPROCESSABLE_ENTITY)
+                    raise api_error("only_fixed_amount_on_cell", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
 def persist_voucher_redemptions_from_payload(

@@ -40,7 +40,7 @@ def selectable_statuses(current: str) -> list[str]:
 def assert_create_status(value: str) -> str:
     st = normalize_status(value)
     if st != "config":
-        raise api_error("new_event_must_config", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("new_event_must_config", status.HTTP_422_UNPROCESSABLE_CONTENT)
     return st
 
 
@@ -50,10 +50,10 @@ def validate_status_transition(old: str, new: str) -> None:
     if old_n == new_n:
         return
     if new_n not in ALLOWED_STATUSES:
-        raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_ENTITY, statuses=", ".join(sorted(ALLOWED_STATUSES)))
+        raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_CONTENT, statuses=", ".join(sorted(ALLOWED_STATUSES)))
     allowed = ALLOWED_TRANSITIONS.get(old_n, frozenset())
     if new_n not in allowed:
-        raise api_error("cannot_transition_status", status.HTTP_422_UNPROCESSABLE_ENTITY, old_status=old_n, new_status=new_n)
+        raise api_error("cannot_transition_status", status.HTTP_422_UNPROCESSABLE_CONTENT, old_status=old_n, new_status=new_n)
 
 
 def purge_event_operational_data(db: Session, event: Event) -> None:

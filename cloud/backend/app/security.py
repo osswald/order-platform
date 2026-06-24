@@ -3,11 +3,13 @@ import os
 from typing import Any, Optional
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 
 from .env import is_production
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
 DEV_DEFAULT_SECRET_KEY = "replace-me-with-secure-random-secret"
 _MIN_PRODUCTION_SECRET_LEN = 32
@@ -54,7 +56,20 @@ SECRET_KEY = load_secret_key()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
+
+
+def verify_password_and_maybe_upgrade(
+    plain_password: str, hashed_password: str
+) -> tuple[bool, str | None]:
+    """Verify password; return upgraded Argon2 hash when input was legacy bcrypt."""
+    try:
+        return pwd_context.verify_and_update(plain_password, hashed_password)
+    except Exception:
+        return False, None
 
 
 def get_password_hash(password: str) -> str:

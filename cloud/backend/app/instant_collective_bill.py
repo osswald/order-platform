@@ -31,7 +31,7 @@ def apply_instant_collective_bill_settings(
 
     if pm == "instant":
         if not name:
-            raise api_error("instant_collective_bill_name_required", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            raise api_error("instant_collective_bill_name_required", status.HTTP_422_UNPROCESSABLE_CONTENT)
         event.instant_collective_bill_name = name
         if not getattr(event, "instant_collective_bill_uuid", None):
             event.instant_collective_bill_uuid = str(uuid_lib.uuid4())

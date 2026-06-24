@@ -200,7 +200,7 @@ def ensure_user_can_use_organisation(
     if organisation_id is None:
         if len(organisations) == 1:
             return organisations[0]
-        raise api_error("organisation_required_multi", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("organisation_required_multi", status.HTTP_422_UNPROCESSABLE_CONTENT)
     organisation = ensure_org_in_tenant(db, organisation_id, hire_company_id)
     if can_manage_tenant(current_user):
         return organisation

@@ -106,7 +106,7 @@ async def create_hosted_pi(
     created_by_user_id: int | None,
 ) -> HostedPiInstance:
     if normalize_status(event.status) != "config":
-        raise api_error("hosted_pi_config_only", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("hosted_pi_config_only", status.HTTP_422_UNPROCESSABLE_CONTENT)
     if _active_instance_for_event(db, event.id):
         raise api_error("hosted_pi_already_active", status.HTTP_409_CONFLICT)
     if _running_count(db) >= MAX_CONCURRENT_HOSTED_PI:

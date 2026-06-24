@@ -72,7 +72,6 @@ CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes und
 ### Gotchas
 
 - Docker runs inside a nested container (Firecracker VM). Requires `fuse-overlayfs` storage driver and `iptables-legacy`.
-- The passlib/bcrypt deprecation warning at startup is cosmetic and does not affect functionality.
 - Cloud backend auto-creates a bootstrap admin user and a default "Vendiqo" hire company on first start (via `apply_schema_patches()`).
 - Pi PWA is designed to work unpaired (shows setup/pairing page). Pairing requires a cloud appliance credential.
 - Stripe keys are optional for core functionality — leave `STRIPE_SECRET_KEY` empty for local dev.

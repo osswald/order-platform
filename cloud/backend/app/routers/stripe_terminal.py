@@ -151,7 +151,7 @@ def read_terminal_payment_intent(
     db: Session = Depends(get_db),
 ) -> TerminalPaymentIntentRead:
     if not PAYMENT_INTENT_ID_PATTERN.match(payment_intent_id):
-        raise api_error("invalid_payment_intent_id", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("invalid_payment_intent_id", status.HTTP_422_UNPROCESSABLE_CONTENT)
     _, organisation = _terminal_organisation_for_event(db, ctx, event_id)
     try:
         intent = stripe_client.retrieve_terminal_payment_intent(

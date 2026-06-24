@@ -4,8 +4,7 @@ uvicorn[standard]
 sqlalchemy
 alembic
 psycopg2-binary
-passlib[bcrypt]
-bcrypt<5
+pwdlib[argon2,bcrypt]
 python-jose[cryptography]
 email-validator
 python-multipart

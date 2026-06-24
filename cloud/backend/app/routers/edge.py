@@ -310,7 +310,7 @@ def _normalize_pairing_code(code: str) -> str:
 def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depends(get_db)):
     code = _normalize_pairing_code(body.pairing_code)
     if len(code) != 6:
-        raise api_error("pairing_code_must_6_digits", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise api_error("pairing_code_must_6_digits", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
     now = datetime.now(timezone.utc)
     sessions = (

@@ -55,12 +55,41 @@ def _validate_bottom_line(v: str) -> str:
     return text
 
 
-class ReceiptPrintingConfig(BaseModel):
-    station_receipt: ReceiptProfileConfig = Field(default_factory=lambda: default_station_profile())
-    customer_receipt: ReceiptProfileConfig = Field(default_factory=lambda: default_customer_profile())
-    payment_receipt: PaymentReceiptProfileConfig = Field(
-        default_factory=lambda: default_payment_profile()
+def _station_profile_model() -> ReceiptProfileConfig:
+    return ReceiptProfileConfig(
+        logo_enabled=True,
+        show_event_title=True,
+        size_table_or_pickup="xlarge",
+        size_order_lines="large",
+        show_price=False,
+        bottom_line="",
     )
+
+
+def _customer_profile_model() -> ReceiptProfileConfig:
+    return ReceiptProfileConfig(
+        logo_enabled=True,
+        show_event_title=True,
+        size_table_or_pickup="xlarge",
+        size_order_lines="normal",
+        show_price=False,
+        bottom_line="",
+    )
+
+
+def _payment_profile_model() -> PaymentReceiptProfileConfig:
+    return PaymentReceiptProfileConfig(
+        logo_enabled=True,
+        show_event_title=True,
+        size_order_lines="normal",
+        bottom_line="",
+    )
+
+
+class ReceiptPrintingConfig(BaseModel):
+    station_receipt: ReceiptProfileConfig = Field(default_factory=_station_profile_model)
+    customer_receipt: ReceiptProfileConfig = Field(default_factory=_customer_profile_model)
+    payment_receipt: PaymentReceiptProfileConfig = Field(default_factory=_payment_profile_model)
 
 
 class EventReceiptPrintingConfig(ReceiptPrintingConfig):
@@ -89,34 +118,15 @@ class EventReceiptPrintingUpdate(BaseModel):
 
 
 def default_station_profile() -> dict[str, Any]:
-    return ReceiptProfileConfig(
-        logo_enabled=True,
-        show_event_title=True,
-        size_table_or_pickup="xlarge",
-        size_order_lines="large",
-        show_price=False,
-        bottom_line="",
-    ).model_dump()
+    return _station_profile_model().model_dump()
 
 
 def default_customer_profile() -> dict[str, Any]:
-    return ReceiptProfileConfig(
-        logo_enabled=True,
-        show_event_title=True,
-        size_table_or_pickup="xlarge",
-        size_order_lines="normal",
-        show_price=False,
-        bottom_line="",
-    ).model_dump()
+    return _customer_profile_model().model_dump()
 
 
 def default_payment_profile() -> dict[str, Any]:
-    return PaymentReceiptProfileConfig(
-        logo_enabled=True,
-        show_event_title=True,
-        size_order_lines="normal",
-        bottom_line="",
-    ).model_dump()
+    return _payment_profile_model().model_dump()
 
 
 def default_vendor_printing_config() -> dict[str, Any]:
