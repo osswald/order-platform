@@ -500,6 +500,7 @@ def read_event_organisations(
             "country_id": org.country_id,
             "vat_liable": bool(org.vat_liable),
             "default_tax_code_id": org.default_tax_code_id,
+            "accounts_enabled": bool(org.accounts_enabled),
         }
         for org in readable_organisations(db, current_user, tenant.hire_company_id)
     ]

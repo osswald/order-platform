@@ -117,6 +117,7 @@ const {
   handleLogout,
   reloadHireCompaniesAndSelect,
   reloadOrganisationsAndSelect,
+  fetchAccessibleOrganisations,
 } = useAuthSession()
 
 const activeOrganisationIdForViews = computed(() =>
@@ -130,6 +131,8 @@ const activeHireCompanyIdForViews = computed(() =>
 provide(SESSION_CONTEXT_KEY, {
   reloadHireCompaniesAndSelect,
   reloadOrganisationsAndSelect,
+  accessibleOrganisations,
+  fetchAccessibleOrganisations,
 })
 </script>
 

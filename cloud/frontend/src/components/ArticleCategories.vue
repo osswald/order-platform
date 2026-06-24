@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
@@ -101,8 +101,9 @@ import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
-import { matchesActiveOrganisation } from '../utils/orgScope'
+import { matchesActiveOrganisation, organisationAccountsEnabled } from '../utils/orgScope'
 import { useAccountingAccounts } from '../composables/useAccountingAccounts'
+import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
@@ -134,7 +135,8 @@ const tableHeaders = computed(() => [
 ])
 
 const categories = ref([])
-const organisationsList = ref([])
+const sessionContext = inject(SESSION_CONTEXT_KEY, null)
+const organisationsList = computed(() => sessionContext?.accessibleOrganisations?.value ?? [])
 const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
@@ -147,13 +149,9 @@ const emptyForm = () => ({
 const form = ref(emptyForm())
 const formRef = ref(null)
 
-const showAccountingAccountField = computed(() => {
-  if (props.activeOrganisationId == null) return false
-  const org = organisationsList.value.find(
-    (row) => Number(row.id) === Number(props.activeOrganisationId),
-  )
-  return Boolean(org?.accounts_enabled)
-})
+const showAccountingAccountField = computed(() =>
+  organisationAccountsEnabled(organisationsList.value, props.activeOrganisationId),
+)
 
 const {
   options: accountingAccountOptions,
@@ -196,15 +194,9 @@ watch(
   },
 )
 
-async function fetchOrganisations() {
-  try {
-    const response = await apiFetch('/organisations/')
-    if (!response.ok) throw new Error(await response.text())
-    organisationsList.value = await response.json()
-  } catch {
-    organisationsList.value = []
-  }
-}
+onMounted(async () => {
+  await fetchCategories()
+})
 
 async function fetchCategories() {
   try {
@@ -336,10 +328,6 @@ async function deleteCategory(id) {
   }
 }
 
-onMounted(async () => {
-  await fetchOrganisations()
-  await fetchCategories()
-})
 </script>
 
 <style scoped>

@@ -204,6 +204,19 @@ def test_events_organisations_includes_vat_fields():
     assert org["country_id"] is not None
     assert org["vat_liable"] is False
     assert org["default_tax_code_id"] is None
+    assert org["accounts_enabled"] is False
+
+    enabled = client.put(
+        f"/organisations/{org_id}",
+        headers=headers,
+        json={"accounts_enabled": True},
+    )
+    assert enabled.status_code == 200, enabled.text
+
+    relisted = client.get("/events/organisations", headers=headers)
+    assert relisted.status_code == 200
+    org_enabled = next(item for item in relisted.json() if item["id"] == org_id)
+    assert org_enabled["accounts_enabled"] is True
 
 
 def test_ensure_keine_tax_codes_for_reference_countries_only():

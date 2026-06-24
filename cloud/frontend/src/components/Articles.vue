@@ -278,7 +278,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
@@ -286,11 +286,12 @@ import { apiFetch } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
-import { matchesActiveOrganisation } from '../utils/orgScope'
+import { matchesActiveOrganisation, organisationAccountsEnabled } from '../utils/orgScope'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
 import { useAccountingAccounts } from '../composables/useAccountingAccounts'
+import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
 const { t, locale } = useI18n()
@@ -315,7 +316,8 @@ const {
 
 const articles = ref([])
 const categories = ref([])
-const organisationsList = ref([])
+const sessionContext = inject(SESSION_CONTEXT_KEY, null)
+const organisationsList = computed(() => sessionContext?.accessibleOrganisations?.value ?? [])
 const formCurrency = ref('EUR')
 const activeId = computed(() => routeEntityId.value)
 const message = ref('')
@@ -379,7 +381,9 @@ const activeOrganisation = computed(() => {
 })
 
 const showTaxCodeField = computed(() => Boolean(activeOrganisation.value?.vat_liable))
-const showAccountingAccountField = computed(() => Boolean(activeOrganisation.value?.accounts_enabled))
+const showAccountingAccountField = computed(() =>
+  organisationAccountsEnabled(organisationsList.value, props.activeOrganisationId),
+)
 
 const activeOrganisationCountryId = computed(() => activeOrganisation.value?.country_id ?? null)
 
@@ -787,18 +791,7 @@ async function deleteArticle(id) {
   }
 }
 
-async function fetchOrganisationsList() {
-  try {
-    const response = await apiFetch('/events/organisations')
-    if (!response.ok) return
-    organisationsList.value = await response.json()
-  } catch {
-    organisationsList.value = []
-  }
-}
-
 onMounted(async () => {
-  await fetchOrganisationsList()
   await fetchCategories()
   await fetchArticles()
 })

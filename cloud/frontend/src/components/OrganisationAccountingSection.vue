@@ -169,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
@@ -180,9 +180,11 @@ import {
   useAccountingAccounts,
 } from '../composables/useAccountingAccounts'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
+import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
 const { t } = useI18n()
+const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 
 const props = defineProps({
   organisationId: { type: [Number, String], default: null },
@@ -294,6 +296,7 @@ async function saveOrganisationSettings() {
     accountsEnabled.value = Boolean(data.accounts_enabled)
     message.value = t('organisations.accounting.saved')
     messageType.value = 'success'
+    await sessionContext?.reloadOrganisationsAndSelect?.(Number(props.organisationId))
     if (accountsEnabled.value) {
       await reloadAccounts()
       await loadPaymentTypeDefaults()
