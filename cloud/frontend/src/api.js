@@ -60,13 +60,8 @@ export async function refreshAccessToken() {
   return true
 }
 
-/**
- * Fetch API with Bearer token, cookies for refresh, and one 401 retry after refresh.
- */
-export async function apiFetch(path, options = {}) {
-  const { _retry, ...rest } = options
-  const url = path.startsWith('http') ? path : apiUrl(path)
-  const headers = new Headers(rest.headers || {})
+function buildApiHeaders(restHeaders) {
+  const headers = new Headers(restHeaders || {})
   if (!headers.has('Accept-Language')) {
     headers.set('Accept-Language', currentLocale())
   }
@@ -78,6 +73,16 @@ export async function apiFetch(path, options = {}) {
   if (hireCompanyId && !headers.has('X-Hire-Company-Id')) {
     headers.set('X-Hire-Company-Id', hireCompanyId)
   }
+  return headers
+}
+
+/**
+ * Fetch API with Bearer token, cookies for refresh, and one 401 retry after refresh.
+ */
+export async function apiFetch(path, options = {}) {
+  const { _retry, ...rest } = options
+  const url = path.startsWith('http') ? path : apiUrl(path)
+  const headers = buildApiHeaders(rest.headers)
   const credentials = rest.credentials ?? 'include'
 
   const res = await fetch(url, {
@@ -98,15 +103,5 @@ export async function apiFetch(path, options = {}) {
     return res
   }
 
-  const headers2 = new Headers(rest.headers || {})
-  const newToken = localStorage.getItem('access_token')
-  if (newToken) {
-    headers2.set('Authorization', `Bearer ${newToken}`)
-  }
-
-  return fetch(url, {
-    ...rest,
-    headers: headers2,
-    credentials,
-  })
+  return apiFetch(path, { ...options, _retry: true })
 }

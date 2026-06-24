@@ -108,7 +108,7 @@ function startPolling() {
   stopPolling()
   pollTimer = setInterval(() => {
     if (isActive.value || instance.value?.status === 'provisioning') {
-      load()
+      load({ silent: true })
     }
   }, 5000)
 }
