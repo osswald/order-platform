@@ -1,5 +1,5 @@
 import { ref, unref, watch } from 'vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { normalizeOrganisationId } from '../utils/orgId'
 
 function resolveOrganisationId(activeOrganisationIdRef) {
@@ -23,9 +23,7 @@ export function useDashboardSummary(activeOrganisationIdRef) {
     loading.value = true
     loadError.value = ''
     try {
-      const resp = await apiFetch(`/organisations/${orgId}/dashboard-summary`)
-      if (!resp.ok) throw new Error(await resp.text())
-      summary.value = await resp.json()
+      summary.value = await apiJson(`/organisations/${orgId}/dashboard-summary`)
     } catch (e) {
       loadError.value = e.message || 'Dashboard konnte nicht geladen werden.'
       summary.value = null

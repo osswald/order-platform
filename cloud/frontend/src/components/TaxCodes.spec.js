@@ -6,9 +6,10 @@ import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
   apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 
 const sampleCountries = [{ id: 3, code: 'CH', name: 'Schweiz' }]
 const sampleTaxCodes = [
@@ -54,10 +55,11 @@ async function mountTaxCodes(path = '/tax-codes', { isAdmin = false } = {}) {
 describe('TaxCodes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    apiJson.mockImplementation(async (path) => {
+      if (path === '/countries/') return sampleCountries
+      return sampleCountries
+    })
     apiFetch.mockImplementation(async (path) => {
-      if (path === '/countries/') {
-        return { ok: true, json: async () => sampleCountries }
-      }
       if (path === '/tax-codes/') {
         return { ok: true, json: async () => sampleTaxCodes }
       }

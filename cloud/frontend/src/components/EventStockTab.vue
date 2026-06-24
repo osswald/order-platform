@@ -41,7 +41,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
-import { stockGroupsForItems } from '../utils/stockByStation'
+import { stockGroupsForItems } from '@vendiqo/frontend-shared/stockByStation'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import VqDataTable from './VqDataTable.vue'
 

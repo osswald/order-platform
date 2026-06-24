@@ -1,7 +1,6 @@
 import { ref } from 'vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { i18n } from '../i18n'
-import { parseApiErrorDetail } from '../utils/apiError'
 
 function t(key) {
   return i18n.global.t(key)
@@ -38,26 +37,17 @@ export function useHostedPi(eventIdRef) {
       error.value = ''
     }
     try {
-      const response = await apiFetch(`/events/${eventId}/hosted-pi`)
-      if (response.status === 404) {
+      const data = await apiJson(`/events/${eventId}/hosted-pi`)
+      instance.value = data || null
+      error.value = ''
+    } catch (err) {
+      if (err?.status === 404) {
         instance.value = null
         if (!silent) {
           error.value = ''
         }
         return
       }
-      if (!response.ok) {
-        const detail = await parseApiErrorDetail(response)
-        if (!silent) {
-          error.value = detail
-          instance.value = null
-        }
-        return
-      }
-      const data = await response.json()
-      instance.value = data || null
-      error.value = ''
-    } catch (err) {
       if (!silent) {
         error.value = hostedPiErrorMessage(err, t('hostedPi.loadFailed'))
         instance.value = null
@@ -74,18 +64,10 @@ export function useHostedPi(eventIdRef) {
     starting.value = true
     error.value = ''
     try {
-      const response = await apiFetch(`/events/${eventId}/hosted-pi`, { method: 'POST' })
-      if (!response.ok) {
-        const detail = await parseApiErrorDetail(response)
-        error.value = detail
-        throw new Error(detail)
-      }
-      instance.value = await response.json()
+      instance.value = await apiJson(`/events/${eventId}/hosted-pi`, { method: 'POST' })
       return instance.value
     } catch (err) {
-      if (!error.value) {
-        error.value = hostedPiErrorMessage(err, t('hostedPi.startError'))
-      }
+      error.value = hostedPiErrorMessage(err, t('hostedPi.startError'))
       throw err
     } finally {
       loading.value = false
@@ -99,18 +81,10 @@ export function useHostedPi(eventIdRef) {
     loading.value = true
     error.value = ''
     try {
-      const response = await apiFetch(`/events/${eventId}/hosted-pi`, { method: 'DELETE' })
-      if (!response.ok) {
-        const detail = await parseApiErrorDetail(response)
-        error.value = detail
-        throw new Error(detail)
-      }
-      instance.value = await response.json()
+      instance.value = await apiJson(`/events/${eventId}/hosted-pi`, { method: 'DELETE' })
       return instance.value
     } catch (err) {
-      if (!error.value) {
-        error.value = hostedPiErrorMessage(err, t('hostedPi.stopFailed'))
-      }
+      error.value = hostedPiErrorMessage(err, t('hostedPi.stopFailed'))
       throw err
     } finally {
       loading.value = false

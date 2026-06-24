@@ -6,9 +6,10 @@ import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
   apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 
 const samplePaymentTypes = [
   { id: 1, slug: 'cash', sort_order: 0, is_active: true },

@@ -16,7 +16,7 @@ from ..deps import get_db
 from ..event_status import ORDER_ACCEPT_STATUSES
 from ..models import Event, Organisation
 from ..payment_types_config import payment_types_from_event
-from ..stripe_client import StripeConfigError
+from ..stripe_client import StripeConfigError, stripe_error
 from .. import stripe_client
 from .edge import ApplianceEdgeContext, get_edge_server_appliance, _load_event_for_org
 
@@ -53,15 +53,6 @@ class TerminalPaymentIntentRead(BaseModel):
     status: str
     amount_cents: int
     currency: str
-
-
-def _stripe_error(exc: Exception) -> HTTPException:
-    if isinstance(exc, StripeConfigError):
-        return api_error("validation_failed", status.HTTP_503_SERVICE_UNAVAILABLE)
-    if isinstance(exc, stripe.error.StripeError):
-        return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
-    return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
-
 
 def _stripe_attr(obj: Any, key: str, default: Any = None) -> Any:
     if isinstance(obj, dict):
@@ -109,7 +100,7 @@ def create_terminal_connection_token(
     try:
         token = stripe_client.create_terminal_connection_token(account_id=organisation.stripe_account_id)
     except Exception as exc:
-        raise _stripe_error(exc) from exc
+        raise stripe_error(exc) from exc
     return TerminalConnectionTokenRead(secret=str(_stripe_attr(token, "secret")))
 
 
@@ -139,7 +130,7 @@ def create_terminal_payment_intent(
             idempotency_key=body.idempotency_key,
         )
     except Exception as exc:
-        raise _stripe_error(exc) from exc
+        raise stripe_error(exc) from exc
     return _intent_response(intent)
 
 
@@ -159,5 +150,5 @@ def read_terminal_payment_intent(
             payment_intent_id=payment_intent_id,
         )
     except Exception as exc:
-        raise _stripe_error(exc) from exc
+        raise stripe_error(exc) from exc
     return _intent_response(intent)

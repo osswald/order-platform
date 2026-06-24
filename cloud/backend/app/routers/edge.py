@@ -45,7 +45,7 @@ from ..edge_operational_mirror import (
     upsert_edge_order_snapshot,
 )
 from ..edge_operational_snapshot import build_operational_snapshot_for_events
-from ..rate_limit import EDGE_PAIR_RATE_LIMIT, limiter
+from ..rate_limit import EDGE_PAIR_RATE_LIMIT, EDGE_WRITE_RATE_LIMIT, edge_client_key, limiter
 from .events import serialize_event_configuration
 
 router = APIRouter()
@@ -502,7 +502,9 @@ def unpair_edge_device(
 
 
 @router.post("/v1/orders", response_model=EdgeOrderAck)
+@limiter.limit(EDGE_WRITE_RATE_LIMIT, key_func=edge_client_key)
 def submit_edge_order(
+    request: Request,
     body: EdgeOrderCreate,
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),
@@ -590,7 +592,9 @@ def submit_edge_order(
 
 
 @router.post("/v1/sync/operational/chunk", response_model=EdgeOperationalChunkAck)
+@limiter.limit(EDGE_WRITE_RATE_LIMIT, key_func=edge_client_key)
 def submit_operational_chunk(
+    request: Request,
     body: EdgeOperationalChunkCreate,
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),

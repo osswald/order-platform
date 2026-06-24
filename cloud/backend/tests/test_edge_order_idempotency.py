@@ -114,3 +114,35 @@ def test_edge_order_duplicate_returns_same_server_id():
         assert count == 1
     finally:
         db.close()
+
+
+def test_edge_order_concurrent_duplicate_requests():
+    """Two sequential duplicate posts behave like concurrent idempotent retries."""
+    headers, event_id = _edge_fixture()
+    client_order_id = f"order-concurrent-{uuid4().hex}"
+    payload = {
+        "client_order_id": client_order_id,
+        "event_id": event_id,
+        "payload": {
+            "client_order_id": client_order_id,
+            "payment_status": "open",
+            "lines": [{"article_id": 1, "qty": 1, "unit_cents": 500}],
+        },
+    }
+    results = [client.post("/edge/v1/orders", headers=headers, json=payload) for _ in range(3)]
+    assert all(r.status_code == 200 for r in results), [r.text for r in results]
+    server_ids = {r.json()["server_order_id"] for r in results}
+    assert len(server_ids) == 1
+    duplicates = sum(1 for r in results if r.json().get("duplicate"))
+    assert duplicates == 2
+
+    db = SessionLocal()
+    try:
+        count = (
+            db.query(EdgeSubmittedOrder)
+            .filter(EdgeSubmittedOrder.client_order_id == client_order_id)
+            .count()
+        )
+        assert count == 1
+    finally:
+        db.close()

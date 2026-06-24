@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 const countries = ref([])
 const loading = ref(false)
@@ -23,9 +23,7 @@ export function useCountries() {
     loading.value = true
     loadPromise = (async () => {
       try {
-        const response = await apiFetch('/countries/')
-        if (!response.ok) throw new Error(await response.text())
-        countries.value = await response.json()
+        countries.value = await apiJson('/countries/')
         return countries.value
       } finally {
         loading.value = false

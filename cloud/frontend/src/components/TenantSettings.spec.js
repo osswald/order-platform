@@ -5,9 +5,10 @@ import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
   apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 
 function companyPayload(id, name) {
   return {
@@ -27,10 +28,8 @@ describe('TenantSettings', () => {
   })
 
   it('reloads form data when activeHireCompanyId changes', async () => {
+    apiJson.mockResolvedValue([{ id: 3, code: 'CH', name: 'Schweiz' }])
     apiFetch.mockImplementation(async (path) => {
-      if (path === '/countries/') {
-        return { ok: true, json: async () => [{ id: 3, code: 'CH', name: 'Schweiz' }] }
-      }
       if (path === '/hire-companies/1') {
         return { ok: true, json: async () => companyPayload(1, 'Tenant A') }
       }

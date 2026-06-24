@@ -30,7 +30,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBundle } from '../composables/useBundle'
 import { useEventContext } from '../composables/useEventContext'
-import { stockGroupsForEvent } from '../utils/stockByStation'
+import { stockGroupsForEvent } from '@vendiqo/frontend-shared/stockByStation'
 
 const router = useRouter()
 const { event } = useEventContext()

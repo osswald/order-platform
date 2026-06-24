@@ -109,7 +109,7 @@ def test_terminal_connection_token_proxies_cloud(client, bundle, monkeypatch):
         db.close()
 
     monkeypatch.setattr(
-        "app.routers.edge_api.cloud_create_terminal_connection_token",
+        "app.routers.edge_payments.cloud_create_terminal_connection_token",
         AsyncMock(return_value={"secret": "tok_test"}),
     )
     r = client.post("/v1/terminal/connection-token", json={"event_id": ev["id"]})

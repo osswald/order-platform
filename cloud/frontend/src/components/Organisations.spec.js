@@ -7,9 +7,10 @@ import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
   apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 
 const sampleOrg = {
   id: 1,
@@ -78,10 +79,8 @@ async function mountOrganisations(path) {
 describe('Organisations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    apiJson.mockResolvedValue(sampleCountries)
     apiFetch.mockImplementation(async (path) => {
-      if (path === '/countries/') {
-        return { ok: true, json: async () => sampleCountries }
-      }
       if (path === '/organisations/') {
         return { ok: true, json: async () => [sampleOrg] }
       }

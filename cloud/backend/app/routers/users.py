@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import or_
@@ -36,6 +36,7 @@ from ..user_access import (
     is_tenant_admin,
     user_role,
 )
+from ..rate_limit import USERS_RATE_LIMIT, limiter
 
 router = APIRouter()
 
@@ -208,7 +209,9 @@ def _filter_users_for_organisation_admin(
 
 
 @router.get("/", response_model=List[UserRead])
+@limiter.limit(USERS_RATE_LIMIT)
 def list_or_search_users(
+    request: Request,
     q: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -234,7 +237,9 @@ def list_or_search_users(
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit(USERS_RATE_LIMIT)
 def create_user(
+    request: Request,
     user_in: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

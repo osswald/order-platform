@@ -1,6 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiFetch, clearAuthStorage } from '../api'
+import { apiFetch, apiJson, clearAuthStorage } from '../api'
 import { normalizeOrganisationId } from '../utils/orgId'
 
 const ROLE_PLATFORM = 'platform_admin'
@@ -136,23 +136,16 @@ export function useAuthSession() {
       return false
     }
     try {
-      const response = await apiFetch('/auth/me')
-      if (!response.ok) {
-        isPlatformAdmin.value = false
-        isTenantAdmin.value = false
-        isOrganisationAdmin.value = false
-        if (response.status === 401) {
-          clearAuthStorage()
-        }
-        return false
-      }
-      const data = await response.json()
+      const data = await apiJson('/auth/me')
       applySessionData(data)
       return true
-    } catch {
+    } catch (err) {
       isPlatformAdmin.value = false
       isTenantAdmin.value = false
       isOrganisationAdmin.value = false
+      if (err?.status === 401) {
+        clearAuthStorage()
+      }
       return false
     }
   }
@@ -188,13 +181,7 @@ export function useAuthSession() {
       return
     }
     try {
-      const response = await apiFetch('/events/organisations')
-      if (!response.ok) {
-        accessibleOrganisations.value = []
-        syncActiveOrganisation()
-        return
-      }
-      accessibleOrganisations.value = await response.json()
+      accessibleOrganisations.value = await apiJson('/events/organisations')
       syncActiveOrganisation()
       updateRouteOrganisation()
     } catch {

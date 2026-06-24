@@ -6,9 +6,10 @@ import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
   apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 
 const sampleCountries = [
   { id: 1, code: 'DE', name: 'Deutschland' },
@@ -48,9 +49,10 @@ async function mountCountries(path = '/countries', { isAdmin = false } = {}) {
 describe('Countries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    apiJson.mockResolvedValue(sampleCountries)
     apiFetch.mockImplementation(async (path) => {
-      if (path === '/countries/') {
-        return { ok: true, json: async () => sampleCountries }
+      if (path.startsWith('/countries/')) {
+        return { ok: true, json: async () => sampleCountries[0] }
       }
       return { ok: true, json: async () => sampleCountries[0] }
     })
@@ -59,7 +61,7 @@ describe('Countries', () => {
   it('renders country list', async () => {
     const wrapper = await mountCountries('/countries')
     expect(wrapper.find('[data-testid="countries-table"]').exists()).toBe(true)
-    expect(apiFetch).toHaveBeenCalledWith('/countries/')
+    expect(apiJson).toHaveBeenCalledWith('/countries/')
   })
 
   it('shows create affordance for platform admin only', async () => {

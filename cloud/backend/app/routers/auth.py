@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 
 from ..auth_sessions import invalidate_user_sessions, session_claims, token_version_matches
 from ..deps import get_db
-from ..rate_limit import LOGIN_RATE_LIMIT, REFRESH_RATE_LIMIT, limiter
+from ..rate_limit import (
+    CHANGE_PASSWORD_RATE_LIMIT,
+    LOGIN_RATE_LIMIT,
+    REFRESH_RATE_LIMIT,
+    limiter,
+)
 from ..models import HireCompany, User
 from ..user_access import (
     is_organisation_admin,
@@ -210,7 +215,9 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
 
 
 @router.post("/change-password", response_model=MessageResponse)
+@limiter.limit(CHANGE_PASSWORD_RATE_LIMIT)
 def change_password(
+    request: Request,
     password_in: PasswordChange,
     response: Response,
     current_user: User = Depends(get_current_user),

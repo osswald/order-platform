@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 import stripe
 from fastapi import APIRouter, Depends, Request, status
-from ..i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
-from ..models import Organisation
-from ..stripe_connect_status import update_organisation_from_stripe_account_dict
+from ..i18n.errors import api_error
+from ..models import Organisation, StripeWebhookEvent
 from ..stripe_client import STRIPE_API_VERSION
+from ..stripe_connect_status import update_organisation_from_stripe_account_dict
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -24,6 +25,19 @@ def _webhook_secret() -> str:
     if not secret:
         raise api_error("stripe_webhook_secret_missing", status.HTTP_503_SERVICE_UNAVAILABLE)
     return secret
+
+
+def _event_field(event: Any, key: str, default: Any = None) -> Any:
+    if isinstance(event, dict):
+        return event.get(key, default)
+    return getattr(event, key, default)
+
+
+def _data_object(event: Any) -> Any:
+    data = _event_field(event, "data") or {}
+    if isinstance(data, dict):
+        return data.get("object")
+    return getattr(data, "object", None)
 
 
 @router.post("/webhooks")
@@ -41,15 +55,28 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
     except stripe.error.SignatureVerificationError as exc:
         raise api_error("stripe_invalid_signature", status.HTTP_400_BAD_REQUEST) from exc
 
-    event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
-    data_object = None
-    if isinstance(event, dict):
-        data_object = (event.get("data") or {}).get("object")
-    else:
-        data_object = getattr(getattr(event, "data", None), "object", None)
+    event_id = _event_field(event, "id")
+    if not event_id:
+        raise api_error("stripe_invalid_payload", status.HTTP_400_BAD_REQUEST)
+
+    existing = (
+        db.query(StripeWebhookEvent)
+        .filter(StripeWebhookEvent.stripe_event_id == str(event_id))
+        .first()
+    )
+    if existing:
+        return {"received": "true", "duplicate": "true"}
+
+    event_type = _event_field(event, "type")
+    data_object = _data_object(event)
+
+    payment_intent_id = None
+    metadata_json = None
 
     if event_type == "account.updated" and data_object:
-        account_id = data_object.get("id") if isinstance(data_object, dict) else getattr(data_object, "id", None)
+        account_id = (
+            data_object.get("id") if isinstance(data_object, dict) else getattr(data_object, "id", None)
+        )
         if account_id:
             organisation = (
                 db.query(Organisation).filter(Organisation.stripe_account_id == str(account_id)).first()
@@ -61,9 +88,26 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
                     from ..stripe_connect_status import update_organisation_from_stripe_account
 
                     update_organisation_from_stripe_account(organisation, data_object)
-                db.commit()
     elif event_type == "payment_intent.succeeded" and data_object:
-        pi_id = data_object.get("id") if isinstance(data_object, dict) else getattr(data_object, "id", None)
-        logger.info("Stripe payment_intent.succeeded: %s", pi_id)
+        payment_intent_id = (
+            data_object.get("id") if isinstance(data_object, dict) else getattr(data_object, "id", None)
+        )
+        raw_metadata = (
+            data_object.get("metadata")
+            if isinstance(data_object, dict)
+            else getattr(data_object, "metadata", None)
+        )
+        if isinstance(raw_metadata, dict):
+            metadata_json = {str(k): str(v) for k, v in raw_metadata.items() if v is not None}
+        logger.info("Stripe payment_intent.succeeded: %s metadata=%s", payment_intent_id, metadata_json)
 
+    db.add(
+        StripeWebhookEvent(
+            stripe_event_id=str(event_id),
+            event_type=str(event_type or ""),
+            payment_intent_id=str(payment_intent_id) if payment_intent_id else None,
+            metadata_json=metadata_json,
+        )
+    )
+    db.commit()
     return {"received": "true"}

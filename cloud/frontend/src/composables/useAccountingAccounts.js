@@ -1,5 +1,5 @@
 import { ref, computed, toValue, watch } from 'vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 const cache = new Map()
 
@@ -40,9 +40,7 @@ export function useAccountingAccounts(organisationIdRef) {
     loading.value = true
     loadError.value = ''
     try {
-      const res = await apiFetch(`/accounting-accounts/?organisation_id=${organisationId}`)
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
+      const data = await apiJson(`/accounting-accounts/?organisation_id=${organisationId}`)
       cache.set(cacheKey, data)
       accounts.value = data
     } catch (e) {

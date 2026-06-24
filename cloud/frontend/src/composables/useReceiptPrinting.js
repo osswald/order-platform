@@ -1,5 +1,5 @@
 import { ref, unref, computed, watch } from 'vue'
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 import { useDirtyAutosave } from './useDirtyAutosave'
 
 export function defaultReceiptProfile(kind = 'station') {
@@ -80,12 +80,7 @@ export function useReceiptPrinting(apiBasePathRef, { isEvent = false, autosave =
     loading.value = true
     loadError.value = ''
     try {
-      const res = await apiFetch(`${apiBasePath}/receipt-printing`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || 'Beleg-Einstellungen konnten nicht geladen werden')
-      }
-      const data = await res.json()
+      const data = await apiJson(`${apiBasePath}/receipt-printing`)
       config.value = mergeConfig(data.config || {})
       hasReceiptLogo.value = Boolean(data.has_receipt_logo)
       await refreshLogoPreview()
@@ -102,16 +97,11 @@ export function useReceiptPrinting(apiBasePathRef, { isEvent = false, autosave =
     saving.value = true
     if (!silent) saveMessage.value = ''
     try {
-      const res = await apiFetch(`${apiBasePath}/receipt-printing`, {
+      const data = await apiJson(`${apiBasePath}/receipt-printing`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: config.value }),
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || 'Speichern fehlgeschlagen')
-      }
-      const data = await res.json()
       config.value = mergeConfig(data.config || {})
       hasReceiptLogo.value = Boolean(data.has_receipt_logo)
       if (!silent) saveMessage.value = 'Beleg-Einstellungen gespeichert.'

@@ -34,16 +34,7 @@ def _parse_dt(val: str | None) -> datetime | None:
     except ValueError:
         return None
 
-
-def _event_from_bundle(bundle: dict | None, event_id: int) -> dict | None:
-    if not bundle:
-        return None
-    for ev in bundle.get("events") or []:
-        if isinstance(ev, dict) and int(ev.get("id") or 0) == int(event_id):
-            return ev
-    return None
-
-
+from .bundle_cache import event_from_bundle
 def _local_open_fingerprint(db: Session, event_id: int) -> str:
     rows = (
         db.query(LocalOrder)
@@ -444,7 +435,7 @@ def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | Non
             keep_cids.add(cid)
             payloads.append(payload)
             summary["restored_orders"] += 1
-            ev = _event_from_bundle(bundle, event_id)
+            ev = event_from_bundle(bundle, event_id)
             summary["restored_kitchen_tickets"] += _restore_kitchen_tickets(
                 db,
                 order=order,

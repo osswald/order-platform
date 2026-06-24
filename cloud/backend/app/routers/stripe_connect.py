@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import get_db
 from ..models import Organisation, User
-from ..stripe_client import StripeConfigError
+from ..stripe_client import StripeConfigError, stripe_error
 from .. import stripe_client
 from ..stripe_connect_status import update_organisation_from_stripe_account
 from ..auth_deps import get_current_user
@@ -45,15 +45,6 @@ class StripeAccountLinkRequest(BaseModel):
 
 class StripeAccountLinkResponse(StripeConnectStatus):
     url: str
-
-
-def _stripe_error(exc: Exception) -> HTTPException:
-    if isinstance(exc, StripeConfigError):
-        return api_error("validation_failed", status.HTTP_503_SERVICE_UNAVAILABLE)
-    if isinstance(exc, stripe.error.StripeError):
-        return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
-    return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
-
 
 def _status_response(organisation: Organisation) -> StripeConnectStatus:
     return StripeConnectStatus(
@@ -114,7 +105,7 @@ def create_connect_account_link(
             refresh_url=_account_link_url(body.refresh_url, "STRIPE_CONNECT_REFRESH_URL"),
         )
     except Exception as exc:
-        raise _stripe_error(exc) from exc
+        raise stripe_error(exc) from exc
 
     organisation.stripe_onboarding_started_at = datetime.now(timezone.utc)
     db.commit()
@@ -136,7 +127,7 @@ def refresh_connect_status(
     try:
         account = stripe_client.retrieve_account(organisation.stripe_account_id)
     except Exception as exc:
-        raise _stripe_error(exc) from exc
+        raise stripe_error(exc) from exc
     update_organisation_from_stripe_account(organisation, account)
     db.commit()
     db.refresh(organisation)

@@ -5,14 +5,22 @@ on:
     branches: [main, master]
     paths:
       - "cloud/backend/**"
+      - "cloud/frontend/**"
       - "pi/backend/**"
+      - "pi/frontend/**"
+      - "packages/frontend-shared/**"
       - "ruff.toml"
+      - "eslint.config.js"
       - ".github/workflows/lint.yml"
   pull_request:
     paths:
       - "cloud/backend/**"
+      - "cloud/frontend/**"
       - "pi/backend/**"
+      - "pi/frontend/**"
+      - "packages/frontend-shared/**"
       - "ruff.toml"
+      - "eslint.config.js"
       - ".github/workflows/lint.yml"
 
 jobs:
@@ -35,3 +43,27 @@ jobs:
 
       - name: Ruff check (${{ matrix.backend }})
         run: ruff check ${{ matrix.backend }}/backend/app ${{ matrix.backend }}/backend/tests
+
+  eslint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        frontend: [cloud/frontend, pi/frontend]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install ESLint
+        run: npm ci
+
+      - name: Install frontend dependencies (${{ matrix.frontend }})
+        working-directory: ${{ matrix.frontend }}
+        run: npm ci
+
+      - name: ESLint (${{ matrix.frontend }})
+        run: npx eslint --config eslint.config.js "${{ matrix.frontend }}/src" packages/frontend-shared/src

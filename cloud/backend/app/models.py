@@ -782,3 +782,14 @@ class TaxCodeRate(Base):
     valid_from = Column(Date, nullable=False)
     valid_to = Column(Date, nullable=True)
     tax_code = relationship("TaxCode", back_populates="rates")
+
+
+class StripeWebhookEvent(Base):
+    __tablename__ = "stripe_webhook_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    stripe_event_id = Column(String(255), nullable=False, unique=True, index=True)
+    event_type = Column(String(128), nullable=False)
+    payment_intent_id = Column(String(255), nullable=True, index=True)
+    metadata_json = Column(JSON, nullable=True)
+    processed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

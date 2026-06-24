@@ -3,10 +3,10 @@ import { ref } from 'vue'
 import { i18n } from '../i18n'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { useHostedPi } from './useHostedPi'
 
 const runningInstance = {
@@ -17,36 +17,28 @@ const runningInstance = {
   expires_at: '2026-06-25T12:00:00Z',
 }
 
-function okJson(data) {
-  return Promise.resolve({
-    ok: true,
-    status: 200,
-    json: () => Promise.resolve(data),
-  })
-}
-
 describe('useHostedPi', () => {
   beforeEach(() => {
-    vi.mocked(apiFetch).mockReset()
+    vi.mocked(apiJson).mockReset()
   })
 
   it('loads a running instance on initial fetch', async () => {
-    vi.mocked(apiFetch).mockImplementation(() => okJson(runningInstance))
+    vi.mocked(apiJson).mockResolvedValue(runningInstance)
 
     const eventId = ref(42)
     const { instance, error, load } = useHostedPi(eventId)
 
     await load()
 
-    expect(apiFetch).toHaveBeenCalledWith('/events/42/hosted-pi')
+    expect(apiJson).toHaveBeenCalledWith('/events/42/hosted-pi')
     expect(instance.value?.status).toBe('running')
     expect(error.value).toBe('')
   })
 
   it('keeps instance and error unchanged on silent poll failure', async () => {
-    vi.mocked(apiFetch)
-      .mockImplementationOnce(() => okJson(runningInstance))
-      .mockImplementationOnce(() => Promise.reject(new Error('Failed to fetch')))
+    vi.mocked(apiJson)
+      .mockResolvedValueOnce(runningInstance)
+      .mockRejectedValueOnce(new Error('Failed to fetch'))
 
     const eventId = ref(42)
     const { instance, error, load } = useHostedPi(eventId)
@@ -59,9 +51,9 @@ describe('useHostedPi', () => {
   })
 
   it('clears instance and sets error on non-silent load failure', async () => {
-    vi.mocked(apiFetch)
-      .mockImplementationOnce(() => okJson(runningInstance))
-      .mockImplementationOnce(() => Promise.reject(new Error('Failed to fetch')))
+    vi.mocked(apiJson)
+      .mockResolvedValueOnce(runningInstance)
+      .mockRejectedValueOnce(new Error('Failed to fetch'))
 
     const eventId = ref(42)
     const { instance, error, load } = useHostedPi(eventId)
@@ -74,9 +66,9 @@ describe('useHostedPi', () => {
   })
 
   it('recovers instance and clears error on successful silent poll', async () => {
-    vi.mocked(apiFetch)
-      .mockImplementationOnce(() => Promise.reject(new Error('Failed to fetch')))
-      .mockImplementationOnce(() => okJson(runningInstance))
+    vi.mocked(apiJson)
+      .mockRejectedValueOnce(new Error('Failed to fetch'))
+      .mockResolvedValueOnce(runningInstance)
 
     const eventId = ref(42)
     const { instance, error, load } = useHostedPi(eventId)
@@ -92,18 +84,9 @@ describe('useHostedPi', () => {
   })
 
   it('uses parsed API error detail on non-silent HTTP failure', async () => {
-    vi.mocked(apiFetch).mockImplementation(() =>
-      Promise.resolve({
-        ok: false,
-        status: 502,
-        text: () =>
-          Promise.resolve(
-            JSON.stringify({
-              detail: { code: 'hosted_pi_start_failed', message: 'Hosted Pi konnte nicht gestartet werden.' },
-            }),
-          ),
-      }),
-    )
+    const err = new Error('Hosted Pi konnte nicht gestartet werden.')
+    err.status = 502
+    vi.mocked(apiJson).mockRejectedValue(err)
 
     const eventId = ref(42)
     const { instance, error, load } = useHostedPi(eventId)

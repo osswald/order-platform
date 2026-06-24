@@ -1,5 +1,5 @@
 import { ref, computed, toValue, watch } from 'vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 const cache = new Map()
 
@@ -56,9 +56,7 @@ export function useTaxCodes(countryIdRef) {
     loading.value = true
     loadError.value = ''
     try {
-      const res = await apiFetch(`/tax-codes/?country_id=${countryId}`)
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
+      const data = await apiJson(`/tax-codes/?country_id=${countryId}`)
       cache.set(cacheKey, data)
       taxCodes.value = data
     } catch (e) {

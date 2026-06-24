@@ -1,6 +1,6 @@
 import { ref, computed, toValue, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 const cache = new Map()
 
@@ -38,9 +38,7 @@ export function usePaymentTypes(options = {}) {
     loadError.value = ''
     try {
       const query = activeOnly ? '?active_only=true' : ''
-      const res = await apiFetch(`/payment-types/${query}`)
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
+      const data = await apiJson(`/payment-types/${query}`)
       cache.set(cacheKey, data)
       paymentTypes.value = data
     } catch (e) {

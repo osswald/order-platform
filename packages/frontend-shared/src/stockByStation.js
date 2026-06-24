@@ -5,15 +5,26 @@ function sortByName(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''), 'de')
 }
 
+function sortedStations(stations) {
+  return (stations || [])
+    .slice()
+    .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+}
+
+function articleListFromEvent(ev, monitoredOnly) {
+  const arts = ev?.articles || {}
+  return Object.values(arts).filter((a) => a && (!monitoredOnly || a.monitor_stock))
+}
+
 /**
- * Assign each stock row to the first station (by config order) that lists it.
+ * Assign each stock row to the first station (by sort_order) that lists it.
  * Unassigned rows go to "Zusätze". Empty groups are omitted.
  */
 export function stockGroupsForItems(items, stations, { monitoredOnly = false } = {}) {
   const rows = (items || []).filter((row) => row && (!monitoredOnly || row.monitor_stock))
   if (!rows.length) return []
 
-  const orderedStations = (stations || []).slice()
+  const orderedStations = sortedStations(stations)
   const byId = new Map(rows.map((row) => [Number(row.id), row]))
   const assigned = new Set()
   const groups = []
@@ -46,4 +57,15 @@ export function stockGroupsForItems(items, stations, { monitoredOnly = false } =
   }
 
   return groups
+}
+
+/**
+ * Event-scoped wrapper for Pi stock view (articles live on the event bundle).
+ */
+export function stockGroupsForEvent(ev, { monitoredOnly = true } = {}) {
+  return stockGroupsForItems(
+    articleListFromEvent(ev, monitoredOnly),
+    ev?.configuration?.stations,
+    { monitoredOnly },
+  )
 }

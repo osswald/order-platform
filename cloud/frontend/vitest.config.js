@@ -9,7 +9,11 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.js', 'tests/**/*.{test,spec}.js'],
     coverage: {
       provider: 'v8',
-      include: ['src/utils/formRules.js', 'src/utils/dashboardMetrics.js'],
+      include: [
+        'src/utils/formRules.js',
+        'src/utils/dashboardMetrics.js',
+        'src/composables/useAuthSession.js',
+      ],
       thresholds: { lines: 50, functions: 50, branches: 50, statements: 50 },
     },
   },

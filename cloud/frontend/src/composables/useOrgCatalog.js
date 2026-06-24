@@ -1,4 +1,4 @@
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 /** @type {Map<string, { articles: object[], waiters: object[] }>} */
 const cache = new Map()
@@ -22,14 +22,10 @@ function buildWaitersUrl(organisationId) {
 }
 
 async function fetchCatalog(organisationId) {
-  const [artRes, wRes] = await Promise.all([
-    apiFetch(buildArticlesUrl(organisationId)),
-    apiFetch(buildWaitersUrl(organisationId)),
+  const [articles, waiters] = await Promise.all([
+    apiJson(buildArticlesUrl(organisationId)),
+    apiJson(buildWaitersUrl(organisationId)),
   ])
-  if (!artRes.ok) throw new Error('articles')
-  if (!wRes.ok) throw new Error('waiters')
-  const articles = await artRes.json()
-  const waiters = await wRes.json()
   return { articles, waiters }
 }
 

@@ -6,12 +6,23 @@ import os
 from typing import Any
 
 import stripe
+from fastapi import HTTPException, status
+
+from .i18n.errors import api_error
 
 STRIPE_API_VERSION = "2026-04-22.dahlia"
 
 
 class StripeConfigError(RuntimeError):
     """Raised when Stripe is not configured for the cloud backend."""
+
+
+def stripe_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, StripeConfigError):
+        return api_error("validation_failed", status.HTTP_503_SERVICE_UNAVAILABLE)
+    if isinstance(exc, stripe.error.StripeError):
+        return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
+    return api_error("stripe_request_failed", status.HTTP_502_BAD_GATEWAY)
 
 
 def _api_key() -> str:
