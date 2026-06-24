@@ -42,8 +42,6 @@ def db():
         label="B",
         price=5.0,
         article_category_id=1,
-        monitor_stock=True,
-        in_stock=20,
     )
     event = Event(
         id=1,

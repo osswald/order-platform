@@ -199,16 +199,11 @@ def ensure_stock_rows_for_event_articles(
     if not ids:
         return []
     existing = load_stock_map(db, event.id, ids)
-    arts = {a.id: a for a in db.query(Article).filter(Article.id.in_(ids)).all()}
     created: list[EventArticleStock] = []
     for aid in sorted(ids):
         if aid in existing:
             continue
-        art = arts.get(aid)
-        monitor, in_stock = normalize_stock_fields(
-            bool(art.monitor_stock) if art else False,
-            art.in_stock if art else None,
-        )
+        monitor, in_stock = normalize_stock_fields(False, None)
         row = EventArticleStock(
             event_id=event.id,
             article_id=aid,

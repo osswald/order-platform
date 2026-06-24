@@ -126,22 +126,6 @@
         />
       </div>
 
-      <div class="stock-field">
-        <v-checkbox v-model="form.monitorStock" :label="$t('articles.monitorStock')" hide-details density="compact" />
-      </div>
-
-      <div v-if="form.monitorStock" class="form-field">
-        <v-text-field
-          v-model.number="form.inStock"
-          type="number"
-          :min="0"
-          :label="$t('articles.inStock')"
-          hide-details="auto"
-          required
-          :rules="[rules.requiredNumber, rules.minNumber(0)]"
-        />
-      </div>
-
       <div v-if="editMode && activeId && !form.isAddition" class="additions-section">
         <h3>{{ $t('articles.additionsTitle') }}</h3>
         <p class="muted small">{{ $t('articles.additionsHint') }}</p>
@@ -260,12 +244,6 @@
           </v-chip>
         </template>
         <template #item.price="{ item }">{{ formatPrice(item.price, item.organisation_currency) }}</template>
-        <template #item.stock="{ item }">
-          <v-chip v-if="item.monitor_stock" color="info" size="small" variant="tonal">
-            {{ $t('articles.stockPieces', { count: item.in_stock ?? 0 }) }}
-          </v-chip>
-          <v-chip v-else size="small" variant="tonal">{{ $t('articles.stockOff') }}</v-chip>
-        </template>
         <template #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteArticle(item.id)">
             {{ $t('common.delete') }}
@@ -340,7 +318,6 @@ const tableHeaders = computed(() => [
   { title: t('common.price'), key: 'price', sortable: false },
   { title: t('common.category'), key: 'article_category_name' },
   { title: t('common.organisation'), key: 'organisation_name' },
-  { title: t('common.stock'), key: 'stock', sortable: false },
   { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
@@ -360,8 +337,6 @@ const emptyForm = () => ({
   taxCodeId: null,
   price: 0,
   isAddition: false,
-  monitorStock: false,
-  inStock: 0,
   articleCategoryId: null,
 })
 
@@ -603,8 +578,6 @@ async function applyArticleToForm(article) {
     taxCodeId: article.tax_code_id ?? null,
     price: article.price ?? 0,
     isAddition: !!article.is_addition,
-    monitorStock: !!article.monitor_stock,
-    inStock: article.in_stock ?? 0,
     articleCategoryId: article.article_category_id || null,
   }
   message.value = ''
@@ -743,8 +716,6 @@ async function saveArticle() {
     accounting_account_id: showAccountingAccountField.value ? form.value.accountingAccountId : null,
     tax_code_id: showTaxCodeField.value ? form.value.taxCodeId : null,
     is_addition: form.value.isAddition,
-    monitor_stock: form.value.monitorStock,
-    in_stock: form.value.monitorStock ? form.value.inStock : null,
     article_category_id: form.value.articleCategoryId,
   }
 

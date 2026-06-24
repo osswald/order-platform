@@ -274,6 +274,8 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS accounting_account_id INTEGER",
     )
     _drop_column_if_present("articles", "income_account")
+    _drop_column_if_present("articles", "monitor_stock")
+    _drop_column_if_present("articles", "in_stock")
     _add_column_if_missing(
         "organisations",
         "vat_liable",

@@ -353,8 +353,6 @@ class Article(Base):
     )
     tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     is_addition = Column(Boolean, nullable=False, default=False)
-    monitor_stock = Column(Boolean, nullable=False, default=False)
-    in_stock = Column(Integer, nullable=True)
     article_category_id = Column(Integer, ForeignKey("article_categories.id"), nullable=False)
     article_category = relationship("ArticleCategory", back_populates="articles")
     accounting_account = relationship("AccountingAccount", foreign_keys=[accounting_account_id])

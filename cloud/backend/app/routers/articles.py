@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from ..i18n.errors import api_error
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
@@ -28,17 +28,7 @@ class ArticleBase(BaseModel):
     accounting_account_id: int | None = None
     tax_code_id: int | None = None
     is_addition: bool = False
-    monitor_stock: bool = False
-    in_stock: int | None = Field(None, ge=0)
     article_category_id: int
-
-    @model_validator(mode="after")
-    def normalize_stock(self):
-        if not self.monitor_stock:
-            self.in_stock = None
-        elif self.in_stock is None:
-            self.in_stock = 0
-        return self
 
 
 class ArticleCreate(ArticleBase):
@@ -55,8 +45,6 @@ class ArticleUpdate(BaseModel):
     accounting_account_id: int | None = None
     tax_code_id: int | None = None
     is_addition: bool | None = None
-    monitor_stock: bool | None = None
-    in_stock: int | None = Field(None, ge=0)
     article_category_id: int | None = None
 
 
@@ -122,8 +110,6 @@ def article_response(article: Article) -> ArticleRead:
         accounting_account_id=article.accounting_account_id,
         tax_code_id=article.tax_code_id,
         is_addition=bool(article.is_addition),
-        monitor_stock=article.monitor_stock,
-        in_stock=article.in_stock,
         article_category_id=article.article_category_id,
         article_category_name=category.name if category else "",
         organisation_id=organisation.id if organisation else 0,
@@ -285,8 +271,6 @@ def create_article(
         accounting_account_id=accounting_account_id,
         tax_code_id=article_in.tax_code_id if organisation.vat_liable else None,
         is_addition=article_in.is_addition,
-        monitor_stock=article_in.monitor_stock,
-        in_stock=article_in.in_stock,
         article_category_id=category.id,
     )
     db.add(article)
@@ -333,14 +317,6 @@ def update_article(
         article.tax_code_id = None
     if article_in.is_addition is not None:
         article.is_addition = article_in.is_addition
-    if article_in.monitor_stock is not None:
-        article.monitor_stock = article_in.monitor_stock
-    if article_in.in_stock is not None:
-        article.in_stock = article_in.in_stock
-    if not article.monitor_stock:
-        article.in_stock = None
-    elif article.in_stock is None:
-        article.in_stock = 0
 
     db.commit()
     db.refresh(article)
