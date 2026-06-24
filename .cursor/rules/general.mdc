@@ -4,7 +4,7 @@ globs: **/*
 alwaysApply: true
 ---
 
-Always create a feature branch for every code change you make.
+Always create a feature branch from main for every code change you make.
 
 Always write tests before changing or writing code.
 
