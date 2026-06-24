@@ -362,7 +362,11 @@ function submit() {
 }
 .comment-input {
   width: 100%;
+  min-height: 44px;
   margin-bottom: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.25;
   color: var(--text);
   background: var(--bg);
 }

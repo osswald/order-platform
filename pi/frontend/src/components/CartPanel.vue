@@ -19,25 +19,36 @@
             </span>
           </template>
         </button>
-        <button
-          v-if="showLineCommentBtn(l)"
-          type="button"
-          class="cart-cell cart-comment-btn"
-          :class="{ 'cart-comment-btn--active': lineHasNote(l) }"
-          aria-label="Kommentar"
-          @click="$emit('tap-comment', l)"
+        <div
+          v-if="showLineCommentBtn(l) || showLineDiscountBtn(l)"
+          class="cart-line-actions"
         >
-          💬
-        </button>
-        <button
-          v-if="showLineDiscountBtn(l)"
-          type="button"
-          class="cart-cell cart-discount-btn"
-          :class="{ 'cart-discount-btn--active': lineHasDiscount(l) }"
-          @click="$emit('tap-discount', l)"
-        >
-          {{ discountBtnLabel(l) }}
-        </button>
+          <button
+            v-if="showLineCommentBtn(l)"
+            type="button"
+            class="cart-cell cart-action-btn cart-comment-btn"
+            :class="{ 'cart-action-btn--active': lineHasNote(l) }"
+            aria-label="Kommentar"
+            @click="$emit('tap-comment', l)"
+          >
+            <svg class="cart-action-icon" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M2 2.5A1.5 1.5 0 0 1 3.5 1h9A1.5 1.5 0 0 1 14 2.5v6A1.5 1.5 0 0 1 12.5 10H8l-3.5 3v-3H3.5A1.5 1.5 0 0 1 2 8.5v-6Z"
+              />
+            </svg>
+          </button>
+          <button
+            v-if="showLineDiscountBtn(l)"
+            type="button"
+            class="cart-cell cart-action-btn cart-discount-btn"
+            :class="{ 'cart-action-btn--active': lineHasDiscount(l) }"
+            aria-label="Rabatt"
+            @click="$emit('tap-discount', l)"
+          >
+            {{ discountBtnLabel(l) }}
+          </button>
+        </div>
         <button type="button" class="cart-cell cart-price" @click="$emit('tap-price', l.lineId)">
           {{ formatLine(l) }}
         </button>
@@ -212,31 +223,42 @@ function formatGross(l) {
   color: var(--muted);
   font-weight: 400;
 }
-.cart-discount-btn {
-  min-width: 2.75rem;
-  max-width: 3.5rem;
+.cart-line-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  padding: 0.35rem 0.15rem 0.35rem 0;
+}
+.cart-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   flex-shrink: 0;
   text-align: center;
   font-weight: 700;
   font-size: 0.85rem;
-  padding: 0.65rem 0.35rem;
+  line-height: 1;
+  color: #64748b;
+  border-radius: 0.35rem;
 }
-.cart-discount-btn--active {
+.cart-action-btn--active {
   background: var(--accent);
   color: #fff;
-  border-radius: 0.35rem;
 }
-.cart-comment-btn {
-  min-width: 2.75rem;
-  max-width: 3rem;
-  flex-shrink: 0;
-  text-align: center;
-  font-size: 1rem;
-  padding: 0.65rem 0.35rem;
+.cart-discount-btn {
+  min-width: 2.25rem;
+  width: auto;
+  max-width: 3.25rem;
+  padding: 0 0.25rem;
 }
-.cart-comment-btn--active {
-  background: var(--accent);
-  border-radius: 0.35rem;
+.cart-action-icon {
+  width: 0.95rem;
+  height: 0.95rem;
 }
 .cart-price {
   align-self: center;
