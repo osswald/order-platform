@@ -6,34 +6,31 @@ Monorepo mit zwei Umgebungen:
   - `backend`: FastAPI + PostgreSQL
   - `frontend`: Vue.js / Vite
 - `pi`:
-- `pi/backend`: FastAPI + PostgreSQL + ESC/POS Druckerunterstützung
-  - `frontend`: Vue.js / Vite
+  - `backend`: FastAPI + SQLite + ESC/POS Druckerunterstützung
+  - `frontend`: Vue.js / Vite PWA
 - `android`:
   - Native Android WebView-App für `pi/frontend`
   - Bluetooth-ESC/POS-Belegdruck für Kellnergeräte
+- `packages/`:
+  - `vendiqo_shared`: gemeinsame Python-Hilfsfunktionen (cloud + pi)
+  - `frontend-shared`: gemeinsame Frontend-Utilities
+
+Weitere Dokumentation: [cloud/README.md](cloud/README.md), [pi/README.md](pi/README.md), [AGENTS.md](AGENTS.md).
 
 ## Start
 
-Für getrennte physische Deployments:
+Für getrennte physische Deployments (zwei Terminals empfohlen):
 
 - Cloud-Server:
   - `docker compose -f cloud/docker-compose.yml up --build`
-  - `http://localhost:8000`
-  - `http://localhost:5173`
-- Raspberry Pi:
+  - Backend: `http://localhost:8000`
+  - Frontend: `http://localhost:5173`
+- Raspberry Pi / Edge:
   - `docker compose -f pi/docker-compose.yml up --build`
-  - `http://localhost:8001`
-  - `http://localhost:5174`
+  - Backend: `http://localhost:8001`
+  - Frontend: `http://localhost:5174`
 
-Für eine lokale Kombination beibehalten Sie `docker-compose.yml` im Projektstamm:
-
-- `docker compose up --build`
-
-- Cloud-Backend: `http://localhost:8000`
-- Cloud-Frontend: `http://localhost:5173`
-- Pi-Backend: `http://localhost:8001`
-- Pi-Frontend: `http://localhost:5174`
-- Android-App (Debug/Emulator): lädt Pi-Frontend von `http://localhost:5174` (`adb reverse tcp:5174 tcp:5174`); API `http://localhost:8001`
+Android-App (Debug/Emulator): lädt Pi-Frontend von `http://localhost:5174` (`adb reverse tcp:5174 tcp:5174`); API `http://localhost:8001`.
 
 ## Struktur
 
@@ -41,10 +38,12 @@ Für eine lokale Kombination beibehalten Sie `docker-compose.yml` im Projektstam
 - `cloud/frontend`
 - `pi/backend`
 - `pi/frontend`
+- `packages/vendiqo_shared`
+- `packages/frontend-shared`
 - `android`
 
 ## Notes
 
-- Backends verbinden sich per Docker Compose mit eigenen PostgreSQL-Datenbanken.
+- Cloud-Backend nutzt PostgreSQL; Pi-Backend nutzt SQLite (lokal auf dem Gerät).
 - Frontends werden als Vite-Dev-Server gestartet.
 - Stripe Connect/Terminal Integrationspfad: `docs/stripe-connect-terminal.md`.

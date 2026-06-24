@@ -1,8 +1,11 @@
 from pathlib import Path
+import logging
 import os
 import uuid
 
 from sqlalchemy import create_engine, inspect, text
+
+from .env import is_production
 
 from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -12,6 +15,8 @@ connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswit
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+log = logging.getLogger(__name__)
 
 
 def _add_column_if_missing(table: str, column: str, ddl_sqlite: str, ddl_other: str) -> None:
@@ -1100,7 +1105,7 @@ def _ensure_accounting_accounts_tables() -> None:
 
 
 def run_migrations() -> None:
-    """Apply cloud Alembic migrations, fallback to metadata create_all."""
+    """Apply cloud Alembic migrations; fallback to metadata create_all only in development."""
     try:
         from alembic import command
         from alembic.config import Config
@@ -1109,5 +1114,9 @@ def run_migrations() -> None:
         cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
         command.upgrade(cfg, "head")
     except Exception:
+        log.exception("Alembic upgrade failed")
+        if is_production():
+            raise
+        log.warning("Falling back to Base.metadata.create_all()")
         Base.metadata.create_all(bind=engine)
 

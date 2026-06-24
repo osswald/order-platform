@@ -26,7 +26,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+
+      - name: Install shared package
+        run: pip install -e packages/vendiqo_shared
 
       - name: Install dependencies (${{ matrix.backend }})
         working-directory: ${{ matrix.backend }}/backend

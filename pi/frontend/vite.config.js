@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import path from 'node:path'
 import vue from '@vitejs/plugin-vue'
 import { applyAppVersionEnv } from '../../scripts/vite-version-env.mjs'
 
@@ -10,6 +11,11 @@ export default defineConfig(({ mode }) => ({
     ? { 'import.meta.env.VITE_ANDROID_APP': JSON.stringify('true') }
     : {},
   plugins: [vue()],
+  resolve: {
+    alias: {
+      '@vendiqo/frontend-shared': path.resolve(__dirname, '../../packages/frontend-shared/src'),
+    },
+  },
   server: {
     host: '0.0.0.0',
     // Use a different port than cloud/frontend (5173) so both can run locally.

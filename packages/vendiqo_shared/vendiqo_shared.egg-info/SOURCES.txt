@@ -1,0 +1,10 @@
+pyproject.toml
+vendiqo_shared/__init__.py
+vendiqo_shared/bundle_contract.py
+vendiqo_shared/fiscal_vat.py
+vendiqo_shared/stock_aggregate.py
+vendiqo_shared.egg-info/PKG-INFO
+vendiqo_shared.egg-info/SOURCES.txt
+vendiqo_shared.egg-info/dependency_links.txt
+vendiqo_shared.egg-info/requires.txt
+vendiqo_shared.egg-info/top_level.txt

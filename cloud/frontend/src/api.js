@@ -1,4 +1,5 @@
 import { currentLocale } from './i18n'
+import { readApiErrorFromBody } from './utils/apiError'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -104,4 +105,28 @@ export async function apiFetch(path, options = {}) {
   }
 
   return apiFetch(path, { ...options, _retry: true })
+}
+
+/**
+ * JSON API helper: parses body and throws Error with a readable message on failure.
+ */
+export async function apiJson(path, options = {}) {
+  const res = await apiFetch(path, options)
+  const text = await res.text()
+  let data = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+  }
+  if (!res.ok) {
+    const message = readApiErrorFromBody(data, text || res.statusText)
+    const err = new Error(message)
+    err.status = res.status
+    err.detail = data?.detail ?? data
+    throw err
+  }
+  return data
 }

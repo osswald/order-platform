@@ -123,6 +123,6 @@ def test_pull_bundle_order_pull_before_push():
     from app import sync_service
 
     src = inspect.getsource(sync_service.run_sync_cycle)
-    pull_idx = src.index("pull_result = await pull_bundle")
+    pull_idx = src.index("pull_result = await pull_and_restore")
     push_idx = src.index("push_result = await push_outbox")
     assert pull_idx < push_idx

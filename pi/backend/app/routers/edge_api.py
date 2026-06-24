@@ -12,27 +12,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..bundle_cache import event_from_bundle, get_bundle_dict
 from ..cloud_client import (
     CloudConfigError,
     create_terminal_connection_token as cloud_create_terminal_connection_token,
     create_terminal_payment_intent as cloud_create_terminal_payment_intent,
-    ping_cloud_reachable,
     retrieve_terminal_payment_intent as cloud_retrieve_terminal_payment_intent,
 )
-from ..sync_service import (
-    is_cloud_configured,
-    pending_outbox_count,
-    pull_bundle,
-    push_outbox,
-    reapply_pending_stock,
-    sync_cycle_lock,
-    sync_status,
-)
-from ..datetime_util import utc_iso
 from ..deps import get_db
 from ..discounts import validate_submit_discounts
 from ..position_comments import validate_submit_position_notes
-from ..schemas.bundle import EdgeBundleResponse
 from ..schemas.edge import (
     AccountSummaryResponse,
     AdminStatusResponse,
@@ -150,6 +139,7 @@ from ..vouchers import (
     voucher_definition_by_uuid,
     voucher_sale_unit_cents,
 )
+from .edge_http import cloud_config_http_error, cloud_gateway_http_error
 
 router = APIRouter()
 
@@ -202,23 +192,6 @@ def _validate_payment_types(ev: dict, payments: list) -> None:
                     status_code=400,
                     detail="Stripe Terminal payment requires a valid stripe_payment_intent_id",
                 )
-
-
-def _get_bundle_dict(db: Session) -> dict:
-    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-    if not row or not row.json_body:
-        raise HTTPException(status_code=400, detail="No bundle; run POST /v1/sync/pull first")
-    data = json.loads(row.json_body)
-    if not isinstance(data, dict) or data.get("organisation_id") is None:
-        raise HTTPException(status_code=400, detail="No bundle; run POST /v1/sync/pull first")
-    return data
-
-
-def _event_from_bundle(bundle: dict, event_id: int) -> dict | None:
-    for ev in bundle.get("events", []) or []:
-        if int(ev["id"]) == int(event_id):
-            return ev
-    return None
 
 
 def _article_map(ev: dict) -> dict:
@@ -623,24 +596,6 @@ def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
     enqueue_payload_sync(db, event_id=order.event_id, client_order_id=cid, payload=payload)
 
 
-def _cloud_config_http_error(e: CloudConfigError) -> HTTPException:
-    return HTTPException(
-        status_code=503,
-        detail={
-            "message": "Pi backend is not configured for cloud sync. Set variables in pi/.env and restart the container.",
-            "missing": e.missing,
-        },
-    )
-
-
-def _cloud_gateway_http_error(e: httpx.HTTPStatusError) -> HTTPException:
-    try:
-        detail = e.response.json()
-    except Exception:
-        detail = e.response.text or "Cloud request failed"
-    return HTTPException(status_code=e.response.status_code, detail=detail)
-
-
 class TerminalConnectionTokenBody(BaseModel):
     event_id: int
 
@@ -655,8 +610,8 @@ class TerminalPaymentIntentBody(BaseModel):
 
 
 def _terminal_event_or_error(db: Session, event_id: int) -> dict:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Event not found in local bundle")
     if "stripe_terminal" not in _event_payment_types(ev):
@@ -670,9 +625,9 @@ async def terminal_connection_token(body: TerminalConnectionTokenBody, db: Sessi
     try:
         return await cloud_create_terminal_connection_token(body.event_id)
     except CloudConfigError as e:
-        raise _cloud_config_http_error(e) from e
+        raise cloud_config_http_error(e) from e
     except httpx.HTTPStatusError as e:
-        raise _cloud_gateway_http_error(e) from e
+        raise cloud_gateway_http_error(e) from e
 
 
 @router.post("/v1/terminal/payment-intents")
@@ -688,9 +643,9 @@ async def terminal_payment_intent(body: TerminalPaymentIntentBody, db: Session =
             metadata=body.metadata,
         )
     except CloudConfigError as e:
-        raise _cloud_config_http_error(e) from e
+        raise cloud_config_http_error(e) from e
     except httpx.HTTPStatusError as e:
-        raise _cloud_gateway_http_error(e) from e
+        raise cloud_gateway_http_error(e) from e
 
 
 @router.get("/v1/terminal/payment-intents/{payment_intent_id}")
@@ -703,77 +658,9 @@ async def terminal_payment_intent_status(
     try:
         return await cloud_retrieve_terminal_payment_intent(event_id=event_id, payment_intent_id=payment_intent_id)
     except CloudConfigError as e:
-        raise _cloud_config_http_error(e) from e
+        raise cloud_config_http_error(e) from e
     except httpx.HTTPStatusError as e:
-        raise _cloud_gateway_http_error(e) from e
-
-
-@router.get("/v1/cloud/reachable", response_model=CloudReachableResponse)
-async def get_cloud_reachable() -> CloudReachableResponse:
-    if not is_cloud_configured():
-        return CloudReachableResponse(reachable=False, reason="not_configured")
-    reachable, reason = await ping_cloud_reachable()
-    return CloudReachableResponse(reachable=reachable, reason=reason)
-
-
-@router.get("/v1/sync/status", response_model=SyncStatusResponse)
-def get_sync_status(db: Session = Depends(get_db)) -> SyncStatusResponse:
-    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-    last_sync_at = utc_iso(row.updated_at) if row and row.updated_at else None
-    return SyncStatusResponse.model_validate({
-        **sync_status,
-        "configured": is_cloud_configured(),
-        "pending_outbox_count": pending_outbox_count(db),
-        "bundle_last_sync_at": last_sync_at,
-    })
-
-
-@router.post("/v1/sync/pull", response_model=SyncPullResponse)
-async def sync_pull(db: Session = Depends(get_db)) -> SyncPullResponse:
-    async with sync_cycle_lock:
-        try:
-            result = await pull_bundle(db)
-            reapply_pending_stock(db, result.get("bundle"))
-        except CloudConfigError as e:
-            raise _cloud_config_http_error(e) from e
-        except httpx.HTTPStatusError as e:
-            raise _cloud_gateway_http_error(e) from e
-        except httpx.HTTPError as e:
-            raise HTTPException(
-                status_code=502,
-                detail="Cloud bundle endpoint could not be reached",
-            ) from e
-    return SyncPullResponse(ok=True, event_count=result["event_count"])
-
-
-@router.get("/v1/bundle", response_model=EdgeBundleResponse)
-def get_bundle(db: Session = Depends(get_db)) -> EdgeBundleResponse:
-    return EdgeBundleResponse.model_validate(_get_bundle_dict(db))
-
-
-@router.get("/v1/meta", response_model=SyncMetaResponse)
-def get_meta(db: Session = Depends(get_db)) -> SyncMetaResponse:
-    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-    if not row:
-        return SyncMetaResponse(last_sync_at=None)
-    return SyncMetaResponse(last_sync_at=utc_iso(row.updated_at) if row.updated_at else None)
-
-
-@router.post("/v1/sync/push", response_model=SyncPushResponse)
-async def sync_push(db: Session = Depends(get_db)) -> SyncPushResponse:
-    async with sync_cycle_lock:
-        try:
-            result = await push_outbox(db, retry_errors=False)
-            return SyncPushResponse.model_validate(result)
-        except CloudConfigError as e:
-            raise _cloud_config_http_error(e) from e
-        except httpx.HTTPStatusError as e:
-            raise _cloud_gateway_http_error(e) from e
-        except httpx.HTTPError as e:
-            raise HTTPException(
-                status_code=502,
-                detail="Cloud sync endpoint could not be reached",
-            ) from e
+        raise cloud_gateway_http_error(e) from e
 
 
 def _add_waiter_name(ev: dict, payload: dict) -> None:
@@ -983,8 +870,8 @@ def _summary_from_orders(orders: list, ev: dict, arts: dict, extra: dict) -> dic
 
 @router.post("/v1/orders", response_model=LocalOrderCreatedResponse)
 def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) -> LocalOrderCreatedResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1288,8 +1175,8 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     if order.payment_status == "paid":
         raise HTTPException(status_code=400, detail="Order already paid")
 
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, order.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, order.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1316,8 +1203,8 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
 
 @router.get("/v1/tables/open", response_model=OpenTablesResponse)
 def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) -> OpenTablesResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1368,8 +1255,8 @@ def get_table_summary(
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1418,8 +1305,8 @@ def settle_table_partial(
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1628,8 +1515,8 @@ def settle_table(
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1717,8 +1604,8 @@ def transfer_table_lines(
     if not body.selections:
         raise HTTPException(status_code=400, detail="selections required")
 
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1778,8 +1665,8 @@ def assign_table_to_collective(
     if body.collective_bill_id is None and not body.new_name:
         raise HTTPException(status_code=400, detail="collective_bill_id or new_name required")
 
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1847,8 +1734,8 @@ def assign_table_to_collective(
 def create_collective_bill(
     body: CollectiveBillCreateBody, db: Session = Depends(get_db)
 ) -> CollectiveBillCreatedResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1874,8 +1761,8 @@ def create_collective_bill(
 def list_open_collective_bills(
     event_id: int = Query(...), db: Session = Depends(get_db)
 ) -> OpenCollectiveBillsResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -1930,8 +1817,8 @@ def get_collective_bill_summary(
     event_id: int = Query(...),
     db: Session = Depends(get_db),
 ) -> AccountSummaryResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -2146,8 +2033,8 @@ def settle_collective_partial(
     body: TableSettlePartialBody,
     db: Session = Depends(get_db),
 ) -> CollectivePartialSettleResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -2214,8 +2101,8 @@ def settle_collective_partial(
 def settle_collective(
     bill_id: int, body: TableSettleBody, db: Session = Depends(get_db)
 ) -> CollectiveSettleResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
@@ -2418,8 +2305,8 @@ def _enqueue_kitchen_ticket_print(
     order = db.query(LocalOrder).filter(LocalOrder.id == ticket.local_order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, ticket.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, ticket.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     if not kitchen_monitors_enabled(ev):
@@ -2466,8 +2353,8 @@ def _enqueue_kitchen_ticket_print(
 
 @router.get("/v1/kitchen/printers", response_model=KitchenPrintersResponse)
 def list_kitchen_printers(event_id: int = Query(...), db: Session = Depends(get_db)) -> KitchenPrintersResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     printers = [
@@ -2484,8 +2371,8 @@ def list_kitchen_printers(event_id: int = Query(...), db: Session = Depends(get_
 @router.get("/v1/kitchen/stations", response_model=KitchenStationsResponse)
 def list_kitchen_stations(event_id: int = Query(...), db: Session = Depends(get_db)) -> KitchenStationsResponse:
     """Legacy alias: returns printer tabs as pseudo-stations for older clients."""
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     stations = [
@@ -2506,8 +2393,8 @@ def list_kitchen_orders(
     printer_appliance_id: int | None = Query(None),
     db: Session = Depends(get_db),
 ) -> KitchenOrdersResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     if not kitchen_monitors_enabled(ev):
@@ -2708,8 +2595,8 @@ def list_payments(
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> PaymentsListResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     arts = _article_map(ev)
@@ -2754,8 +2641,8 @@ def payment_receipt(
     row = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Payment not found")
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, row.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, row.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     payload = json.loads(row.payload_json or "{}")
@@ -2788,8 +2675,8 @@ def payment_receipt_print_to_station(
     row = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Payment not found")
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, row.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, row.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     if not _printer_host_configured(ev, station_uuid):
@@ -2812,8 +2699,8 @@ def printer_test_receipt(
     ev: dict | None = None
     event_id = body.event_id if body else None
     if event_id:
-        bundle = _get_bundle_dict(db)
-        ev = _event_from_bundle(bundle, event_id)
+        bundle = get_bundle_dict(db)
+        ev = event_from_bundle(bundle, event_id)
         if not ev:
             raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
         event_name = ev.get("name", "Event")
@@ -2884,8 +2771,8 @@ def _sorted_event_stations(ev: dict) -> list[dict]:
 async def printer_test_station_prints(
     body: PrinterTestStationPrintsBody, db: Session = Depends(get_db)
 ) -> PrinterTestStationPrintsResponse:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     stations = _sorted_event_stations(ev)
@@ -3058,9 +2945,9 @@ def list_print_jobs(
     if kind_list:
         q = q.filter(PrintJob.job_kind.in_(kind_list))
     rows = q.order_by(PrintJob.id.desc()).limit(50).all()
-    bundle = _get_bundle_dict(db)
+    bundle = get_bundle_dict(db)
     return [
-        _serialize_print_job(job, order, _event_from_bundle(bundle, order.event_id))
+        _serialize_print_job(job, order, event_from_bundle(bundle, order.event_id))
         for job, order in rows
     ]
 
@@ -3073,8 +2960,8 @@ def get_print_job(job_id: int, db: Session = Depends(get_db)) -> PrintJobSummary
     order = db.query(LocalOrder).filter(LocalOrder.id == job.local_order_id).first()
     ev = None
     if order is not None:
-        bundle = _get_bundle_dict(db)
-        ev = _event_from_bundle(bundle, order.event_id)
+        bundle = get_bundle_dict(db)
+        ev = event_from_bundle(bundle, order.event_id)
     return _serialize_print_job(job, order, ev)
 
 
@@ -3181,3 +3068,8 @@ def get_emulated_receipt(receipt_id: int, db: Session = Depends(get_db)) -> Emul
         **summary.model_dump(),
         escpos_payload=row.escpos_payload,
     )
+
+
+from .edge_sync import router as edge_sync_router
+
+router.include_router(edge_sync_router)

@@ -31,6 +31,8 @@ cloud/backend/test.db-wal
 # Test / coverage artifacts
 .coverage
 coverage.xml
+**/.pytest_deps/
+**/coverage/
 
 # IDE
 .vscode/

@@ -43,6 +43,11 @@ from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_o
 from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
 from ..auth_deps import get_current_user
 from ..deps import get_db
+from ..schemas.event_stock import (
+    EventStockItemRead,
+    EventStockListRead,
+    EventStockUpdateIn,
+)
 from ..tenancy import (
     TenantContext,
     ensure_user_can_use_organisation,
@@ -551,35 +556,6 @@ def read_event_station_article_tree(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return {"nodes": build_station_article_tree(db, event)}
-
-
-class EventStockItemRead(BaseModel):
-    id: int
-    name: str
-    label: str
-    monitor_stock: bool
-    in_stock: int | None = None
-
-
-class EventStockListRead(BaseModel):
-    items: List[EventStockItemRead]
-
-
-class EventStockItemIn(BaseModel):
-    article_id: int
-    monitor_stock: bool = False
-    in_stock: int | None = Field(None, ge=0)
-
-    @model_validator(mode="after")
-    def normalize(self):
-        monitor, qty = normalize_stock_fields(self.monitor_stock, self.in_stock)
-        self.monitor_stock = monitor
-        self.in_stock = qty
-        return self
-
-
-class EventStockUpdateIn(BaseModel):
-    items: List[EventStockItemIn] = Field(default_factory=list)
 
 
 class SalesAdditionLineRead(BaseModel):

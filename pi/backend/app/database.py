@@ -225,7 +225,11 @@ def run_migrations() -> None:
                 _stamp_legacy_v3_baseline(cfg, connection)
                 command.upgrade(cfg, "head")
     except Exception:
-        log.exception("Alembic upgrade failed; applying schema patches")
+        log.exception("Alembic upgrade failed")
+        app_env = os.getenv("APP_ENV", "development").strip().lower()
+        if app_env in ("production", "prod"):
+            raise
+        log.warning("Applying schema patches as fallback")
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()

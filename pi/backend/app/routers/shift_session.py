@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from ..bundle_cache import event_from_bundle, get_bundle_dict_raw
 from ..deps import get_db
 from ..domain.cash_sessions import (
     close_session,
@@ -35,23 +36,6 @@ from ..shift_integration import session_to_api_dict, sync_cash_session
 router = APIRouter()
 
 
-def _get_bundle_dict(db: Session) -> dict:
-    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-    if not row or not row.json_body:
-        return {}
-    try:
-        return json.loads(row.json_body)
-    except json.JSONDecodeError:
-        return {}
-
-
-def _event_from_bundle(bundle: dict, event_id: int) -> dict | None:
-    for ev in bundle.get("events") or []:
-        if isinstance(ev, dict) and int(ev.get("id") or 0) == int(event_id):
-            return ev
-    return None
-
-
 def _require_shift_enabled(ev: dict) -> None:
     if not shift_settlement_enabled(ev):
         raise HTTPException(status_code=404, detail="Shift settlement not enabled for event")
@@ -65,8 +49,8 @@ def shift_session_active(
     cash_register_uuid: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> ShiftSessionRead:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, event_id)
+    bundle = get_bundle_dict_raw(db) or {}
+    ev = event_from_bundle(bundle, event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     _require_shift_enabled(ev)
@@ -84,8 +68,8 @@ def shift_session_active(
 
 @router.post("/v1/shift-session/open", response_model=ShiftSessionRead)
 def shift_session_open(body: ShiftSessionOpenBody, db: Session = Depends(get_db)) -> ShiftSessionRead:
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, body.event_id)
+    bundle = get_bundle_dict_raw(db) or {}
+    ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     _require_shift_enabled(ev)
@@ -116,8 +100,8 @@ def shift_session_close(
     session = db.query(CashSession).filter(CashSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Shift not found")
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, session.event_id)
+    bundle = get_bundle_dict_raw(db) or {}
+    ev = event_from_bundle(bundle, session.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     _require_shift_enabled(ev)
@@ -150,8 +134,8 @@ def shift_session_receipt(
     session = db.query(CashSession).filter(CashSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Shift not found")
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, session.event_id)
+    bundle = get_bundle_dict_raw(db) or {}
+    ev = event_from_bundle(bundle, session.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     if session.status == "OPEN" and body and body.counted_cash_cents is not None:
@@ -182,8 +166,8 @@ def shift_session_print(
     session = db.query(CashSession).filter(CashSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Shift not found")
-    bundle = _get_bundle_dict(db)
-    ev = _event_from_bundle(bundle, session.event_id)
+    bundle = get_bundle_dict_raw(db) or {}
+    ev = event_from_bundle(bundle, session.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
     station_uuid = (body.station_uuid or "").strip()

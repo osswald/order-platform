@@ -8,6 +8,10 @@ from pathlib import Path
 _backend_root = Path(__file__).resolve().parents[1]
 if str(_backend_root) not in sys.path:
     sys.path.insert(0, str(_backend_root))
+_repo_root = Path(__file__).resolve().parents[3]
+_shared_pkg = _repo_root / "packages" / "vendiqo_shared"
+if _shared_pkg.is_dir() and str(_shared_pkg) not in sys.path:
+    sys.path.insert(0, str(_shared_pkg))
 
 from collections.abc import Generator
 

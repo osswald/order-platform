@@ -202,7 +202,7 @@ import { ref, watch, computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
-import { parseApiErrorDetail } from '../utils/apiError.js'
+import { parseApiErrorBody } from '../utils/apiError.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
 import {
   invalidateAccountingAccountsCache,
@@ -384,7 +384,7 @@ async function saveAccount() {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorDetail(err.detail) || t('organisations.accounting.accountSaveError'))
+      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.accountSaveError'))
     }
     invalidateAccountingAccountsCache(props.organisationId)
     await reloadAccounts()
@@ -406,7 +406,7 @@ async function deleteAccount(accountId) {
     const res = await apiFetch(`/accounting-accounts/${accountId}`, { method: 'DELETE' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorDetail(err.detail) || t('organisations.accounting.accountDeleteError'))
+      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.accountDeleteError'))
     }
     invalidateAccountingAccountsCache(props.organisationId)
     await reloadAccounts()
@@ -455,7 +455,7 @@ async function saveTaxCodeDefaults() {
     )
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorDetail(err.detail) || t('organisations.accounting.defaultsSaveError'))
+      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.defaultsSaveError'))
     }
     taxCodeDefaults.value = await res.json()
     message.value = t('organisations.accounting.defaultsSaved')
@@ -489,7 +489,7 @@ async function savePaymentTypeDefaults() {
     )
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorDetail(err.detail) || t('organisations.accounting.defaultsSaveError'))
+      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.defaultsSaveError'))
     }
     paymentTypeDefaults.value = (await res.json()).map((row) => ({ ...row }))
     message.value = t('organisations.accounting.defaultsSaved')

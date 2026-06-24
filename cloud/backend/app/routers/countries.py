@@ -2,10 +2,10 @@ from typing import List
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
+from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import Country, User
@@ -13,6 +13,10 @@ from ..reference_countries import assert_country_deletable, country_response, ge
 from ..tenancy import get_current_platform_admin
 
 router = APIRouter()
+
+
+def _raise_country_code_taken() -> None:
+    raise api_error("country_code_taken", status.HTTP_400_BAD_REQUEST)
 
 
 class CountryRead(BaseModel):
@@ -71,16 +75,16 @@ def create_country(
 ):
     country = Country(code=body.code, name=body.name.strip())
     db.add(country)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
+
+    def on_integrity() -> None:
         existing = db.query(Country).filter(
             (Country.code == body.code) | (Country.name == body.name.strip())
         ).first()
         if existing and existing.code == body.code:
             raise api_error("country_code_taken", status.HTTP_400_BAD_REQUEST) from None
         raise api_error("country_name_taken", status.HTTP_400_BAD_REQUEST) from None
+
+    commit_or_raise(db, on_integrity=on_integrity)
     db.refresh(country)
     return country_response(country)
 
@@ -97,11 +101,7 @@ def update_country(
         country.code = body.code
     if body.name is not None:
         country.name = body.name.strip()
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise api_error("country_code_taken", status.HTTP_400_BAD_REQUEST) from None
+    commit_or_raise(db, on_integrity=_raise_country_code_taken)
     db.refresh(country)
     return country_response(country)
 

@@ -8,6 +8,17 @@ import {
   orderTotalCents,
 } from '../utils/money'
 import { cartLineLabelForEvent, voucherDefinitionByUuid } from '../utils/bundleHelpers'
+import {
+  activeTableNumber,
+  persistRegisterSession,
+  persistWaiterSession,
+  REGISTER_SESSION_KEY,
+  registerSession,
+  selectedEventId,
+  WAITER_SESSION_KEY,
+  waiter,
+} from './sessions'
+import { cartLines, clearCart, orderDiscount, setOrderDiscount } from './cart'
 
 /** @type {import('vue').Ref<object | null>} */
 export const bundle = ref(null)
@@ -15,16 +26,8 @@ export const lastSyncAt = ref(null)
 export const syncError = ref('')
 export const busy = ref(false)
 
-export const selectedEventId = ref(null)
-/** @type {import('vue').Ref<{ id: number, name: string } | null>} */
-export const waiter = ref(null)
-export const activeTableNumber = ref(null)
-
-/** @type {import('vue').Ref<Array<{ lineId: string, article_id: number, qty: number, station_uuid: string | null, note: string }>>} */
-export const cartLines = ref([])
-
-/** @type {import('vue').Ref<{ kind: 'percent' | 'amount', value: number } | null>} */
-export const orderDiscount = ref(null)
+export { cartLines, clearCart, orderDiscount, setOrderDiscount }
+export { activeTableNumber, registerSession, selectedEventId, waiter }
 
 /** @type {import('vue').Ref<{ message: string, type: 'ok' | 'err' } | null>} */
 export const toast = ref(null)
@@ -45,42 +48,6 @@ export const selectedEvent = computed(() => {
   if (!b?.events || id == null) return null
   return b.events.find((e) => Number(e.id) === Number(id)) || null
 })
-
-export function clearCart() {
-  cartLines.value = []
-  orderDiscount.value = null
-}
-
-export function setOrderDiscount(discount) {
-  orderDiscount.value = discount || null
-}
-
-const WAITER_SESSION_KEY = 'pi_waiter_session'
-
-function persistWaiterSession(session) {
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(WAITER_SESSION_KEY, JSON.stringify(session))
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
-function restoreWaiterSession() {
-  if (typeof localStorage === 'undefined') return
-  try {
-    const raw = localStorage.getItem(WAITER_SESSION_KEY)
-    if (!raw) return
-    const data = JSON.parse(raw)
-    if (!data?.uuid || data.eventId == null) return
-    selectedEventId.value = Number(data.eventId)
-    waiter.value = { uuid: String(data.uuid), name: String(data.name || '') }
-  } catch {
-    localStorage.removeItem(WAITER_SESSION_KEY)
-  }
-}
-
-restoreWaiterSession()
 
 export function validateWaiterSession() {
   if (!waiter.value) return
@@ -125,36 +92,6 @@ export function setWaiter(w) {
     })
   }
 }
-
-const REGISTER_SESSION_KEY = 'pi_register_session'
-
-/** @type {import('vue').Ref<{ uuid: string, name: string } | null>} */
-export const registerSession = ref(null)
-
-function persistRegisterSession(session) {
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(REGISTER_SESSION_KEY, JSON.stringify(session))
-  } catch {
-    /* ignore */
-  }
-}
-
-function restoreRegisterSession() {
-  if (typeof localStorage === 'undefined') return
-  try {
-    const raw = localStorage.getItem(REGISTER_SESSION_KEY)
-    if (!raw) return
-    const data = JSON.parse(raw)
-    if (!data?.uuid || data.eventId == null) return
-    selectedEventId.value = Number(data.eventId)
-    registerSession.value = { uuid: String(data.uuid), name: String(data.name || '') }
-  } catch {
-    localStorage.removeItem(REGISTER_SESSION_KEY)
-  }
-}
-
-restoreRegisterSession()
 
 export function validateRegisterSession() {
   if (!registerSession.value) return

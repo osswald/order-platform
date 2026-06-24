@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
@@ -20,6 +21,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'vue-i18n': 'vue-i18n/dist/vue-i18n.runtime.esm-bundler.js',
+      '@vendiqo/frontend-shared': path.resolve(__dirname, '../../packages/frontend-shared/src'),
     },
   },
   server: {

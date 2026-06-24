@@ -18,14 +18,30 @@ function extractDetailMessage(detail) {
   return null
 }
 
-export async function parseApiErrorDetail(response) {
+export function parseApiErrorBody(data, fallbackText = '') {
+  if (typeof data === 'object' && data !== null) {
+    const message = extractDetailMessage(data.detail)
+    if (message) return message
+  }
+  if (typeof data === 'string' && data) return data
+  return fallbackText
+}
+
+export function readApiErrorFromBody(data, fallbackText = '') {
+  return parseApiErrorBody(data, fallbackText || i18n.global.t('common.unknownError'))
+}
+
+export async function readApiError(response) {
   const text = await response.text()
   try {
     const data = JSON.parse(text)
-    const message = extractDetailMessage(data.detail)
-    if (message) return message
+    return readApiErrorFromBody(data, text || response.statusText)
   } catch {
-    // not JSON
+    return text || response.statusText || i18n.global.t('common.unknownError')
   }
-  return text || i18n.global.t('common.unknownError')
+}
+
+/** @deprecated Use readApiError(response) or parseApiErrorBody(data). */
+export async function parseApiErrorDetail(response) {
+  return readApiError(response)
 }

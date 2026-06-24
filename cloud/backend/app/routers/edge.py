@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Header, Query, Request, status
 from ..i18n.errors import api_error
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from ..currency import event_currency
@@ -506,10 +507,6 @@ def submit_edge_order(
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),
 ):
-    existing = db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.client_order_id == body.client_order_id).first()
-    if existing:
-        return EdgeOrderAck(server_order_id=existing.id, duplicate=True)
-
     event = _load_event_for_org(db, body.event_id, ctx.organisation_id)
     if not event:
         raise api_error("event_not_found_for_organisation", status.HTTP_404_NOT_FOUND)
@@ -518,7 +515,29 @@ def submit_edge_order(
     if ev_status not in ORDER_ACCEPT_STATUSES:
         raise api_error("event_status_does_not_accept_orders", status.HTTP_403_FORBIDDEN, status=ev_status)
 
-    lines = (body.payload or {}).get("lines") or []
+    payload = body.payload or {}
+    row = EdgeSubmittedOrder(
+        client_order_id=body.client_order_id,
+        appliance_id=ctx.appliance.id,
+        organisation_id=ctx.organisation_id,
+        event_id=body.event_id,
+        payload=payload,
+    )
+    db.add(row)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        existing = (
+            db.query(EdgeSubmittedOrder)
+            .filter(EdgeSubmittedOrder.client_order_id == body.client_order_id)
+            .first()
+        )
+        if existing is None:
+            raise
+        return EdgeOrderAck(server_order_id=existing.id, duplicate=True)
+
+    lines = payload.get("lines") or []
     stock_lines = [
         ln for ln in lines if isinstance(ln, dict) and str(ln.get("kind") or "") != "voucher_sale"
     ]
@@ -541,7 +560,6 @@ def submit_edge_order(
 
     from ..event_collective_bills import upsert_collective_bill_from_payload
 
-    payload = body.payload or {}
     upsert_collective_bill_from_payload(
         db,
         event_id=body.event_id,
@@ -559,14 +577,6 @@ def submit_edge_order(
         redemptions=payload.get("voucher_redemptions") or [],
     )
 
-    row = EdgeSubmittedOrder(
-        client_order_id=body.client_order_id,
-        appliance_id=ctx.appliance.id,
-        organisation_id=ctx.organisation_id,
-        event_id=body.event_id,
-        payload=payload,
-    )
-    db.add(row)
     upsert_edge_order_snapshot(
         db,
         organisation_id=ctx.organisation_id,

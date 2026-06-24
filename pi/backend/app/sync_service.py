@@ -15,6 +15,7 @@ sync_cycle_lock = asyncio.Lock()
 from sqlalchemy.orm import Session
 
 from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, fetch_operational_snapshot, submit_operational_chunk
+from .bundle_cache import get_bundle_dict_raw
 from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .operational_restore import needs_operational_restore, restore_operational_snapshot
@@ -94,13 +95,13 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
             row.attempt_count = int(row.attempt_count or 0) + 1
             row.last_error = str(e)[:2000]
             errors.append({"chunk_id": row.chunk_id, "error": str(e)})
-        db.commit()
+    db.commit()
     return {"sent": sent, "errors": errors}
 
 
 async def pull_bundle(db: Session) -> dict[str, Any]:
     """Download bundle from cloud into SyncedBundle."""
-    old_bundle = _get_bundle_dict_raw(db)
+    old_bundle = get_bundle_dict_raw(db)
     data = await fetch_bundle()
     body = json.dumps(data)
     now = datetime.now(timezone.utc)
@@ -116,17 +117,9 @@ async def pull_bundle(db: Session) -> dict[str, Any]:
     return {"ok": True, "event_count": event_count, "bundle": data, "purged_event_ids": purged}
 
 
-def _get_bundle_dict_raw(db: Session) -> dict | None:
-    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-    if not row or not row.json_body:
-        return None
-    data = json.loads(row.json_body)
-    return data if isinstance(data, dict) else None
-
-
 def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
     """Re-decrement stock for orders not yet acknowledged by cloud (after a pull)."""
-    data = bundle if bundle is not None else _get_bundle_dict_raw(db)
+    data = bundle if bundle is not None else get_bundle_dict_raw(db)
     if not data or data.get("organisation_id") is None:
         return
     rows = (
@@ -146,6 +139,25 @@ def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
         if lines:
             apply_stock_to_bundle(data, row.event_id, lines)
     save_bundle(db, data)
+
+
+async def pull_and_restore(db: Session) -> dict[str, Any]:
+    """Pull bundle from cloud, reapply stock, and optionally restore operational snapshot."""
+    pull_result = await pull_bundle(db)
+    reapply_pending_stock(db, pull_result.get("bundle"))
+    if is_restore_enabled():
+        try:
+            snapshot = await fetch_operational_snapshot()
+            bundle = pull_result.get("bundle")
+            if needs_operational_restore(db, snapshot):
+                restore_summary = restore_operational_snapshot(db, snapshot, bundle)
+                pull_result["restore"] = restore_summary
+                if bundle:
+                    reapply_pending_stock(db, bundle)
+        except Exception as e:
+            log.warning("operational restore failed: %s", e)
+            pull_result["restore_failed"] = str(e)[:2000]
+    return pull_result
 
 
 async def run_sync_cycle(db: Session) -> dict[str, Any]:
@@ -168,27 +180,18 @@ async def run_sync_cycle(db: Session) -> dict[str, Any]:
     last_error: str | None = None
 
     try:
-        pull_result = await pull_bundle(db)
+        pull_result = await pull_and_restore(db)
         summary["pull_ok"] = True
         summary["event_count"] = pull_result["event_count"]
         summary["purged_event_ids"] = pull_result.get("purged_event_ids") or []
         sync_status["last_pull_at"] = now
         sync_status["last_event_count"] = pull_result["event_count"]
-        reapply_pending_stock(db, pull_result.get("bundle"))
-        if is_restore_enabled():
-            try:
-                snapshot = await fetch_operational_snapshot()
-                bundle = pull_result.get("bundle")
-                if needs_operational_restore(db, snapshot):
-                    restore_summary = restore_operational_snapshot(db, snapshot, bundle)
-                    summary["restore"] = restore_summary
-                    sync_status["last_restore_at"] = now
-                    sync_status["last_restore_summary"] = restore_summary
-                    if bundle:
-                        reapply_pending_stock(db, bundle)
-            except Exception as e:
-                log.warning("operational restore failed: %s", e)
-                summary["restore_failed"] = str(e)[:2000]
+        if pull_result.get("restore"):
+            summary["restore"] = pull_result["restore"]
+            sync_status["last_restore_at"] = now
+            sync_status["last_restore_summary"] = pull_result["restore"]
+        if pull_result.get("restore_failed"):
+            summary["restore_failed"] = pull_result["restore_failed"]
     except CloudConfigError as e:
         last_error = str(e)
         sync_status["last_error"] = last_error

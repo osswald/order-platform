@@ -92,7 +92,7 @@ import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import VqDataTable from './VqDataTable.vue'
 import { apiFetch } from '../api'
-import { parseApiErrorDetail } from '../utils/apiError.js'
+import { parseApiErrorBody } from '../utils/apiError.js'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
@@ -233,7 +233,7 @@ async function savePaymentType() {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(parseApiErrorDetail(err.detail) || t('paymentTypes.saveError'))
+      throw new Error(parseApiErrorBody(err.detail) || t('paymentTypes.saveError'))
     }
     invalidatePaymentTypesCache()
     await fetchPaymentTypes()
@@ -252,7 +252,7 @@ async function deletePaymentType(id) {
     const response = await apiFetch(`/payment-types/${id}`, { method: 'DELETE' })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(parseApiErrorDetail(err.detail) || t('paymentTypes.deleteError'))
+      throw new Error(parseApiErrorBody(err.detail) || t('paymentTypes.deleteError'))
     }
     invalidatePaymentTypesCache()
     await fetchPaymentTypes()

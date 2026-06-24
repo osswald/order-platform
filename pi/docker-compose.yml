@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   pi-backend:
-    build: ./backend
+    build:
+      context: ..
+      dockerfile: pi/backend/Dockerfile
     image: ${PI_BACKEND_IMAGE:-order-platform-pi-backend:local}
     env_file: .env
     environment:

@@ -10,6 +10,7 @@ from ..accounting_validation import (
     ensure_accounting_account_for_org,
 )
 from ..auth_deps import get_current_user
+from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import (
@@ -30,6 +31,10 @@ from ..tenancy import (
 )
 
 router = APIRouter()
+
+
+def _raise_duplicate_account_number() -> None:
+    raise api_error("accounting_account_number_exists", status.HTTP_400_BAD_REQUEST)
 
 
 class AccountingAccountRead(BaseModel):
@@ -308,11 +313,7 @@ def create_accounting_account(
         is_default_for_article_categories=body.is_default_for_article_categories,
     )
     db.add(account)
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise api_error("accounting_account_number_exists", status.HTTP_400_BAD_REQUEST)
+    commit_or_raise(db, on_integrity=_raise_duplicate_account_number)
     db.refresh(account)
     return _account_response(db, account)
 
@@ -338,11 +339,7 @@ def update_accounting_account(
             clear_org_category_default_flag(db, account.organisation_id, except_id=account.id)
         account.is_default_for_article_categories = body.is_default_for_article_categories
 
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise api_error("accounting_account_number_exists", status.HTTP_400_BAD_REQUEST)
+    commit_or_raise(db, on_integrity=_raise_duplicate_account_number)
     db.refresh(account)
     return _account_response(db, account)
 

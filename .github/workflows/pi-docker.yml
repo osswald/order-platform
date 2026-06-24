@@ -12,6 +12,13 @@ on:
       - "VERSION"
       - "scripts/vite-version-env.mjs"
       - ".github/workflows/pi-docker.yml"
+  pull_request:
+    paths:
+      - "pi/backend/**"
+      - "pi/frontend/**"
+      - "VERSION"
+      - "scripts/vite-version-env.mjs"
+      - ".github/workflows/pi-docker.yml"
 
 env:
   REGISTRY: ghcr.io
@@ -41,7 +48,7 @@ jobs:
       - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./pi/backend
+          context: .
           file: ./pi/backend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
