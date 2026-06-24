@@ -30,6 +30,7 @@ from ..sync_service import (
 )
 from ..deps import get_db
 from ..discounts import validate_submit_discounts
+from ..position_comments import validate_submit_position_notes
 from ..schemas.bundle import EdgeBundleResponse
 from ..schemas.edge import (
     AccountSummaryResponse,
@@ -1016,6 +1017,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     arts = _article_map(ev)
     payments = list(body.payments or [])
     normalized_order_discount = validate_submit_discounts(ev, body.lines, body.order_discount, arts)
+    validate_submit_position_notes(bundle, body.lines)
     line_cents, _ = order_lines_total_cents(body.lines, ev, arts, normalized_order_discount)
     redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
     if redemptions_in and not payments:

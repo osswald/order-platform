@@ -13,6 +13,8 @@ import {
   maxAddQty,
   normalizeLineAdditions,
   printerHostConfigured,
+  positionCommentPresets,
+  positionCommentsEnabled,
   receiptPrintTargets,
   resolveStationUuidForArticle,
   voucherDefinitionByUuid,
@@ -251,5 +253,18 @@ describe('receiptPrintTargets', () => {
       { uuid: 'st-bar', label: 'Bar', kind: 'station' },
       { uuid: 'reg-1', label: 'Kasse: Front', kind: 'register' },
     ])
+  })
+})
+
+describe('positionComments bundle helpers', () => {
+  it('reads org-level comment flag and presets', () => {
+    const bundle = {
+      position_comments_enabled: true,
+      position_comment_presets: [{ id: 1, text: 'medium' }],
+    }
+    expect(positionCommentsEnabled(bundle)).toBe(true)
+    expect(positionCommentPresets(bundle)).toEqual([{ id: 1, text: 'medium' }])
+    expect(positionCommentsEnabled({})).toBe(false)
+    expect(positionCommentPresets(null)).toEqual([])
   })
 })

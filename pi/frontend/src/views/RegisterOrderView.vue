@@ -29,11 +29,13 @@
           :currency="currency"
           :label-fn="cartLineLabel"
           :discounts-enabled="discountsEnabled"
+          :position-comments-enabled="positionCommentsEnabled"
           :order-discount="orderDiscount"
           @tap-name="onTapName"
           @tap-qty="onTapQty"
           @tap-price="onTapPrice"
           @tap-discount="onTapDiscount"
+          @tap-comment="onTapComment"
           @remove-order-discount="setOrderDiscount(null)"
         />
       </div>
@@ -92,7 +94,23 @@
       @redeem-voucher="openVoucherRedeem"
     />
 
+    <LinePositionSheet
+      v-if="positionCommentsEnabled"
+      :open="linePositionOpen"
+      :line="linePositionLine"
+      :articles="articles"
+      :event="event"
+      :currency="currency"
+      :position-comments-enabled="positionCommentsEnabled"
+      :discounts-enabled="discountsEnabled"
+      :presets="positionCommentPresets"
+      :initial-tab="linePositionTab"
+      @close="linePositionOpen = false"
+      @save="onLinePositionSave"
+    />
+
     <LineDiscountSheet
+      v-if="!positionCommentsEnabled"
       :open="lineDiscountOpen"
       :line="lineDiscountLine"
       :articles="articles"
@@ -141,6 +159,8 @@ import {
   articlesForIds,
   getDefaultLayout,
   hasAdditions,
+  positionCommentPresets as bundlePositionCommentPresets,
+  positionCommentsEnabled as bundlePositionCommentsEnabled,
   resolveStationUuidForArticle,
   voucherDefinitionByUuid,
   cartLineLabelForEvent,
@@ -161,7 +181,9 @@ import VoucherRedeemSheet from '../components/VoucherRedeemSheet.vue'
 import SplitPayVoucherRow from '../components/SplitPayVoucherRow.vue'
 import OrderMenuSheet from '../components/OrderMenuSheet.vue'
 import LineDiscountSheet from '../components/LineDiscountSheet.vue'
+import LinePositionSheet from '../components/LinePositionSheet.vue'
 import OrderDiscountSheet from '../components/OrderDiscountSheet.vue'
+import { bundle } from '../store'
 
 const router = useRouter()
 const route = useRoute()
@@ -180,9 +202,14 @@ const pendingAdd = ref(null)
 const orderMenuOpen = ref(false)
 const lineDiscountOpen = ref(false)
 const lineDiscountLine = ref(null)
+const linePositionOpen = ref(false)
+const linePositionLine = ref(null)
+const linePositionTab = ref('comment')
 const orderDiscountOpen = ref(false)
 
 const discountsEnabled = computed(() => eventDiscountsEnabled(event.value))
+const positionCommentsEnabled = computed(() => bundlePositionCommentsEnabled(bundle.value))
+const positionCommentPresets = computed(() => bundlePositionCommentPresets(bundle.value))
 const showHeaderMenu = computed(
   () => cartCount.value > 0 && (canRedeemVoucher.value || discountsEnabled.value),
 )
@@ -437,9 +464,33 @@ function openVoucherRedeem() {
   voucherSheetOpen.value = true
 }
 
+function onTapComment(line) {
+  linePositionLine.value = line
+  linePositionTab.value = 'comment'
+  linePositionOpen.value = true
+}
+
 function onTapDiscount(line) {
+  if (positionCommentsEnabled.value) {
+    linePositionLine.value = line
+    linePositionTab.value = 'discount'
+    linePositionOpen.value = true
+    return
+  }
   lineDiscountLine.value = line
   lineDiscountOpen.value = true
+}
+
+function onLinePositionSave({ lineId, note, discount }) {
+  linePositionOpen.value = false
+  linePositionLine.value = null
+  if (!lineId) return
+  const patch = {}
+  if (note !== undefined) patch.note = note || ''
+  if (discount !== undefined) {
+    patch.discount = discount || undefined
+  }
+  updateCartLine(lineId, patch)
 }
 
 function onLineDiscountSave({ lineId, discount }) {
@@ -514,7 +565,7 @@ async function submitOrder() {
         article_id: l.article_id,
         qty: l.qty,
         station_uuid: l.station_uuid,
-        note: l.note || '',
+        note: positionCommentsEnabled.value ? String(l.note || '').trim() : '',
         additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
       }
       if (discountsEnabled.value && l.discount) row.discount = l.discount

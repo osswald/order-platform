@@ -9,6 +9,7 @@
         <button type="button" class="cart-cell cart-name" @click="$emit('tap-name', l)">
           <span class="cart-name-text">{{ lineLabel(l) }}</span>
           <span v-for="add in lineAdditions(l)" :key="add.id" class="cart-addition">+ {{ add.name }}</span>
+          <span v-if="lineHasNote(l)" class="cart-note-hint">{{ l.note }}</span>
           <template v-if="lineHasDiscount(l)">
             <span class="cart-discount-hint">{{ lineDiscountHint(l) }}</span>
             <span class="cart-discount-prices">
@@ -17,6 +18,16 @@
               <span class="cart-price-net">{{ formatLine(l) }}</span>
             </span>
           </template>
+        </button>
+        <button
+          v-if="showLineCommentBtn(l)"
+          type="button"
+          class="cart-cell cart-comment-btn"
+          :class="{ 'cart-comment-btn--active': lineHasNote(l) }"
+          aria-label="Kommentar"
+          @click="$emit('tap-comment', l)"
+        >
+          💬
         </button>
         <button
           v-if="showLineDiscountBtn(l)"
@@ -63,10 +74,11 @@ const props = defineProps({
   currency: { type: String, default: 'EUR' },
   labelFn: { type: Function, default: null },
   discountsEnabled: { type: Boolean, default: false },
+  positionCommentsEnabled: { type: Boolean, default: false },
   orderDiscount: { type: Object, default: null },
 })
 
-defineEmits(['tap-qty', 'tap-name', 'tap-price', 'tap-discount', 'remove-order-discount'])
+defineEmits(['tap-qty', 'tap-name', 'tap-price', 'tap-discount', 'tap-comment', 'remove-order-discount'])
 
 const panelRef = ref(null)
 let prevLineCount = 0
@@ -108,6 +120,14 @@ function lineLabel(line) {
 
 function showLineDiscountBtn(line) {
   return props.discountsEnabled && line?.kind !== 'voucher_sale'
+}
+
+function showLineCommentBtn(line) {
+  return props.positionCommentsEnabled && line?.kind !== 'voucher_sale'
+}
+
+function lineHasNote(line) {
+  return Boolean(String(line?.note || '').trim())
 }
 
 function lineHasDiscount(line) {
@@ -160,6 +180,7 @@ function formatGross(l) {
   font-weight: 500;
 }
 .cart-discount-hint,
+.cart-note-hint,
 .cart-discount-prices {
   display: block;
   padding-left: 0.65rem;
@@ -203,6 +224,18 @@ function formatGross(l) {
 .cart-discount-btn--active {
   background: var(--accent);
   color: #fff;
+  border-radius: 0.35rem;
+}
+.cart-comment-btn {
+  min-width: 2.75rem;
+  max-width: 3rem;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 1rem;
+  padding: 0.65rem 0.35rem;
+}
+.cart-comment-btn--active {
+  background: var(--accent);
   border-radius: 0.35rem;
 }
 .cart-price {

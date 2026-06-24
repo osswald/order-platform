@@ -26,6 +26,7 @@ from .routers import (
     receipt_printing,
     organisations,
     payment_types,
+    position_comments,
     stripe_connect,
     stripe_terminal,
     stripe_webhooks,
@@ -149,6 +150,7 @@ app.include_router(health.router)
 app.include_router(countries.router, prefix="/countries", tags=["countries"])
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(receipt_printing.router, tags=["receipt-printing"])
+app.include_router(position_comments.router, tags=["position-comments"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])
 app.include_router(users.router, prefix="/users", tags=["users"])

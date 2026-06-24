@@ -307,9 +307,6 @@ def _write_payment_order_lines(
                 write_sized_line(printer, f"{add_left} {_format_price(add_cents)}", line_size)
             else:
                 write_sized_line(printer, add_left, line_size)
-        note = (line.get("note") or "").strip()
-        if note:
-            write_sized_line(printer, f"  {note}", line_size)
 
 
 def _write_payment_adjustments(

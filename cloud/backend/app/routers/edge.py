@@ -27,6 +27,8 @@ from ..models import (
     EventAppLayoutCell,
     EventCashRegister,
     EventStation,
+    Organisation,
+    OrganisationPositionComment,
     User,
     organisation_users,
 )
@@ -270,12 +272,19 @@ class EdgeEventBundle(BaseModel):
     printer_hosts: dict[str, dict] = Field(default_factory=dict)
 
 
+class PositionCommentPresetBundleRead(BaseModel):
+    id: int
+    text: str
+
+
 class EdgeBundleRead(BaseModel):
     organisation_id: int
     appliance_id: int
     server_time: datetime
     events: list[EdgeEventBundle]
     admin_pin_hashes: list[str] = Field(default_factory=list)
+    position_comments_enabled: bool = False
+    position_comment_presets: list[PositionCommentPresetBundleRead] = Field(default_factory=list)
 
 
 class EdgePairRequest(BaseModel):
@@ -357,6 +366,16 @@ def _admin_pin_hashes_for_org(db: Session, organisation_id: int) -> list[str]:
     return [h for (h,) in rows if h]
 
 
+def _position_comment_presets_for_org(db: Session, organisation_id: int) -> list[dict]:
+    rows = (
+        db.query(OrganisationPositionComment)
+        .filter(OrganisationPositionComment.organisation_id == organisation_id)
+        .order_by(OrganisationPositionComment.sort_order, OrganisationPositionComment.id)
+        .all()
+    )
+    return [{"id": row.id, "text": row.text} for row in rows]
+
+
 @router.get("/v1/bundle", response_model=EdgeBundleRead)
 def read_edge_bundle(
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
@@ -396,6 +415,11 @@ def read_edge_bundle(
                 printer_hosts=printer_hosts,
             )
         )
+    org = db.query(Organisation).filter(Organisation.id == org_id).first()
+    position_comments_enabled = bool(org and org.position_comments_enabled)
+    position_comment_presets = (
+        _position_comment_presets_for_org(db, org_id) if position_comments_enabled else []
+    )
     db.commit()
     return EdgeBundleRead(
         organisation_id=org_id,
@@ -403,6 +427,8 @@ def read_edge_bundle(
         server_time=datetime.now(timezone.utc),
         events=bundles,
         admin_pin_hashes=_admin_pin_hashes_for_org(db, org_id),
+        position_comments_enabled=position_comments_enabled,
+        position_comment_presets=position_comment_presets,
     )
 
 

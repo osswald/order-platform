@@ -440,7 +440,28 @@
       "sectionGeraete": "Geräte/Ausleihen",
       "sectionStripe": "Kartenzahlung (Stripe)",
       "sectionBelegvorlagen": "Belegvorlagen",
+      "sectionPositionen": "Positionen",
       "sectionBuchhaltung": "Buchhaltung"
+    },
+    "positionComments": {
+      "sectionTitle": "Positionskommentare",
+      "enabled": "Positionskommentare aktiv",
+      "enabledHint": "Kellner und Kasse können pro Bestellposition Kommentare erfassen. Kommentare erscheinen auf Stationsbons, nicht auf Zahlungsbelegen.",
+      "presetsTitle": "Vordefinierte Kommentare",
+      "presetsHint": "Schnellauswahl in der Kasse; freie Eingabe bleibt jederzeit möglich.",
+      "addPreset": "Kommentar hinzufügen",
+      "editPreset": "Kommentar bearbeiten",
+      "presetText": "Kommentartext",
+      "noPresets": "Noch keine vordefinierten Kommentare.",
+      "loading": "Einstellungen werden geladen…",
+      "loadError": "Einstellungen konnten nicht geladen werden.",
+      "saved": "Einstellungen gespeichert.",
+      "saveError": "Einstellungen konnten nicht gespeichert werden.",
+      "presetSaved": "Kommentar gespeichert.",
+      "presetSaveError": "Kommentar konnte nicht gespeichert werden.",
+      "presetDeleted": "Kommentar gelöscht.",
+      "deleteConfirm": "Kommentar wirklich löschen?",
+      "deleteError": "Kommentar konnte nicht gelöscht werden."
     },
     "vat": {
       "sectionTitle": "Mehrwert-/Umsatzsteuer",

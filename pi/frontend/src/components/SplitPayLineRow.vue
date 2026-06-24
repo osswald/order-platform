@@ -5,6 +5,7 @@
       <button type="button" class="cell name" @click.stop="$emit('tap-name')">
         <span class="name-text">{{ name }}</span>
         <span v-for="add in additionLabels" :key="add.id" class="addition">+ {{ add.name }}</span>
+        <span v-if="noteHint" class="note-hint">{{ noteHint }}</span>
         <template v-if="hasDiscount">
           <span class="discount-hint">{{ discountHint }}</span>
           <span class="discount-prices">
@@ -22,6 +23,7 @@
         <span class="name-col">
           <span class="name-text">{{ name }}</span>
           <span v-for="add in additionLabels" :key="add.id" class="addition">+ {{ add.name }}</span>
+          <span v-if="noteHint" class="note-hint">{{ noteHint }}</span>
           <template v-if="hasDiscount">
             <span class="discount-hint">{{ discountHint }}</span>
             <span class="discount-prices">
@@ -56,6 +58,7 @@ const props = defineProps({
   unitCents: { type: Number, default: 0 },
   lineTotalCents: { type: Number, default: 0 },
   discount: { type: Object, default: null },
+  note: { type: String, default: '' },
   articles: { type: Object, default: () => ({}) },
   event: { type: Object, default: null },
 })
@@ -96,6 +99,8 @@ function netCentsForQty(qty) {
 const lineTotal = computed(() => formatAmount(netCentsForQty(displayQty.value)))
 
 const hasDiscount = computed(() => Boolean(normalizeDiscount(props.discount)))
+
+const noteHint = computed(() => String(props.note || '').trim())
 
 const discountHint = computed(() => (hasDiscount.value ? discountLabel(props.discount) : ''))
 
@@ -174,12 +179,14 @@ const formatGrossTotal = computed(() => {
   font-weight: 400;
 }
 .discount-hint,
+.note-hint,
 .discount-prices {
   display: block;
   padding-left: 0.65rem;
   font-size: 0.8rem;
   font-weight: 400;
 }
+.note-hint,
 .discount-hint {
   color: #64748b;
   margin-top: 0.1rem;

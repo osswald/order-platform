@@ -80,6 +80,7 @@ def test_table_order_slip_layout(monkeypatch):
     assert "10.50" not in text
     assert "CHF" not in text
     assert "3 Bier 0.5" in text or "3x Bier 0.5" in text
+    assert "warm" in text
     assert "+ Ketchup" in text
 
 

@@ -20,11 +20,13 @@
         :currency="currency"
         :label-fn="cartLineLabel"
         :discounts-enabled="discountsEnabled"
+        :position-comments-enabled="positionCommentsEnabled"
         :order-discount="orderDiscount"
         @tap-name="onTapName"
         @tap-qty="onTapQty"
         @tap-price="onTapPrice"
         @tap-discount="onTapDiscount"
+        @tap-comment="onTapComment"
         @remove-order-discount="setOrderDiscount(null)"
       />
 
@@ -80,7 +82,23 @@
       @order-discount="openOrderDiscount"
     />
 
+    <LinePositionSheet
+      v-if="positionCommentsEnabled"
+      :open="linePositionOpen"
+      :line="linePositionLine"
+      :articles="articles"
+      :event="event"
+      :currency="currency"
+      :position-comments-enabled="positionCommentsEnabled"
+      :discounts-enabled="discountsEnabled"
+      :presets="positionCommentPresets"
+      :initial-tab="linePositionTab"
+      @close="linePositionOpen = false"
+      @save="onLinePositionSave"
+    />
+
     <LineDiscountSheet
+      v-if="!positionCommentsEnabled"
       :open="lineDiscountOpen"
       :line="lineDiscountLine"
       :articles="articles"
@@ -111,7 +129,7 @@ import { useCart } from '../composables/useCart'
 import { useEventContext } from '../composables/useEventContext'
 import { useStationPrintFailures } from '../composables/useStationPrintFailures'
 import { discountsEnabled as eventDiscountsEnabled, formatMoney } from '../utils/money'
-import { getDefaultLayout, articlesForIds, hasAdditions, resolveStationUuidForArticle } from '../utils/bundleHelpers'
+import { getDefaultLayout, articlesForIds, hasAdditions, positionCommentPresets as bundlePositionCommentPresets, positionCommentsEnabled as bundlePositionCommentsEnabled, resolveStationUuidForArticle } from '../utils/bundleHelpers'
 import OrderScreenHeader from '../components/OrderScreenHeader.vue'
 import CartPanel from '../components/CartPanel.vue'
 import EventLayoutGrid from '../components/EventLayoutGrid.vue'
@@ -122,7 +140,9 @@ import AdditionsPickerSheet from '../components/AdditionsPickerSheet.vue'
 import QtyInputModal from '../components/QtyInputModal.vue'
 import OrderMenuSheet from '../components/OrderMenuSheet.vue'
 import LineDiscountSheet from '../components/LineDiscountSheet.vue'
+import LinePositionSheet from '../components/LinePositionSheet.vue'
 import OrderDiscountSheet from '../components/OrderDiscountSheet.vue'
+import { bundle } from '../store'
 
 const route = useRoute()
 const router = useRouter()
@@ -159,9 +179,14 @@ const pendingAdd = ref(null)
 const orderMenuOpen = ref(false)
 const lineDiscountOpen = ref(false)
 const lineDiscountLine = ref(null)
+const linePositionOpen = ref(false)
+const linePositionLine = ref(null)
+const linePositionTab = ref('comment')
 const orderDiscountOpen = ref(false)
 
 const discountsEnabled = computed(() => eventDiscountsEnabled(event.value))
+const positionCommentsEnabled = computed(() => bundlePositionCommentsEnabled(bundle.value))
+const positionCommentPresets = computed(() => bundlePositionCommentPresets(bundle.value))
 
 const tableNumber = computed(() => {
   const q = route.query.table
@@ -310,9 +335,33 @@ function onTapPrice(lineId) {
   decrementCartLine(lineId)
 }
 
+function onTapComment(line) {
+  linePositionLine.value = line
+  linePositionTab.value = 'comment'
+  linePositionOpen.value = true
+}
+
 function onTapDiscount(line) {
+  if (positionCommentsEnabled.value) {
+    linePositionLine.value = line
+    linePositionTab.value = 'discount'
+    linePositionOpen.value = true
+    return
+  }
   lineDiscountLine.value = line
   lineDiscountOpen.value = true
+}
+
+function onLinePositionSave({ lineId, note, discount }) {
+  linePositionOpen.value = false
+  linePositionLine.value = null
+  if (!lineId) return
+  const patch = {}
+  if (note !== undefined) patch.note = note || ''
+  if (discount !== undefined) {
+    patch.discount = discount || undefined
+  }
+  updateCartLine(lineId, patch)
 }
 
 function onLineDiscountSave({ lineId, discount }) {
@@ -358,7 +407,7 @@ async function submitOrder() {
         article_id: l.article_id,
         qty: l.qty,
         station_uuid: l.station_uuid,
-        note: l.note || '',
+        note: positionCommentsEnabled.value ? String(l.note || '').trim() : '',
         additions: (l.additions || []).map((a) => ({
           article_id: a.article_id,
           qty: a.qty ?? 1,

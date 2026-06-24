@@ -297,6 +297,13 @@ def apply_schema_patches() -> None:
     _patch_edge_order_item_fiscal_columns()
     _patch_event_waiter_register_subsidiary_columns()
     _ensure_accounting_tax_code_defaults_table()
+    _add_column_if_missing(
+        "organisations",
+        "position_comments_enabled",
+        "ALTER TABLE organisations ADD COLUMN position_comments_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS position_comments_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _ensure_organisation_position_comments_table()
 
 
 def _patch_edge_order_item_fiscal_columns() -> None:
@@ -326,6 +333,18 @@ def _patch_event_waiter_register_subsidiary_columns() -> None:
             f"ALTER TABLE {table} ADD COLUMN subsidiary_code VARCHAR(32)",
             f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS subsidiary_code VARCHAR(32)",
         )
+
+
+def _ensure_organisation_position_comments_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "organisation_position_comments" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import OrganisationPositionComment
+
+    OrganisationPositionComment.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_accounting_tax_code_defaults_table() -> None:

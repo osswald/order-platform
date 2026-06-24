@@ -80,6 +80,7 @@ class Organisation(Base):
     vat_liable = Column(Boolean, nullable=False, default=False)
     default_tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     accounts_enabled = Column(Boolean, nullable=False, default=False)
+    position_comments_enabled = Column(Boolean, nullable=False, default=False)
     hire_company = relationship("HireCompany", back_populates="organisations")
     country = relationship("Country", back_populates="organisations")
     default_tax_code = relationship("TaxCode", foreign_keys=[default_tax_code_id])
@@ -88,6 +89,22 @@ class Organisation(Base):
     waiters = relationship("Waiter", back_populates="organisation", cascade="all, delete-orphan")
     article_categories = relationship("ArticleCategory", back_populates="organisation", cascade="all, delete-orphan")
     appliance_lendings = relationship("ApplianceLending", back_populates="organisation", cascade="all, delete-orphan")
+    position_comment_presets = relationship(
+        "OrganisationPositionComment",
+        back_populates="organisation",
+        cascade="all, delete-orphan",
+        order_by="OrganisationPositionComment.sort_order",
+    )
+
+
+class OrganisationPositionComment(Base):
+    __tablename__ = "organisation_position_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    text = Column(String(512), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    organisation = relationship("Organisation", back_populates="position_comment_presets")
 
 
 class Appliance(Base):

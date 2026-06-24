@@ -202,3 +202,11 @@ export function receiptPrintTargets(event) {
   }
   return out.sort((a, b) => a.label.localeCompare(b.label, 'de'))
 }
+
+export function positionCommentsEnabled(bundle) {
+  return Boolean(bundle?.position_comments_enabled)
+}
+
+export function positionCommentPresets(bundle) {
+  return Array.isArray(bundle?.position_comment_presets) ? bundle.position_comment_presets : []
+}

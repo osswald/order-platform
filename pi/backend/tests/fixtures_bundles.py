@@ -9,6 +9,8 @@ from typing import Any
 def default_bundle() -> dict[str, Any]:
     return {
         "organisation_id": 1,
+        "position_comments_enabled": False,
+        "position_comment_presets": [],
         "events": [
             {
                 "id": 1,
@@ -194,3 +196,17 @@ def payment_receipts_bundle() -> dict[str, Any]:
 
 def bundle_copy(data: dict[str, Any]) -> dict[str, Any]:
     return deepcopy(data)
+
+
+def position_comments_bundle() -> dict[str, Any]:
+    bundle = default_bundle()
+    bundle["position_comments_enabled"] = True
+    bundle["position_comment_presets"] = [
+        {"id": 1, "text": "ohne Zwiebeln"},
+        {"id": 2, "text": "extra scharf"},
+    ]
+    bundle["events"][0]["configuration"] = {
+        "stations": [],
+        "waiters": [{"uuid": "w-1", "name": "Anna"}],
+    }
+    return bundle
