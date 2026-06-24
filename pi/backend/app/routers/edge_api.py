@@ -92,6 +92,7 @@ from ..order_fiscal import (
     waiter_name_from_event,
 )
 from ..domain.items import upsert_items_from_payload
+from ..domain.kitchen_sync import enqueue_kitchen_tickets_sync
 from ..domain.sessions import ensure_order_session
 from ..domain.sync_enqueue import enrich_payload_for_cloud_sync, enqueue_payload_sync
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
@@ -1223,6 +1224,9 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     if order_source == "cash_register" and not kitchen_ticket_ids:
         _set_pickup_ready_if_complete(db, order)
         payload = json.loads(order.payload_json)
+
+    if kitchen_ticket_ids:
+        enqueue_kitchen_tickets_sync(db, order)
 
     enqueue_payload_sync(
         db,
@@ -2454,6 +2458,7 @@ def _enqueue_kitchen_ticket_print(
     _update_kitchen_ticket_status(db, ticket)
     db.flush()
     _set_pickup_ready_if_complete(db, order)
+    enqueue_kitchen_tickets_sync(db, order)
     db.commit()
     return job_id
 

@@ -68,6 +68,7 @@ def test_upsert_and_list_cash_sessions(db_session):
     db.commit()
     row = db.query(EdgeCashSession).one()
     assert row.cash_session_id == 42
+    assert row.subject_key == "waiter:w-1"
     page = build_cash_sessions_page(db, event)
     assert page["total"] == 1
     assert page["items"][0]["subject_name"] == "Anna"

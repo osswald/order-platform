@@ -113,6 +113,7 @@ For local Docker development, copy `pi/.env.example` to `pi/.env` and set the cl
 | `DATABASE_URL` | Default: `sqlite:////data/pi.db`. |
 | `SYNC_ENABLED` | `1` by default. Set `0` to disable background sync. |
 | `SYNC_INTERVAL_SECONDS` | Sync interval in seconds. Default `60`, minimum `15`. |
+| `RESTORE_FROM_CLOUD` | `1` by default. After bundle pull, auto-import open ops from cloud when local state differs (SD/appliance takeover). |
 | `ESCPOS_PRINTER_HOST_OVERRIDE` | Optional. Redirect all TCP print jobs to one reachable host (e.g. a LAN printer IP). Omit to use printer IPs from the synced cloud bundle. |
 
 ## Production Docker stack
@@ -190,7 +191,8 @@ Cloud endpoints:
 
 - `POST {CLOUD_BASE_URL}/edge/v1/pair` - first-boot pairing, creates one SD-card installation credential.
 - `GET {CLOUD_BASE_URL}/edge/v1/bundle` - active events, configuration, articles, printer mappings, admin PIN hashes.
-- `POST {CLOUD_BASE_URL}/edge/v1/sync/operational/chunk` - idempotent chunk upload by `chunk_id` (fallback to `/edge/v1/orders` while migrating).
+- `GET {CLOUD_BASE_URL}/edge/v1/sync/operational/snapshot` - org/event open operational state for Pi restore (tables, Sammelrechnungen, cash shifts, kitchen tickets).
+- `POST {CLOUD_BASE_URL}/edge/v1/sync/operational/chunk` - idempotent chunk upload by `chunk_id` (entity types: `submission`, `cash_session`, `kitchen_tickets`).
 
 Cloud edge auth also requires an active appliance lending for today UTC. If sync returns:
 
@@ -237,12 +239,27 @@ When cloud credentials are configured, the Pi backend runs a background loop, de
 
 1. pull latest bundle (pre-event / periodic)
 2. reconcile rental lifecycle and purge stale event/org data
-3. push pending operational chunks to cloud with per-chunk ack
-4. reapply pending local stock deductions so unsynced local orders are not overwritten by cloud stock
+3. **restore open operational state from cloud** when local fingerprint differs (takeover / backup SD)
+4. push pending operational chunks to cloud with per-chunk ack (`submission`, `cash_session`, `kitchen_tickets`)
+5. reapply pending local stock deductions so unsynced local orders are not overwritten by cloud stock
 
 If cloud is unreachable, the Pi keeps serving from SQLite and retries on the next cycle.
 
-Table state (`table_number`, `payment_status`) lives only on the Pi. Cloud receives the order payload including `table_number` when orders are pushed.
+### Appliance / SD card takeover (scenario B)
+
+Cloud stores an **org/event operational mirror** (not per-appliance): open orders, collective bills, open cash shifts, and kitchen monitor tickets. Any paired server appliance with active lending for the same organisation can read it via `GET /edge/v1/sync/operational/snapshot`.
+
+**Operating rule:** only **one active writer** per org/event — never run two server Pis selling at the same time.
+
+| Takeover case | What happens |
+|---------------|--------------|
+| Backup SD on same appliance | Boot backup → sync pulls snapshot → open tables/kitchen/shifts restored |
+| Different rented server appliance | Pair Zeus → sync restores Apollo's open state from cloud |
+| Unsynced outbox on failed device | Still lost until pushed (same as before) |
+
+Not restored: print queue, register display, payment receipt archive, waiter draft cart.
+
+Kitchen tickets are forward-synced on create/print (`kitchen_tickets` outbox chunks). Cash sessions use stable `subject_key` (`waiter:{uuid}` / `cash_register:{uuid}`) in cloud so another appliance can restore the same shift.
 
 ## Station printing
 

@@ -14,9 +14,10 @@ sync_cycle_lock = asyncio.Lock()
 
 from sqlalchemy.orm import Session
 
-from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, submit_operational_chunk
+from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, fetch_operational_snapshot, submit_operational_chunk
 from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
+from .operational_restore import needs_operational_restore, restore_operational_snapshot
 from .stock import apply_stock_to_bundle, save_bundle
 
 log = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ sync_status: dict[str, Any] = {
     "last_event_count": None,
     "pending_outbox_count": 0,
     "last_error": None,
+    "last_restore_at": None,
+    "last_restore_summary": None,
 }
 
 
@@ -42,6 +45,11 @@ def is_cloud_configured() -> bool:
 def is_push_enabled() -> bool:
     val = os.getenv("SYNC_PUSH_ENABLED", "1").strip().lower()
     return val not in ("0", "false", "no")
+
+
+def is_restore_enabled() -> bool:
+    val = os.getenv("RESTORE_FROM_CLOUD", "1").strip().lower()
+    return val not in ("0", "false", "no", "off")
 
 
 def pending_outbox_count(db: Session) -> int:
@@ -167,6 +175,20 @@ async def run_sync_cycle(db: Session) -> dict[str, Any]:
         sync_status["last_pull_at"] = now
         sync_status["last_event_count"] = pull_result["event_count"]
         reapply_pending_stock(db, pull_result.get("bundle"))
+        if is_restore_enabled():
+            try:
+                snapshot = await fetch_operational_snapshot()
+                bundle = pull_result.get("bundle")
+                if needs_operational_restore(db, snapshot):
+                    restore_summary = restore_operational_snapshot(db, snapshot, bundle)
+                    summary["restore"] = restore_summary
+                    sync_status["last_restore_at"] = now
+                    sync_status["last_restore_summary"] = restore_summary
+                    if bundle:
+                        reapply_pending_stock(db, bundle)
+            except Exception as e:
+                log.warning("operational restore failed: %s", e)
+                summary["restore_failed"] = str(e)[:2000]
     except CloudConfigError as e:
         last_error = str(e)
         sync_status["last_error"] = last_error

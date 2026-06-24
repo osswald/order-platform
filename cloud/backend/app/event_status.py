@@ -6,7 +6,7 @@ from fastapi import status
 from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
-from .models import EdgeSubmittedOrder, Event, EventCollectiveBill
+from .models import EdgeSubmittedOrder, Event, EventCollectiveBill, EdgeOrderSnapshot, EdgeKitchenTicketSnapshot, EdgeCashSession
 from .stock import reset_event_stock_to_baseline
 
 ALLOWED_STATUSES = frozenset({"config", "test", "prod", "archive"})
@@ -59,6 +59,15 @@ def validate_status_transition(old: str, new: str) -> None:
 def purge_event_operational_data(db: Session, event: Event) -> None:
     """Remove test orders/stats and reset stock when entering production."""
     db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event.id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeOrderSnapshot).filter(EdgeOrderSnapshot.event_id == event.id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeKitchenTicketSnapshot).filter(EdgeKitchenTicketSnapshot.event_id == event.id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeCashSession).filter(EdgeCashSession.event_id == event.id).delete(
         synchronize_session=False
     )
     db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event.id).delete(

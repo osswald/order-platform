@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, Request, status
+from fastapi import APIRouter, Depends, Header, Query, Request, status
 from ..i18n.errors import api_error
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
@@ -39,6 +39,11 @@ from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import get_password_hash, verify_password
 from ..deps import get_db
 from ..event_cash_sessions import upsert_edge_cash_session
+from ..edge_operational_mirror import (
+    upsert_edge_kitchen_ticket_snapshot,
+    upsert_edge_order_snapshot,
+)
+from ..edge_operational_snapshot import build_operational_snapshot_for_events
 from ..rate_limit import EDGE_PAIR_RATE_LIMIT, limiter
 from .events import serialize_event_configuration
 
@@ -432,6 +437,26 @@ def read_edge_bundle(
     )
 
 
+@router.get("/v1/sync/operational/snapshot")
+def read_operational_snapshot(
+    event_id: int | None = Query(None),
+    ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
+    db: Session = Depends(get_db),
+):
+    """Org/event operational state for Pi restore (cross-appliance takeover)."""
+    events, _emulated = _events_for_edge_bundle(db, ctx)
+    if event_id is not None:
+        events = [ev for ev in events if int(ev.id) == int(event_id)]
+    snapshot = build_operational_snapshot_for_events(
+        db,
+        organisation_id=ctx.organisation_id,
+        events=events,
+    )
+    snapshot["appliance_id"] = ctx.appliance.id
+    snapshot["server_time"] = datetime.now(timezone.utc)
+    return snapshot
+
+
 class EdgeOrderCreate(BaseModel):
     client_order_id: str = Field(..., min_length=8, max_length=64)
     event_id: int
@@ -542,6 +567,13 @@ def submit_edge_order(
         payload=payload,
     )
     db.add(row)
+    upsert_edge_order_snapshot(
+        db,
+        organisation_id=ctx.organisation_id,
+        appliance_id=ctx.appliance.id,
+        event_id=body.event_id,
+        payload=payload,
+    )
     db.commit()
     db.refresh(row)
     return EdgeOrderAck(server_order_id=row.id, duplicate=False)
@@ -569,6 +601,26 @@ def submit_operational_chunk(
 
     if entity_type == "cash_session":
         upsert_edge_cash_session(
+            db,
+            organisation_id=ctx.organisation_id,
+            appliance_id=ctx.appliance.id,
+            event_id=body.event_id,
+            payload=payload,
+        )
+        db.commit()
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
+
+    if entity_type == "kitchen_tickets":
+        db.add(
+            EdgeSubmittedOrder(
+                client_order_id=body.chunk_id,
+                appliance_id=ctx.appliance.id,
+                organisation_id=ctx.organisation_id,
+                event_id=body.event_id,
+                payload={"entity_type": body.entity_type, **payload},
+            )
+        )
+        upsert_edge_kitchen_ticket_snapshot(
             db,
             organisation_id=ctx.organisation_id,
             appliance_id=ctx.appliance.id,
@@ -682,5 +734,12 @@ def submit_operational_chunk(
                     payload=p,
                 )
             )
+    upsert_edge_order_snapshot(
+        db,
+        organisation_id=ctx.organisation_id,
+        appliance_id=ctx.appliance.id,
+        event_id=body.event_id,
+        payload=payload,
+    )
     db.commit()
     return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)

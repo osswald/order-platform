@@ -671,12 +671,57 @@ class EdgePaymentBatch(Base):
     closed_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class EdgeOrderSnapshot(Base):
+    """Latest open order payload per org/event for Pi restore."""
+
+    __tablename__ = "edge_order_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "organisation_id",
+            "event_id",
+            "logical_client_order_id",
+            name="uq_edge_order_snapshot_logical",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    logical_client_order_id = Column(String(64), nullable=False, index=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class EdgeKitchenTicketSnapshot(Base):
+    """Kitchen monitor state per order for Pi restore."""
+
+    __tablename__ = "edge_kitchen_ticket_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "organisation_id",
+            "event_id",
+            "logical_client_order_id",
+            name="uq_edge_kitchen_snapshot_logical",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    logical_client_order_id = Column(String(64), nullable=False, index=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class EdgeCashSession(Base):
     __tablename__ = "edge_cash_sessions"
     id = Column(Integer, primary_key=True, index=True)
     organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
     appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    subject_key = Column(String(128), nullable=True, index=True)
     cash_session_id = Column(Integer, nullable=False, index=True)
     subject_type = Column(String(32), nullable=False, default="waiter")
     waiter_uuid = Column(String(36), nullable=True, index=True)

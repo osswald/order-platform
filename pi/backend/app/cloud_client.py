@@ -112,6 +112,18 @@ async def submit_operational_chunk(
         return r.json()
 
 
+async def fetch_operational_snapshot(*, event_id: int | None = None) -> dict[str, Any]:
+    base, cid, secret = _require_config()
+    url = f"{base}/edge/v1/sync/operational/snapshot"
+    params: dict[str, str] = {}
+    if event_id is not None:
+        params["event_id"] = str(event_id)
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        r = await client.get(url, headers=_headers(cid, secret), params=params or None)
+        r.raise_for_status()
+        return r.json()
+
+
 async def ping_cloud_reachable() -> tuple[bool, str | None]:
     """Return whether the Pi can reach the cloud API (for Terminal gating)."""
     try:

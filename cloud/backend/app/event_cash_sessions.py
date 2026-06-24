@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .currency import event_currency
+from .edge_operational_keys import cash_session_subject_key
 from .models import EdgeCashSession, Event
 
 
@@ -86,7 +87,8 @@ def upsert_edge_cash_session(
     from datetime import datetime
 
     cash_session_id = int(payload.get("cash_session_id") or 0)
-    if not cash_session_id:
+    subject_key = cash_session_subject_key(payload) or payload.get("subject_key")
+    if not cash_session_id or not subject_key:
         return
 
     def _parse_dt(val):
@@ -102,9 +104,9 @@ def upsert_edge_cash_session(
     existing = (
         db.query(EdgeCashSession)
         .filter(
-            EdgeCashSession.appliance_id == appliance_id,
+            EdgeCashSession.organisation_id == organisation_id,
             EdgeCashSession.event_id == event_id,
-            EdgeCashSession.cash_session_id == cash_session_id,
+            EdgeCashSession.subject_key == subject_key,
         )
         .first()
     )
@@ -112,6 +114,7 @@ def upsert_edge_cash_session(
         "organisation_id": organisation_id,
         "appliance_id": appliance_id,
         "event_id": event_id,
+        "subject_key": subject_key,
         "cash_session_id": cash_session_id,
         "subject_type": str(payload.get("subject_type") or "waiter"),
         "waiter_uuid": payload.get("waiter_uuid"),

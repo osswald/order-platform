@@ -242,8 +242,16 @@ def close_session(
 def session_to_sync_payload(db: Session, session: CashSession) -> dict[str, Any]:
     by_method, by_voucher = ledger_aggregates(db, int(session.id))
     ledger_rows = db.query(CashSessionLedger).filter(CashSessionLedger.cash_session_id == session.id).all()
+    subject_type = str(session.subject_type or "waiter").lower()
+    if subject_type == "cash_register" and session.cash_register_uuid:
+        subject_key = f"cash_register:{session.cash_register_uuid}"
+    elif session.waiter_uuid:
+        subject_key = f"waiter:{session.waiter_uuid}"
+    else:
+        subject_key = None
     return {
         "cash_session_id": int(session.id),
+        "subject_key": subject_key,
         "event_id": int(session.event_id),
         "subject_type": session.subject_type,
         "waiter_uuid": session.waiter_uuid,
