@@ -21,6 +21,18 @@ export const helpCategories = [
         summary: 'Master data, stations, waiters, registers, and further configuration.',
         relatedRoutes: ['events', 'events-detail', 'events-new'],
       },
+      {
+        slug: 'waiters',
+        title: 'Manage waiters',
+        summary: 'Create waiters, assign PINs, and prepare them for events.',
+        relatedRoutes: ['waiters', 'waiters-detail', 'waiters-new'],
+      },
+      {
+        slug: 'event-live-operations',
+        title: 'Live operations',
+        summary: 'Sales, collective bills, transactions, and cash sessions during running events.',
+        relatedRoutes: ['events-detail'],
+      },
     ],
   },
   {
@@ -74,6 +86,24 @@ export const helpCategories = [
         title: 'Roles and access',
         summary: 'Platform admin, organisation admin, and member — who can do what?',
         relatedRoutes: ['hire-companies', 'hire-companies-detail', 'users', 'users-detail', 'no-access'],
+      },
+      {
+        slug: 'organisation-setup',
+        title: 'Set up an organisation',
+        summary: 'Master data, accounting, appliance lending, and Stripe for an organisation.',
+        relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
+      },
+      {
+        slug: 'tenant-settings',
+        title: 'Tenant settings',
+        summary: 'Hire-company profile and receipt templates at tenant level.',
+        relatedRoutes: ['tenant-settings'],
+      },
+      {
+        slug: 'user-management',
+        title: 'Manage users',
+        summary: 'Create users, assign roles, and link organisations.',
+        relatedRoutes: ['users', 'users-detail', 'users-new'],
       },
     ],
   },

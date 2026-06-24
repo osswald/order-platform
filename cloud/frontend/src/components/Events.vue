@@ -10,7 +10,8 @@
     <template #detail>
       <div class="detail-header-row">
         <h2>{{ editMode ? t('events.editTitle') : t('events.createTitle') }}</h2>
-        <HelpLink v-if="editMode" slug="event-setup" variant="icon" />
+        <HelpLink v-if="editMode && form.status === 'config'" slug="event-setup" variant="icon" />
+        <HelpLink v-if="editMode && form.status !== 'config'" slug="event-live-operations" variant="icon" />
       </div>
       <p v-if="!editMode" class="form-required-legend"><span class="vq-asterisk">*</span> {{ t('common.requiredLegend') }}</p>
 

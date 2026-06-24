@@ -7,6 +7,9 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <HelpLink slug="waiters" variant="icon" />
+    </template>
     <template #detail>
       <h2>{{ editMode ? $t('waiters.editTitle') : $t('waiters.newTitle') }}</h2>
       <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
@@ -95,6 +98,7 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import VqDataTable from './VqDataTable.vue'
+import HelpLink from './HelpLink.vue'
 
 const { t } = useI18n()
 

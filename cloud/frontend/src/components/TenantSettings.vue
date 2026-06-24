@@ -1,7 +1,12 @@
 <template>
   <div class="tenant-settings">
-    <h1>{{ $t('tenantSettings.title') }}</h1>
-    <p class="muted">{{ $t('tenantSettings.subtitle') }}</p>
+    <div class="tenant-settings-header">
+      <div>
+        <h1>{{ $t('tenantSettings.title') }}</h1>
+        <p class="muted">{{ $t('tenantSettings.subtitle') }}</p>
+      </div>
+      <HelpLink slug="tenant-settings" variant="icon" />
+    </div>
     <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
 
     <v-form v-if="hireCompanyId" ref="formRef" @submit.prevent="saveCompany">
@@ -60,6 +65,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
+import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { apiFetch } from '../api'
 import { useCountries } from '../composables/useCountries'
@@ -159,6 +165,18 @@ async function saveCompany() {
 <style scoped>
 .tenant-settings {
   max-width: 720px;
+}
+
+.tenant-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.tenant-settings-header h1 {
+  margin: 0 0 0.35rem;
 }
 
 .field-row {

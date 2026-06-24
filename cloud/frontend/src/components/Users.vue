@@ -6,6 +6,9 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <HelpLink slug="user-management" variant="icon" />
+    </template>
     <template #detail>
       <h2>{{ editMode ? $t('users.editTitle') : $t('users.newTitle') }}</h2>
       <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
@@ -169,6 +172,7 @@ import VqDataTable from './VqDataTable.vue'
 
 // isAdmin prop = platform administrator (from App.vue)
 import ListDetailLayout from './ListDetailLayout.vue'
+import HelpLink from './HelpLink.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
 import { apiFetch } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'

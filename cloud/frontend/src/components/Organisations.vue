@@ -7,6 +7,9 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <HelpLink slug="organisation-setup" variant="icon" />
+    </template>
     <template #detail>
       <h2>{{ editMode ? $t('organisations.editTitle') : $t('organisations.newTitle') }}</h2>
       <p class="form-required-legend"><span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}</p>
@@ -239,6 +242,7 @@ import { useBreakpoint } from '../composables/useBreakpoint'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
+import HelpLink from './HelpLink.vue'
 
 const props = defineProps({
   canAccessTenantAdmin: { type: Boolean, default: false },

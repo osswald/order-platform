@@ -21,6 +21,18 @@ export const helpCategories = [
         summary: 'Stammdaten, Stationen, Kellner, Kassen und weitere Konfiguration.',
         relatedRoutes: ['events', 'events-detail', 'events-new'],
       },
+      {
+        slug: 'waiters',
+        title: 'Kellner verwalten',
+        summary: 'Kellner anlegen, PINs vergeben und für Events vorbereiten.',
+        relatedRoutes: ['waiters', 'waiters-detail', 'waiters-new'],
+      },
+      {
+        slug: 'event-live-operations',
+        title: 'Live-Betrieb',
+        summary: 'Umsatz, Sammelrechnungen, Transaktionen und Kassensitzungen während laufender Events.',
+        relatedRoutes: ['events-detail'],
+      },
     ],
   },
   {
@@ -74,6 +86,24 @@ export const helpCategories = [
         title: 'Rollen und Zugriff',
         summary: 'Plattform-Admin, Organisations-Admin und Mitglied — wer darf was?',
         relatedRoutes: ['hire-companies', 'hire-companies-detail', 'users', 'users-detail', 'no-access'],
+      },
+      {
+        slug: 'organisation-setup',
+        title: 'Organisation einrichten',
+        summary: 'Stammdaten, Buchhaltung, Geräteausleihen und Stripe für eine Organisation.',
+        relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
+      },
+      {
+        slug: 'tenant-settings',
+        title: 'Verleiher-Einstellungen',
+        summary: 'Verleiher-Stammdaten und Belegvorlagen auf Mandantenebene.',
+        relatedRoutes: ['tenant-settings'],
+      },
+      {
+        slug: 'user-management',
+        title: 'Benutzer verwalten',
+        summary: 'Benutzer anlegen, Rollen zuweisen und Organisationen verknüpfen.',
+        relatedRoutes: ['users', 'users-detail', 'users-new'],
       },
     ],
   },
