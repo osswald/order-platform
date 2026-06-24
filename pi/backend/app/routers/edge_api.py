@@ -29,6 +29,7 @@ from ..sync_service import (
     sync_status,
 )
 from ..deps import get_db
+from ..discounts import validate_submit_discounts
 from ..schemas.bundle import EdgeBundleResponse
 from ..schemas.edge import (
     AccountSummaryResponse,
@@ -129,7 +130,7 @@ from ..print_worker import (
     station_name_from_event,
     _send_to_printer,
 )
-from ..discounts import validate_submit_discounts
+from ..instant_collective_bill import ensure_instant_collective_bill
 from ..pricing import (
     line_total_cents,
     line_unit_cents,
@@ -186,8 +187,6 @@ def _validate_payment_types(ev: dict, payments: list) -> None:
         if not isinstance(p, dict):
             continue
         t = (p.get("type") or "").strip().lower()
-        if t == "instant" and pm == "instant":
-            continue
         if t not in allowed:
             raise HTTPException(
                 status_code=400,
@@ -1034,13 +1033,17 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     expected_cents = max(0, line_cents - voucher_credit)
     if has_voucher_sale and order_source != "cash_register" and pm not in ("instant",) and not payments:
         raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
+    instant_bill = None
     if order_source == "cash_register":
         if not payments:
             raise HTTPException(status_code=400, detail="payments required for cash-register orders")
         if _payments_total_cents(payments) != expected_cents:
             raise HTTPException(status_code=400, detail="payment amount must match order total")
     elif pm == "instant":
-        payments = [{"type": "instant", "amount_cents": line_cents}]
+        payments = []
+        instant_bill = ensure_instant_collective_bill(db, ev)
+        if not instant_bill:
+            raise HTTPException(status_code=400, detail="Sammelrechnung für Sofort-Zahlung nicht konfiguriert")
 
     if payments:
         _validate_payment_types(ev, payments)
@@ -1075,6 +1078,9 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         payload["voucher_credit_cents"] = voucher_credit
     if normalized_order_discount:
         payload["order_discount"] = normalized_order_discount
+    if instant_bill:
+        payload["collective_bill_uuid"] = instant_bill.uuid
+        payload["collective_bill_name"] = instant_bill.name
     if order_source == "cash_register":
         payload.update(
             {
@@ -1117,6 +1123,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         pickup_code=pickup_code,
         pickup_status=pickup_status,
         payment_status=payment_status,
+        collective_bill_id=instant_bill.id if instant_bill else None,
         payload_json=json.dumps(payload),
         print_status="pending",
     )

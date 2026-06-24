@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import status
 from .i18n.errors import api_error
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .models import Article, ArticleCategory, Event, EventArticleStock
 
@@ -77,12 +77,22 @@ def load_stock_map(db: Session, event_id: int, article_ids: set[int]) -> dict[in
 
 def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
     from .additions import build_additions_for_base, load_links_for_bases
+    from .fiscal_snapshot import fiscal_fields_for_article, load_organisation_for_event
 
     ids = all_bundle_article_ids(db, event)
     if not ids:
         return {}
+    organisation = load_organisation_for_event(db, event)
     ensure_stock_rows_for_event_articles(db, event, commit=False)
-    arts = {a.id: a for a in db.query(Article).filter(Article.id.in_(ids)).all()}
+    arts = {
+        a.id: a
+        for a in (
+            db.query(Article)
+            .options(joinedload(Article.article_category))
+            .filter(Article.id.in_(ids))
+            .all()
+        )
+    }
     stock_map = load_stock_map(db, event.id, ids)
     base_ids = bundle_article_ids(event)
     links_by_base = load_links_for_bases(db, base_ids)
@@ -106,6 +116,8 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
         }
         if not a.is_addition and aid in links_by_base:
             entry["additions"] = build_additions_for_base(links_by_base.get(aid, []), arts, stock_map)
+        if organisation is not None:
+            entry.update(fiscal_fields_for_article(db, organisation, a))
         out[str(aid)] = entry
     return out
 

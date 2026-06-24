@@ -106,6 +106,35 @@
             </v-btn>
           </div>
         </section>
+
+        <section class="accounting-block">
+          <h3>{{ t('organisations.accounting.taxCodeDefaultsTitle') }}</h3>
+          <p class="muted small">{{ t('organisations.accounting.taxCodeDefaultsHint') }}</p>
+          <div v-for="row in taxCodeDefaults" :key="row.tax_code_id" class="default-row">
+            <span class="default-label">{{ row.tax_code_name }}</span>
+            <v-select
+              v-model="row.accounting_account_id"
+              :items="accountSelectOptions"
+              item-title="title"
+              item-value="value"
+              :label="t('organisations.accounting.defaultAccount')"
+              :placeholder="t('common.optional')"
+              hide-details="auto"
+              clearable
+            />
+          </div>
+          <div class="actions">
+            <v-btn
+              color="primary"
+              type="button"
+              :disabled="savingTaxCodeDefaults"
+              :loading="savingTaxCodeDefaults"
+              @click="saveTaxCodeDefaults"
+            >
+              {{ t('organisations.accounting.saveDefaults') }}
+            </v-btn>
+          </div>
+        </section>
       </template>
 
       <div class="actions">
@@ -195,6 +224,7 @@ const loading = ref(false)
 const loadError = ref('')
 const saving = ref(false)
 const savingDefaults = ref(false)
+const savingTaxCodeDefaults = ref(false)
 const message = ref('')
 const messageType = ref('')
 const vatLiable = ref(false)
@@ -212,6 +242,7 @@ const accountForm = ref({
 })
 
 const paymentTypeDefaults = ref([])
+const taxCodeDefaults = ref([])
 
 const {
   options: taxCodeOptions,
@@ -387,6 +418,55 @@ async function deleteAccount(accountId) {
   }
 }
 
+async function loadTaxCodeDefaults() {
+  if (!props.organisationId || !accountsEnabled.value) {
+    taxCodeDefaults.value = []
+    return
+  }
+  try {
+    const res = await apiFetch(
+      `/accounting-accounts/tax-code-defaults?organisation_id=${props.organisationId}`,
+    )
+    if (!res.ok) throw new Error(await res.text())
+    taxCodeDefaults.value = (await res.json()).map((row) => ({ ...row }))
+  } catch {
+    taxCodeDefaults.value = []
+  }
+}
+
+async function saveTaxCodeDefaults() {
+  if (!props.organisationId) return
+  savingTaxCodeDefaults.value = true
+  message.value = ''
+  try {
+    const res = await apiFetch(
+      `/accounting-accounts/tax-code-defaults?organisation_id=${props.organisationId}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          defaults: taxCodeDefaults.value.map((row) => ({
+            tax_code_id: row.tax_code_id,
+            accounting_account_id: row.accounting_account_id ?? null,
+          })),
+        }),
+      },
+    )
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(parseApiErrorDetail(err.detail) || t('organisations.accounting.defaultsSaveError'))
+    }
+    taxCodeDefaults.value = await res.json()
+    message.value = t('organisations.accounting.defaultsSaved')
+    messageType.value = 'success'
+  } catch (e) {
+    message.value = e.message || t('organisations.accounting.defaultsSaveError')
+    messageType.value = 'error'
+  } finally {
+    savingTaxCodeDefaults.value = false
+  }
+}
+
 async function savePaymentTypeDefaults() {
   if (!props.organisationId) return
   savingDefaults.value = true
@@ -427,6 +507,7 @@ watch(
     await loadOrganisation()
     if (accountsEnabled.value) {
       await loadPaymentTypeDefaults()
+      await loadTaxCodeDefaults()
     }
   },
   { immediate: true },

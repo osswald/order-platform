@@ -69,7 +69,18 @@
         />
         <small>{{ t('events.stammdaten.paymentModeHint') }}</small>
       </div>
-      <div class="form-field">
+      <div v-if="isInstantMode" class="form-field">
+        <FormLabel required>{{ t('events.stammdaten.instantCollectiveBill') }}</FormLabel>
+        <v-text-field
+          v-model="form.instantCollectiveBillName"
+          :placeholder="t('events.stammdaten.instantCollectiveBillPlaceholder')"
+          hide-details="auto"
+          required
+          :rules="[rules.required]"
+        />
+        <small>{{ t('events.stammdaten.instantCollectiveBillHint') }}</small>
+      </div>
+      <div v-if="!isInstantMode" class="form-field">
         <FormLabel required>{{ t('events.stammdaten.paymentTypes') }}</FormLabel>
         <v-select
           v-model="form.paymentTypes"
@@ -200,6 +211,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import TwintQrField from './TwintQrField.vue'
@@ -255,6 +267,8 @@ const props = defineProps({
 })
 
 defineEmits(['upload', 'remove'])
+
+const isInstantMode = computed(() => (props.form.paymentMode || 'pay_later') === 'instant')
 
 function pad2(n) {
   return String(n).padStart(2, '0')

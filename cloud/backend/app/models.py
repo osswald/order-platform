@@ -185,6 +185,8 @@ class Event(Base):
     end = Column(DateTime(timezone=True), nullable=False)
     # Edge / waiter POS: instant = mark paid on submit; pay_now = pay before submit completes; pay_later = pay after submit.
     payment_mode = Column(String(32), nullable=False, default="pay_later")
+    instant_collective_bill_name = Column(String(128), nullable=True)
+    instant_collective_bill_uuid = Column(String(36), nullable=True, index=True)
     payment_types = Column(JSON, nullable=False, default=lambda: ["cash"])
     twint_qr_mime = Column(String(64), nullable=True)
     twint_qr_data = Column(String, nullable=True)  # base64-encoded PNG/SVG
@@ -286,6 +288,27 @@ class AccountingAccountPaymentTypeDefault(Base):
     organisation = relationship("Organisation", backref="payment_type_account_defaults")
     payment_type = relationship("PaymentType")
     accounting_account = relationship("AccountingAccount", back_populates="payment_type_defaults")
+
+
+class AccountingAccountTaxCodeDefault(Base):
+    __tablename__ = "accounting_account_tax_code_defaults"
+    __table_args__ = (
+        UniqueConstraint(
+            "organisation_id",
+            "tax_code_id",
+            name="uq_org_tax_code_default_account",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=False, index=True)
+    accounting_account_id = Column(
+        Integer, ForeignKey("accounting_accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    organisation = relationship("Organisation", backref="tax_code_account_defaults")
+    tax_code = relationship("TaxCode")
+    accounting_account = relationship("AccountingAccount")
 
 
 class ArticleCategory(Base):
@@ -422,6 +445,7 @@ class EventWaiter(Base):
     event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     pin = Column(String, nullable=False, default="0000")
+    subsidiary_code = Column(String(32), nullable=True)
     source_waiter_id = Column(Integer, ForeignKey("waiters.id", ondelete="SET NULL"), nullable=True)
     event = relationship("Event", back_populates="event_waiters")
     source_waiter = relationship("Waiter", foreign_keys=[source_waiter_id])
@@ -465,6 +489,7 @@ class EventCashRegister(Base):
     sort_order = Column(Integer, nullable=False, default=0)
     pickup_code_prefix = Column(String(3), nullable=False)
     pin = Column(String, nullable=False, default="0000")
+    subsidiary_code = Column(String(32), nullable=True)
     layout_uuid = Column(String(36), nullable=False)
     receipt_printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
     event = relationship("Event", back_populates="cash_registers")
@@ -600,9 +625,16 @@ class EdgeOrderItem(Base):
     article_name = Column(String(255), nullable=False, default="")
     station_uuid = Column(String(36), nullable=True, index=True)
     waiter_uuid = Column(String(36), nullable=True, index=True)
+    cash_register_uuid = Column(String(36), nullable=True, index=True)
+    order_source = Column(String(32), nullable=True, index=True)
     quantity = Column(Integer, nullable=False, default=1)
     unit_price_cents = Column(Integer, nullable=False, default=0)
     line_total_cents = Column(Integer, nullable=False, default=0)
+    tax_code_id = Column(Integer, nullable=True, index=True)
+    tax_rate_percent = Column(Float, nullable=True)
+    accounting_account_id = Column(Integer, nullable=True, index=True)
+    net_cents = Column(Integer, nullable=True)
+    vat_cents = Column(Integer, nullable=True)
     payment_status = Column(String(16), nullable=False, default="open")
     payment_batch_uuid = Column(String(36), nullable=True, index=True)
     method = Column(String(32), nullable=True, index=True)

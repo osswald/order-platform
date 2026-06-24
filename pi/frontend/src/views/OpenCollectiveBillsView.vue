@@ -4,6 +4,7 @@
     <p class="muted">{{ event?.name }}</p>
 
     <button
+      v-if="!isInstantMode"
       type="button"
       class="btn primary"
       style="width: 100%; margin-top: 0.75rem"
@@ -48,6 +49,10 @@ const loading = ref(true)
 const creating = ref(false)
 const bills = ref([])
 const { event, showToast } = useEventContext()
+
+const isInstantMode = computed(
+  () => (event.value?.payment_mode || 'pay_later').toLowerCase() === 'instant',
+)
 
 onMounted(load)
 

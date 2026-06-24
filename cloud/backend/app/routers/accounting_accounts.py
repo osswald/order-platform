@@ -15,10 +15,13 @@ from ..i18n.errors import api_error
 from ..models import (
     AccountingAccount,
     AccountingAccountPaymentTypeDefault,
+    AccountingAccountTaxCodeDefault,
     PaymentType,
+    TaxCode,
     User,
 )
 from ..payment_type_reference import get_payment_type_or_404
+from ..tax_code_validation import ensure_tax_code_for_country
 from ..tenancy import (
     TenantContext,
     ensure_can_manage_organisation,
@@ -65,6 +68,21 @@ class PaymentTypeAccountDefaultsUpdate(BaseModel):
 class PaymentTypeAccountDefaultRead(BaseModel):
     payment_type_id: int
     payment_type_slug: str
+    accounting_account_id: int | None = None
+
+
+class TaxCodeAccountDefaultItem(BaseModel):
+    tax_code_id: int
+    accounting_account_id: int | None = None
+
+
+class TaxCodeAccountDefaultsUpdate(BaseModel):
+    defaults: List[TaxCodeAccountDefaultItem] = Field(default_factory=list)
+
+
+class TaxCodeAccountDefaultRead(BaseModel):
+    tax_code_id: int
+    tax_code_name: str
     accounting_account_id: int | None = None
 
 
@@ -178,6 +196,79 @@ def update_payment_type_account_defaults(
         )
     db.commit()
     return read_payment_type_account_defaults(
+        organisation_id=organisation_id,
+        db=db,
+        current_user=current_user,
+        tenant=tenant,
+    )
+
+
+@router.get("/tax-code-defaults", response_model=List[TaxCodeAccountDefaultRead])
+def read_tax_code_account_defaults(
+    organisation_id: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    org = ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    tax_codes = (
+        db.query(TaxCode)
+        .filter(TaxCode.country_id == org.country_id)
+        .order_by(TaxCode.name)
+        .all()
+    )
+    existing = {
+        row.tax_code_id: row.accounting_account_id
+        for row in db.query(AccountingAccountTaxCodeDefault)
+        .filter(AccountingAccountTaxCodeDefault.organisation_id == organisation_id)
+        .all()
+    }
+    return [
+        {
+            "tax_code_id": tc.id,
+            "tax_code_name": tc.name,
+            "accounting_account_id": existing.get(tc.id),
+        }
+        for tc in tax_codes
+    ]
+
+
+@router.put("/tax-code-defaults", response_model=List[TaxCodeAccountDefaultRead])
+def update_tax_code_account_defaults(
+    body: TaxCodeAccountDefaultsUpdate,
+    organisation_id: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_can_manage_organisation(current_user, organisation_id)
+    org = ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+
+    seen_tax_codes: set[int] = set()
+    for item in body.defaults:
+        if item.tax_code_id in seen_tax_codes:
+            raise api_error("tax_code_default_duplicate", status.HTTP_400_BAD_REQUEST)
+        seen_tax_codes.add(item.tax_code_id)
+        ensure_tax_code_for_country(db, item.tax_code_id, org.country_id)
+        if item.accounting_account_id is not None:
+            ensure_accounting_account_for_org(db, item.accounting_account_id, organisation_id)
+
+    db.query(AccountingAccountTaxCodeDefault).filter(
+        AccountingAccountTaxCodeDefault.organisation_id == organisation_id
+    ).delete(synchronize_session=False)
+
+    for item in body.defaults:
+        if item.accounting_account_id is None:
+            continue
+        db.add(
+            AccountingAccountTaxCodeDefault(
+                organisation_id=organisation_id,
+                tax_code_id=item.tax_code_id,
+                accounting_account_id=item.accounting_account_id,
+            )
+        )
+    db.commit()
+    return read_tax_code_account_defaults(
         organisation_id=organisation_id,
         db=db,
         current_user=current_user,

@@ -118,6 +118,8 @@ def _order_row_dict(order: EdgeSubmittedOrder, arts: dict) -> dict:
         for p in (payload.get("payments") or [])
         if isinstance(p, dict)
     )
+    if paid_cents == 0 and str(payload.get("payment_status") or "open").lower() == "paid":
+        paid_cents = line_cents
     logical_cid = payload.get("client_order_id") or order.client_order_id
     return {
         "id": order.id,
@@ -177,8 +179,10 @@ def build_event_collective_bills_list(db: Session, event: Event) -> dict:
             )
             for o in display_orders
         )
-        order_rows = [_order_row_dict(o, arts) for o in display_orders]
         has_open = bool(open_orders)
+        if paid_cents == 0 and display_orders and not has_open:
+            paid_cents = line_cents
+        order_rows = [_order_row_dict(o, arts) for o in display_orders]
         status = "open" if has_open else ("closed" if display_orders else "open")
         if header and header.closed_at and not has_open:
             status = "closed"

@@ -237,6 +237,14 @@
                 :rules="[rules.required]"
               />
             </template>
+            <template v-if="accountsEnabled" #item.subsidiary_code="{ index }">
+              <v-text-field
+                v-model="waitersLocal[index].subsidiary_code"
+                density="compact"
+                hide-details="auto"
+                maxlength="32"
+              />
+            </template>
             <template #item.actions="{ index }">
               <v-btn
                 icon="mdi-delete"
@@ -286,6 +294,15 @@
               <div class="form-field">
                 <label>{{ $t('events.config.pin') }}</label>
                 <v-text-field v-model="reg.pin" maxlength="4" placeholder="0000" density="compact" hide-details />
+              </div>
+              <div v-if="accountsEnabled" class="form-field">
+                <label>{{ $t('events.config.subsidiaryCode') }}</label>
+                <v-text-field
+                  v-model="reg.subsidiary_code"
+                  maxlength="32"
+                  density="compact"
+                  hide-details
+                />
               </div>
             </div>
             <div class="field-row">
@@ -502,6 +519,10 @@
         <template v-if="showTransactionsTab && shiftSettlementEnabled" #schichten>
           <EventCashSessionsTab :event-id="eventId" />
         </template>
+
+        <template v-if="showBookkeepingTab" #buchhaltung>
+          <EventBookkeepingTab :event-id="eventId" :currency="organisationCurrency" />
+        </template>
       </SectionNavLayout>
 
       <EventSaveStatusBar
@@ -625,7 +646,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch } from '../api'
 import { parseApiErrorDetail } from '../utils/apiError'
@@ -640,10 +661,13 @@ import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
 import EventTransactionsTab from './EventTransactionsTab.vue'
 import EventCashSessionsTab from './EventCashSessionsTab.vue'
+import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
 import { textColorForBackground } from '../utils/colorContrast.js'
+import { organisationAccountsEnabled } from '../utils/orgScope.js'
+import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -691,17 +715,29 @@ const props = defineProps({
 
 const slots = useSlots()
 const { t } = useI18n()
+const sessionContext = inject(SESSION_CONTEXT_KEY, null)
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
   ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),
 )
 
-const waiterHeaders = computed(() => [
-  { title: t('events.config.waiterNameHeader'), key: 'name', sortable: false },
-  { title: t('events.config.waiterPinHeader'), key: 'pin', sortable: false },
-  { title: '', key: 'actions', sortable: false, align: 'end', width: '4rem' },
-])
+const waiterHeaders = computed(() => {
+  const headers = [
+    { title: t('events.config.waiterNameHeader'), key: 'name', sortable: false },
+    { title: t('events.config.waiterPinHeader'), key: 'pin', sortable: false },
+  ]
+  if (accountsEnabled.value) {
+    headers.push({ title: t('events.config.subsidiaryCode'), key: 'subsidiary_code', sortable: false })
+  }
+  headers.push({ title: '', key: 'actions', sortable: false, align: 'end', width: '4rem' })
+  return headers
+})
+
+const accountsEnabled = computed(() =>
+  organisationAccountsEnabled(sessionContext?.accessibleOrganisations?.value || [], props.organisationId),
+)
+const showBookkeepingTab = computed(() => showOperationalTabs.value && accountsEnabled.value)
 
 const configSections = computed(() => {
   const list = []
@@ -735,6 +771,9 @@ const configSections = computed(() => {
   }
   if (showTransactionsTab.value && props.shiftSettlementEnabled) {
     list.push({ id: 'schichten', title: t('events.config.sectionSchichten') })
+  }
+  if (showBookkeepingTab.value) {
+    list.push({ id: 'buchhaltung', title: t('events.config.sectionBuchhaltung') })
   }
   return list
 })
@@ -1154,7 +1193,7 @@ function removeStation(idx) {
 
 function addWaiterRow() {
   waiterKey += 1
-  waitersLocal.value.push({ _key: `nw-${waiterKey}`, name: '', pin: '0000', source_waiter_id: null })
+  waitersLocal.value.push({ _key: `nw-${waiterKey}`, name: '', pin: '0000', source_waiter_id: null, subsidiary_code: '' })
 }
 
 function removeWaiterByIndex(ix) {
@@ -1224,6 +1263,7 @@ function addCashRegister() {
     pin: '0000',
     layout_uuid: layoutsLocal.value[0]?.uuid || '',
     receipt_printer_appliance_id: null,
+    subsidiary_code: '',
   })
 }
 
@@ -1284,6 +1324,7 @@ function applyConfigurationFromResponse(cfg, { includeLayoutCells = true } = {})
       name: w.name,
       pin: w.pin,
       source_waiter_id: w.source_waiter_id,
+      subsidiary_code: w.subsidiary_code || '',
     }
   })
   layoutsLocal.value = (cfg.app_layouts || []).map((lo) => mapLayoutFromApi(lo))
@@ -1304,6 +1345,7 @@ function applyConfigurationFromResponse(cfg, { includeLayoutCells = true } = {})
     pin: reg.pin || '0000',
     layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
     receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+    subsidiary_code: reg.subsidiary_code || '',
   }))
 }
 
@@ -1489,6 +1531,7 @@ function buildPutPayload() {
         name: w.name,
         pin: w.pin,
         source_waiter_id: w.source_waiter_id ?? null,
+        subsidiary_code: (w.subsidiary_code || '').trim() || null,
       }
       if (w.uuid != null) row.uuid = w.uuid
       return row
@@ -1534,6 +1577,7 @@ function buildPutPayload() {
         pin: reg.pin || '0000',
         layout_uuid: reg.layout_uuid,
         receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+        subsidiary_code: (reg.subsidiary_code || '').trim() || null,
       }
       if (reg.uuid != null) row.uuid = reg.uuid
       return row

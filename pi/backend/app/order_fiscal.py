@@ -12,8 +12,10 @@ from .pricing import (
     _addition_price_cents,
     _article_entry,
     addition_display_name,
+    apply_discount_cents,
     line_unit_cents,
 )
+from .fiscal_vat import split_gross_cents
 
 
 def is_ferdig_client_order_id(client_order_id: str) -> bool:
@@ -54,6 +56,31 @@ def _snapshot_additions(additions: list | None, articles: dict, base_article: di
         entry["unit_cents"] = _addition_price_cents(articles, base_article, aid)
         out.append(entry)
     return out
+
+
+def _fiscal_line_amounts(line: dict, articles: dict, base: dict | None) -> dict[str, int | float | None]:
+    qty = max(1, int(line.get("qty") or 1))
+    unit = line_unit_cents(line, articles)
+    gross = apply_discount_cents(unit * qty, line.get("discount"))
+    rate = None
+    tax_code_id = None
+    accounting_account_id = None
+    if base:
+        if base.get("tax_code_id") is not None:
+            tax_code_id = int(base["tax_code_id"])
+        if base.get("tax_rate_percent") is not None:
+            rate = float(base["tax_rate_percent"])
+        if base.get("accounting_account_id") is not None:
+            accounting_account_id = int(base["accounting_account_id"])
+    gross_cents, net_cents, vat_cents = split_gross_cents(gross, rate)
+    return {
+        "tax_code_id": tax_code_id,
+        "tax_rate_percent": rate,
+        "accounting_account_id": accounting_account_id,
+        "gross_cents": gross_cents,
+        "net_cents": net_cents,
+        "vat_cents": vat_cents,
+    }
 
 
 def snapshot_line(
@@ -97,6 +124,7 @@ def snapshot_line(
         snap["order_number"] = order_number
     elif line.get("order_number") is not None:
         snap["order_number"] = int(line["order_number"])
+    snap.update(_fiscal_line_amounts(snap, articles, base))
     return snap
 
 

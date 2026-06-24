@@ -29,7 +29,7 @@ from ..event_cash_sessions import build_cash_sessions_page
 from ..event_transactions import build_event_transactions_page
 from ..vouchers import cell_voucher_uuids_for_read
 from ..event_copy import copy_event, default_copy_name
-from ..edge_reporting import build_payment_batches_report_v3, build_sales_report_v3
+from ..event_bookkeeping import build_event_bookkeeping_report
 from ..event_sales import build_event_sales_report
 from ..payment_types_config import normalize_payment_types, payment_types_from_event
 from ..twint_qr import (
@@ -38,6 +38,7 @@ from ..twint_qr import (
     store_twint_qr,
     twint_qr_bytes,
 )
+from ..instant_collective_bill import apply_instant_collective_bill_settings, instant_collective_bill_fields
 from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_operational_data, validate_status_transition
 from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
 from ..auth_deps import get_current_user
@@ -71,6 +72,8 @@ class EventBase(BaseModel):
     alternative_printers_enabled: bool = False
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
+    instant_collective_bill_name: str | None = None
+    instant_collective_bill_uuid: str | None = None
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -81,6 +84,8 @@ class EventBase(BaseModel):
         if pm not in PAYMENT_MODES:
             raise ValueError(f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}")
         self.payment_mode = pm
+        if pm == "instant" and not str(self.instant_collective_bill_name or "").strip():
+            raise ValueError("instant_collective_bill_name is required when payment_mode is instant")
         self.payment_types = normalize_payment_types(self.payment_types)
         if self.end < self.start:
             raise ValueError("End must be after start")
@@ -102,6 +107,8 @@ class EventCreate(BaseModel):
     alternative_printers_enabled: bool = False
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
+    instant_collective_bill_name: str | None = None
+    instant_collective_bill_uuid: str | None = None
 
     @model_validator(mode="after")
     def validate_event(self):
@@ -112,6 +119,8 @@ class EventCreate(BaseModel):
         if pm not in PAYMENT_MODES:
             raise ValueError(f"payment_mode must be one of: {', '.join(sorted(PAYMENT_MODES))}")
         self.payment_mode = pm
+        if pm == "instant" and not str(self.instant_collective_bill_name or "").strip():
+            raise ValueError("instant_collective_bill_name is required when payment_mode is instant")
         self.payment_types = normalize_payment_types(self.payment_types)
         if self.end < self.start:
             raise ValueError("End must be after start")
@@ -137,6 +146,7 @@ class EventUpdate(BaseModel):
     alternative_printers_enabled: bool | None = None
     kitchen_monitors_enabled: bool | None = None
     offer_payment_receipt: bool | None = None
+    instant_collective_bill_name: str | None = None
 
 
 class EventRead(EventBase):
@@ -180,6 +190,7 @@ class EventWaiterConfigRead(BaseModel):
     name: str
     pin: str
     source_waiter_id: int | None
+    subsidiary_code: str | None = None
 
 
 class VoucherDefinitionRead(BaseModel):
@@ -220,6 +231,7 @@ class CashRegisterRead(BaseModel):
     pin: str
     layout_uuid: str
     receipt_printer_appliance_id: int | None
+    subsidiary_code: str | None = None
 
 
 class EventConfigurationRead(BaseModel):
@@ -260,6 +272,7 @@ class EventWaiterConfigIn(BaseModel):
     name: str = Field(..., min_length=1)
     pin: str = Field(..., min_length=1)
     source_waiter_id: int | None = None
+    subsidiary_code: str | None = Field(None, max_length=32)
 
 
 class VoucherDefinitionIn(BaseModel):
@@ -297,6 +310,7 @@ class CashRegisterIn(BaseModel):
     pin: str = Field("0000", min_length=1, max_length=32)
     layout_uuid: str = Field(..., min_length=1)
     receipt_printer_appliance_id: int | None = None
+    subsidiary_code: str | None = Field(None, max_length=32)
 
 
 class EventConfigurationIn(BaseModel):
@@ -328,6 +342,7 @@ def event_response(event: Event) -> dict:
         "alternative_printers_enabled": bool(getattr(event, "alternative_printers_enabled", False)),
         "kitchen_monitors_enabled": bool(getattr(event, "kitchen_monitors_enabled", False)),
         "offer_payment_receipt": bool(getattr(event, "offer_payment_receipt", False)),
+        **instant_collective_bill_fields(event),
     }
 
 
@@ -402,6 +417,7 @@ def serialize_event_configuration(
             name=ew.name,
             pin=ew.pin,
             source_waiter_id=ew.source_waiter_id,
+            subsidiary_code=getattr(ew, "subsidiary_code", None),
         )
         for ew in sorted(event.event_waiters, key=lambda w: w.id)
     ]
@@ -442,6 +458,7 @@ def serialize_event_configuration(
             pin=getattr(reg, "pin", None) or "0000",
             layout_uuid=reg.layout_uuid,
             receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
+            subsidiary_code=getattr(reg, "subsidiary_code", None),
         )
         for reg in sorted(event.cash_registers, key=lambda r: (r.sort_order, r.id))
     ]
@@ -879,6 +896,28 @@ def read_event_payment_batches_v3(
     return build_payment_batches_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
 
 
+@router.get("/{event_id}/bookkeeping")
+def read_event_bookkeeping(
+    event_id: int,
+    view: str = Query("both", pattern="^(summary|detail|both)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    result = build_event_bookkeeping_report(
+        db,
+        organisation_id=event.organisation_id,
+        event_id=event.id,
+        view=view,
+    )
+    if result.get("error") == "event_not_found":
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    if result.get("error") == "accounts_not_enabled":
+        raise api_error("accounts_not_enabled", status.HTTP_409_CONFLICT)
+    return result
+
+
 @router.get("/{event_id}/twint-qr")
 def get_event_twint_qr(
     event_id: int,
@@ -1071,6 +1110,13 @@ def create_event(
         kitchen_monitors_enabled=bool(event_in.kitchen_monitors_enabled),
         offer_payment_receipt=bool(event_in.offer_payment_receipt),
     )
+    apply_instant_collective_bill_settings(
+        event,
+        payment_mode=event_in.payment_mode,
+        instant_collective_bill_name=event_in.instant_collective_bill_name,
+        payment_mode_set=True,
+        instant_collective_bill_name_set=True,
+    )
     db.add(event)
     db.flush()
     from ..receipt_printing_config import copy_receipt_printing_from_organisation
@@ -1142,6 +1188,15 @@ def update_event(
         if pm not in PAYMENT_MODES:
             raise api_error("payment_mode_invalid", status.HTTP_422_UNPROCESSABLE_ENTITY, modes=", ".join(sorted(PAYMENT_MODES)))
         event.payment_mode = pm
+    if event_in.instant_collective_bill_name is not None:
+        event.instant_collective_bill_name = event_in.instant_collective_bill_name
+    apply_instant_collective_bill_settings(
+        event,
+        payment_mode=event.payment_mode,
+        instant_collective_bill_name=event.instant_collective_bill_name,
+        payment_mode_set=event_in.payment_mode is not None,
+        instant_collective_bill_name_set=event_in.instant_collective_bill_name is not None,
+    )
     if event_in.payment_types is not None:
         try:
             new_types = normalize_payment_types(event_in.payment_types)

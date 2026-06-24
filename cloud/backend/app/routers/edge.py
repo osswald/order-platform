@@ -255,6 +255,8 @@ class EdgeEventBundle(BaseModel):
     currency: str
     payment_mode: str
     payment_types: list[str] = Field(default_factory=lambda: ["cash"])
+    instant_collective_bill_name: str | None = None
+    instant_collective_bill_uuid: str | None = None
     shift_settlement_enabled: bool = False
     discounts_enabled: bool = False
     alternative_printers_enabled: bool = False
@@ -379,6 +381,8 @@ def read_edge_bundle(
                 currency=event_currency(ev, "CHF"),
                 payment_mode=getattr(ev, "payment_mode", None) or "pay_later",
                 payment_types=payment_types_from_event(ev),
+                instant_collective_bill_name=getattr(ev, "instant_collective_bill_name", None),
+                instant_collective_bill_uuid=getattr(ev, "instant_collective_bill_uuid", None),
                 shift_settlement_enabled=bool(getattr(ev, "shift_settlement_enabled", False)),
                 discounts_enabled=bool(getattr(ev, "discounts_enabled", False)),
                 alternative_printers_enabled=bool(getattr(ev, "alternative_printers_enabled", False)),
@@ -565,6 +569,8 @@ def submit_operational_chunk(
     session_id = int(payload.get("session_id") or 0) or submission_id or 0
     table_number = payload.get("table_number")
     waiter_uuid = payload.get("waiter_uuid")
+    cash_register_uuid = payload.get("cash_register_uuid")
+    order_source = str(payload.get("order_source") or "waiter")
     payment_status = str(payload.get("payment_status") or "open")
     method = str(payments[0].get("type") if payments and isinstance(payments[0], dict) else "cash")
     batch_uuid = str(payload.get("collective_bill_uuid") or "")
@@ -586,8 +592,15 @@ def submit_operational_chunk(
             continue
         qty = int(line.get("qty") or 1)
         unit = int(line.get("unit_cents") or line.get("unit_price_cents") or 0)
-        lc = max(0, qty * unit)
-        line_sum += lc
+        gross = int(line.get("gross_cents") if line.get("gross_cents") is not None else max(0, qty * unit))
+        line_sum += gross
+        tax_code_id = int(line["tax_code_id"]) if line.get("tax_code_id") is not None else None
+        accounting_account_id = (
+            int(line["accounting_account_id"]) if line.get("accounting_account_id") is not None else None
+        )
+        tax_rate = float(line["tax_rate_percent"]) if line.get("tax_rate_percent") is not None else None
+        net_cents = int(line["net_cents"]) if line.get("net_cents") is not None else None
+        vat_cents = int(line["vat_cents"]) if line.get("vat_cents") is not None else None
         db.add(
             EdgeOrderItem(
                 organisation_id=ctx.organisation_id,
@@ -599,9 +612,16 @@ def submit_operational_chunk(
                 article_name=str(line.get("article_name") or ""),
                 station_uuid=line.get("station_uuid"),
                 waiter_uuid=waiter_uuid,
+                cash_register_uuid=cash_register_uuid,
+                order_source=order_source,
                 quantity=qty,
                 unit_price_cents=unit,
-                line_total_cents=lc,
+                line_total_cents=gross,
+                tax_code_id=tax_code_id,
+                tax_rate_percent=tax_rate,
+                accounting_account_id=accounting_account_id,
+                net_cents=net_cents,
+                vat_cents=vat_cents,
                 payment_status=payment_status,
                 payment_batch_uuid=batch_uuid or None,
                 method=method,

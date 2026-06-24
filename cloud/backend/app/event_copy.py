@@ -18,6 +18,7 @@ from .models import (
     EventVoucherDefinition,
     EventWaiter,
 )
+from .instant_collective_bill import apply_instant_collective_bill_settings
 from .payment_types_config import payment_types_from_event
 from .stock import upsert_stock_rows
 from .vouchers import cell_voucher_uuids_for_read
@@ -86,6 +87,7 @@ def _waiters_payload(event: Event) -> list:
             name=ew.name,
             pin=ew.pin,
             source_waiter_id=ew.source_waiter_id,
+            subsidiary_code=getattr(ew, "subsidiary_code", None),
         )
         for ew in sorted(event.event_waiters, key=lambda w: w.id)
     ]
@@ -159,6 +161,7 @@ def _cash_registers_payload(event: Event, layout_uuid_map: dict[str, str]) -> li
                 pin=getattr(reg, "pin", None) or "0000",
                 layout_uuid=new_layout_uuid,
                 receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
+                subsidiary_code=getattr(reg, "subsidiary_code", None),
             )
         )
     return out
@@ -193,6 +196,13 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         alternative_printers_enabled=bool(getattr(source, "alternative_printers_enabled", False)),
         kitchen_monitors_enabled=bool(getattr(source, "kitchen_monitors_enabled", False)),
         offer_payment_receipt=bool(getattr(source, "offer_payment_receipt", False)),
+    )
+    apply_instant_collective_bill_settings(
+        new_event,
+        payment_mode=new_event.payment_mode,
+        instant_collective_bill_name=getattr(source, "instant_collective_bill_name", None),
+        payment_mode_set=True,
+        instant_collective_bill_name_set=True,
     )
     if source.twint_qr_mime and source.twint_qr_data:
         new_event.twint_qr_mime = source.twint_qr_mime

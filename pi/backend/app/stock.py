@@ -115,6 +115,7 @@ def save_bundle(db, bundle: dict) -> None:
     from datetime import datetime, timezone
     import json
 
+    from .instant_collective_bill import ensure_instant_collective_bills_for_bundle
     from .models import SyncedBundle
 
     body = json.dumps(bundle)
@@ -125,3 +126,4 @@ def save_bundle(db, bundle: dict) -> None:
         row.updated_at = now
     else:
         db.add(SyncedBundle(id=1, json_body=body, updated_at=now))
+    ensure_instant_collective_bills_for_bundle(db, bundle)

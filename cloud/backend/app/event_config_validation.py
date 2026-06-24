@@ -345,12 +345,14 @@ def replace_event_configuration(
                 name=ew_in.name.strip(),
                 pin=str(ew_in.pin),
                 source_waiter_id=ew_in.source_waiter_id,
+                subsidiary_code=(getattr(ew_in, "subsidiary_code", None) or "").strip() or None,
             )
             db.add(ew)
         else:
             ew.name = ew_in.name.strip()
             ew.pin = str(ew_in.pin)
             ew.source_waiter_id = ew_in.source_waiter_id
+            ew.subsidiary_code = (getattr(ew_in, "subsidiary_code", None) or "").strip() or None
         kept_waiter_uuids.add(ew.uuid)
 
     for ew_uuid, ew in list(existing_waiters.items()):
@@ -406,6 +408,7 @@ def replace_event_configuration(
         reg.pin = str(getattr(reg_in, "pin", None) or "0000").strip() or "0000"
         reg.layout_uuid = str(reg_in.layout_uuid or "").strip()
         reg.receipt_printer_appliance_id = getattr(reg_in, "receipt_printer_appliance_id", None)
+        reg.subsidiary_code = (getattr(reg_in, "subsidiary_code", None) or "").strip() or None
         kept_register_uuids.add(reg.uuid)
 
     for reg_uuid, reg in list(existing_registers.items()):

@@ -10,9 +10,12 @@
       <template v-if="step === 'menu'">
         <div class="menu-actions">
           <button type="button" class="btn menu-btn" @click="$emit('redeem-voucher')">Gutschein einlösen</button>
-          <template v-if="!voucherOnly">
+          <template v-if="!voucherOnly && !isInstantMode">
             <button type="button" class="btn menu-btn" @click="step = 'transfer'">Tisch umbuchen</button>
             <button type="button" class="btn menu-btn" @click="openCollective">Sammelrechnung</button>
+          </template>
+          <template v-else-if="!voucherOnly">
+            <button type="button" class="btn menu-btn" @click="step = 'transfer'">Tisch umbuchen</button>
           </template>
         </div>
         <button type="button" class="btn" @click="close">Abbrechen</button>
@@ -65,7 +68,11 @@ import { useEventContext } from '../composables/useEventContext'
 import { formatAmount } from '../utils/money'
 import TableKeypad from './TableKeypad.vue'
 
-const { showToast } = useEventContext()
+const { showToast, event } = useEventContext()
+
+const isInstantMode = computed(
+  () => (event.value?.payment_mode || 'pay_later').toLowerCase() === 'instant',
+)
 
 const props = defineProps({
   open: Boolean,

@@ -229,6 +229,7 @@ const emptyForm = () => ({
   alternativePrintersEnabled: false,
   kitchenMonitorsEnabled: false,
   offerPaymentReceipt: false,
+  instantCollectiveBillName: '',
 })
 
 const form = ref(emptyForm())
@@ -247,6 +248,7 @@ function stammdatenSnapshot() {
     end: toIso(form.value.end),
     paymentMode: form.value.paymentMode,
     paymentTypes: types,
+    instantCollectiveBillName: (form.value.instantCollectiveBillName || '').trim(),
     cashRegistersEnabled: Boolean(form.value.cashRegistersEnabled),
     shiftSettlementEnabled: Boolean(form.value.shiftSettlementEnabled),
     vouchersEnabled: Boolean(form.value.vouchersEnabled),
@@ -474,6 +476,7 @@ async function applyEventToForm(event) {
     alternativePrintersEnabled: Boolean(event.alternative_printers_enabled),
     kitchenMonitorsEnabled: Boolean(event.kitchen_monitors_enabled),
     offerPaymentReceipt: Boolean(event.offer_payment_receipt),
+    instantCollectiveBillName: event.instant_collective_bill_name || '',
   }
   originalStatus.value = event.status || 'config'
   organisationCurrency.value = event.organisation_currency || 'EUR'
@@ -590,6 +593,8 @@ async function saveEvent() {
     end: toIso(form.value.end),
     payment_mode: form.value.paymentMode,
     payment_types: form.value.paymentTypes,
+    instant_collective_bill_name:
+      form.value.paymentMode === 'instant' ? (form.value.instantCollectiveBillName || '').trim() : null,
     cash_registers_enabled: Boolean(form.value.cashRegistersEnabled),
     shift_settlement_enabled: Boolean(form.value.shiftSettlementEnabled),
     vouchers_enabled: Boolean(form.value.vouchersEnabled),

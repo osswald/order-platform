@@ -81,7 +81,15 @@ def isolated_engine() -> Generator[Engine, None, None]:
     previous_engine = database.engine
     previous_session_local = database.SessionLocal
     database.engine = engine
-    database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    new_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    database.SessionLocal = new_session_local
+    import app.print_worker as print_worker
+    import app.sync_worker as sync_worker
+
+    previous_print_session = print_worker.SessionLocal
+    previous_sync_session = sync_worker.SessionLocal
+    print_worker.SessionLocal = new_session_local
+    sync_worker.SessionLocal = new_session_local
     Base.metadata.drop_all(bind=engine)
     init_test_schema()
     try:
@@ -89,6 +97,8 @@ def isolated_engine() -> Generator[Engine, None, None]:
     finally:
         database.engine = previous_engine
         database.SessionLocal = previous_session_local
+        print_worker.SessionLocal = previous_print_session
+        sync_worker.SessionLocal = previous_sync_session
         app.dependency_overrides.clear()
 
 

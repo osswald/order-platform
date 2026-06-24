@@ -78,6 +78,18 @@ def apply_schema_patches() -> None:
     )
     _add_column_if_missing(
         "events",
+        "instant_collective_bill_name",
+        "ALTER TABLE events ADD COLUMN instant_collective_bill_name VARCHAR(128)",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS instant_collective_bill_name VARCHAR(128)",
+    )
+    _add_column_if_missing(
+        "events",
+        "instant_collective_bill_uuid",
+        "ALTER TABLE events ADD COLUMN instant_collective_bill_uuid VARCHAR(36)",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS instant_collective_bill_uuid VARCHAR(36)",
+    )
+    _add_column_if_missing(
+        "events",
         "twint_qr_mime",
         "ALTER TABLE events ADD COLUMN twint_qr_mime VARCHAR(64)",
         "ALTER TABLE events ADD COLUMN IF NOT EXISTS twint_qr_mime VARCHAR(64)",
@@ -280,6 +292,50 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN tax_code_id INTEGER",
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS tax_code_id INTEGER",
     )
+    _patch_edge_order_item_fiscal_columns()
+    _patch_event_waiter_register_subsidiary_columns()
+    _ensure_accounting_tax_code_defaults_table()
+
+
+def _patch_edge_order_item_fiscal_columns() -> None:
+    columns = [
+        ("cash_register_uuid", "VARCHAR(36)", "VARCHAR(36)"),
+        ("order_source", "VARCHAR(32)", "VARCHAR(32)"),
+        ("tax_code_id", "INTEGER", "INTEGER"),
+        ("tax_rate_percent", "FLOAT", "DOUBLE PRECISION"),
+        ("accounting_account_id", "INTEGER", "INTEGER"),
+        ("net_cents", "INTEGER", "INTEGER"),
+        ("vat_cents", "INTEGER", "INTEGER"),
+    ]
+    for name, sqlite_type, pg_type in columns:
+        _add_column_if_missing(
+            "edge_order_items",
+            name,
+            f"ALTER TABLE edge_order_items ADD COLUMN {name} {sqlite_type}",
+            f"ALTER TABLE edge_order_items ADD COLUMN IF NOT EXISTS {name} {pg_type}",
+        )
+
+
+def _patch_event_waiter_register_subsidiary_columns() -> None:
+    for table in ("event_waiters", "event_cash_registers"):
+        _add_column_if_missing(
+            table,
+            "subsidiary_code",
+            f"ALTER TABLE {table} ADD COLUMN subsidiary_code VARCHAR(32)",
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS subsidiary_code VARCHAR(32)",
+        )
+
+
+def _ensure_accounting_tax_code_defaults_table() -> None:
+    from sqlalchemy import inspect
+
+    insp = inspect(engine)
+    names = set(insp.get_table_names())
+    if "accounting_account_tax_code_defaults" in names:
+        return
+    from .models import AccountingAccountTaxCodeDefault
+
+    AccountingAccountTaxCodeDefault.__table__.create(bind=engine, checkfirst=True)
 
 
 def _patch_tenant_admin_role() -> None:
