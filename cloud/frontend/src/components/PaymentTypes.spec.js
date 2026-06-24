@@ -5,11 +5,10 @@ import PaymentTypes from './PaymentTypes.vue'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
   apiJson: vi.fn(),
 }))
 
-import { apiFetch, apiJson } from '../api'
+import { apiJson } from '../api'
 
 const samplePaymentTypes = [
   { id: 1, slug: 'cash', sort_order: 0, is_active: true },
@@ -51,18 +50,16 @@ async function mountPaymentTypes(path = '/payment-types', { isAdmin = false } = 
 describe('PaymentTypes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    apiFetch.mockImplementation(async (path) => {
-      if (path.startsWith('/payment-types/')) {
-        return { ok: true, json: async () => samplePaymentTypes }
-      }
-      return { ok: true, json: async () => samplePaymentTypes[0] }
+    apiJson.mockImplementation(async (path) => {
+      if (path === '/payment-types/') return samplePaymentTypes
+      return samplePaymentTypes[0]
     })
   })
 
   it('loads payment types list', async () => {
     const wrapper = await mountPaymentTypes('/payment-types')
     expect(wrapper.find('[data-testid="payment-types-table"]').exists()).toBe(true)
-    expect(apiFetch).toHaveBeenCalledWith('/payment-types/')
+    expect(apiJson).toHaveBeenCalledWith('/payment-types/')
   })
 
   it('hides create affordance for non-admin', async () => {

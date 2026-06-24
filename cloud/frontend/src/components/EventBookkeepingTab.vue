@@ -55,7 +55,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -144,12 +144,7 @@ async function loadReport() {
   loading.value = true
   loadError.value = ''
   try {
-    const resp = await apiFetch(`/events/${props.eventId}/bookkeeping?view=both`)
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}))
-      throw new Error(err.detail || resp.statusText)
-    }
-    report.value = await resp.json()
+    report.value = await apiJson(`/events/${props.eventId}/bookkeeping?view=both`)
   } catch (e) {
     loadError.value = e.message || t('events.tabs.bookkeepingLoadError')
     report.value = null

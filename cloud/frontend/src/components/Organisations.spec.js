@@ -6,11 +6,10 @@ import SectionNavLayout from './SectionNavLayout.vue'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
   apiJson: vi.fn(),
 }))
 
-import { apiFetch, apiJson } from '../api'
+import { apiJson } from '../api'
 
 const sampleOrg = {
   id: 1,
@@ -79,18 +78,13 @@ async function mountOrganisations(path) {
 describe('Organisations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    apiJson.mockResolvedValue(sampleCountries)
-    apiFetch.mockImplementation(async (path) => {
-      if (path === '/organisations/') {
-        return { ok: true, json: async () => [sampleOrg] }
-      }
+    apiJson.mockImplementation(async (path) => {
+      if (path === '/countries/') return sampleCountries
+      if (path === '/organisations/') return [sampleOrg]
       if (path === '/organisations/1/appliance-lendings') {
-        return {
-          ok: true,
-          json: async () => ({ current: [], planned: [], past: [] }),
-        }
+        return { current: [], planned: [], past: [] }
       }
-      return { ok: true, json: async () => sampleOrg }
+      return sampleOrg
     })
   })
 

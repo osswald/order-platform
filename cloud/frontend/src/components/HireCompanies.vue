@@ -102,7 +102,7 @@ import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
@@ -147,9 +147,7 @@ const form = ref({
 
 async function fetchCompanies() {
   try {
-    const resp = await apiFetch('/hire-companies/')
-    if (!resp.ok) throw new Error(await resp.text())
-    companies.value = await resp.json()
+    companies.value = await apiJson('/hire-companies/')
   } catch {
     message.value = t('hireCompanies.loadError')
     messageType.value = 'error'
@@ -197,9 +195,7 @@ async function syncRouteToForm() {
   let row = companies.value.find((c) => Number(c.id) === Number(id))
   if (!row) {
     try {
-      const resp = await apiFetch(`/hire-companies/${id}`)
-      if (!resp.ok) throw new Error(await resp.text())
-      row = await resp.json()
+      row = await apiJson(`/hire-companies/${id}`)
     } catch {
       message.value = t('hireCompanies.notFound')
       messageType.value = 'error'
@@ -241,13 +237,11 @@ async function saveCompany() {
       ? `/hire-companies/${routeEntityId.value}`
       : '/hire-companies/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const resp = await apiFetch(path, {
+    const saved = await apiJson(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!resp.ok) throw new Error(await resp.text())
-    const saved = await resp.json()
     const wasEdit = editMode.value
     await fetchCompanies()
     if (!wasEdit && sessionContext) {
@@ -265,8 +259,7 @@ async function saveCompany() {
 async function deleteCompany(id) {
   if (!confirm(t('hireCompanies.deleteConfirm'))) return
   try {
-    const resp = await apiFetch(`/hire-companies/${id}`, { method: 'DELETE' })
-    if (!resp.ok) throw new Error(await resp.text())
+    await apiJson(`/hire-companies/${id}`, { method: 'DELETE' })
     await fetchCompanies()
     message.value = t('hireCompanies.deleted')
     messageType.value = 'success'

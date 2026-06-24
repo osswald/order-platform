@@ -97,7 +97,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
@@ -200,9 +200,7 @@ onMounted(async () => {
 
 async function fetchCategories() {
   try {
-    const response = await apiFetch('/article-categories/')
-    if (!response.ok) throw new Error(await response.text())
-    categories.value = await response.json()
+    categories.value = await apiJson('/article-categories/')
   } catch (error) {
     message.value = t('articleCategories.loadError')
     messageType.value = 'error'
@@ -242,9 +240,7 @@ async function syncRouteToForm() {
   let row = categories.value.find((c) => Number(c.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/article-categories/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/article-categories/${id}`)
     } catch {
       message.value = t('articleCategories.notFound')
       messageType.value = 'error'
@@ -290,14 +286,13 @@ async function saveCategory() {
       ? `/article-categories/${routeEntityId.value}`
       : '/article-categories/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchCategories()
     message.value = wasEdit ? t('articleCategories.updated') : t('articleCategories.created')
@@ -312,10 +307,9 @@ async function saveCategory() {
 async function deleteCategory(id) {
   if (!confirm(t('articleCategories.deleteConfirm'))) return
   try {
-    const response = await apiFetch(`/article-categories/${id}`, {
+    await apiJson(`/article-categories/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) throw new Error(await response.text())
     await fetchCategories()
     message.value = t('articleCategories.deleted')
     messageType.value = 'success'

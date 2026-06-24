@@ -149,8 +149,7 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import VqDataTable from './VqDataTable.vue'
-import { apiFetch } from '../api'
-import { parseApiErrorDetail } from '../utils/apiError.js'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useCountries } from '../composables/useCountries'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
@@ -267,9 +266,7 @@ function removeRateRow(index) {
 
 async function fetchTaxCodes() {
   try {
-    const response = await apiFetch('/tax-codes/')
-    if (!response.ok) throw new Error(await response.text())
-    taxCodes.value = await response.json()
+    taxCodes.value = await apiJson('/tax-codes/')
   } catch {
     message.value = t('taxCodes.loadError')
     messageType.value = 'error'
@@ -293,9 +290,7 @@ async function syncRouteToForm() {
   let row = taxCodes.value.find((taxCode) => Number(taxCode.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/tax-codes/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/tax-codes/${id}`)
     } catch {
       message.value = t('taxCodes.notFound')
       messageType.value = 'error'
@@ -336,12 +331,11 @@ async function saveTaxCode() {
     const body = editMode.value
       ? { name: payload.name, country_id: payload.country_id, rates: payload.rates }
       : payload
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (!response.ok) throw new Error(await parseApiErrorDetail(response))
     await fetchTaxCodes()
     message.value = editMode.value ? t('taxCodes.updated') : t('taxCodes.created')
     messageType.value = 'success'
@@ -356,8 +350,7 @@ async function deleteTaxCodeRow(id) {
   if (!props.isAdmin) return
   if (!confirm(t('taxCodes.deleteConfirm'))) return
   try {
-    const response = await apiFetch(`/tax-codes/${id}`, { method: 'DELETE' })
-    if (!response.ok) throw new Error(await parseApiErrorDetail(response))
+    await apiJson(`/tax-codes/${id}`, { method: 'DELETE' })
     await fetchTaxCodes()
     message.value = t('taxCodes.deleted')
     messageType.value = 'success'

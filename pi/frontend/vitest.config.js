@@ -17,6 +17,7 @@ export default defineConfig((configEnv) => {
             'src/utils/money.js',
             'src/utils/bundleHelpers.js',
             'src/utils/splitPay.js',
+            'src/composables/useSplitPay.js',
             'src/utils/paymentTypes.js',
             'src/utils/stripeTerminalAvailability.js',
             'src/utils/resolvePayment.js',

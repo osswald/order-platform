@@ -4,11 +4,10 @@ import TenantSettings from './TenantSettings.vue'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
   apiJson: vi.fn(),
 }))
 
-import { apiFetch, apiJson } from '../api'
+import { apiJson } from '../api'
 
 function companyPayload(id, name) {
   return {
@@ -28,15 +27,11 @@ describe('TenantSettings', () => {
   })
 
   it('reloads form data when activeHireCompanyId changes', async () => {
-    apiJson.mockResolvedValue([{ id: 3, code: 'CH', name: 'Schweiz' }])
-    apiFetch.mockImplementation(async (path) => {
-      if (path === '/hire-companies/1') {
-        return { ok: true, json: async () => companyPayload(1, 'Tenant A') }
-      }
-      if (path === '/hire-companies/2') {
-        return { ok: true, json: async () => companyPayload(2, 'Tenant B') }
-      }
-      return { ok: false, text: async () => 'not found' }
+    apiJson.mockImplementation(async (path) => {
+      if (path === '/countries/') return [{ id: 3, code: 'CH', name: 'Schweiz' }]
+      if (path === '/hire-companies/1') return companyPayload(1, 'Tenant A')
+      if (path === '/hire-companies/2') return companyPayload(2, 'Tenant B')
+      throw new Error('not found')
     })
 
     const wrapper = mount(TenantSettings, {
@@ -56,7 +51,7 @@ describe('TenantSettings', () => {
     await wrapper.setProps({ activeHireCompanyId: 2 })
     await flushPromises()
 
-    expect(apiFetch).toHaveBeenCalledWith('/hire-companies/2')
+    expect(apiJson).toHaveBeenCalledWith('/hire-companies/2')
     expect(wrapper.find('input').element.value).toBe('Tenant B')
   })
 })

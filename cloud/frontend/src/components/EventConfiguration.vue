@@ -14,247 +14,32 @@
           <slot name="stammdaten" />
         </template>
         <template #stationen>
-          <p v-if="catalogLoading" class="muted catalog-loading-hint">{{ $t('events.config.catalogLoading') }}</p>
-          <p v-else-if="catalogError" class="error">{{ catalogError }}</p>
-          <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addStation">{{ $t('events.config.addStation') }}</v-btn>
-          </div>
-          <div v-for="(st, idx) in stationsLocal" :key="'st-' + idx" class="config-card">
-            <div class="config-card-header">
-              <span>{{ st.name || $t('events.config.unnamedStation') }}</span>
-              <v-btn
-                icon="mdi-delete"
-                variant="text"
-                color="error"
-                type="button"
-                :aria-label="$t('events.config.remove')"
-                @click="removeStation(idx)"
-              />
-            </div>
-            <div class="form-field">
-              <FormLabel required>{{ $t('events.config.name') }}</FormLabel>
-              <v-text-field
-                v-model="st.name"
-                :placeholder="$t('events.config.stationNamePlaceholder')"
-                density="compact"
-                hide-details="auto"
-                required
-                :rules="[rules.required]"
-              />
-            </div>
-            <div class="form-field">
-              <label>{{ $t('events.config.printer') }}</label>
-              <v-select
-                v-model="st.printer_appliance_id"
-                :items="printerOptions"
-                item-title="name"
-                item-value="id"
-                :placeholder="$t('events.config.noPrinter')"
-                clearable
-                density="compact"
-                hide-details
-              />
-            </div>
-            <div v-if="alternativePrintersEnabled" class="printer-rules-block">
-              <div class="printer-rules-header">
-                <label>{{ $t('events.config.printerRules') }}</label>
-                <v-btn size="small" variant="text" type="button" @click="addPrinterRule(idx)">
-                  {{ $t('events.config.addRule') }}
-                </v-btn>
-              </div>
-              <div
-                v-for="(rule, ruleIdx) in st.printer_rules"
-                :key="'rule-' + idx + '-' + ruleIdx"
-                class="printer-rule-card"
-              >
-                <div class="printer-rule-card-header">
-                  <span>{{ $t('events.config.ruleN', { n: ruleIdx + 1 }) }}</span>
-                  <v-btn
-                    icon="mdi-delete"
-                    variant="text"
-                    color="error"
-                    type="button"
-                    :aria-label="$t('events.config.removeRule')"
-                    @click="removePrinterRule(idx, ruleIdx)"
-                  />
-                </div>
-                <div class="form-field">
-                  <label>{{ $t('events.config.ruleType') }}</label>
-                  <v-select
-                    v-model="rule.rule_type"
-                    :items="printerRuleTypeOptions"
-                    item-title="label"
-                    item-value="value"
-                    density="compact"
-                    hide-details
-                  />
-                </div>
-                <template v-if="rule.rule_type === 'table_range'">
-                  <div class="rule-range-row">
-                    <div class="form-field">
-                      <label>{{ $t('events.config.tableFrom') }}</label>
-                      <v-text-field
-                        v-model.number="rule.table_from"
-                        type="number"
-                        min="1"
-                        max="99999"
-                        density="compact"
-                        hide-details
-                      />
-                    </div>
-                    <div class="form-field">
-                      <label>{{ $t('events.config.tableTo') }}</label>
-                      <v-text-field
-                        v-model.number="rule.table_to"
-                        type="number"
-                        min="1"
-                        max="99999"
-                        density="compact"
-                        hide-details
-                      />
-                    </div>
-                  </div>
-                </template>
-                <div v-else-if="rule.rule_type === 'pickup_prefix'" class="form-field">
-                  <label>{{ $t('events.config.pickupPrefix') }}</label>
-                  <v-text-field
-                    v-model="rule.pickup_prefix"
-                    :placeholder="$t('events.config.pickupPrefixPlaceholder')"
-                    maxlength="3"
-                    density="compact"
-                    hide-details
-                    @update:model-value="rule.pickup_prefix = normalizePickupPrefix($event)"
-                  />
-                </div>
-                <div class="form-field">
-                  <label>{{ $t('events.config.printer') }}</label>
-                  <v-select
-                    v-model="rule.printer_appliance_id"
-                    :items="printerOptions"
-                    item-title="name"
-                    item-value="id"
-                    :placeholder="$t('events.config.noPrinter')"
-                    clearable
-                    density="compact"
-                    hide-details
-                  />
-                </div>
-              </div>
-            </div>
-            <div class="form-field">
-              <label>{{ $t('events.config.articles') }}</label>
-              <v-select
-                v-model="st.article_ids"
-                :items="articleOptions"
-                item-title="name"
-                item-value="value"
-                :placeholder="$t('events.config.selectArticles')"
-                :loading="catalogLoading"
-                :disabled="catalogLoading"
-                multiple
-                chips
-                closable-chips
-                density="compact"
-                hide-details
-              />
-            </div>
-          </div>
-          <p v-if="!stationsLocal.length" class="muted">{{ $t('events.config.noStations') }}</p>
+          <EventConfigStationsSection
+            v-model="stationsLocal"
+            :catalog-loading="catalogLoading"
+            :catalog-error="catalogError"
+            :printer-options="printerOptions"
+            :article-options="articleOptions"
+            :alternative-printers-enabled="alternativePrintersEnabled"
+            :printer-rule-type-options="printerRuleTypeOptions"
+          />
         </template>
 
         <template v-if="kitchenMonitorsEnabled" #kitchen-monitors>
-          <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addKitchenMonitorPrinter">{{ $t('events.config.addPrinter') }}</v-btn>
-          </div>
-          <div
-            v-for="(row, idx) in kitchenMonitorsLocal"
-            :key="'km-' + idx"
-            class="config-card"
-          >
-            <div class="config-card-header">
-              <span>{{ kitchenMonitorLabel(row) }}</span>
-              <v-btn
-                icon="mdi-delete"
-                variant="text"
-                color="error"
-                type="button"
-                :aria-label="$t('events.config.remove')"
-                @click="removeKitchenMonitorPrinter(idx)"
-              />
-            </div>
-            <div class="form-field">
-              <label>{{ $t('events.config.printer') }}</label>
-              <v-select
-                v-model="row.printer_appliance_id"
-                :items="kitchenMonitorPrinterOptions"
-                item-title="name"
-                item-value="id"
-                :placeholder="$t('events.config.selectPrinter')"
-                density="compact"
-                hide-details
-              />
-            </div>
-            <div class="form-field">
-              <label>{{ $t('events.config.displayNameOptional') }}</label>
-              <v-text-field
-                v-model="row.label"
-                :placeholder="$t('events.config.displayNamePlaceholder')"
-                density="compact"
-                hide-details
-              />
-            </div>
-          </div>
-          <p v-if="!kitchenMonitorsLocal.length" class="muted">{{ $t('events.config.noKitchenMonitors') }}</p>
+          <EventConfigKitchenMonitorsSection
+            v-model="kitchenMonitorsLocal"
+            :printer-options="printerOptions"
+            :kitchen-monitor-printer-options="kitchenMonitorPrinterOptions"
+          />
         </template>
 
         <template #kellner>
-          <div class="section-toolbar">
-            <v-btn color="primary" type="button" @click="addWaiterRow">{{ $t('events.config.addWaiter') }}</v-btn>
-            <v-btn variant="outlined" type="button" :disabled="catalogLoading" @click="openWaiterPick">{{ $t('events.config.importFromOrg') }}</v-btn>
-          </div>
-          <VqDataTable
-            :items="waitersLocal"
-            item-value="_key"
-            :headers="waiterHeaders"
-            class="vq-data-table nested"
-            hide-default-footer
-          >
-            <template #item.name="{ index }">
-              <v-text-field
-                v-model="waitersLocal[index].name"
-                density="compact"
-                hide-details="auto"
-                required
-                :rules="[rules.required]"
-              />
-            </template>
-            <template #item.pin="{ index }">
-              <v-text-field
-                v-model="waitersLocal[index].pin"
-                density="compact"
-                hide-details="auto"
-                required
-                :rules="[rules.required]"
-              />
-            </template>
-            <template v-if="accountsEnabled" #item.subsidiary_code="{ index }">
-              <v-text-field
-                v-model="waitersLocal[index].subsidiary_code"
-                density="compact"
-                hide-details="auto"
-                maxlength="32"
-              />
-            </template>
-            <template #item.actions="{ index }">
-              <v-btn
-                icon="mdi-delete"
-                variant="text"
-                color="error"
-                type="button"
-                @click="removeWaiterByIndex(index)"
-              />
-            </template>
-          </VqDataTable>
+          <EventConfigWaitersSection
+            v-model="waitersLocal"
+            :catalog-loading="catalogLoading"
+            :accounts-enabled="accountsEnabled"
+            @import-from-org="openWaiterPick"
+          />
         </template>
 
         <template v-if="cashRegistersEnabled" #kassen>
@@ -648,14 +433,16 @@
 <script setup>
 import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
-import { parseApiErrorDetail } from '../utils/apiError'
+import { apiJson } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import { loadOrgCatalog } from '../composables/useOrgCatalog'
 import SectionNavLayout from './SectionNavLayout.vue'
 import EventSaveStatusBar from './EventSaveStatusBar.vue'
+import EventConfigStationsSection from './EventConfigStationsSection.vue'
+import EventConfigKitchenMonitorsSection from './EventConfigKitchenMonitorsSection.vue'
+import EventConfigWaitersSection from './EventConfigWaitersSection.vue'
 import EventStockTab from './EventStockTab.vue'
 import EventSalesTab from './EventSalesTab.vue'
 import EventCollectiveBillsTab from './EventCollectiveBillsTab.vue'
@@ -668,7 +455,6 @@ import { rules } from '../utils/formRules.js'
 import { textColorForBackground } from '../utils/colorContrast.js'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
-import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
   eventId: {
@@ -721,18 +507,6 @@ const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
   ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),
 )
-
-const waiterHeaders = computed(() => {
-  const headers = [
-    { title: t('events.config.waiterNameHeader'), key: 'name', sortable: false },
-    { title: t('events.config.waiterPinHeader'), key: 'pin', sortable: false },
-  ]
-  if (accountsEnabled.value) {
-    headers.push({ title: t('events.config.subsidiaryCode'), key: 'subsidiary_code', sortable: false })
-  }
-  headers.push({ title: '', key: 'actions', sortable: false, align: 'end', width: '4rem' })
-  return headers
-})
 
 const accountsEnabled = computed(() =>
   organisationAccountsEnabled(sessionContext?.accessibleOrganisations?.value || [], props.organisationId),
@@ -877,42 +651,6 @@ const kitchenMonitorPrinterOptions = computed(() => {
   }
   return printerOptions.value.filter((opt) => ids.has(Number(opt.id)))
 })
-
-function kitchenMonitorLabel(row) {
-  if ((row.label || '').trim()) return row.label.trim()
-  const match = printerOptions.value.find((opt) => Number(opt.id) === Number(row.printer_appliance_id))
-  return match?.name || t('events.config.printerFallback', { id: row.printer_appliance_id || '?' })
-}
-
-function addPrinterRule(stationIdx) {
-  const st = stationsLocal.value[stationIdx]
-  if (!st) return
-  if (!Array.isArray(st.printer_rules)) st.printer_rules = []
-  st.printer_rules.push({
-    rule_type: 'table_range',
-    table_from: 1,
-    table_to: 50,
-    pickup_prefix: 'A',
-    printer_appliance_id: null,
-  })
-}
-
-function removePrinterRule(stationIdx, ruleIdx) {
-  const st = stationsLocal.value[stationIdx]
-  if (!st?.printer_rules) return
-  st.printer_rules.splice(ruleIdx, 1)
-}
-
-function addKitchenMonitorPrinter() {
-  kitchenMonitorsLocal.value.push({
-    printer_appliance_id: kitchenMonitorPrinterOptions.value[0]?.id ?? null,
-    label: '',
-  })
-}
-
-function removeKitchenMonitorPrinter(idx) {
-  kitchenMonitorsLocal.value.splice(idx, 1)
-}
 
 const waiterOptions = computed(() =>
   waitersOrg.value.map((w) => ({ label: w.name, value: w.id })),
@@ -1178,28 +916,6 @@ function onDefaultLayoutChange(layoutIndex, checked) {
   }
 }
 
-function addStation() {
-  stationsLocal.value.push({
-    name: t('events.config.stationFallback', { n: stationsLocal.value.length + 1 }),
-    printer_appliance_id: null,
-    printer_rules: [],
-    article_ids: [],
-  })
-}
-
-function removeStation(idx) {
-  stationsLocal.value.splice(idx, 1)
-}
-
-function addWaiterRow() {
-  waiterKey += 1
-  waitersLocal.value.push({ _key: `nw-${waiterKey}`, name: '', pin: '0000', source_waiter_id: null, subsidiary_code: '' })
-}
-
-function removeWaiterByIndex(ix) {
-  if (ix >= 0) waitersLocal.value.splice(ix, 1)
-}
-
 function configurationValidationError() {
   for (const s of stationsLocal.value) {
     if (!(s.name || '').trim()) {
@@ -1393,9 +1109,7 @@ async function loadLayoutCells() {
   layoutCellsLoading.value = true
   layoutCellsError.value = ''
   try {
-    const resp = await apiFetch(`/events/${props.eventId}/configuration`)
-    if (!resp.ok) throw new Error(await resp.text())
-    mergeLayoutCellsFromResponse(await resp.json())
+    mergeLayoutCellsFromResponse(await apiJson(`/events/${props.eventId}/configuration`))
   } catch {
     layoutCellsError.value = t('events.config.layoutCellsLoadFailed')
   } finally {
@@ -1413,9 +1127,10 @@ async function loadConfiguration() {
   waitersOrg.value = []
   if (resetConfigSnapshot) resetConfigSnapshot()
   try {
-    const cfgRes = await apiFetch(`/events/${props.eventId}/configuration?fields=summary`)
-    if (!cfgRes.ok) throw new Error(await cfgRes.text())
-    applyConfigurationFromResponse(await cfgRes.json(), { includeLayoutCells: false })
+    applyConfigurationFromResponse(
+      await apiJson(`/events/${props.eventId}/configuration?fields=summary`),
+      { includeLayoutCells: false },
+    )
   } catch {
     loadError.value = t('events.config.loadFailed')
   } finally {
@@ -1449,11 +1164,10 @@ async function openCellDialog(layoutIndex, row, col) {
   treeLoading.value = true
   cellTreeNodesRaw.value = []
   try {
-    const r = await apiFetch(`/events/${props.eventId}/station-article-tree`)
-    if (r.ok) {
-      const data = await r.json()
-      cellTreeNodesRaw.value = data.nodes || []
-    }
+    const data = await apiJson(`/events/${props.eventId}/station-article-tree`)
+    cellTreeNodesRaw.value = data.nodes || []
+  } catch {
+    /* tree optional */
   } finally {
     treeLoading.value = false
   }
@@ -1597,20 +1311,15 @@ async function persistConfiguration() {
     return false
   }
   try {
-    const response = await apiFetch(`/events/${props.eventId}/configuration`, {
+    const cfg = await apiJson(`/events/${props.eventId}/configuration`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(buildPutPayload()),
     })
-    if (!response.ok) {
-      setConfigAutosaveError(await parseApiErrorDetail(response))
-      return false
-    }
-    const cfg = await response.json()
     printerOptions.value = cfg.printer_options || []
     return true
-  } catch {
-    setConfigAutosaveError(t('events.config.saveFailed'))
+  } catch (err) {
+    setConfigAutosaveError(err.message || t('events.config.saveFailed'))
     return false
   }
 }
@@ -1739,40 +1448,6 @@ defineExpose({
   font-weight: 600;
 }
 
-.printer-rules-block {
-  margin-bottom: 0.75rem;
-}
-
-.printer-rules-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.printer-rule-card {
-  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  background: rgb(var(--v-theme-surface));
-}
-
-.printer-rule-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.rule-range-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
 .layout-header-actions {
   display: flex;
   align-items: center;
@@ -1826,11 +1501,6 @@ label {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.vq-data-table.nested {
-  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
-}
-
 .success,
 .error {
   margin-bottom: 0.75rem;
@@ -1845,8 +1515,7 @@ label {
 }
 
 @media (max-width: 992px) {
-  .field-row,
-  .rule-range-row {
+  .field-row {
     grid-template-columns: 1fr;
   }
 
@@ -1859,6 +1528,71 @@ label {
   .layout-header-actions {
     flex-wrap: wrap;
     width: 100%;
+  }
+}
+</style>
+
+<style>
+/* Shared event-config section utilities (used by section subcomponents). */
+.event-config .catalog-loading-hint,
+.event-config-stations-section .catalog-loading-hint {
+  margin: 0 0 0.75rem;
+}
+
+.event-config .muted,
+.event-config-stations-section .muted,
+.event-config-kitchen-monitors-section .muted {
+  opacity: 0.65;
+}
+
+.event-config .section-toolbar,
+.event-config-stations-section .section-toolbar,
+.event-config-kitchen-monitors-section .section-toolbar,
+.event-config-waiters-section .section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.event-config .config-card,
+.event-config-stations-section .config-card,
+.event-config-kitchen-monitors-section .config-card {
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.event-config .config-card-header,
+.event-config-stations-section .config-card-header,
+.event-config-kitchen-monitors-section .config-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.event-config .error,
+.event-config-stations-section .error {
+  margin-bottom: 0.75rem;
+}
+
+.event-config label,
+.event-config-stations-section label,
+.event-config-kitchen-monitors-section label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 992px) {
+  .event-config-stations-section .config-card-header,
+  .event-config-kitchen-monitors-section .config-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
 </style>

@@ -82,7 +82,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 
@@ -134,9 +134,7 @@ async function loadReport() {
   loading.value = true
   loadError.value = ''
   try {
-    const resp = await apiFetch(`/events/${props.eventId}/sales-report-v3`)
-    if (!resp.ok) throw new Error(await resp.text())
-    report.value = await resp.json()
+    report.value = await apiJson(`/events/${props.eventId}/sales-report-v3`)
   } catch (e) {
     loadError.value = e.message || t('events.tabs.loadFailed')
     report.value = null

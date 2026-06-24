@@ -4,10 +4,10 @@ import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
+  apiJson: vi.fn(),
 }))
 
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 const sampleReport = {
   event_id: 1,
@@ -33,10 +33,7 @@ const sampleReport = {
 describe('EventBookkeepingTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    apiFetch.mockResolvedValue({
-      ok: true,
-      json: async () => sampleReport,
-    })
+    apiJson.mockResolvedValue(sampleReport)
   })
 
   it('loads bookkeeping report on mount', async () => {
@@ -52,7 +49,7 @@ describe('EventBookkeepingTab', () => {
 
     await flushPromises()
 
-    expect(apiFetch).toHaveBeenCalledWith('/events/42/bookkeeping?view=both')
+    expect(apiJson).toHaveBeenCalledWith('/events/42/bookkeeping?view=both')
     expect(wrapper.text()).toContain('Buchhaltung Zusammenfassung')
     expect(wrapper.find('[data-testid="bookkeeping-table"]').exists()).toBe(true)
   })

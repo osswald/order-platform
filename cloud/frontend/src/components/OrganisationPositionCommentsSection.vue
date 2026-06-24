@@ -88,7 +88,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import VqDataTable from './VqDataTable.vue'
 
 const props = defineProps({
@@ -121,15 +121,12 @@ async function loadSettings() {
   loadError.value = ''
   message.value = ''
   try {
-    const [orgRes, presetsRes] = await Promise.all([
-      apiFetch(`/organisations/${props.organisationId}`),
-      apiFetch(`/organisations/${props.organisationId}/position-comments`),
+    const [org, presetsData] = await Promise.all([
+      apiJson(`/organisations/${props.organisationId}`),
+      apiJson(`/organisations/${props.organisationId}/position-comments`),
     ])
-    if (!orgRes.ok) throw new Error(await orgRes.text())
-    if (!presetsRes.ok) throw new Error(await presetsRes.text())
-    const org = await orgRes.json()
     enabled.value = Boolean(org.position_comments_enabled)
-    presets.value = await presetsRes.json()
+    presets.value = presetsData
   } catch (e) {
     loadError.value = e.message || t('organisations.positionComments.loadError')
   } finally {
@@ -142,16 +139,11 @@ async function saveAll() {
   saving.value = true
   message.value = ''
   try {
-    const res = await apiFetch(`/organisations/${props.organisationId}`, {
+    const data = await apiJson(`/organisations/${props.organisationId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position_comments_enabled: enabled.value }),
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || t('organisations.positionComments.saveError'))
-    }
-    const data = await res.json()
     enabled.value = Boolean(data.position_comments_enabled)
     if (!enabled.value) {
       presets.value = []
@@ -170,9 +162,7 @@ async function saveAll() {
 
 async function loadPresets() {
   if (!props.organisationId) return
-  const res = await apiFetch(`/organisations/${props.organisationId}/position-comments`)
-  if (!res.ok) throw new Error(await res.text())
-  presets.value = await res.json()
+  presets.value = await apiJson(`/organisations/${props.organisationId}/position-comments`)
 }
 
 function openCreate() {
@@ -195,15 +185,11 @@ async function savePreset() {
     const path = editingId.value
       ? `/organisations/${props.organisationId}/position-comments/${editingId.value}`
       : `/organisations/${props.organisationId}/position-comments`
-    const res = await apiFetch(path, {
+    await apiJson(path, {
       method: editingId.value ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || t('organisations.positionComments.presetSaveError'))
-    }
     dialogOpen.value = false
     await loadPresets()
     message.value = t('organisations.positionComments.presetSaved')
@@ -220,13 +206,9 @@ async function deletePreset(id) {
   if (!props.organisationId) return
   if (!confirm(t('organisations.positionComments.deleteConfirm'))) return
   try {
-    const res = await apiFetch(`/organisations/${props.organisationId}/position-comments/${id}`, {
+    await apiJson(`/organisations/${props.organisationId}/position-comments/${id}`, {
       method: 'DELETE',
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || t('organisations.positionComments.deleteError'))
-    }
     await loadPresets()
     message.value = t('organisations.positionComments.presetDeleted')
     messageType.value = 'success'

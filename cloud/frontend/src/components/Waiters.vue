@@ -91,7 +91,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
@@ -183,9 +183,7 @@ watch(
 
 async function fetchWaiters() {
   try {
-    const response = await apiFetch('/waiters/')
-    if (!response.ok) throw new Error(await response.text())
-    waiters.value = await response.json()
+    waiters.value = await apiJson('/waiters/')
   } catch {
     message.value = t('waiters.loadError')
     messageType.value = 'error'
@@ -222,9 +220,7 @@ async function syncRouteToForm() {
   let row = waiters.value.find((w) => Number(w.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/waiters/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/waiters/${id}`)
     } catch {
       message.value = t('waiters.notFound')
       messageType.value = 'error'
@@ -268,14 +264,13 @@ async function saveWaiter() {
   try {
     const path = editMode.value ? `/waiters/${routeEntityId.value}` : '/waiters/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchWaiters()
     invalidateOrgCatalog(props.activeOrganisationId)
@@ -291,10 +286,9 @@ async function saveWaiter() {
 async function deleteWaiter(id) {
   if (!confirm(t('waiters.deleteConfirm'))) return
   try {
-    const response = await apiFetch(`/waiters/${id}`, {
+    await apiJson(`/waiters/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) throw new Error(await response.text())
     await fetchWaiters()
     invalidateOrgCatalog(props.activeOrganisationId)
     message.value = t('waiters.deleted')

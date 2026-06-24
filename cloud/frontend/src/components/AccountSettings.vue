@@ -71,7 +71,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
 import { rules, validateForm } from '../utils/formRules.js'
 
@@ -98,7 +98,7 @@ const confirmRules = computed(() => [
 async function changePassword() {
   if (!(await validateForm(formRef))) return
   try {
-    const response = await apiFetch('/auth/change-password', {
+    await apiJson('/auth/change-password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -108,7 +108,6 @@ async function changePassword() {
         new_password: form.value.newPassword,
       }),
     })
-    if (!response.ok) throw new Error(await response.text())
     form.value = {
       currentPassword: '',
       newPassword: '',

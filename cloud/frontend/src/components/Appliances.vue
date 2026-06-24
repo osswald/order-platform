@@ -344,9 +344,8 @@ import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
-import { parseApiErrorDetail } from '../utils/apiError'
 import {
   applianceDisplayName,
   cancelPlannedLendingForAppliance,
@@ -541,8 +540,7 @@ const { currentPage, pageSize } = useClientPagination(filteredAppliances, {
 
 async function fetchAppliances() {
   try {
-    const response = await apiFetch('/appliances/')
-    appliances.value = await response.json()
+    appliances.value = await apiJson('/appliances/')
   } catch (error) {
     message.value = t('appliances.messages.loadFailed')
     messageType.value = 'error'
@@ -551,8 +549,7 @@ async function fetchAppliances() {
 
 async function fetchOrganisations() {
   try {
-    const response = await apiFetch('/organisations/')
-    organisations.value = await response.json()
+    organisations.value = await apiJson('/organisations/')
   } catch {
     organisations.value = []
   }
@@ -561,9 +558,7 @@ async function fetchOrganisations() {
 async function fetchApplianceDetail(id) {
   lendingMessage.value = ''
   try {
-    const response = await apiFetch(`/appliances/${id}`)
-    if (!response.ok) throw new Error(await response.text())
-    applianceDetail.value = await response.json()
+    applianceDetail.value = await apiJson(`/appliances/${id}`)
   } catch {
     applianceDetail.value = null
     lendingMessage.value = t('appliances.lending.detailsLoadFailed')
@@ -622,9 +617,7 @@ async function syncRouteToForm() {
   let row = appliances.value.find((d) => Number(d.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/appliances/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/appliances/${id}`)
     } catch {
       message.value = t('appliances.messages.notFound')
       messageType.value = 'error'
@@ -676,18 +669,14 @@ async function saveAppliance() {
   try {
     const path = editMode.value ? `/appliances/${activeId.value}` : '/appliances/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    const wasEdit = editMode.value
+    const body = await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) {
-      throw new Error(await response.text())
-    }
-    const wasEdit = editMode.value
-    const body = await response.json()
     const savedId = wasEdit ? activeId.value : body.id
     await fetchAppliances()
     if (wasEdit && savedId) {
@@ -711,13 +700,7 @@ async function createPairingSession() {
   pairingMessage.value = ''
   pairingSession.value = null
   try {
-    const response = await apiFetch(`/appliances/${activeId.value}/pairing-sessions`, { method: 'POST' })
-    if (!response.ok) {
-      pairingMessage.value = await parseApiErrorDetail(response)
-      pairingMessageType.value = 'error'
-      return
-    }
-    pairingSession.value = await response.json()
+    pairingSession.value = await apiJson(`/appliances/${activeId.value}/pairing-sessions`, { method: 'POST' })
     pairingMessage.value = t('appliances.edge.pairingCreated')
     pairingMessageType.value = 'success'
   } catch {
@@ -732,15 +715,9 @@ async function revokeEdgeCredential(credentialId) {
   if (!activeId.value || !credentialId) return
   if (!confirm(t('appliances.edge.confirmRevoke'))) return
   try {
-    const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials/${credentialId}/revoke`, {
+    applianceDetail.value = await apiJson(`/appliances/${activeId.value}/edge-credentials/${credentialId}/revoke`, {
       method: 'POST',
     })
-    if (!response.ok) {
-      message.value = await parseApiErrorDetail(response)
-      messageType.value = 'error'
-      return
-    }
-    applianceDetail.value = await response.json()
     await fetchAppliances()
     message.value = t('appliances.edge.revoked')
     messageType.value = 'success'
@@ -754,14 +731,9 @@ async function deleteEdgeCredential(credentialId) {
   if (!activeId.value || !credentialId) return
   if (!confirm(t('appliances.edge.confirmDelete'))) return
   try {
-    const response = await apiFetch(`/appliances/${activeId.value}/edge-credentials/${credentialId}`, {
+    await apiJson(`/appliances/${activeId.value}/edge-credentials/${credentialId}`, {
       method: 'DELETE',
     })
-    if (!response.ok) {
-      message.value = await parseApiErrorDetail(response)
-      messageType.value = 'error'
-      return
-    }
     await fetchApplianceDetail(activeId.value)
     await fetchAppliances()
     message.value = t('appliances.edge.deleted')
@@ -777,12 +749,9 @@ async function deleteAppliance(id) {
     return
   }
   try {
-    const response = await apiFetch(`/appliances/${id}`, {
+    await apiJson(`/appliances/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) {
-      throw new Error(await response.text())
-    }
     await fetchAppliances()
     message.value = t('appliances.messages.deleted')
     messageType.value = 'success'
@@ -799,7 +768,7 @@ async function submitLend() {
   if (!activeId.value || !canSubmitLend.value) return
   lendingMessage.value = ''
   try {
-    const response = await apiFetch(`/appliances/${activeId.value}/lendings`, {
+    applianceDetail.value = await apiJson(`/appliances/${activeId.value}/lendings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -808,18 +777,12 @@ async function submitLend() {
         duration_days: inclusiveDurationDays(lendForm.value.startDate, lendForm.value.endDate),
       }),
     })
-    if (!response.ok) {
-      lendingMessage.value = await parseApiErrorDetail(response)
-      lendingMessageType.value = 'error'
-      return
-    }
-    applianceDetail.value = await response.json()
     await fetchAppliances()
     resetLendForm()
     lendingMessage.value = t('appliances.lending.lentCreated')
     lendingMessageType.value = 'success'
-  } catch {
-    lendingMessage.value = t('appliances.lending.lendFailed')
+  } catch (e) {
+    lendingMessage.value = e.message || t('appliances.lending.lendFailed')
     lendingMessageType.value = 'error'
   }
 }
@@ -828,14 +791,10 @@ async function returnLending(lendingId) {
   if (!activeId.value) return
   lendingMessage.value = ''
   try {
-    const response = await apiFetch(
+    applianceDetail.value = await apiJson(
       `/appliances/${activeId.value}/lendings/${lendingId}/return`,
       { method: 'POST' },
     )
-    if (!response.ok) {
-      throw new Error(await response.text())
-    }
-    applianceDetail.value = await response.json()
     await fetchAppliances()
     lendingMessage.value = t('appliances.lending.returned')
     lendingMessageType.value = 'success'

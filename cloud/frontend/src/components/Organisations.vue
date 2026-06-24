@@ -229,7 +229,7 @@ import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import OrganisationPositionCommentsSection from './OrganisationPositionCommentsSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
 import { validateForm } from '../utils/formRules.js'
 import {
@@ -392,8 +392,7 @@ function parseUserIds(value) {
 
 async function fetchOrganisations() {
   try {
-    const response = await apiFetch('/organisations/')
-    organisations.value = await response.json()
+    organisations.value = await apiJson('/organisations/')
   } catch (error) {
     message.value = t('organisations.loadError')
     messageType.value = 'error'
@@ -403,9 +402,7 @@ async function fetchOrganisations() {
 async function fetchOrgApplianceLendings(orgId) {
   orgApplianceLendings.value = null
   try {
-    const response = await apiFetch(`/organisations/${orgId}/appliance-lendings`)
-    if (!response.ok) throw new Error(await response.text())
-    orgApplianceLendings.value = await response.json()
+    orgApplianceLendings.value = await apiJson(`/organisations/${orgId}/appliance-lendings`)
   } catch {
     orgApplianceLendings.value = { current: [], planned: [], past: [] }
   }
@@ -478,9 +475,7 @@ async function syncRouteToForm() {
   let row = organisations.value.find((o) => Number(o.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/organisations/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/organisations/${id}`)
     } catch {
       message.value = t('organisations.notFound')
       messageType.value = 'error'
@@ -525,17 +520,13 @@ async function saveOrganisation() {
   try {
     const path = editMode.value ? `/organisations/${activeId.value}` : '/organisations/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    const saved = await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) {
-      throw new Error(await response.text())
-    }
-    const saved = await response.json()
     const wasEdit = editMode.value
     await fetchOrganisations()
     if (!wasEdit && sessionContext) {
@@ -555,12 +546,9 @@ async function deleteOrganisation(id) {
     return
   }
   try {
-    const response = await apiFetch(`/organisations/${id}`, {
+    await apiJson(`/organisations/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) {
-      throw new Error(await response.text())
-    }
     await fetchOrganisations()
     message.value = t('organisations.deleted')
     messageType.value = 'success'

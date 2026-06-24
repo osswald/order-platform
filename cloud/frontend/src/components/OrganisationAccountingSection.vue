@@ -200,9 +200,8 @@
 <script setup>
 import { ref, watch, computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
-import { parseApiErrorBody } from '../utils/apiError.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
 import {
   invalidateAccountingAccountsCache,
@@ -273,9 +272,7 @@ async function loadOrganisation() {
   loadError.value = ''
   message.value = ''
   try {
-    const res = await apiFetch(`/organisations/${props.organisationId}`)
-    if (!res.ok) throw new Error(await res.text())
-    const data = await res.json()
+    const data = await apiJson(`/organisations/${props.organisationId}`)
     vatLiable.value = Boolean(data.vat_liable)
     defaultTaxCodeId.value = data.default_tax_code_id ?? null
     accountsEnabled.value = Boolean(data.accounts_enabled)
@@ -292,11 +289,9 @@ async function loadPaymentTypeDefaults() {
     return
   }
   try {
-    const res = await apiFetch(
+    paymentTypeDefaults.value = (await apiJson(
       `/accounting-accounts/payment-type-defaults?organisation_id=${props.organisationId}`,
-    )
-    if (!res.ok) throw new Error(await res.text())
-    paymentTypeDefaults.value = (await res.json()).map((row) => ({ ...row }))
+    )).map((row) => ({ ...row }))
   } catch {
     paymentTypeDefaults.value = []
   }
@@ -312,16 +307,11 @@ async function saveOrganisationSettings() {
       default_tax_code_id: vatLiable.value ? defaultTaxCodeId.value : null,
       accounts_enabled: accountsEnabled.value,
     }
-    const res = await apiFetch(`/organisations/${props.organisationId}`, {
+    const data = await apiJson(`/organisations/${props.organisationId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || t('organisations.accounting.saveError'))
-    }
-    const data = await res.json()
     vatLiable.value = Boolean(data.vat_liable)
     defaultTaxCodeId.value = data.default_tax_code_id ?? null
     accountsEnabled.value = Boolean(data.accounts_enabled)
@@ -377,15 +367,11 @@ async function saveAccount() {
     if (!accountEditId.value) {
       payload.organisation_id = Number(props.organisationId)
     }
-    const res = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.accountSaveError'))
-    }
     invalidateAccountingAccountsCache(props.organisationId)
     await reloadAccounts()
     await loadPaymentTypeDefaults()
@@ -403,11 +389,7 @@ async function saveAccount() {
 async function deleteAccount(accountId) {
   if (!confirm(t('organisations.accounting.deleteConfirm'))) return
   try {
-    const res = await apiFetch(`/accounting-accounts/${accountId}`, { method: 'DELETE' })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.accountDeleteError'))
-    }
+    await apiJson(`/accounting-accounts/${accountId}`, { method: 'DELETE' })
     invalidateAccountingAccountsCache(props.organisationId)
     await reloadAccounts()
     await loadPaymentTypeDefaults()
@@ -425,11 +407,9 @@ async function loadTaxCodeDefaults() {
     return
   }
   try {
-    const res = await apiFetch(
+    taxCodeDefaults.value = (await apiJson(
       `/accounting-accounts/tax-code-defaults?organisation_id=${props.organisationId}`,
-    )
-    if (!res.ok) throw new Error(await res.text())
-    taxCodeDefaults.value = (await res.json()).map((row) => ({ ...row }))
+    )).map((row) => ({ ...row }))
   } catch {
     taxCodeDefaults.value = []
   }
@@ -440,7 +420,7 @@ async function saveTaxCodeDefaults() {
   savingTaxCodeDefaults.value = true
   message.value = ''
   try {
-    const res = await apiFetch(
+    taxCodeDefaults.value = await apiJson(
       `/accounting-accounts/tax-code-defaults?organisation_id=${props.organisationId}`,
       {
         method: 'PUT',
@@ -453,11 +433,6 @@ async function saveTaxCodeDefaults() {
         }),
       },
     )
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.defaultsSaveError'))
-    }
-    taxCodeDefaults.value = await res.json()
     message.value = t('organisations.accounting.defaultsSaved')
     messageType.value = 'success'
   } catch (e) {
@@ -479,19 +454,14 @@ async function savePaymentTypeDefaults() {
         accounting_account_id: row.accounting_account_id ?? null,
       })),
     }
-    const res = await apiFetch(
+    paymentTypeDefaults.value = (await apiJson(
       `/accounting-accounts/payment-type-defaults?organisation_id=${props.organisationId}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-    )
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(parseApiErrorBody(err.detail) || t('organisations.accounting.defaultsSaveError'))
-    }
-    paymentTypeDefaults.value = (await res.json()).map((row) => ({ ...row }))
+    )).map((row) => ({ ...row }))
     message.value = t('organisations.accounting.defaultsSaved')
     messageType.value = 'success'
   } catch (e) {

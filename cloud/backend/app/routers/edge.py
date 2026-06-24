@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from ..currency import event_currency
+from ..edge_bundle import edge_bundle_payload
 from ..models import (
     Appliance,
     ApplianceEdgeCredential,
@@ -39,6 +40,7 @@ from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..security import get_password_hash, verify_password
 from ..deps import get_db
+from ..db_errors import commit_or_raise
 from ..event_cash_sessions import upsert_edge_cash_session
 from ..edge_operational_mirror import (
     upsert_edge_kitchen_ticket_snapshot,
@@ -426,15 +428,22 @@ def read_edge_bundle(
     position_comment_presets = (
         _position_comment_presets_for_org(db, org_id) if position_comments_enabled else []
     )
-    db.commit()
-    return EdgeBundleRead(
+    commit_or_raise(db)
+    bundle_core = edge_bundle_payload(
         organisation_id=org_id,
-        appliance_id=appliance.id,
-        server_time=datetime.now(timezone.utc),
-        events=bundles,
+        events=[b.model_dump() if hasattr(b, "model_dump") else b.dict() for b in bundles],
         admin_pin_hashes=_admin_pin_hashes_for_org(db, org_id),
         position_comments_enabled=position_comments_enabled,
         position_comment_presets=position_comment_presets,
+    )
+    return EdgeBundleRead(
+        organisation_id=bundle_core["organisation_id"],
+        appliance_id=appliance.id,
+        server_time=datetime.now(timezone.utc),
+        events=bundles,
+        admin_pin_hashes=bundle_core["admin_pin_hashes"],
+        position_comments_enabled=bundle_core["position_comments_enabled"],
+        position_comment_presets=bundle_core["position_comment_presets"],
     )
 
 

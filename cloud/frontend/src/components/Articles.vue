@@ -260,7 +260,7 @@ import { ref, computed, onMounted, watch, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
@@ -533,9 +533,7 @@ watch(
 
 async function fetchArticles() {
   try {
-    const response = await apiFetch('/articles/')
-    if (!response.ok) throw new Error(await response.text())
-    articles.value = await response.json()
+    articles.value = await apiJson('/articles/')
   } catch (error) {
     message.value = t('articles.loadError')
     messageType.value = 'error'
@@ -544,10 +542,7 @@ async function fetchArticles() {
 
 async function fetchCategories() {
   try {
-    const response = await apiFetch('/article-categories/')
-    if (response.ok) {
-      categories.value = await response.json()
-    }
+    categories.value = await apiJson('/article-categories/')
   } catch (error) {
     message.value = t('articles.categoriesLoadError')
     messageType.value = 'error'
@@ -605,9 +600,7 @@ async function syncRouteToForm() {
   let row = articles.value.find((a) => Number(a.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/articles/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/articles/${id}`)
     } catch {
       message.value = t('articles.notFound')
       messageType.value = 'error'
@@ -631,9 +624,7 @@ function openCreateForm() {
 async function loadAdditions(articleId) {
   additionsLocal.value = []
   try {
-    const resp = await apiFetch(`/articles/${articleId}/additions`)
-    if (!resp.ok) return
-    const data = await resp.json()
+    const data = await apiJson(`/articles/${articleId}/additions`)
     additionsLocal.value = (data.items || []).map((row, idx) => ({
       addition_article_id: row.addition_article_id,
       name: row.name,
@@ -673,7 +664,7 @@ async function saveAdditions() {
   if (!activeId.value) return
   additionsMessage.value = ''
   try {
-    const resp = await apiFetch(`/articles/${activeId.value}/additions`, {
+    const data = await apiJson(`/articles/${activeId.value}/additions`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -683,8 +674,6 @@ async function saveAdditions() {
         })),
       }),
     })
-    if (!resp.ok) throw new Error(await resp.text())
-    const data = await resp.json()
     additionsLocal.value = (data.items || []).map((row, idx) => ({
       addition_article_id: row.addition_article_id,
       name: row.name,
@@ -722,14 +711,13 @@ async function saveArticle() {
   try {
     const path = editMode.value ? `/articles/${activeId.value}` : '/articles/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     await fetchArticles()
     invalidateOrgCatalog(props.activeOrganisationId)
@@ -745,10 +733,9 @@ async function saveArticle() {
 async function deleteArticle(id) {
   if (!confirm(t('articles.deleteConfirm'))) return
   try {
-    const response = await apiFetch(`/articles/${id}`, {
+    await apiJson(`/articles/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) throw new Error(await response.text())
     await fetchArticles()
     invalidateOrgCatalog(props.activeOrganisationId)
     message.value = t('articles.deleted')

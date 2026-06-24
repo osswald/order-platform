@@ -100,7 +100,7 @@ import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import {
   cancelPlannedLending,
   formatDeDate,
@@ -145,15 +145,9 @@ async function fetchLendings() {
   if (props.activeOrganisationId == null) return
 
   try {
-    const response = await apiFetch(
+    lendings.value = await apiJson(
       `/organisations/${props.activeOrganisationId}/appliance-lendings`,
     )
-    if (!response.ok) {
-      message.value = t('lending.loadError')
-      messageType.value = 'error'
-      return
-    }
-    lendings.value = await response.json()
   } catch {
     message.value = t('lending.loadError')
     messageType.value = 'error'

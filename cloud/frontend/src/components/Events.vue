@@ -152,7 +152,7 @@ import HelpLink from './HelpLink.vue'
 import EventConfiguration from './EventConfiguration.vue'
 import EventStammdatenFields from './EventStammdatenFields.vue'
 import HostedPiCard from './HostedPiCard.vue'
-import { apiFetch } from '../api'
+import { apiFetch, apiJson } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
@@ -369,9 +369,7 @@ watch(
 
 async function fetchEvents() {
   try {
-    const response = await apiFetch('/events/')
-    if (!response.ok) throw new Error(await response.text())
-    events.value = await response.json()
+    events.value = await apiJson('/events/')
   } catch (error) {
     message.value = t('events.messages.loadFailed')
     messageType.value = 'error'
@@ -407,14 +405,10 @@ async function uploadTwintQr(file) {
   try {
     const body = new FormData()
     body.append('file', file)
-    const response = await apiFetch(`/events/${activeId.value}/twint-qr`, {
+    await apiJson(`/events/${activeId.value}/twint-qr`, {
       method: 'PUT',
       body,
     })
-    if (!response.ok) {
-      const detail = await response.text()
-      throw new Error(detail || 'Upload failed')
-    }
     hasTwintQr.value = true
     await loadTwintQrPreview()
     const idx = events.value.findIndex((e) => e.id === activeId.value)
@@ -433,8 +427,7 @@ async function removeTwintQr() {
   if (!activeId.value) return
   twintQrBusy.value = true
   try {
-    const response = await apiFetch(`/events/${activeId.value}/twint-qr`, { method: 'DELETE' })
-    if (!response.ok && response.status !== 204) throw new Error('delete failed')
+    await apiJson(`/events/${activeId.value}/twint-qr`, { method: 'DELETE' })
     hasTwintQr.value = false
     revokeTwintQrPreview()
     const idx = events.value.findIndex((e) => e.id === activeId.value)
@@ -503,9 +496,7 @@ async function syncRouteToForm() {
   let row = events.value.find((e) => Number(e.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/events/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/events/${id}`)
     } catch {
       message.value = t('events.messages.notFound')
       messageType.value = 'error'
@@ -551,13 +542,11 @@ async function copyEvent() {
   }
   copyBusy.value = true
   try {
-    const response = await apiFetch(`/events/${activeId.value}/copy`, {
+    const created = await apiJson(`/events/${activeId.value}/copy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
-    if (!response.ok) throw new Error(await response.text())
-    const created = await response.json()
     await fetchEvents()
     message.value = t('events.copy.created', { name: created.name })
     messageType.value = 'success'
@@ -611,14 +600,13 @@ async function saveEvent() {
   try {
     const path = editMode.value ? `/events/${activeId.value}` : '/events/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error(await response.text())
     const wasEdit = editMode.value
     if (wasEdit) {
       stammdatenBaseline.value = stammdatenSnapshot()
@@ -637,10 +625,9 @@ async function saveEvent() {
 async function deleteEvent(id) {
   if (!confirm(t('events.confirmDelete'))) return
   try {
-    const response = await apiFetch(`/events/${id}`, {
+    await apiJson(`/events/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) throw new Error(await response.text())
     await fetchEvents()
     message.value = t('events.messages.deleted')
     messageType.value = 'success'

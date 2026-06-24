@@ -59,7 +59,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 import { formatAmount } from '../utils/money'
 
@@ -108,9 +108,7 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const resp = await apiFetch(`/events/${props.eventId}/cash-sessions?${buildQuery()}`)
-    if (!resp.ok) throw new Error(await resp.text())
-    const data = await resp.json()
+    const data = await apiJson(`/events/${props.eventId}/cash-sessions?${buildQuery()}`)
     currency.value = data.currency || 'CHF'
     items.value = data.items || []
     totalItems.value = data.total ?? 0

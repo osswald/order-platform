@@ -47,7 +47,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 
 const { t } = useI18n()
 
@@ -101,12 +101,7 @@ async function fetchDirectory() {
   loading.value = true
   inFlightFetch = (async () => {
     try {
-      const resp = await apiFetch('/organisations/')
-      if (resp.ok) {
-        directory.value = await resp.json()
-      } else {
-        directory.value = []
-      }
+      directory.value = await apiJson('/organisations/')
     } catch (e) {
       directory.value = []
     } finally {

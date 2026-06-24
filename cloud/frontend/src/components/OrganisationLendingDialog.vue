@@ -121,8 +121,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
-import { apiFetch } from '../api'
-import { parseApiErrorDetail } from '../utils/apiError'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { currentLocale } from '../i18n'
 import { collatorLocale } from '../utils/localeFormat'
@@ -278,9 +277,7 @@ async function fetchAppliances() {
       lend_check_start: start,
       lend_check_duration: String(duration),
     })
-    const response = await apiFetch(`/appliances/?${params}`)
-    if (!response.ok) throw new Error(await response.text())
-    appliances.value = await response.json()
+    appliances.value = await apiJson(`/appliances/?${params}`)
     const allowed = new Set(appliances.value.filter((a) => a.lendable !== false).map((a) => a.id))
     selectedIds.value = selectedIds.value.filter((id) => allowed.has(id))
   } catch {
@@ -312,7 +309,7 @@ async function submit() {
     const appliance = applianceById.value.get(applianceId)
     const name = appliance ? applianceDisplayName(appliance) : `#${applianceId}`
     try {
-      const response = await apiFetch(`/appliances/${applianceId}/lendings`, {
+      await apiJson(`/appliances/${applianceId}/lendings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,14 +318,9 @@ async function submit() {
           duration_days: duration,
         }),
       })
-      if (!response.ok) {
-        failures.push({ name, detail: await parseApiErrorDetail(response) })
-        failedIds.push(applianceId)
-      } else {
-        ok += 1
-      }
-    } catch {
-      failures.push({ name, detail: t('lending.requestFailed') })
+      ok += 1
+    } catch (err) {
+      failures.push({ name, detail: err.message || t('lending.requestFailed') })
       failedIds.push(applianceId)
     }
   }

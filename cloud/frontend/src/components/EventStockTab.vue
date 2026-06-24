@@ -40,7 +40,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { stockGroupsForItems } from '@vendiqo/frontend-shared/stockByStation'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
 import VqDataTable from './VqDataTable.vue'
@@ -98,13 +98,11 @@ function applyStockItems(data) {
 
 async function persistStock() {
   if (!props.eventId) return false
-  const resp = await apiFetch(`/events/${props.eventId}/event-stock`, {
+  const data = await apiJson(`/events/${props.eventId}/event-stock`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(stockPayloadSnapshot()),
   })
-  if (!resp.ok) throw new Error(await resp.text())
-  const data = await resp.json()
   applyStockItems(data)
   return true
 }
@@ -145,9 +143,7 @@ async function loadStock() {
   loadError.value = ''
   resetSnapshot()
   try {
-    const resp = await apiFetch(`/events/${props.eventId}/event-stock`)
-    if (!resp.ok) throw new Error(await resp.text())
-    const data = await resp.json()
+    const data = await apiJson(`/events/${props.eventId}/event-stock`)
     applyStockItems(data)
     markSaved()
   } catch (e) {

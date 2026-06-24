@@ -174,7 +174,7 @@ import VqDataTable from './VqDataTable.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import OrganisationPicker from './OrganisationPicker.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
@@ -327,12 +327,7 @@ const { currentPage, pageSize } = useClientPagination(filteredUsers, {
 
 async function fetchUsers() {
   try {
-    const resp = await apiFetch('/users/')
-    if (!resp.ok) {
-      const text = await resp.text()
-      throw new Error(text || resp.statusText)
-    }
-    users.value = await resp.json()
+    users.value = await apiJson('/users/')
   } catch (e) {
     message.value = t('users.loadError')
     messageType.value = 'error'
@@ -429,14 +424,13 @@ async function saveUser() {
   try {
     const path = editMode.value ? `/users/${activeId.value}` : '/users/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const resp = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    if (!resp.ok) throw new Error(await resp.text())
     const wasEdit = editMode.value
     await fetchUsers()
     message.value = wasEdit ? t('users.updated') : t('users.created')
@@ -453,10 +447,9 @@ async function deleteUser(id) {
     return
   }
   try {
-    const resp = await apiFetch(`/users/${id}`, {
+    await apiJson(`/users/${id}`, {
       method: 'DELETE',
     })
-    if (!resp.ok) throw new Error(await resp.text())
     await fetchUsers()
     message.value = t('users.deleted')
     messageType.value = 'success'

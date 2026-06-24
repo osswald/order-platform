@@ -5,11 +5,10 @@ import TaxCodes from './TaxCodes.vue'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
   apiJson: vi.fn(),
 }))
 
-import { apiFetch, apiJson } from '../api'
+import { apiJson } from '../api'
 
 const sampleCountries = [{ id: 3, code: 'CH', name: 'Schweiz' }]
 const sampleTaxCodes = [
@@ -57,20 +56,15 @@ describe('TaxCodes', () => {
     vi.clearAllMocks()
     apiJson.mockImplementation(async (path) => {
       if (path === '/countries/') return sampleCountries
-      return sampleCountries
-    })
-    apiFetch.mockImplementation(async (path) => {
-      if (path === '/tax-codes/') {
-        return { ok: true, json: async () => sampleTaxCodes }
-      }
-      return { ok: true, json: async () => sampleTaxCodes[0] }
+      if (path === '/tax-codes/') return sampleTaxCodes
+      return sampleTaxCodes[0]
     })
   })
 
   it('renders tax code list', async () => {
     const wrapper = await mountTaxCodes('/tax-codes')
     expect(wrapper.find('[data-testid="tax-codes-table"]').exists()).toBe(true)
-    expect(apiFetch).toHaveBeenCalledWith('/tax-codes/')
+    expect(apiJson).toHaveBeenCalledWith('/tax-codes/')
   })
 
   it('shows create affordance for platform admin only', async () => {

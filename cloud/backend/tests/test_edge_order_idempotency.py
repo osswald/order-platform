@@ -1,5 +1,6 @@
 """Edge order submission idempotency."""
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -117,7 +118,7 @@ def test_edge_order_duplicate_returns_same_server_id():
 
 
 def test_edge_order_concurrent_duplicate_requests():
-    """Two sequential duplicate posts behave like concurrent idempotent retries."""
+    """Three sequential duplicate posts behave like idempotent retries."""
     headers, event_id = _edge_fixture()
     client_order_id = f"order-concurrent-{uuid4().hex}"
     payload = {
@@ -135,6 +136,45 @@ def test_edge_order_concurrent_duplicate_requests():
     assert len(server_ids) == 1
     duplicates = sum(1 for r in results if r.json().get("duplicate"))
     assert duplicates == 2
+
+    db = SessionLocal()
+    try:
+        count = (
+            db.query(EdgeSubmittedOrder)
+            .filter(EdgeSubmittedOrder.client_order_id == client_order_id)
+            .count()
+        )
+        assert count == 1
+    finally:
+        db.close()
+
+
+def test_edge_order_parallel_duplicate_requests():
+    """Simultaneous duplicate POSTs must create only one server order row."""
+    headers, event_id = _edge_fixture()
+    client_order_id = f"order-parallel-{uuid4().hex}"
+    payload = {
+        "client_order_id": client_order_id,
+        "event_id": event_id,
+        "payload": {
+            "client_order_id": client_order_id,
+            "payment_status": "open",
+            "lines": [{"article_id": 1, "qty": 1, "unit_cents": 500}],
+        },
+    }
+
+    def _submit():
+        worker = TestClient(app)
+        return worker.post("/edge/v1/orders", headers=headers, json=payload)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(_submit) for _ in range(4)]
+        results = [future.result() for future in as_completed(futures)]
+
+    assert all(r.status_code == 200 for r in results), [r.text for r in results]
+    server_ids = {r.json()["server_order_id"] for r in results}
+    assert len(server_ids) == 1
+    assert sum(1 for r in results if r.json().get("duplicate")) >= 1
 
     db = SessionLocal()
     try:

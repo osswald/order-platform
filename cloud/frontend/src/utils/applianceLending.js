@@ -1,7 +1,6 @@
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { i18n } from '../i18n'
 import { formatDate } from './localeFormat'
-import { parseApiErrorDetail } from './apiError'
 
 function t(key, params) {
   return i18n.global.t(key, params)
@@ -82,20 +81,13 @@ export function applianceDisplayName(appliance) {
 }
 
 export async function cancelPlannedLending(organisationId, lendingId) {
-  const response = await apiFetch(
-    `/organisations/${organisationId}/appliance-lendings/${lendingId}`,
-    { method: 'DELETE' },
-  )
-  if (!response.ok) {
-    throw new Error(await parseApiErrorDetail(response))
-  }
+  await apiJson(`/organisations/${organisationId}/appliance-lendings/${lendingId}`, {
+    method: 'DELETE',
+  })
 }
 
 export async function cancelPlannedLendingForAppliance(applianceId, lendingId) {
-  const response = await apiFetch(`/appliances/${applianceId}/lendings/${lendingId}`, {
+  await apiJson(`/appliances/${applianceId}/lendings/${lendingId}`, {
     method: 'DELETE',
   })
-  if (!response.ok) {
-    throw new Error(await parseApiErrorDetail(response))
-  }
 }

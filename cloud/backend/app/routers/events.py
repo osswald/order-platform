@@ -42,6 +42,7 @@ from ..instant_collective_bill import apply_instant_collective_bill_settings, in
 from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_operational_data, validate_status_transition
 from ..stock import ensure_stock_rows_for_event_articles, normalize_stock_fields, upsert_stock_rows
 from ..auth_deps import get_current_user
+from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..schemas.event_stock import (
     EventStockItemRead,
@@ -501,7 +502,7 @@ async def put_event_twint_qr(
         store_twint_qr(event, mime, raw)
     except ValueError as e:
         raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
-    db.commit()
+    commit_or_raise(db)
     db.refresh(event)
     return {"ok": True, "has_twint_qr": True}
 
@@ -515,7 +516,7 @@ def delete_event_twint_qr(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     clear_twint_qr(event)
-    db.commit()
+    commit_or_raise(db)
 
 
 @router.get("/{event_id}/event-stock", response_model=EventStockListRead)
@@ -561,11 +562,8 @@ def put_event_stock(
             event,
             [{"article_id": i.article_id, "monitor_stock": i.monitor_stock, "in_stock": i.in_stock} for i in body.items],
         )
-        db.commit()
+        commit_or_raise(db)
     except HTTPException:
-        db.rollback()
-        raise
-    except Exception:
         db.rollback()
         raise
     rows = (
@@ -612,11 +610,8 @@ def put_event_configuration(
             voucher_definitions_in=body.voucher_definitions,
             kitchen_monitors_in=body.kitchen_monitors,
         )
-        db.commit()
+        commit_or_raise(db)
     except HTTPException:
-        db.rollback()
-        raise
-    except Exception:
         db.rollback()
         raise
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
@@ -673,7 +668,7 @@ def create_event(
     from ..receipt_printing_config import copy_receipt_printing_from_organisation
 
     copy_receipt_printing_from_organisation(organisation, event)
-    db.commit()
+    commit_or_raise(db)
     db.refresh(event)
     return event_response(event)
 
@@ -690,16 +685,13 @@ def copy_event_endpoint(
     copy_name = (body.name or "").strip() or default_copy_name(source.name)
     try:
         new_event = copy_event(db, source, name=copy_name)
-        db.commit()
+        commit_or_raise(db)
     except HTTPException:
         db.rollback()
         raise
     except ValueError as e:
         db.rollback()
         raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_CONTENT) from e
-    except Exception:
-        db.rollback()
-        raise
     new_event = get_event_for_configuration(db, current_user, new_event.id, tenant.hire_company_id)
     return event_response(new_event)
 
@@ -773,7 +765,7 @@ def update_event(
     if event.end < event.start:
         raise api_error("end_must_be_after_start", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
-    db.commit()
+    commit_or_raise(db)
     db.refresh(event)
     return event_response(event)
 
@@ -793,5 +785,5 @@ def delete_event(
     if not event:
         raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
     db.delete(event)
-    db.commit()
+    commit_or_raise(db)
     return None

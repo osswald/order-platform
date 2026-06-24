@@ -89,6 +89,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
 
                     update_organisation_from_stripe_account(organisation, data_object)
     elif event_type == "payment_intent.succeeded" and data_object:
+        # Reconciliation is handled on the edge device: Pi polls GET /edge/v1/terminal/
+        # payment-intents/{id} after card-present capture. This webhook is an audit trail
+        # for Connect reporting and duplicate-safe bookkeeping of Stripe retries.
         payment_intent_id = (
             data_object.get("id") if isinstance(data_object, dict) else getattr(data_object, "id", None)
         )

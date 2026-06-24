@@ -81,8 +81,7 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import VqDataTable from './VqDataTable.vue'
-import { apiFetch } from '../api'
-import { parseApiErrorDetail } from '../utils/apiError.js'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useCountries } from '../composables/useCountries'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
@@ -162,9 +161,7 @@ async function syncRouteToForm() {
   let row = countries.value.find((country) => Number(country.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/countries/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/countries/${id}`)
     } catch {
       message.value = t('countries.notFound')
       messageType.value = 'error'
@@ -201,12 +198,11 @@ async function saveCountry() {
   try {
     const path = editMode.value ? `/countries/${routeEntityId.value}` : '/countries/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error(await parseApiErrorDetail(response))
     invalidateCountries()
     await loadCountries()
     message.value = editMode.value ? t('countries.updated') : t('countries.created')
@@ -222,8 +218,7 @@ async function deleteCountryRow(id) {
   if (!props.isAdmin) return
   if (!confirm(t('countries.deleteConfirm'))) return
   try {
-    const response = await apiFetch(`/countries/${id}`, { method: 'DELETE' })
-    if (!response.ok) throw new Error(await parseApiErrorDetail(response))
+    await apiJson(`/countries/${id}`, { method: 'DELETE' })
     invalidateCountries()
     await loadCountries()
     message.value = t('countries.deleted')

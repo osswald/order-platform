@@ -91,8 +91,7 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import ListDetailLayout from './ListDetailLayout.vue'
 import VqDataTable from './VqDataTable.vue'
-import { apiFetch } from '../api'
-import { parseApiErrorBody } from '../utils/apiError.js'
+import { apiJson } from '../api'
 import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
@@ -161,9 +160,7 @@ function clearFormState() {
 
 async function fetchPaymentTypes() {
   try {
-    const response = await apiFetch('/payment-types/')
-    if (!response.ok) throw new Error(await response.text())
-    paymentTypes.value = await response.json()
+    paymentTypes.value = await apiJson('/payment-types/')
   } catch {
     message.value = t('paymentTypes.loadError')
     messageType.value = 'error'
@@ -187,9 +184,7 @@ async function syncRouteToForm() {
   let row = paymentTypes.value.find((item) => Number(item.id) === Number(id))
   if (!row) {
     try {
-      const response = await apiFetch(`/payment-types/${id}`)
-      if (!response.ok) throw new Error(await response.text())
-      row = await response.json()
+      row = await apiJson(`/payment-types/${id}`)
     } catch {
       message.value = t('paymentTypes.notFound')
       messageType.value = 'error'
@@ -226,15 +221,11 @@ async function savePaymentType() {
   try {
     const path = editMode.value ? `/payment-types/${routeEntityId.value}` : '/payment-types/'
     const method = editMode.value ? 'PUT' : 'POST'
-    const response = await apiFetch(path, {
+    await apiJson(path, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}))
-      throw new Error(parseApiErrorBody(err.detail) || t('paymentTypes.saveError'))
-    }
     invalidatePaymentTypesCache()
     await fetchPaymentTypes()
     message.value = editMode.value ? t('paymentTypes.updated') : t('paymentTypes.created')
@@ -249,11 +240,7 @@ async function savePaymentType() {
 async function deletePaymentType(id) {
   if (!confirm(t('paymentTypes.deleteConfirm'))) return
   try {
-    const response = await apiFetch(`/payment-types/${id}`, { method: 'DELETE' })
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}))
-      throw new Error(parseApiErrorBody(err.detail) || t('paymentTypes.deleteError'))
-    }
+    await apiJson(`/payment-types/${id}`, { method: 'DELETE' })
     invalidatePaymentTypesCache()
     await fetchPaymentTypes()
     message.value = t('paymentTypes.deleted')

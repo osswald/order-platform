@@ -67,7 +67,7 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
-import { apiFetch } from '../api'
+import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
 import { rules, validateForm } from '../utils/formRules.js'
 
@@ -112,9 +112,7 @@ async function loadCompany() {
   }
   const seq = ++loadSeq
   try {
-    const resp = await apiFetch(`/hire-companies/${id}`)
-    if (!resp.ok) throw new Error(await resp.text())
-    const data = await resp.json()
+    const data = await apiJson(`/hire-companies/${id}`)
     if (seq !== loadSeq || id !== hireCompanyId.value) return
     form.value = {
       name: data.name || '',
@@ -140,7 +138,7 @@ async function saveCompany() {
   if (!(await validateForm(formRef))) return
   if (!hireCompanyId.value) return
   try {
-    const resp = await apiFetch(`/hire-companies/${hireCompanyId.value}`, {
+    await apiJson(`/hire-companies/${hireCompanyId.value}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -151,7 +149,6 @@ async function saveCompany() {
         country_id: form.value.countryId || null,
       }),
     })
-    if (!resp.ok) throw new Error(await resp.text())
     message.value = t('tenantSettings.saved')
     messageType.value = 'success'
   } catch {

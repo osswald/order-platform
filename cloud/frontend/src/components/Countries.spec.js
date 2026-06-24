@@ -5,11 +5,10 @@ import Countries from './Countries.vue'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
-  apiFetch: vi.fn(),
   apiJson: vi.fn(),
 }))
 
-import { apiFetch, apiJson } from '../api'
+import { apiJson } from '../api'
 
 const sampleCountries = [
   { id: 1, code: 'DE', name: 'Deutschland' },
@@ -49,12 +48,11 @@ async function mountCountries(path = '/countries', { isAdmin = false } = {}) {
 describe('Countries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    apiJson.mockResolvedValue(sampleCountries)
-    apiFetch.mockImplementation(async (path) => {
+    apiJson.mockImplementation(async (path) => {
       if (path.startsWith('/countries/')) {
-        return { ok: true, json: async () => sampleCountries[0] }
+        return sampleCountries[0]
       }
-      return { ok: true, json: async () => sampleCountries[0] }
+      return sampleCountries[0]
     })
   })
 
