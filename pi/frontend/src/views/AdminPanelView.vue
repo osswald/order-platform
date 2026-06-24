@@ -130,7 +130,7 @@ import { api, isAndroidApp } from '../api'
 import { useAdminSession } from '../composables/useAdminSession'
 import { useBundle } from '../composables/useBundle'
 import { useSyncOperations } from '../composables/useSyncOperations'
-import { formatDateTime } from '../utils/dateFormat'
+import { formatDateTime, parseApiDate } from '../utils/dateFormat'
 import { useAppVersion } from '../composables/useAppVersion'
 
 const { label } = useAppVersion()
@@ -185,8 +185,8 @@ const displayUrl = computed(() => {
 })
 
 function relativeFromNow(iso) {
-  const ts = new Date(iso)
-  if (Number.isNaN(ts.getTime())) return 'unbekannt'
+  const ts = parseApiDate(iso)
+  if (!ts) return 'unbekannt'
   const diffMs = Date.now() - ts.getTime()
   if (diffMs < 0) return 'gerade eben'
   const minute = 60 * 1000

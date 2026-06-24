@@ -28,6 +28,7 @@ from ..sync_service import (
     sync_cycle_lock,
     sync_status,
 )
+from ..datetime_util import utc_iso
 from ..deps import get_db
 from ..discounts import validate_submit_discounts
 from ..position_comments import validate_submit_position_notes
@@ -718,7 +719,7 @@ async def get_cloud_reachable() -> CloudReachableResponse:
 @router.get("/v1/sync/status", response_model=SyncStatusResponse)
 def get_sync_status(db: Session = Depends(get_db)) -> SyncStatusResponse:
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-    last_sync_at = row.updated_at.isoformat() if row and row.updated_at else None
+    last_sync_at = utc_iso(row.updated_at) if row and row.updated_at else None
     return SyncStatusResponse.model_validate({
         **sync_status,
         "configured": is_cloud_configured(),
@@ -755,7 +756,7 @@ def get_meta(db: Session = Depends(get_db)) -> SyncMetaResponse:
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     if not row:
         return SyncMetaResponse(last_sync_at=None)
-    return SyncMetaResponse(last_sync_at=row.updated_at.isoformat() if row.updated_at else None)
+    return SyncMetaResponse(last_sync_at=utc_iso(row.updated_at) if row.updated_at else None)
 
 
 @router.post("/v1/sync/push", response_model=SyncPushResponse)

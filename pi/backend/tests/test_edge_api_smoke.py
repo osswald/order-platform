@@ -16,6 +16,33 @@ def test_bundle_and_meta_without_pairing(client):
     assert meta.status_code == 200
 
 
+def test_meta_last_sync_at_serializes_utc_offset(client_session):
+    from datetime import datetime
+
+    from app.models import SyncedBundle
+
+    client, Session = client_session
+    db = Session()
+    try:
+        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
+        row.updated_at = datetime(2026, 6, 24, 15, 47, 27)
+        db.commit()
+    finally:
+        db.close()
+
+    meta = client.get("/v1/meta")
+    assert meta.status_code == 200
+    last_sync_at = meta.json()["last_sync_at"]
+    assert last_sync_at is not None
+    assert last_sync_at.endswith("+00:00")
+    assert "2026-06-24T15:47:27" in last_sync_at
+
+    status = client.get("/v1/sync/status")
+    assert status.status_code == 200
+    bundle_last_sync_at = status.json()["bundle_last_sync_at"]
+    assert bundle_last_sync_at == last_sync_at
+
+
 def test_sync_status_unconfigured(client, monkeypatch, tmp_path):
     import app.edge_config as edge_config
 
