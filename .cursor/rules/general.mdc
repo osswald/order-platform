@@ -1,0 +1,11 @@
+---
+description: "Cursor rules for this project. General rules"
+globs: **/*
+alwaysApply: true
+---
+
+Always create a feature branch for every code change you make.
+
+Always write tests before changing or writing code.
+
+Always run all tests after changes.
