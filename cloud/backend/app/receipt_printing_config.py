@@ -6,7 +6,7 @@ import base64
 import copy
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 ALLOWED_RECEIPT_LOGO_MIMES = frozenset({"image/png", "image/jpeg", "image/jpg"})
 MAX_RECEIPT_LOGO_BYTES = 200 * 1024
@@ -164,6 +164,20 @@ def normalize_event_config(raw: dict | None) -> dict[str, Any]:
     return merged.model_dump()
 
 
+def _safe_normalize_vendor_config(raw: dict | None) -> dict[str, Any]:
+    try:
+        return normalize_vendor_config(raw)
+    except ValidationError:
+        return default_vendor_printing_config()
+
+
+def _safe_normalize_event_config(raw: dict | None) -> dict[str, Any]:
+    try:
+        return normalize_event_config(raw)
+    except ValidationError:
+        return default_event_printing_config()
+
+
 def has_receipt_logo(entity) -> bool:
     mime = getattr(entity, "receipt_logo_mime", None)
     data = getattr(entity, "receipt_logo_data", None)
@@ -197,11 +211,11 @@ def copy_receipt_printing(source, target, *, include_event_label: bool = False) 
     """Snapshot receipt config and logo from source entity onto target."""
     raw = _config_dict(source)
     if include_event_label:
-        target.receipt_printing_config = normalize_event_config(raw)
+        target.receipt_printing_config = _safe_normalize_event_config(raw)
     else:
         # Drop event-only fields when copying to org/vendor shapes
         raw.pop("label_event_title", None)
-        target.receipt_printing_config = normalize_org_config(raw)
+        target.receipt_printing_config = _safe_normalize_vendor_config(raw)
     if has_receipt_logo(source):
         target.receipt_logo_mime = source.receipt_logo_mime
         target.receipt_logo_data = source.receipt_logo_data
@@ -219,9 +233,9 @@ def copy_receipt_printing_from_hire_company(hire_company, organisation) -> None:
 
 def copy_receipt_printing_from_organisation(organisation, event) -> None:
     if _config_dict(organisation) or has_receipt_logo(organisation):
-        org_cfg = normalize_org_config(_config_dict(organisation))
+        org_cfg = _safe_normalize_vendor_config(_config_dict(organisation))
         event_cfg = {**default_event_printing_config(), **org_cfg}
-        event.receipt_printing_config = normalize_event_config(event_cfg)
+        event.receipt_printing_config = _safe_normalize_event_config(event_cfg)
         if has_receipt_logo(organisation):
             event.receipt_logo_mime = organisation.receipt_logo_mime
             event.receipt_logo_data = organisation.receipt_logo_data

@@ -127,3 +127,36 @@ def test_org_admin_cannot_read_other_tenant_event():
     listed = client.get("/events/", headers=headers)
     assert listed.status_code == 200
     assert all(e["organisation_id"] == org_a_id for e in listed.json())
+
+
+def test_create_event_with_invalid_org_receipt_config():
+    org_a_id, _ = _setup_two_tenants()
+    db = SessionLocal()
+    try:
+        org = db.query(Organisation).filter(Organisation.id == org_a_id).first()
+        org.receipt_printing_config = {
+            "station_receipt": {"size_table_or_pickup": "huge"},
+        }
+        db.commit()
+    finally:
+        db.close()
+
+    headers = {"Authorization": f"Bearer {_token()}"}
+    now = _utc_now()
+    created = client.post(
+        "/events/",
+        headers=headers,
+        json={
+            "name": "ZVV Schurter",
+            "status": "config",
+            "start": (now + timedelta(days=1)).isoformat(),
+            "end": (now + timedelta(days=4)).isoformat(),
+            "organisation_id": org_a_id,
+            "payment_mode": "instant",
+            "payment_types": ["cash"],
+            "instant_collective_bill_name": "ZVV Schurter",
+        },
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["name"] == "ZVV Schurter"
+    assert created.json()["payment_mode"] == "instant"

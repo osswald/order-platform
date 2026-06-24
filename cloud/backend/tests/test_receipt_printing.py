@@ -53,6 +53,32 @@ def test_copy_hire_company_to_organisation(db):
     assert org.receipt_logo_data
 
 
+def test_copy_organisation_to_event_falls_back_on_invalid_config(db):
+    ch_id = ensure_country(db, "CH", country_id=1)
+    db.add(HireCompany(id=1, name="V"))
+    org = Organisation(name="Org", country_id=ch_id, hire_company_id=1, currency="CHF")
+    db.add(org)
+    db.flush()
+    org.receipt_printing_config = {
+        "station_receipt": {"size_table_or_pickup": "huge"},
+    }
+
+    start = datetime(2026, 6, 1, 10, tzinfo=timezone.utc)
+    end = datetime(2026, 6, 1, 22, tzinfo=timezone.utc)
+    event = Event(
+        name="Fest",
+        status="config",
+        start=start,
+        end=end,
+        organisation_id=org.id,
+    )
+    db.add(event)
+    db.flush()
+    copy_receipt_printing_from_organisation(org, event)
+
+    assert event.receipt_printing_config["station_receipt"]["size_table_or_pickup"] == "xlarge"
+
+
 def test_copy_organisation_to_event_includes_label(db):
     ch_id = ensure_country(db, "CH", country_id=1)
     db.add(HireCompany(id=1, name="V"))
