@@ -46,7 +46,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./pi/backend/Dockerfile
@@ -64,7 +64,7 @@ jobs:
           echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push frontend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./pi/frontend/Dockerfile.prod
