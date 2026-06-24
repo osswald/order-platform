@@ -295,6 +295,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS tax_code_id INTEGER",
     )
     _patch_edge_order_item_fiscal_columns()
+    _patch_edge_operational_snapshot_tables()
     _patch_event_waiter_register_subsidiary_columns()
     _ensure_accounting_tax_code_defaults_table()
     _add_column_if_missing(
@@ -304,6 +305,39 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS position_comments_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
     _ensure_organisation_position_comments_table()
+
+
+def _patch_edge_operational_snapshot_tables() -> None:
+    """Pi restore snapshots and org-scoped cash session keys (Alembic 003 drift)."""
+    try:
+        from .models import EdgeCashSession, EdgeKitchenTicketSnapshot, EdgeOrderSnapshot
+
+        EdgeOrderSnapshot.__table__.create(bind=engine, checkfirst=True)
+        EdgeKitchenTicketSnapshot.__table__.create(bind=engine, checkfirst=True)
+        EdgeCashSession.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        return
+    _add_column_if_missing(
+        "edge_cash_sessions",
+        "subject_key",
+        "ALTER TABLE edge_cash_sessions ADD COLUMN subject_key VARCHAR(128)",
+        "ALTER TABLE edge_cash_sessions ADD COLUMN IF NOT EXISTS subject_key VARCHAR(128)",
+    )
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_cash_sessions_subject_key "
+                "ON edge_cash_sessions (subject_key)"
+            )
+        )
+        if not is_sqlite:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_edge_cash_sessions_org_event_subject "
+                    "ON edge_cash_sessions (organisation_id, event_id, subject_key)"
+                )
+            )
 
 
 def _patch_edge_order_item_fiscal_columns() -> None:
@@ -533,6 +567,7 @@ def _patch_organisation_currency() -> None:
                     "WHERE sub.organisation_id = o.id"
                 )
             )
+    _drop_column_if_present("events", "currency")
 
 
 def _patch_organisation_stripe_connect() -> None:
