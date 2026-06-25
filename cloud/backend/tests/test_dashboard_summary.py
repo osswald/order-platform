@@ -112,10 +112,12 @@ def test_build_organisation_dashboard_summary(db):
     )
     db.commit()
     events = db.query(Event).filter(Event.organisation_id == 1).all()
-    summary = build_organisation_dashboard_summary(db, 1, "Test Org", events)
+    summary = build_organisation_dashboard_summary(db, org, events)
     assert summary["organisation_name"] == "Test Org"
     assert "status_labels" not in summary
     assert summary["events_total"] == 1
     assert summary["catalog"]["waiters"] == 0
     assert "sales" in summary
+    assert "onboarding" in summary
+    assert summary["onboarding"]["dismissed"] is False
     assert summary["sales"]["totals"]["distinct_orders_count"] == 0

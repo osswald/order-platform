@@ -130,6 +130,40 @@
       "active": "{count} aktiv",
       "inConfig": "{count} in Konfiguration"
     },
+    "onboarding": {
+      "title": "Erste Schritte",
+      "subtitle": "{done} von {total} erledigt",
+      "dismissAll": "Alle ausblenden",
+      "dismissTask": "Aufgabe ausblenden",
+      "markDone": "Als erledigt markieren",
+      "dismissFailed": "Ausblenden fehlgeschlagen.",
+      "actionFailed": "Aktion fehlgeschlagen.",
+      "groupOrganisation": "Organisation",
+      "groupCatalogue": "Katalog",
+      "groupEvent": "Veranstaltung",
+      "tasks": {
+        "configure_vat": "MwSt. auf Organisation einrichten",
+        "configure_accounting": "Buchhaltung auf Organisation aktivieren",
+        "add_accounts": "Konten auf Organisation anlegen",
+        "payment_type_defaults": "Standardkonten für Zahlungsarten setzen",
+        "tax_code_defaults": "Konten für MwSt.-Codes setzen",
+        "default_category_account": "Standardkonto für Artikelkategorien setzen",
+        "assign_article_tax_codes": "Steuercodes allen Artikeln zuweisen",
+        "appliance_lending": "Geräteausleihe planen oder aktivieren",
+        "create_waiter": "Kellner anlegen",
+        "create_article_group": "Artikelgruppe anlegen",
+        "create_article": "Artikel anlegen",
+        "create_addon_linked": "Zusatz anlegen und mit Artikel verknüpfen",
+        "create_event": "Veranstaltung anlegen",
+        "enable_cash_registers": "Kassen auf Veranstaltung aktivieren",
+        "add_cash_register": "Kasse hinzufügen",
+        "add_event_waiter": "Kellner zur Veranstaltung hinzufügen",
+        "add_station": "Station anlegen",
+        "add_article_to_station": "Artikel einer Station zuweisen",
+        "create_app_layout": "App-Layout erstellen",
+        "set_stock": "Lagerbestand für einen Artikel setzen"
+      }
+    },
     "attentionMessages": {
       "config_starting_soon": "«{name}» startet bald und ist noch in Konfiguration.",
       "missing_twint_qr": "«{name}»: TWINT aktiv, aber kein QR-Code hinterlegt."

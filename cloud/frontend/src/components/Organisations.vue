@@ -312,6 +312,20 @@ watch(
   { immediate: true },
 )
 
+function applySectionFromQuery() {
+  const section = typeof route.query.section === 'string' ? route.query.section : ''
+  if (!section || !editMode.value) return
+  if (configSections.value.some((sectionItem) => sectionItem.id === section)) {
+    activeConfigTab.value = section
+  }
+}
+
+watch(
+  () => [route.query.section, editMode.value, activeId.value],
+  applySectionFromQuery,
+  { immediate: true },
+)
+
 const userFilterOptions = computed(() => [
   { value: '', label: t('common.all') },
   { value: 'with-users', label: t('organisations.withUsers') },

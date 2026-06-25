@@ -327,6 +327,32 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS position_comments_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
     _ensure_organisation_position_comments_table()
+    _ensure_user_organisation_onboarding_dismissals_table()
+    _ensure_user_organisation_onboarding_task_states_table()
+
+
+def _ensure_user_organisation_onboarding_task_states_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "user_organisation_onboarding_task_states" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import UserOrganisationOnboardingTaskState
+
+    UserOrganisationOnboardingTaskState.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_user_organisation_onboarding_dismissals_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "user_organisation_onboarding_dismissals" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import UserOrganisationOnboardingDismissal
+
+    UserOrganisationOnboardingDismissal.__table__.create(bind=engine, checkfirst=True)
 
 
 def _patch_edge_operational_snapshot_tables() -> None:

@@ -321,6 +321,23 @@ export interface DashboardAttentionItem {
   event_name: string
 }
 
+export interface OnboardingTask {
+  id: string
+  group: 'organisation' | 'catalogue' | 'event' | string
+  done: boolean
+  done_manually?: boolean
+  visible: boolean
+  target_route: string | null
+  target_params: Record<string, string> | null
+  target_query: Record<string, string> | null
+  target_event_id: number | null
+}
+
+export interface DashboardOnboarding {
+  dismissed: boolean
+  tasks: OnboardingTask[]
+}
+
 export interface DashboardSalesEventRow {
   event_id: number
   name: string
@@ -348,6 +365,7 @@ export interface DashboardSummary {
     planned: number
   }
   attention: DashboardAttentionItem[]
+  onboarding: DashboardOnboarding
   sales: {
     currency: string
     totals: {

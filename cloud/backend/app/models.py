@@ -73,6 +73,46 @@ class User(Base):
     organisations = relationship("Organisation", secondary=organisation_users, back_populates="users")
 
 
+class UserOrganisationOnboardingDismissal(Base):
+    __tablename__ = "user_organisation_onboarding_dismissals"
+    __table_args__ = (
+        UniqueConstraint("user_id", "organisation_id", name="uq_user_org_onboarding_dismissal"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    organisation_id = Column(
+        Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dismissed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    user = relationship("User")
+    organisation = relationship("Organisation")
+
+
+class UserOrganisationOnboardingTaskState(Base):
+    __tablename__ = "user_organisation_onboarding_task_states"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "organisation_id",
+            "task_id",
+            name="uq_user_org_onboarding_task_state",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    organisation_id = Column(
+        Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    task_id = Column(String(64), nullable=False, index=True)
+    manually_completed = Column(Boolean, nullable=False, default=False, server_default="false")
+    dismissed = Column(Boolean, nullable=False, default=False, server_default="false")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    user = relationship("User")
+    organisation = relationship("Organisation")
+
+
 class Organisation(Base):
     __tablename__ = "organisations"
     id = Column(Integer, primary_key=True, index=True)

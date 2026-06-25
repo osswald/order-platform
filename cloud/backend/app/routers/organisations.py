@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session, joinedload
 from ..appliance_naming import appliance_display_name
 from ..auth_deps import get_current_user
 from ..dashboard_summary import build_organisation_dashboard_summary
+from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
-from ..models import ApplianceLending, Event, HireCompany, Organisation, User
+from ..models import ApplianceLending, Event, HireCompany, Organisation, User, UserOrganisationOnboardingDismissal
 from ..reference_countries import country_response, get_country_or_404
+from ..schemas.dashboard import DashboardSummaryRead
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
 from ..tenancy import (
     TenantContext,
@@ -189,7 +191,7 @@ def read_organisation_appliance_lendings(
     return OrganisationApplianceLendingsRead(current=current, planned=planned, past=past)
 
 
-@router.get("/{organisation_id}/dashboard-summary")
+@router.get("/{organisation_id}/dashboard-summary", response_model=DashboardSummaryRead)
 def read_organisation_dashboard_summary(
     organisation_id: int,
     db: Session = Depends(get_db),
@@ -203,7 +205,81 @@ def read_organisation_dashboard_summary(
         .order_by(Event.start.desc())
         .all()
     )
-    return build_organisation_dashboard_summary(db, organisation.id, organisation.name, events)
+    return build_organisation_dashboard_summary(db, organisation, events, user_id=current_user.id)
+
+
+@router.post(
+    "/{organisation_id}/onboarding/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def dismiss_organisation_onboarding(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    existing = (
+        db.query(UserOrganisationOnboardingDismissal)
+        .filter(
+            UserOrganisationOnboardingDismissal.user_id == current_user.id,
+            UserOrganisationOnboardingDismissal.organisation_id == organisation_id,
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(
+            UserOrganisationOnboardingDismissal(
+                user_id=current_user.id,
+                organisation_id=organisation_id,
+            )
+        )
+        commit_or_raise(db)
+    return None
+
+
+@router.post(
+    "/{organisation_id}/onboarding/tasks/{task_id}/complete",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def complete_organisation_onboarding_task(
+    organisation_id: int,
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    complete_onboarding_task(
+        db,
+        user_id=current_user.id,
+        organisation_id=organisation_id,
+        task_id=task_id,
+    )
+    commit_or_raise(db)
+    return None
+
+
+@router.post(
+    "/{organisation_id}/onboarding/tasks/{task_id}/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def dismiss_organisation_onboarding_task(
+    organisation_id: int,
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    dismiss_onboarding_task(
+        db,
+        user_id=current_user.id,
+        organisation_id=organisation_id,
+        task_id=task_id,
+    )
+    commit_or_raise(db)
+    return None
 
 
 @router.delete(

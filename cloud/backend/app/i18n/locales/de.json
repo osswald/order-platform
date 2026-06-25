@@ -79,6 +79,7 @@
     "requires_verleiher_admin": "Verleiher-Administrator-Berechtigung erforderlich.",
     "requires_platform_admin": "Plattform-Administrator-Berechtigung erforderlich.",
     "organisation_not_found": "Organisation nicht gefunden.",
+    "onboarding_task_not_found": "Onboarding-Aufgabe nicht gefunden.",
     "organisation_not_in_verleiher": "Organisation gehört nicht zu diesem Verleiher.",
     "organisation_required_multi": "Organisation erforderlich, wenn der Benutzer mehreren Organisationen zugeordnet ist.",
     "not_allowed_for_organisation": "Für diese Organisation nicht erlaubt.",

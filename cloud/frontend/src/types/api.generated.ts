@@ -294,6 +294,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organisations/{organisation_id}/onboarding/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss Organisation Onboarding */
+        post: operations["dismiss_organisation_onboarding_organisations__organisation_id__onboarding_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organisations/{organisation_id}/onboarding/tasks/{task_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Organisation Onboarding Task */
+        post: operations["complete_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organisations/{organisation_id}/onboarding/tasks/{task_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss Organisation Onboarding Task */
+        post: operations["dismiss_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organisations/{organisation_id}/appliance-lendings/{lending_id}": {
         parameters: {
             query?: never;
@@ -2029,6 +2080,94 @@ export interface components {
              */
             end_date: string;
         };
+        /** DashboardAttentionItemRead */
+        DashboardAttentionItemRead: {
+            /** Type */
+            type: string;
+            /** Event Id */
+            event_id: number;
+            /** Event Name */
+            event_name: string;
+        };
+        /** DashboardCatalogRead */
+        DashboardCatalogRead: {
+            /** Waiters */
+            waiters: number;
+            /** Articles */
+            articles: number;
+            /** Categories */
+            categories: number;
+        };
+        /** DashboardLendingsRead */
+        DashboardLendingsRead: {
+            /** Current */
+            current: number;
+            /** Planned */
+            planned: number;
+        };
+        /** DashboardSalesEventRowRead */
+        DashboardSalesEventRowRead: {
+            /** Event Id */
+            event_id: number;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+            /** Start */
+            start?: string | null;
+            /** End */
+            end?: string | null;
+            /** Distinct Orders Count */
+            distinct_orders_count: number;
+            /** Line Cents */
+            line_cents: number;
+            /** Paid Cents */
+            paid_cents: number;
+            /** Open Cents */
+            open_cents: number;
+        };
+        /** DashboardSalesRead */
+        DashboardSalesRead: {
+            /** Currency */
+            currency: string;
+            totals: components["schemas"]["DashboardSalesTotalsRead"];
+            /** By Event */
+            by_event: components["schemas"]["DashboardSalesEventRowRead"][];
+        };
+        /** DashboardSalesTotalsRead */
+        DashboardSalesTotalsRead: {
+            /** Distinct Orders Count */
+            distinct_orders_count: number;
+            /** Line Cents */
+            line_cents: number;
+            /** Paid Cents */
+            paid_cents: number;
+            /** Open Cents */
+            open_cents: number;
+        };
+        /** DashboardSummaryRead */
+        DashboardSummaryRead: {
+            /** Organisation Id */
+            organisation_id: number;
+            /** Organisation Name */
+            organisation_name: string;
+            /** Events By Status */
+            events_by_status: {
+                [key: string]: number;
+            };
+            /** Running Event Ids */
+            running_event_ids: number[];
+            /** Running Events Count */
+            running_events_count: number;
+            /** Events Total */
+            events_total: number;
+            catalog: components["schemas"]["DashboardCatalogRead"];
+            lendings: components["schemas"]["DashboardLendingsRead"];
+            /** Attention */
+            attention: components["schemas"]["DashboardAttentionItemRead"][];
+            sales: components["schemas"]["DashboardSalesRead"];
+            onboarding: components["schemas"]["OnboardingRead"];
+        };
         /** EdgeBundleRead */
         EdgeBundleRead: {
             /** Organisation Id */
@@ -2741,6 +2880,44 @@ export interface components {
         MessageResponse: {
             /** Msg */
             msg: string;
+        };
+        /** OnboardingRead */
+        OnboardingRead: {
+            /** Dismissed */
+            dismissed: boolean;
+            /** Tasks */
+            tasks?: components["schemas"]["OnboardingTaskRead"][];
+        };
+        /** OnboardingTaskRead */
+        OnboardingTaskRead: {
+            /** Id */
+            id: string;
+            /** Group */
+            group: string;
+            /** Done */
+            done: boolean;
+            /**
+             * Done Manually
+             * @default false
+             */
+            done_manually: boolean;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+            /** Target Route */
+            target_route?: string | null;
+            /** Target Params */
+            target_params?: {
+                [key: string]: string;
+            } | null;
+            /** Target Query */
+            target_query?: {
+                [key: string]: string;
+            } | null;
+            /** Target Event Id */
+            target_event_id?: number | null;
         };
         /** OrgApplianceLendingItem */
         OrgApplianceLendingItem: {
@@ -4820,8 +4997,103 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DashboardSummaryRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_organisation_onboarding_organisations__organisation_id__onboarding_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

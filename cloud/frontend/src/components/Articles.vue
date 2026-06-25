@@ -628,7 +628,13 @@ async function syncRouteToForm() {
   }
   if (isCreateMode.value) {
     clearFormState()
-    form.value.isAddition = typeFilter.value === 'additions'
+    const queryType = route.query.type
+    if (queryType === 'addition') {
+      typeFilter.value = 'additions'
+      form.value.isAddition = true
+    } else {
+      form.value.isAddition = typeFilter.value === 'additions'
+    }
     syncFormCurrencyFromContext()
     return
   }

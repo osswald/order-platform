@@ -1915,9 +1915,197 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryRead"
+                }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/onboarding/dismiss": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Dismiss Organisation Onboarding",
+        "operationId": "dismiss_organisation_onboarding_organisations__organisation_id__onboarding_dismiss_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/onboarding/tasks/{task_id}/complete": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Complete Organisation Onboarding Task",
+        "operationId": "complete_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__complete_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/onboarding/tasks/{task_id}/dismiss": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Dismiss Organisation Onboarding Task",
+        "operationId": "dismiss_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__dismiss_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -10169,6 +10357,256 @@
         ],
         "title": "CurrentLendingRead"
       },
+      "DashboardAttentionItemRead": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "event_name": {
+            "type": "string",
+            "title": "Event Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "event_id",
+          "event_name"
+        ],
+        "title": "DashboardAttentionItemRead"
+      },
+      "DashboardCatalogRead": {
+        "properties": {
+          "waiters": {
+            "type": "integer",
+            "title": "Waiters"
+          },
+          "articles": {
+            "type": "integer",
+            "title": "Articles"
+          },
+          "categories": {
+            "type": "integer",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "waiters",
+          "articles",
+          "categories"
+        ],
+        "title": "DashboardCatalogRead"
+      },
+      "DashboardLendingsRead": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "planned": {
+            "type": "integer",
+            "title": "Planned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "planned"
+        ],
+        "title": "DashboardLendingsRead"
+      },
+      "DashboardSalesEventRowRead": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "distinct_orders_count": {
+            "type": "integer",
+            "title": "Distinct Orders Count"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "open_cents": {
+            "type": "integer",
+            "title": "Open Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "status",
+          "distinct_orders_count",
+          "line_cents",
+          "paid_cents",
+          "open_cents"
+        ],
+        "title": "DashboardSalesEventRowRead"
+      },
+      "DashboardSalesRead": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DashboardSalesTotalsRead"
+          },
+          "by_event": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardSalesEventRowRead"
+            },
+            "type": "array",
+            "title": "By Event"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "totals",
+          "by_event"
+        ],
+        "title": "DashboardSalesRead"
+      },
+      "DashboardSalesTotalsRead": {
+        "properties": {
+          "distinct_orders_count": {
+            "type": "integer",
+            "title": "Distinct Orders Count"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "open_cents": {
+            "type": "integer",
+            "title": "Open Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distinct_orders_count",
+          "line_cents",
+          "paid_cents",
+          "open_cents"
+        ],
+        "title": "DashboardSalesTotalsRead"
+      },
+      "DashboardSummaryRead": {
+        "properties": {
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "organisation_name": {
+            "type": "string",
+            "title": "Organisation Name"
+          },
+          "events_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Events By Status"
+          },
+          "running_event_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Running Event Ids"
+          },
+          "running_events_count": {
+            "type": "integer",
+            "title": "Running Events Count"
+          },
+          "events_total": {
+            "type": "integer",
+            "title": "Events Total"
+          },
+          "catalog": {
+            "$ref": "#/components/schemas/DashboardCatalogRead"
+          },
+          "lendings": {
+            "$ref": "#/components/schemas/DashboardLendingsRead"
+          },
+          "attention": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardAttentionItemRead"
+            },
+            "type": "array",
+            "title": "Attention"
+          },
+          "sales": {
+            "$ref": "#/components/schemas/DashboardSalesRead"
+          },
+          "onboarding": {
+            "$ref": "#/components/schemas/OnboardingRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organisation_id",
+          "organisation_name",
+          "events_by_status",
+          "running_event_ids",
+          "running_events_count",
+          "events_total",
+          "catalog",
+          "lendings",
+          "attention",
+          "sales",
+          "onboarding"
+        ],
+        "title": "DashboardSummaryRead"
+      },
       "EdgeBundleRead": {
         "properties": {
           "organisation_id": {
@@ -12109,6 +12547,109 @@
           "msg"
         ],
         "title": "MessageResponse"
+      },
+      "OnboardingRead": {
+        "properties": {
+          "dismissed": {
+            "type": "boolean",
+            "title": "Dismissed"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingTaskRead"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dismissed"
+        ],
+        "title": "OnboardingRead"
+      },
+      "OnboardingTaskRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done"
+          },
+          "done_manually": {
+            "type": "boolean",
+            "title": "Done Manually",
+            "default": false
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "target_route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Route"
+          },
+          "target_params": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Params"
+          },
+          "target_query": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Query"
+          },
+          "target_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group",
+          "done"
+        ],
+        "title": "OnboardingTaskRead"
       },
       "OrgApplianceLendingItem": {
         "properties": {

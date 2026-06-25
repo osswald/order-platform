@@ -80,6 +80,15 @@
         </RouterLink>
       </div>
 
+      <DashboardOnboardingCard
+        v-if="summary.onboarding && activeOrganisationId != null"
+        :organisation-id="activeOrganisationId"
+        :onboarding="summary.onboarding"
+        :can-access-organisation-settings="canAccessOrganisationSettings"
+        @dismissed="reload"
+        @updated="reload"
+      />
+
       <div class="content-section">
         <div class="section-card">
           <h2>{{ $t('dashboard.eventsByStatus') }}</h2>
@@ -180,6 +189,7 @@ import { attentionMessage, eventsStatDetail, formatEventDateRange, statusLabel }
 import { eventStatusColor } from '../utils/eventStatus'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
+import DashboardOnboardingCard from './DashboardOnboardingCard.vue'
 
 const { t } = useI18n()
 
@@ -188,10 +198,18 @@ import type { DataTableHeader } from '@/types/vuetify'
 const props = withDefaults(
   defineProps<{
     activeOrganisationId?: number | null
+    canAccessTenantAdmin?: boolean
+    isOrganisationAdmin?: boolean
   }>(),
   {
     activeOrganisationId: null,
+    canAccessTenantAdmin: false,
+    isOrganisationAdmin: false,
   },
+)
+
+const canAccessOrganisationSettings = computed(
+  () => props.canAccessTenantAdmin || props.isOrganisationAdmin,
 )
 
 const salesEventHeaders = computed((): DataTableHeader[] => [
