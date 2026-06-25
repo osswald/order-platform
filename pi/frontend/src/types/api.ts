@@ -40,6 +40,7 @@ export type CollectiveBillCreatedResponse = components['schemas']['CollectiveBil
 export type KitchenOrdersResponse = components['schemas']['KitchenOrdersResponse']
 export type KitchenOrderTicket = components['schemas']['KitchenOrderTicket']
 export type KitchenTicketLineEntry = components['schemas']['KitchenTicketLineEntry']
+export type KitchenTicketPrintResponse = components['schemas']['KitchenTicketPrintResponse']
 export type PickupOrdersResponse = components['schemas']['PickupOrdersResponse']
 export type PickupOrderItem = components['schemas']['PickupOrderItem']
 export type PaymentsListResponse = components['schemas']['PaymentsListResponse']

@@ -206,6 +206,15 @@ class KitchenTicketPrintResponse(BaseModel):
     ticket_status: str
 
 
+class KitchenTicketPartialPrintLine(BaseModel):
+    line_id: int
+    qty: int = Field(..., ge=1)
+
+
+class KitchenTicketPartialPrintBody(BaseModel):
+    lines: list[KitchenTicketPartialPrintLine] = Field(..., min_length=1)
+
+
 class PickupOrderItem(BaseModel):
     model_config = ConfigDict(extra="allow")
 

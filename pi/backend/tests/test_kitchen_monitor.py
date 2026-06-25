@@ -1,10 +1,15 @@
 """Kitchen monitor ticketing and print-on-ready behavior."""
 
+import base64
 import uuid
 
 import pytest
 from app.models import KitchenTicket, KitchenTicketLine, PrintJob
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle
+
+
+def _slip_text(job: PrintJob) -> str:
+    return base64.b64decode(job.escpos_payload).decode("cp858", errors="replace")
 
 pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
 
@@ -93,3 +98,124 @@ def test_monitored_station_defers_print_until_kitchen_action(client_session):
     empty = c.get("/v1/kitchen/orders", params={"event_id": 1, "printer_appliance_id": 101})
     assert empty.status_code == 200
     assert empty.json()["orders"] == []
+
+
+def _kitchen_ticket_from_order(c, *, qty: int = 5, article_id: int = 10):
+    response = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": 12,
+            "waiter_uuid": "w-1",
+            "lines": [
+                {"article_id": article_id, "qty": qty, "station_uuid": "st-kitchen", "note": "", "additions": []},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    orders = c.get("/v1/kitchen/orders", params={"event_id": 1, "printer_appliance_id": 101})
+    assert orders.status_code == 200
+    ticket_body = orders.json()["orders"][0]
+    return ticket_body["id"], ticket_body["lines"][0]["id"]
+
+
+def test_kitchen_partial_print_two_of_five(client_session):
+    c, Session = client_session
+    ticket_id, line_id = _kitchen_ticket_from_order(c, qty=5)
+
+    partial = c.post(
+        f"/v1/kitchen/tickets/{ticket_id}/print-partial",
+        json={"lines": [{"line_id": line_id, "qty": 2}]},
+    )
+    assert partial.status_code == 200, partial.text
+    assert partial.json()["ticket_status"] == "partial"
+
+    db = Session()
+    try:
+        ticket = db.query(KitchenTicket).filter(KitchenTicket.id == ticket_id).one()
+        line = db.query(KitchenTicketLine).filter(KitchenTicketLine.id == line_id).one()
+        assert ticket.status == "partial"
+        assert line.qty_printed == 2
+        job = db.query(PrintJob).filter(PrintJob.station_uuid == "st-kitchen").one()
+        text = _slip_text(job)
+        assert "TEILDRUCK" in text
+        assert "Noch offen" in text
+        assert "3" in text
+        assert "Burger" in text
+    finally:
+        db.close()
+
+    orders = c.get("/v1/kitchen/orders", params={"event_id": 1, "printer_appliance_id": 101})
+    assert orders.json()["orders"][0]["lines"][0]["qty_remaining"] == 3
+
+
+def test_kitchen_partial_print_multi_line(client_session):
+    c, Session = client_session
+    response = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": 8,
+            "waiter_uuid": "w-1",
+            "lines": [
+                {"article_id": 10, "qty": 2, "station_uuid": "st-kitchen", "note": "", "additions": []},
+                {"article_id": 20, "qty": 3, "station_uuid": "st-kitchen", "note": "", "additions": []},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    orders = c.get("/v1/kitchen/orders", params={"event_id": 1, "printer_appliance_id": 101})
+    ticket_body = orders.json()["orders"][0]
+    ticket_id = ticket_body["id"]
+    burger_line = next(row for row in ticket_body["lines"] if row["line"]["article_id"] == 10)
+    beer_line = next(row for row in ticket_body["lines"] if row["line"]["article_id"] == 20)
+
+    partial = c.post(
+        f"/v1/kitchen/tickets/{ticket_id}/print-partial",
+        json={"lines": [{"line_id": burger_line["id"], "qty": 1}]},
+    )
+    assert partial.status_code == 200, partial.text
+
+    db = Session()
+    try:
+        job = db.query(PrintJob).filter(PrintJob.station_uuid == "st-kitchen").one()
+        text = _slip_text(job)
+        assert "TEILDRUCK" in text
+        assert "Noch offen" in text
+        assert "Bier" in text
+        assert "Burger" in text
+    finally:
+        db.close()
+
+
+def test_kitchen_partial_print_rejects_invalid_qty(client_session):
+    c, _Session = client_session
+    ticket_id, line_id = _kitchen_ticket_from_order(c, qty=2)
+
+    bad = c.post(
+        f"/v1/kitchen/tickets/{ticket_id}/print-partial",
+        json={"lines": [{"line_id": line_id, "qty": 5}]},
+    )
+    assert bad.status_code == 400
+
+    empty = c.post(f"/v1/kitchen/tickets/{ticket_id}/print-partial", json={"lines": []})
+    assert empty.status_code == 422
+
+
+def test_kitchen_complete_print_has_no_teildruck_banner(client_session):
+    c, Session = client_session
+    ticket_id, line_id = _kitchen_ticket_from_order(c, qty=2)
+
+    complete = c.post(f"/v1/kitchen/tickets/{ticket_id}/print")
+    assert complete.status_code == 200, complete.text
+
+    db = Session()
+    try:
+        job = db.query(PrintJob).filter(PrintJob.station_uuid == "st-kitchen").one()
+        text = _slip_text(job)
+        assert "TEILDRUCK" not in text
+        assert "Noch offen" not in text
+    finally:
+        db.close()

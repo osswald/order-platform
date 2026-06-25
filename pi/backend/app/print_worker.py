@@ -705,6 +705,9 @@ def _render_receipt_slip(
             write_hero(printer, hero, size=hero_size, magnification=8)
 
         write_separator(printer, width=width)
+        if is_station_kitchen and body.get("kitchen_partial_print"):
+            write_centered_block(printer, "TEILDRUCK")
+            write_separator(printer, width=width)
         total_qty, total_cents = _write_station_order_lines_formatted(
             printer,
             body,
@@ -714,6 +717,19 @@ def _render_receipt_slip(
             show_prices=show_prices,
             show_discount_hints=not is_station_kitchen,
         )
+        if is_station_kitchen and body.get("kitchen_excluded_lines"):
+            write_separator(printer, width=width)
+            write_centered_block(printer, "Noch offen")
+            write_separator(printer, width=width)
+            _write_station_order_lines_formatted(
+                printer,
+                {"lines": body.get("kitchen_excluded_lines") or []},
+                arts,
+                width,
+                line_size=line_size,
+                show_prices=False,
+                show_discount_hints=False,
+            )
 
     if not is_voucher and show_prices:
         write_separator(printer, width=width)

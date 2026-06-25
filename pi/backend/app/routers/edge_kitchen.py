@@ -24,6 +24,7 @@ from ..schemas.edge import (
     KitchenOrdersResponse,
     KitchenPrintersResponse,
     KitchenStationsResponse,
+    KitchenTicketPartialPrintBody,
     KitchenTicketPrintResponse,
     PickupOrdersResponse,
     PickupPickedUpResponse,
@@ -107,6 +108,31 @@ def _update_kitchen_ticket_status(db: Session, ticket: KitchenTicket) -> None:
         ticket.status = "open"
 
 
+def _kitchen_excluded_lines_after_print(
+    ticket_lines: list[KitchenTicketLine],
+    selected_lines: list[tuple[KitchenTicketLine, int]],
+    articles: dict,
+) -> list[dict]:
+    print_qty_by_id = {line_row.id: int(qty) for line_row, qty in selected_lines}
+    excluded: list[dict] = []
+    for line_row in sorted(ticket_lines, key=lambda row: (row.line_index, row.id)):
+        printed_now = print_qty_by_id.get(line_row.id, 0)
+        remaining_after = max(
+            0,
+            int(line_row.qty_total or 0) - int(line_row.qty_printed or 0) - printed_now,
+        )
+        if remaining_after <= 0:
+            continue
+        line = json.loads(line_row.line_payload_json)
+        aid = line.get("article_id")
+        art = articles.get(str(aid)) or articles.get(aid) or {}
+        if aid is not None and not line.get("article_name"):
+            line["article_name"] = art.get("name") or f"#{aid}"
+        line["qty"] = remaining_after
+        excluded.append(line)
+    return excluded
+
+
 def _enqueue_kitchen_ticket_print(
     db: Session,
     *,
@@ -126,6 +152,7 @@ def _enqueue_kitchen_ticket_print(
         raise HTTPException(status_code=400, detail="Kitchen monitor is not active for this printer")
 
     payload = json.loads(order.payload_json)
+    articles = _article_map(ev)
     printable_lines: list[dict] = []
     for line_row, qty in selected_lines:
         remaining = max(0, int(line_row.qty_total or 0) - int(line_row.qty_printed or 0))
@@ -133,11 +160,19 @@ def _enqueue_kitchen_ticket_print(
         if qty < 1 or qty > remaining:
             raise HTTPException(status_code=400, detail="Requested quantity exceeds remaining quantity")
         line = json.loads(line_row.line_payload_json)
+        aid = line.get("article_id")
+        art = articles.get(str(aid)) or articles.get(aid) or {}
+        if aid is not None and not line.get("article_name"):
+            line["article_name"] = art.get("name") or f"#{aid}"
         line["qty"] = qty
         printable_lines.append(line)
 
     if not printable_lines:
         raise HTTPException(status_code=400, detail="Nothing left to print")
+
+    ticket_lines = db.query(KitchenTicketLine).filter(KitchenTicketLine.ticket_id == ticket.id).all()
+    excluded_lines = _kitchen_excluded_lines_after_print(ticket_lines, selected_lines, articles)
+    partial_print = bool(excluded_lines)
 
     job_id = _create_print_job_for_lines(
         db,
@@ -146,11 +181,13 @@ def _enqueue_kitchen_ticket_print(
         payload=payload,
         station_lines=printable_lines,
         ev=ev,
-        articles=_article_map(ev),
+        articles=articles,
         job_kind="kitchen_ticket",
         printer_appliance_id=ticket.printer_appliance_id,
         table_number=payload.get("table_number"),
         pickup_code=payload.get("pickup_code"),
+        kitchen_partial_print=partial_print,
+        kitchen_excluded_lines=excluded_lines,
     )
     for line_row, qty in selected_lines:
         line_row.qty_printed = int(line_row.qty_printed or 0) + int(qty)
@@ -278,6 +315,37 @@ def print_kitchen_ticket_line_unit(ticket_id: int, line_id: int, db: Session = D
     if not line:
         raise HTTPException(status_code=404, detail="Kitchen ticket line not found")
     job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=[(line, 1)])
+    return KitchenTicketPrintResponse(print_job_id=job_id, ticket_status=ticket.status)
+
+
+@router.post("/v1/kitchen/tickets/{ticket_id}/print-partial", response_model=KitchenTicketPrintResponse)
+def print_kitchen_ticket_partial(
+    ticket_id: int,
+    body: KitchenTicketPartialPrintBody,
+    db: Session = Depends(get_db),
+) -> KitchenTicketPrintResponse:
+    ticket = db.query(KitchenTicket).filter(KitchenTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Kitchen ticket not found")
+    if ticket.status == "done":
+        raise HTTPException(status_code=400, detail="Kitchen ticket is already done")
+
+    line_ids = {row.line_id for row in body.lines}
+    db_lines = (
+        db.query(KitchenTicketLine)
+        .filter(KitchenTicketLine.ticket_id == ticket.id, KitchenTicketLine.id.in_(line_ids))
+        .all()
+    )
+    line_by_id = {row.id: row for row in db_lines}
+    if len(line_by_id) != len(line_ids):
+        raise HTTPException(status_code=404, detail="Kitchen ticket line not found")
+
+    selected: list[tuple[KitchenTicketLine, int]] = []
+    for row in body.lines:
+        line = line_by_id[row.line_id]
+        selected.append((line, int(row.qty)))
+
+    job_id = _enqueue_kitchen_ticket_print(db, ticket=ticket, selected_lines=selected)
     return KitchenTicketPrintResponse(print_job_id=job_id, ticket_status=ticket.status)
 
 
