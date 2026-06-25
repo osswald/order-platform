@@ -84,7 +84,7 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true },
   },
   {
-    path: '/kitchen',
+    path: '/kitchen/:printerSlug/:view?',
     name: 'kitchen',
     component: () => import('../views/KitchenMonitorView.vue'),
     meta: { title: 'Küche', requiresBundle: true, requiresEvent: true, fullscreen: true },

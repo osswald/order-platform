@@ -535,6 +535,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/kitchen/tickets/{ticket_id}/print-partial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Print Kitchen Ticket Partial */
+        post: operations["print_kitchen_ticket_partial_v1_kitchen_tickets__ticket_id__print_partial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pickup/orders": {
         parameters: {
             query?: never;
@@ -1289,6 +1306,18 @@ export interface components {
             qty_remaining: number;
         } & {
             [key: string]: unknown;
+        };
+        /** KitchenTicketPartialPrintBody */
+        KitchenTicketPartialPrintBody: {
+            /** Lines */
+            lines: components["schemas"]["KitchenTicketPartialPrintLine"][];
+        };
+        /** KitchenTicketPartialPrintLine */
+        KitchenTicketPartialPrintLine: {
+            /** Line Id */
+            line_id: number;
+            /** Qty */
+            qty: number;
         };
         /** KitchenTicketPrintResponse */
         KitchenTicketPrintResponse: {
@@ -3037,6 +3066,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitchenTicketPrintResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    print_kitchen_ticket_partial_v1_kitchen_tickets__ticket_id__print_partial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KitchenTicketPartialPrintBody"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

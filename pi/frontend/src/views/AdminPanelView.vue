@@ -47,14 +47,6 @@
           Druckt je Station einen Probebons — auch wenn dieselbe Drucker-IP mehrfach vorkommt.
         </p>
         <button
-          v-if="hasKitchenMonitor"
-          type="button"
-          class="btn hub-btn"
-          @click="openKitchen"
-        >
-          Küchenmonitor
-        </button>
-        <button
           v-if="hasCashRegisters"
           type="button"
           class="btn hub-btn"
@@ -62,6 +54,22 @@
         >
           Pickup Screen
         </button>
+      </div>
+
+      <div v-if="hasKitchenMonitor" class="display-section">
+        <h3>Küchenmonitor</h3>
+        <div
+          v-for="row in kitchenMonitorRows"
+          :key="row.printerId"
+          class="kitchen-monitor-row"
+        >
+          <strong>{{ row.label }}</strong>
+          <code class="display-url">{{ row.url }}</code>
+          <div class="row">
+            <button type="button" class="btn" @click="copyKitchenUrl(row.url)">URL kopieren</button>
+            <button type="button" class="btn" @click="openKitchen(row.slug)">Monitor öffnen</button>
+          </div>
+        </div>
       </div>
 
       <div v-if="hasCashRegisters" class="display-section">
@@ -131,6 +139,7 @@ import { useAdminSession } from '@/composables/useAdminSession'
 import { useBundle } from '@/composables/useBundle'
 import { useSyncOperations } from '@/composables/useSyncOperations'
 import { formatDateTime, parseApiDate } from '@/utils/dateFormat'
+import { assignKitchenMonitorSlugs } from '@/utils/kitchenMonitorSlug'
 import { useAppVersion } from '@/composables/useAppVersion'
 import type {
   EdgeBundleEvent,
@@ -179,7 +188,39 @@ const cashRegisters = computed(() => {
 
 const hasKitchenMonitor = computed(() => Boolean(opsEvent.value?.kitchen_monitors_enabled))
 
+const kitchenMonitorRows = computed(() => {
+  const ev = opsEvent.value
+  if (!ev?.kitchen_monitors_enabled) return []
+  const printers = (ev.configuration?.kitchen_monitors || [])
+    .map((row) => ({
+      printer_appliance_id: Number(row.printer_appliance_id),
+      label: String(row.label || `Drucker #${row.printer_appliance_id}`),
+      sort_order: Number(row.sort_order) || 0,
+    }))
+    .filter((row) => Number.isFinite(row.printer_appliance_id))
+    .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label, 'de'))
+  const slugs = assignKitchenMonitorSlugs(printers)
+  return printers.map((printer) => {
+    const slug = slugs.get(printer.printer_appliance_id) || 'station'
+    return {
+      printerId: printer.printer_appliance_id,
+      label: printer.label,
+      slug,
+      url: kitchenUrlForSlug(slug),
+    }
+  })
+})
+
 const hasCashRegisters = computed(() => cashRegisters.value.length > 0)
+
+function kitchenUrlForSlug(slug: string) {
+  const path = router.resolve({
+    name: 'kitchen',
+    params: { printerSlug: slug },
+  }).href
+  if (typeof window === 'undefined') return path
+  return `${window.location.origin}${path}`
+}
 
 const displayUrl = computed(() => {
   if (!opsRegisterUuid.value) return ''
@@ -326,9 +367,20 @@ async function uncoupleDevice() {
   }
 }
 
-function openKitchen() {
+function openKitchen(slug: string) {
   selectedEventId.value = opsEventId.value
-  router.push({ name: 'kitchen' })
+  const url = kitchenUrlForSlug(slug)
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+async function copyKitchenUrl(url: string) {
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    showToast('URL kopiert.', 'ok')
+  } catch {
+    showToast(url, 'ok')
+  }
 }
 
 function openPickup() {
@@ -395,6 +447,16 @@ function endAdmin() {
   word-break: break-all;
   font-size: 0.8rem;
   margin-bottom: 0.75rem;
+}
+.kitchen-monitor-row {
+  margin-bottom: 1rem;
+}
+.kitchen-monitor-row:last-child {
+  margin-bottom: 0;
+}
+.kitchen-monitor-row strong {
+  display: block;
+  margin-bottom: 0.35rem;
 }
 .version-line {
   margin: 1.5rem 0 0;

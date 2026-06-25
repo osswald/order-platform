@@ -1455,6 +1455,58 @@
         }
       }
     },
+    "/v1/kitchen/tickets/{ticket_id}/print-partial": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Print Kitchen Ticket Partial",
+        "operationId": "print_kitchen_ticket_partial_v1_kitchen_tickets__ticket_id__print_partial_post",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitchenTicketPartialPrintBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenTicketPrintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/pickup/orders": {
       "get": {
         "tags": [
@@ -3517,6 +3569,42 @@
           "qty_remaining"
         ],
         "title": "KitchenTicketLineEntry"
+      },
+      "KitchenTicketPartialPrintBody": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/KitchenTicketPartialPrintLine"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines"
+        ],
+        "title": "KitchenTicketPartialPrintBody"
+      },
+      "KitchenTicketPartialPrintLine": {
+        "properties": {
+          "line_id": {
+            "type": "integer",
+            "title": "Line Id"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "line_id",
+          "qty"
+        ],
+        "title": "KitchenTicketPartialPrintLine"
       },
       "KitchenTicketPrintResponse": {
         "properties": {

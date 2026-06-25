@@ -348,8 +348,13 @@ def _create_print_job_for_lines(
     printer_appliance_id: int | None = None,
     table_number: int | None = None,
     pickup_code: str | None = None,
+    kitchen_partial_print: bool = False,
+    kitchen_excluded_lines: list[dict] | None = None,
 ) -> int:
     station_payload = {**payload, "lines": station_lines}
+    if kitchen_partial_print:
+        station_payload["kitchen_partial_print"] = True
+        station_payload["kitchen_excluded_lines"] = kitchen_excluded_lines or []
     _add_waiter_name(ev, station_payload)
     station_label = station_name_from_event(ev, station_uuid)
     if printer_appliance_id is not None:
