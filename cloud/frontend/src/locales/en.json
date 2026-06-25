@@ -11,6 +11,13 @@
   "common": {
     "cancel": "Cancel"
   },
+  "articles": {
+    "isActive": "Active",
+    "filterStatus": "Status",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "statusAll": "All"
+  },
   "eventStatus": {
     "config": "Configuration",
     "test": "Test mode",

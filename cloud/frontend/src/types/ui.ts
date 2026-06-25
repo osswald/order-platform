@@ -370,6 +370,7 @@ export interface ArticleForm {
   taxCodeId: number | null
   price: number
   isAddition: boolean
+  isActive: boolean
   articleCategoryId: number | null
 }
 export interface AdditionLinkLocal {

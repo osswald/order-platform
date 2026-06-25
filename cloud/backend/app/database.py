@@ -161,6 +161,12 @@ def apply_schema_patches() -> None:
     )
     _add_column_if_missing(
         "articles",
+        "is_active",
+        "ALTER TABLE articles ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1",
+        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
+    )
+    _add_column_if_missing(
+        "articles",
         "import_article_number",
         "ALTER TABLE articles ADD COLUMN import_article_number VARCHAR",
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS import_article_number VARCHAR",

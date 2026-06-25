@@ -11,7 +11,7 @@ For each article define at least:
 - **Name** and optionally a description
 - **Category**
 - **Price** in the organisation currency
-- **Availability** (active/inactive)
+- **Availability** — use the **Active** checkbox; inactive articles stay in the catalogue but cannot be selected for new station assignments or addition links. Already linked additions and station assignments keep working on Pi.
 
 Add-ons and variants extend articles with configurable extras.
 
@@ -26,5 +26,5 @@ Stock is maintained per event and station under **Stock items**, not in the glob
 ## Tips
 
 - Consistent categories simplify layout maintenance
-- Inactive articles remain in the master but do not appear in new layouts
+- Inactive articles remain in the master but do not appear in new station or layout assignments
 - Price changes apply to future sales; running events may have their own bundles

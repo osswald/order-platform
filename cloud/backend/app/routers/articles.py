@@ -28,6 +28,7 @@ class ArticleBase(BaseModel):
     accounting_account_id: int | None = None
     tax_code_id: int | None = None
     is_addition: bool = False
+    is_active: bool = True
     article_category_id: int
 
 
@@ -45,6 +46,7 @@ class ArticleUpdate(BaseModel):
     accounting_account_id: int | None = None
     tax_code_id: int | None = None
     is_addition: bool | None = None
+    is_active: bool | None = None
     article_category_id: int | None = None
 
 
@@ -67,6 +69,7 @@ class ArticleMinimalRead(BaseModel):
     label: str
     organisation_id: int | None
     is_addition: bool
+    is_active: bool
 
 
 class ArticleAdditionLinkIn(BaseModel):
@@ -91,6 +94,7 @@ def article_minimal_response(article: Article) -> ArticleMinimalRead:
         label=article.label,
         organisation_id=organisation.id if organisation else None,
         is_addition=bool(article.is_addition),
+        is_active=bool(article.is_active),
     )
 
 
@@ -110,6 +114,7 @@ def article_response(article: Article) -> ArticleRead:
         accounting_account_id=article.accounting_account_id,
         tax_code_id=article.tax_code_id,
         is_addition=bool(article.is_addition),
+        is_active=bool(article.is_active),
         article_category_id=article.article_category_id,
         article_category_name=category.name if category else "",
         organisation_id=organisation.id if organisation else 0,
@@ -177,6 +182,7 @@ def _get_readable_article(
 def read_articles(
     is_addition: bool | None = Query(None),
     organisation_id: int | None = Query(None),
+    active_only: bool = Query(False),
     minimal: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -187,6 +193,8 @@ def read_articles(
         query = query.filter(Article.is_addition.is_(is_addition))
     if organisation_id is not None:
         query = query.filter(Organisation.id == organisation_id)
+    if active_only:
+        query = query.filter(Article.is_active.is_(True))
     articles = query.order_by(Article.name).all()
     if minimal:
         return [article_minimal_response(article) for article in articles]
@@ -271,6 +279,7 @@ def create_article(
         accounting_account_id=accounting_account_id,
         tax_code_id=article_in.tax_code_id if organisation.vat_liable else None,
         is_addition=article_in.is_addition,
+        is_active=article_in.is_active,
         article_category_id=category.id,
     )
     db.add(article)
@@ -317,6 +326,8 @@ def update_article(
         article.tax_code_id = None
     if article_in.is_addition is not None:
         article.is_addition = article_in.is_addition
+    if article_in.is_active is not None:
+        article.is_active = article_in.is_active
 
     commit_or_raise(db)
     db.refresh(article)
