@@ -1611,6 +1611,11 @@ export interface components {
             addition_article_id: number;
             /** Sort Order */
             sort_order?: number | null;
+            /**
+             * Preselected
+             * @default false
+             */
+            preselected: boolean;
         };
         /** ArticleAdditionsRead */
         ArticleAdditionsRead: {

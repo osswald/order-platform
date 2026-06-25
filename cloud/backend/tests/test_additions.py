@@ -5,8 +5,10 @@ from datetime import UTC, datetime
 import pytest
 from app.additions import (
     addition_delta_cents,
+    build_additions_for_base,
     load_links_for_bases,
     replace_addition_links,
+    serialize_links_for_admin,
     validate_base_article,
 )
 from app.database import Base
@@ -72,3 +74,55 @@ def test_validate_base_article_rejects_addition(db):
     with pytest.raises(HTTPException) as exc:
         validate_base_article(db, 11)
     assert exc.value.status_code == 400
+
+
+def test_replace_addition_links_persists_preselected(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0, "preselected": True}],
+    )
+    db.commit()
+    assert links[0].preselected is True
+
+
+def test_replace_addition_links_defaults_preselected_false(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0}],
+    )
+    db.commit()
+    assert links[0].preselected is False
+
+
+def test_serialize_links_for_admin_includes_preselected(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0, "preselected": True}],
+    )
+    db.commit()
+    items = serialize_links_for_admin(db, base)
+    assert len(items) == 1
+    assert items[0]["preselected"] is True
+
+
+def test_build_additions_for_base_includes_preselected(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0, "preselected": True}],
+    )
+    db.commit()
+    arts = {a.id: a for a in db.query(Article).all()}
+    built = build_additions_for_base(links, arts, {})
+    assert built[0]["preselected"] is True

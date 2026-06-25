@@ -31,6 +31,16 @@ def test_edge_bundle_contract_rejects_missing_organisation_id():
         EdgeBundleContract.model_validate(payload)
 
 
+def test_edge_bundle_contract_accepts_preselected_addition():
+    payload = default_bundle()
+    payload["events"][0]["articles"]["10"]["additions"] = [
+        {"article_id": 20, "name": "Addon", "price": 1.0, "preselected": True},
+    ]
+    model = EdgeBundleContract.model_validate(payload)
+    additions = model.events[0].articles["10"].additions
+    assert additions[0].preselected is True
+
+
 def test_local_order_create_accepts_typed_lines_and_payments():
     body = LocalOrderCreate.model_validate(
         {

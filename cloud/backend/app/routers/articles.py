@@ -75,6 +75,7 @@ class ArticleMinimalRead(BaseModel):
 class ArticleAdditionLinkIn(BaseModel):
     addition_article_id: int
     sort_order: int | None = None
+    preselected: bool = False
 
 
 class ArticleAdditionsUpdateIn(BaseModel):
@@ -231,7 +232,7 @@ def put_article_additions(
         replace_addition_links(
             db,
             base,
-            [{"addition_article_id": i.addition_article_id, "sort_order": i.sort_order} for i in body.items],
+            [{"addition_article_id": i.addition_article_id, "sort_order": i.sort_order, "preselected": i.preselected} for i in body.items],
         )
         commit_or_raise(db)
     except HTTPException:

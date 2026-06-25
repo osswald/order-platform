@@ -64,8 +64,13 @@ const selected = ref<Set<number>>(new Set())
 watch(
   () => props.open,
   (o) => {
-    if (o) selected.value = new Set()
+    if (!o) return
+    const ids = props.additions
+      .filter((a) => a.preselected && canSelect(a))
+      .map((a) => Number(a.article_id))
+    selected.value = new Set(ids)
   },
+  { immediate: true },
 )
 
 function priceHint(a: EdgeBundleArticleAddition) {

@@ -116,6 +116,58 @@ def test_articles_crud_and_addition_links():
     assert cola["organisation_id"] == org_id
 
 
+def test_article_addition_links_round_trip_preselected():
+    org_id = _seed_org_admin()
+    token = _token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    db = SessionLocal()
+    try:
+        cat_id = db.query(ArticleCategory).filter(ArticleCategory.organisation_id == org_id).first().id
+    finally:
+        db.close()
+
+    base = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Burger",
+            "label": "BURG",
+            "price": 12.0,
+            "article_category_id": cat_id,
+            "is_addition": False,
+        },
+    )
+    assert base.status_code == 200, base.text
+    base_id = base.json()["id"]
+
+    zusatz = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Cheese",
+            "label": "CHZ",
+            "price": 1.5,
+            "article_category_id": cat_id,
+            "is_addition": True,
+        },
+    )
+    assert zusatz.status_code == 200, zusatz.text
+    add_id = zusatz.json()["id"]
+
+    linked = client.put(
+        f"/articles/{base_id}/additions",
+        headers=headers,
+        json={"items": [{"addition_article_id": add_id, "sort_order": 0, "preselected": True}]},
+    )
+    assert linked.status_code == 200
+    assert linked.json()["items"][0]["preselected"] is True
+
+    read_links = client.get(f"/articles/{base_id}/additions", headers=headers)
+    assert read_links.status_code == 200
+    assert read_links.json()["items"][0]["preselected"] is True
+
+
 def test_article_is_active_defaults_true():
     org_id = _seed_org_admin()
     token = _token()

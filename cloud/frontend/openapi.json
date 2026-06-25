@@ -8886,6 +8886,11 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "preselected": {
+            "type": "boolean",
+            "title": "Preselected",
+            "default": false
           }
         },
         "type": "object",

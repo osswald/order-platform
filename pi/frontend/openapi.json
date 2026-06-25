@@ -2923,6 +2923,17 @@
               }
             ],
             "title": "Monitor Stock"
+          },
+          "preselected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preselected"
           }
         },
         "additionalProperties": true,
