@@ -1,23 +1,23 @@
 """Unit tests for voucher definition validation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
+from app.database import Base
+from app.models import Article, ArticleCategory, Event, HireCompany, Organisation
+from app.vouchers import (
+    VOUCHER_KIND_ARTICLE,
+    VOUCHER_KIND_FIXED,
+    assert_voucher_articles_in_org,
+    assert_voucher_definition_in,
+    normalize_cell_voucher_uuids,
+)
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base
 from tests.helpers import ensure_country
-from app.models import Article, ArticleCategory, Event, HireCompany, Organisation
-from app.vouchers import (
-    assert_voucher_articles_in_org,
-    assert_voucher_definition_in,
-    normalize_cell_voucher_uuids,
-    VOUCHER_KIND_ARTICLE,
-    VOUCHER_KIND_FIXED,
-)
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def db():
     Base.metadata.create_all(bind=engine)
     session = sessionmaker(bind=engine)()
     ch_country_id = ensure_country(session, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add_all(
         [
             HireCompany(id=1, name="HC"),

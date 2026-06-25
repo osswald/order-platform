@@ -1,31 +1,24 @@
-from datetime import timedelta
 import os
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..auth_deps import get_current_user
 from ..auth_sessions import invalidate_user_sessions, session_claims, token_version_matches
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
+from ..models import HireCompany, User
 from ..rate_limit import (
     CHANGE_PASSWORD_RATE_LIMIT,
     LOGIN_RATE_LIMIT,
     REFRESH_RATE_LIMIT,
     limiter,
 )
-from ..models import HireCompany, User
-from ..user_access import (
-    is_organisation_admin,
-    is_platform_admin,
-    is_tenant_admin,
-    user_hire_company_id,
-    user_role,
-)
 from ..schemas import MessageResponse
-from ..auth_deps import get_current_user
-from ..i18n.errors import api_error
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -33,6 +26,13 @@ from ..security import (
     get_password_hash,
     verify_password,
     verify_password_and_maybe_upgrade,
+)
+from ..user_access import (
+    is_organisation_admin,
+    is_platform_admin,
+    is_tenant_admin,
+    user_hire_company_id,
+    user_role,
 )
 
 router = APIRouter()

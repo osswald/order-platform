@@ -12,7 +12,6 @@ from ..models import (
     Event,
     EventAppLayout,
     EventAppLayoutCell,
-    EventCashRegister,
     EventStation,
     User,
 )

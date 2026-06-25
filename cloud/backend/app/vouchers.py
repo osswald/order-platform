@@ -6,9 +6,9 @@ import uuid
 from typing import Any
 
 from fastapi import status
-from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
+from .i18n.errors import api_error
 from .models import Article, ArticleCategory, Event, EventVoucherDefinition, EventVoucherRedemption
 
 VOUCHER_KIND_FIXED = "fixed_amount"

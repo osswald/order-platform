@@ -3,8 +3,6 @@
 import base64
 from io import BytesIO
 
-from PIL import Image, ImageOps
-
 from app.escpos_render import (
     _prepare_receipt_logo,
     escpos_init_preamble,
@@ -13,6 +11,7 @@ from app.escpos_render import (
     write_line,
     write_logo_bytes,
 )
+from PIL import Image, ImageOps
 
 
 def test_render_slip_contains_text():

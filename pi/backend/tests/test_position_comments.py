@@ -4,7 +4,6 @@ import json
 import uuid
 
 import pytest
-
 from app.print_worker import _escpos_text, build_escpos_receipt_text, build_payment_receipt_text
 from tests.fixtures_bundles import bundle_copy, default_bundle, position_comments_bundle
 

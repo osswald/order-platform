@@ -2,10 +2,9 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from app.models import KitchenTicket, LocalOrder, PaymentReceipt, PrintJob, RegisterDisplayState
 from tests.fixtures_bundles import bundle_copy, cash_register_bundle
 
@@ -180,7 +179,7 @@ def test_ready_pickup_orders_expire_after_five_minutes(client):
     db = Session()
     try:
         order = db.query(LocalOrder).filter(LocalOrder.pickup_code == "A1").one()
-        order.ready_at = datetime.now(timezone.utc) - timedelta(minutes=6)
+        order.ready_at = datetime.now(UTC) - timedelta(minutes=6)
         db.commit()
     finally:
         db.close()

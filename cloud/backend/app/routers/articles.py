@@ -1,19 +1,18 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
-from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
-from ..currency import organisation_currency
 from ..accounting_validation import resolve_article_accounting_account_id, validate_article_accounting_account
+from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
+from ..auth_deps import get_current_user
+from ..currency import organisation_currency
+from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
 from ..models import Article, ArticleCategory, Organisation, User
 from ..tax_code_validation import validate_article_tax_code
-from ..auth_deps import get_current_user
-from ..deps import get_db
-from ..db_errors import commit_or_raise
-from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
+from ..tenancy import TenantContext, get_current_tenant
 from ..user_access import can_manage_tenant
 
 router = APIRouter()
@@ -76,11 +75,11 @@ class ArticleAdditionLinkIn(BaseModel):
 
 
 class ArticleAdditionsUpdateIn(BaseModel):
-    items: List[ArticleAdditionLinkIn] = Field(default_factory=list)
+    items: list[ArticleAdditionLinkIn] = Field(default_factory=list)
 
 
 class ArticleAdditionsRead(BaseModel):
-    items: List[dict]
+    items: list[dict]
 
 
 def article_minimal_response(article: Article) -> ArticleMinimalRead:
@@ -174,7 +173,7 @@ def _get_readable_article(
     )
 
 
-@router.get("/", response_model=List[ArticleRead] | List[ArticleMinimalRead])
+@router.get("/", response_model=list[ArticleRead] | list[ArticleMinimalRead])
 def read_articles(
     is_addition: bool | None = Query(None),
     organisation_id: int | None = Query(None),

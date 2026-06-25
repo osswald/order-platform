@@ -2,15 +2,14 @@
 
 import json
 
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 import app.database as database
+import pytest
 from app.database import Base, init_test_schema
 from app.domain.cash_sessions import open_session
 from app.models import SyncedBundle
 from app.shift_integration import attach_shift_to_payload, record_shift_order_submit, session_to_api_dict
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture

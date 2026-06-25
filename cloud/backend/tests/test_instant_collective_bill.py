@@ -1,11 +1,11 @@
 """Instant collective bill settings and validation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from app.instant_collective_bill import apply_instant_collective_bill_settings
 from app.models import Event, HireCompany, Organisation
+
 from tests.helpers import ensure_country
 
 
@@ -16,7 +16,7 @@ def event_row(memory_db_session):
     memory_db_session.add(hc)
     org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch, currency="CHF")
     memory_db_session.add(org)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = Event(
         id=1,
         name="Fest",

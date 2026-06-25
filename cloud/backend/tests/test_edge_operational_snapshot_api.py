@@ -1,12 +1,9 @@
 """Cross-appliance operational snapshot via edge API."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import (
     Appliance,
@@ -15,10 +12,11 @@ from app.models import (
     Event,
     HireCompany,
     Organisation,
-    User,
 )
-from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
@@ -38,7 +36,7 @@ def _fixture_two_appliances() -> tuple[dict, dict, int]:
         )
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ev = Event(
             name="Live",
             status="prod",

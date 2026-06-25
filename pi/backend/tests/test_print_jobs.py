@@ -3,8 +3,7 @@
 import uuid
 
 import pytest
-
-from app.models import LocalOrder, PrintJob
+from app.models import PrintJob
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle
 
 pytestmark = pytest.mark.usefixtures("mock_printer_tcp")

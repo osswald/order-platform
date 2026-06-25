@@ -1,28 +1,30 @@
 """Event copy duplicates configuration but not sales data."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.event_copy import copy_event, default_copy_name
 from app.models import (
     Article,
     ArticleCategory,
     EdgeSubmittedOrder,
     Event,
-    HireCompany,
     EventAppLayout,
     EventAppLayoutCell,
     EventArticleStock,
     EventCollectiveBill,
     EventStation,
     EventWaiter,
+    HireCompany,
     Organisation,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
+
+
 @pytest.fixture
 def db():
     engine = create_engine("sqlite:///:memory:")
@@ -30,7 +32,7 @@ def db():
     Session = sessionmaker(bind=engine)
     session = Session()
     ch_country_id = ensure_country(session, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     hire = HireCompany(id=1, name="Vendor")
     org = Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF")

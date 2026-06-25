@@ -5,13 +5,14 @@ import base64
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from escpos.printer import Dummy
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
+from .emulated_printer import is_emulated_printer_mode, store_emulated_receipt
 from .escpos_render import (
     encode_escpos_text,
     escpos_env_line_width,
@@ -20,9 +21,8 @@ from .escpos_render import (
     resolve_line_width,
     resolve_logo_max_width,
     write_centered_block,
-    write_centered_small_block,
     write_centered_sized,
-    write_heading,
+    write_centered_small_block,
     write_hero,
     write_item_row,
     write_line,
@@ -32,7 +32,6 @@ from .escpos_render import (
     write_subline,
     write_two_column,
 )
-from .emulated_printer import is_emulated_printer_mode, store_emulated_receipt
 from .models import LocalOrder, PrintJob, SyncedBundle
 from .pricing import addition_display_name
 
@@ -123,14 +122,14 @@ def _escpos_timezone() -> ZoneInfo:
 
 def _format_ordered_at(iso: str | None) -> str:
     if not iso:
-        dt = datetime.now(timezone.utc)
+        dt = datetime.now(UTC)
     else:
         s = str(iso).strip()
         if s.endswith("Z"):
             s = s[:-1] + "+00:00"
         dt = datetime.fromisoformat(s)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
     local = dt.astimezone(_escpos_timezone())
     return local.strftime("%d.%m.%Y %H:%M Uhr")
 
@@ -958,7 +957,7 @@ async def print_worker_loop(stop_event: asyncio.Event) -> None:
             db.close()
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
     log.info("Print worker stopped")
 

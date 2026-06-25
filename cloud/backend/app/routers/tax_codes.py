@@ -1,13 +1,12 @@
 from datetime import date
-from typing import List
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import TaxCode, TaxCodeRate, User
 from ..reference_countries import assert_tax_code_deletable, country_response, get_country_or_404
@@ -49,19 +48,19 @@ class TaxCodeRead(BaseModel):
     country_id: int
     name: str
     country: CountryNestedRead
-    rates: List[TaxCodeRateRead]
+    rates: list[TaxCodeRateRead]
 
 
 class TaxCodeCreate(BaseModel):
     country_id: int
     name: str = Field(..., min_length=1)
-    rates: List[TaxCodeRateBase] = Field(..., min_length=1)
+    rates: list[TaxCodeRateBase] = Field(..., min_length=1)
 
 
 class TaxCodeUpdate(BaseModel):
     country_id: int | None = None
     name: str | None = Field(None, min_length=1)
-    rates: List[TaxCodeRateBase] | None = None
+    rates: list[TaxCodeRateBase] | None = None
 
 
 def _rate_response(rate: TaxCodeRate) -> dict:
@@ -94,14 +93,14 @@ def _periods_overlap(
     return start_a <= end_b_eff and start_b <= end_a_eff
 
 
-def _assert_no_rate_overlaps(rates: List[TaxCodeRateBase]) -> None:
+def _assert_no_rate_overlaps(rates: list[TaxCodeRateBase]) -> None:
     for index, rate in enumerate(rates):
         for other in rates[index + 1 :]:
             if _periods_overlap(rate.valid_from, rate.valid_to, other.valid_from, other.valid_to):
                 raise api_error("tax_code_overlap", status.HTTP_400_BAD_REQUEST)
 
 
-def _apply_rates(tax_code: TaxCode, rates: List[TaxCodeRateBase]) -> None:
+def _apply_rates(tax_code: TaxCode, rates: list[TaxCodeRateBase]) -> None:
     _assert_no_rate_overlaps(rates)
     tax_code.rates.clear()
     for rate in rates:
@@ -126,7 +125,7 @@ def _get_tax_code_or_404(db: Session, tax_code_id: int) -> TaxCode:
     return tax_code
 
 
-@router.get("/", response_model=List[TaxCodeRead])
+@router.get("/", response_model=list[TaxCodeRead])
 def list_tax_codes(
     country_id: int | None = Query(None),
     db: Session = Depends(get_db),

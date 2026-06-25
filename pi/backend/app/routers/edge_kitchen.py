@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -302,7 +302,7 @@ READY_PICKUP_TTL = timedelta(minutes=5)
 
 def _mark_pickup_order_picked_up(db: Session, order: LocalOrder) -> None:
     order.pickup_status = "picked_up"
-    order.picked_up_at = datetime.now(timezone.utc)
+    order.picked_up_at = datetime.now(UTC)
     payload = json.loads(order.payload_json)
     payload["pickup_status"] = "picked_up"
     payload["picked_up_at"] = order.picked_up_at.isoformat()
@@ -311,7 +311,7 @@ def _mark_pickup_order_picked_up(db: Session, order: LocalOrder) -> None:
 
 
 def _expire_stale_ready_pickup_orders(db: Session, event_id: int) -> None:
-    cutoff = datetime.now(timezone.utc) - READY_PICKUP_TTL
+    cutoff = datetime.now(UTC) - READY_PICKUP_TTL
     stale = (
         db.query(LocalOrder)
         .filter(
@@ -344,7 +344,7 @@ def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)
     pending = [row for row in rows if row.pickup_status != "ready"]
     ready = sorted(
         (row for row in rows if row.pickup_status == "ready"),
-        key=lambda row: row.ready_at or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda row: row.ready_at or datetime.min.replace(tzinfo=UTC),
     )
     return PickupOrdersResponse(orders=[_pickup_order_response(row) for row in pending + ready])
 

@@ -2,32 +2,40 @@
 
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, Query, Request, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from ..currency import event_currency
+from ..db_errors import commit_or_raise
+from ..deps import get_db
 from ..edge_bundle import edge_bundle_payload
+from ..edge_operational_mirror import (
+    upsert_edge_kitchen_ticket_snapshot,
+    upsert_edge_order_snapshot,
+)
+from ..edge_operational_snapshot import build_operational_snapshot_for_events
+from ..event_cash_sessions import upsert_edge_cash_session
+from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status
+from ..i18n.errors import api_error
 from ..models import (
     Appliance,
     ApplianceEdgeCredential,
     ApplianceLending,
     AppliancePairingSession,
-    EdgeSubmittedOrder,
     EdgeOrderItem,
+    EdgeOrderSession,
     EdgePayment,
     EdgePaymentBatch,
-    EdgeOrderSession,
+    EdgeSubmittedOrder,
     Event,
     EventAppLayout,
     EventAppLayoutCell,
-    EventCashRegister,
     EventStation,
     Organisation,
     OrganisationPositionComment,
@@ -35,19 +43,10 @@ from ..models import (
     organisation_users,
 )
 from ..payment_types_config import payment_types_from_event
-from ..twint_qr import twint_qr_data_url_for_event
-from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status
-from ..stock import apply_stock_deductions, article_snapshot_for_event
-from ..security import get_password_hash, verify_password
-from ..deps import get_db
-from ..db_errors import commit_or_raise
-from ..event_cash_sessions import upsert_edge_cash_session
-from ..edge_operational_mirror import (
-    upsert_edge_kitchen_ticket_snapshot,
-    upsert_edge_order_snapshot,
-)
-from ..edge_operational_snapshot import build_operational_snapshot_for_events
 from ..rate_limit import EDGE_PAIR_RATE_LIMIT, EDGE_WRITE_RATE_LIMIT, edge_client_key, limiter
+from ..security import get_password_hash, verify_password
+from ..stock import apply_stock_deductions, article_snapshot_for_event
+from ..twint_qr import twint_qr_data_url_for_event
 from .events import serialize_event_configuration
 
 router = APIRouter()
@@ -55,7 +54,7 @@ PAIRING_CODE_PATTERN = re.compile(r"\D+")
 
 
 def _utc_today():
-    return datetime.now(timezone.utc).date()
+    return datetime.now(UTC).date()
 
 
 class ApplianceEdgeContext:
@@ -112,7 +111,7 @@ def get_edge_server_appliance(
     if not org or org.hire_company_id != appliance.hire_company_id:
         raise api_error("lending_org_mismatch", status.HTTP_403_FORBIDDEN)
     if edge_credential is not None:
-        edge_credential.last_seen_at = datetime.now(timezone.utc)
+        edge_credential.last_seen_at = datetime.now(UTC)
         commit_or_raise(db)
     return ApplianceEdgeContext(appliance, lending.organisation_id, edge_credential=edge_credential)
 
@@ -136,7 +135,7 @@ def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Eve
 
 
 def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return (
         db.query(Event)
         .options(
@@ -320,7 +319,7 @@ def pair_edge_device(request: Request, body: EdgePairRequest, db: Session = Depe
     if len(code) != 6:
         raise api_error("pairing_code_must_6_digits", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sessions = (
         db.query(AppliancePairingSession)
         .join(Appliance, Appliance.id == AppliancePairingSession.appliance_id)
@@ -439,7 +438,7 @@ def read_edge_bundle(
     return EdgeBundleRead(
         organisation_id=bundle_core["organisation_id"],
         appliance_id=appliance.id,
-        server_time=datetime.now(timezone.utc),
+        server_time=datetime.now(UTC),
         events=bundles,
         admin_pin_hashes=bundle_core["admin_pin_hashes"],
         position_comments_enabled=bundle_core["position_comments_enabled"],
@@ -463,7 +462,7 @@ def read_operational_snapshot(
         events=events,
     )
     snapshot["appliance_id"] = ctx.appliance.id
-    snapshot["server_time"] = datetime.now(timezone.utc)
+    snapshot["server_time"] = datetime.now(UTC)
     return snapshot
 
 
@@ -505,7 +504,7 @@ def unpair_edge_device(
         raise api_error("invalid_device", status.HTTP_401_UNAUTHORIZED)
     if credential.status != "revoked" or credential.revoked_at is None:
         credential.status = "revoked"
-        credential.revoked_at = datetime.now(timezone.utc)
+        credential.revoked_at = datetime.now(UTC)
         commit_or_raise(db)
     return EdgeUnpairAck(status="revoked")
 

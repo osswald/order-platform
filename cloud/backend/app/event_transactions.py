@@ -14,10 +14,10 @@ from .event_sales import (
     _collect_article_ids_from_orders,
     _line_for_pricing,
     _normalize_additions,
+    _resolve_waiter_name,
     format_payload_lines,
     line_total_cents,
     payment_type_label,
-    _resolve_waiter_name,
 )
 from .models import EdgeSubmittedOrder, Event
 

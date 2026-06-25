@@ -1,15 +1,11 @@
 """Receipt printing configuration and copy behaviour."""
 
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
 from app.models import Event, HireCompany, Organisation
-from tests.helpers import ensure_country
 from app.receipt_printing_config import (
     copy_receipt_printing_from_hire_company,
     copy_receipt_printing_from_organisation,
@@ -18,6 +14,10 @@ from app.receipt_printing_config import (
     printing_bundle_dict,
     store_receipt_logo,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture()
@@ -63,8 +63,8 @@ def test_copy_organisation_to_event_falls_back_on_invalid_config(db):
         "station_receipt": {"size_table_or_pickup": "huge"},
     }
 
-    start = datetime(2026, 6, 1, 10, tzinfo=timezone.utc)
-    end = datetime(2026, 6, 1, 22, tzinfo=timezone.utc)
+    start = datetime(2026, 6, 1, 10, tzinfo=UTC)
+    end = datetime(2026, 6, 1, 22, tzinfo=UTC)
     event = Event(
         name="Fest",
         status="config",
@@ -88,8 +88,8 @@ def test_copy_organisation_to_event_includes_label(db):
     org.receipt_printing_config = default_event_printing_config()
     org.receipt_printing_config["label_event_title"] = "ignored on org"
 
-    start = datetime(2026, 6, 1, 10, tzinfo=timezone.utc)
-    end = datetime(2026, 6, 1, 22, tzinfo=timezone.utc)
+    start = datetime(2026, 6, 1, 10, tzinfo=UTC)
+    end = datetime(2026, 6, 1, 22, tzinfo=UTC)
     event = Event(
         name="Fest",
         status="config",
@@ -106,8 +106,8 @@ def test_copy_organisation_to_event_includes_label(db):
 
 
 def test_printing_bundle_dict_includes_logo_base64(db):
-    start = datetime(2026, 6, 1, 10, tzinfo=timezone.utc)
-    end = datetime(2026, 6, 1, 22, tzinfo=timezone.utc)
+    start = datetime(2026, 6, 1, 10, tzinfo=UTC)
+    end = datetime(2026, 6, 1, 22, tzinfo=UTC)
     event = Event(
         name="Fest",
         status="config",

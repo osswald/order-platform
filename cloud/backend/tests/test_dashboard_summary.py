@@ -1,11 +1,8 @@
 """Dashboard summary helpers and organisation aggregation."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.dashboard_summary import (
     build_attention_items,
     build_organisation_dashboard_summary,
@@ -13,8 +10,11 @@ from app.dashboard_summary import (
     running_event_ids,
 )
 from app.database import Base
-from tests.helpers import ensure_country
 from app.models import Event, HireCompany, Organisation
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def db():
 
 
 def _event(**kwargs):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     defaults = dict(
         name="Fest",
         status="config",
@@ -43,7 +43,7 @@ def _event(**kwargs):
 
 
 def test_events_by_status_counts():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = [
         _event(status="config"),
         _event(status="prod", start=now, end=now + timedelta(hours=2)),
@@ -57,7 +57,7 @@ def test_events_by_status_counts():
 
 
 def test_running_event_ids():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     running = _event(
         id=10,
         status="prod",
@@ -74,7 +74,7 @@ def test_running_event_ids():
 
 
 def test_attention_config_starting_soon():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = [_event(status="config", start=now + timedelta(days=2))]
     items = build_attention_items(events, now)
     assert len(items) == 1
@@ -84,7 +84,7 @@ def test_attention_config_starting_soon():
 
 
 def test_attention_missing_twint_qr():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = [
         _event(
             status="prod",
@@ -99,7 +99,7 @@ def test_attention_missing_twint_qr():
 
 def test_build_organisation_dashboard_summary(db):
     ch_country_id = ensure_country(db, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db.add(HireCompany(id=1, name="HC"))
     org = Organisation(id=1, hire_company_id=1, name="Test Org", country_id=ch_country_id, currency="CHF")
     db.add(org)

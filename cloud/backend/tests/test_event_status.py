@@ -1,14 +1,9 @@
 """Event status lifecycle: transitions, purge on test→prod, edge bundle filter."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.event_status import (
     assert_create_status,
     purge_event_operational_data,
@@ -25,6 +20,11 @@ from app.models import (
 )
 from app.routers.edge import _active_events_for_org
 from app.stock import reset_event_stock_to_baseline
+from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def db():
     Session = sessionmaker(bind=engine)
     session = Session()
     ch_country_id = ensure_country(session, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     hc = HireCompany(id=1, name="HC")
     org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     appliance = Appliance(id=1, hire_company_id=1, type="pi", name="Pi")
@@ -124,7 +124,7 @@ def test_reset_event_stock_to_baseline_skips_without_baseline(db):
 
 
 def test_active_events_for_org_excludes_config_and_archive(db):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db.add(
         Event(
             id=2,

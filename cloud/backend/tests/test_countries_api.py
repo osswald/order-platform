@@ -1,12 +1,12 @@
 """Countries reference API."""
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
 from app.main import app
 from app.models import HireCompany, Organisation, TaxCode, User
 from app.roles import ROLE_MEMBER, ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)

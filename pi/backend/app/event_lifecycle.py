@@ -6,27 +6,10 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from .models import (
-    EventOrderCounter,
-    EventPickupCounter,
-    KitchenTicket,
-    KitchenTicketLine,
-    LocalOrder,
-    OutboxEntry,
-    PaymentReceipt,
-    PrintJob,
-    RegisterDisplayState,
     SyncedBundle,
 )
 from .models_operational import (
     BundleMeta,
-    CashSession,
-    Invoice,
-    InvoiceItem,
-    ItemTransferLog,
-    OrderItem,
-    OrderSession,
-    Payment,
-    PaymentBatch,
 )
 
 

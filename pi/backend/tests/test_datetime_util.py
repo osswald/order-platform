@@ -1,6 +1,6 @@
 """Tests for datetime_util."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from app.datetime_util import utc_iso
 
@@ -18,7 +18,7 @@ def test_utc_iso_naive_assumed_utc():
 
 
 def test_utc_iso_aware_utc():
-    dt = datetime(2026, 6, 24, 15, 47, 27, tzinfo=timezone.utc)
+    dt = datetime(2026, 6, 24, 15, 47, 27, tzinfo=UTC)
     assert utc_iso(dt) == "2026-06-24T15:47:27+00:00"
 
 

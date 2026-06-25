@@ -1,7 +1,7 @@
 """Automatic appliance names for servers (Greek gods) and printers (capital cities)."""
 
 import random
-from typing import Iterable
+from collections.abc import Iterable
 
 from sqlalchemy.orm import Session
 

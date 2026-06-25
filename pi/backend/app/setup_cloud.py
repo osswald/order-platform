@@ -1,6 +1,5 @@
 import os
 
-
 DEFAULT_CLOUD_BASE_URL = os.environ.get("DEFAULT_CLOUD_BASE_URL", "https://api.vendiqo.ch").strip().rstrip("/")
 
 

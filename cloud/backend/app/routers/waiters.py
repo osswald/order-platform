@@ -1,14 +1,13 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, Query, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import Organisation, User, Waiter
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
+from ..models import Organisation, User, Waiter
 from ..tenancy import (
     TenantContext,
     ensure_user_can_use_organisation,
@@ -66,7 +65,7 @@ def readable_waiters_query(db: Session, current_user: User, hire_company_id: int
     return query.join(Organisation.users).filter(User.id == current_user.id)
 
 
-@router.get("/", response_model=List[WaiterRead])
+@router.get("/", response_model=list[WaiterRead])
 def read_waiters(
     organisation_id: int | None = Query(None),
     db: Session = Depends(get_db),

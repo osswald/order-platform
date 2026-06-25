@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from app.models import KitchenTicket, KitchenTicketLine, LocalOrder
 from app.operational_restore import needs_operational_restore, restore_operational_snapshot
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle

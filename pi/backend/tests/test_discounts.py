@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-
 from app.pricing import (
     apply_discount_cents,
     line_gross_cents,

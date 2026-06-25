@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
-
 from app.models import Country
+from sqlalchemy.orm import Session
 
 
 def country_id_by_code(db: Session, code: str = "CH") -> int:

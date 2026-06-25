@@ -1,12 +1,9 @@
 """Event collective bills upsert and list."""
 
-import pytest
-from datetime import datetime, timezone
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from datetime import UTC, datetime
 
+import pytest
 from app.database import Base
-from tests.helpers import ensure_country
 from app.event_collective_bills import build_event_collective_bills_list, upsert_collective_bill_from_payload
 from app.event_sales import line_unit_cents
 from app.models import (
@@ -20,6 +17,10 @@ from app.models import (
     HireCompany,
     Organisation,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -33,7 +34,7 @@ def db_session():
     db.add(hc)
     org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     db.add(org)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = Event(
         id=1,
         name="Fest",
@@ -218,7 +219,7 @@ def test_collective_bill_dedupes_stale_snapshots(db_session):
         appliance_id=1,
         organisation_id=1,
         event_id=event.id,
-        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
         payload={
             "client_order_id": logical_cid,
             "collective_bill_uuid": shared_uuid,
@@ -235,7 +236,7 @@ def test_collective_bill_dedupes_stale_snapshots(db_session):
         appliance_id=1,
         organisation_id=1,
         event_id=event.id,
-        created_at=datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
         payload={
             "client_order_id": logical_cid,
             "collective_bill_uuid": shared_uuid,
@@ -312,7 +313,7 @@ def test_closed_collective_bill_shows_paid_positions(db_session):
             appliance_id=1,
             organisation_id=1,
             event_id=event.id,
-            created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+            created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
             payload={
                 "client_order_id": logical_cid,
                 "collective_bill_uuid": bill_uuid,
@@ -328,7 +329,7 @@ def test_closed_collective_bill_shows_paid_positions(db_session):
             appliance_id=1,
             organisation_id=1,
             event_id=event.id,
-            created_at=datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc),
+            created_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
             payload={
                 "client_order_id": logical_cid,
                 "collective_bill_uuid": bill_uuid,

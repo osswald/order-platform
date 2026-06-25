@@ -3,9 +3,8 @@
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy.exc import IntegrityError
-
 from app.db_errors import commit_or_raise
+from sqlalchemy.exc import IntegrityError
 
 
 def test_commit_or_raise_commits_on_success():

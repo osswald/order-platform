@@ -1,10 +1,8 @@
 """Edge order submission idempotency."""
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
-
-from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.main import app
@@ -18,6 +16,8 @@ from app.models import (
     Organisation,
 )
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)
@@ -38,7 +38,7 @@ def _edge_fixture() -> tuple[dict[str, str], int]:
         )
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ev = Event(
             name="Live",
             status="prod",
@@ -198,7 +198,7 @@ def test_operational_chunk_duplicate_returns_ack():
         "payload": {
             "entity_type": "cash_session",
             "session_uuid": str(uuid4()),
-            "opened_at": datetime.now(timezone.utc).isoformat(),
+            "opened_at": datetime.now(UTC).isoformat(),
         },
     }
     first = client.post("/edge/v1/sync/operational/chunk", headers=headers, json=payload)

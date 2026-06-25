@@ -1,14 +1,10 @@
 """Event voucher definitions and layout cell validation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.event_config_validation import replace_event_configuration
 from app.models import (
     Article,
@@ -20,6 +16,10 @@ from app.models import (
     HireCompany,
     Organisation,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def db_session():
     Session = sessionmaker(bind=engine)
     db = Session()
     ch_country_id = ensure_country(db, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     hc = HireCompany(id=1, name="HC")
     db.add(hc)
     org = Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF")

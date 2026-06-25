@@ -3,7 +3,6 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -15,6 +14,7 @@ from ..hosted_pi_service import (
     instance_to_read,
     stop_hosted_pi,
 )
+from ..i18n.errors import api_error
 from ..models import HostedPiInstance, User
 from ..routers.events import get_event_for_configuration
 from ..tenancy import TenantContext, get_current_tenant

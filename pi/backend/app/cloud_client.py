@@ -1,6 +1,5 @@
 """Pull/push against cloud edge API."""
 
-import json
 from typing import Any
 
 import httpx

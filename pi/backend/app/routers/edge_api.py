@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter
 
-from ..deps import get_db
 from .edge_admin import router as edge_admin_router
 from .edge_emulated_receipts import router as edge_emulated_receipts_router
 from .edge_kitchen import router as edge_kitchen_router

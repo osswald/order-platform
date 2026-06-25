@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-
 EDGE_CONFIG_FILE = Path(os.environ.get("EDGE_CONFIG_FILE", "/data/edge.env"))
 EDGE_CONFIG_KEYS = ("CLOUD_BASE_URL", "EDGE_CLIENT_ID", "EDGE_SECRET")
 _ENV_ALIASES = {

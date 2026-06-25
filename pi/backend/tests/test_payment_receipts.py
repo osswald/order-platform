@@ -5,7 +5,6 @@ import json
 import uuid
 
 import pytest
-
 from app.models import PaymentReceipt, PrintJob
 from app.print_worker import _escpos_text, run_print_job_sync
 from tests.fixtures_bundles import bundle_copy, payment_receipts_bundle

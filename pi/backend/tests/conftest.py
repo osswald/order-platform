@@ -19,16 +19,15 @@ from dataclasses import dataclass
 from unittest.mock import patch
 
 import pytest
+from app import models, models_operational  # noqa: F401
+from app.database import Base, init_test_schema
+from app.main import app
+from app.models import SyncedBundle
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app import models, models_operational  # noqa: F401
-from app.database import Base, init_test_schema
-from app.main import app
-from app.models import SyncedBundle
 from tests.fixtures_bundles import bundle_copy, default_bundle
 
 
@@ -127,7 +126,7 @@ def _seed_bundle(Session: sessionmaker[Session], bundle: dict) -> None:
 @pytest.fixture
 def api_context(isolated_engine, bundle) -> Generator[ApiTestContext, None, None]:
     import app.database as database
-    from app.routers import edge_api
+    from app.deps import get_db
 
     Session = database.SessionLocal
     _seed_bundle(Session, bundle)
@@ -139,7 +138,7 @@ def api_context(isolated_engine, bundle) -> Generator[ApiTestContext, None, None
         finally:
             session.close()
 
-    app.dependency_overrides[edge_api.get_db] = override_get_db
+    app.dependency_overrides[get_db] = override_get_db
     with patch("app.main.run_migrations"), patch("app.main.ensure_default_synced_bundle"):
         with TestClient(app) as test_client:
             yield ApiTestContext(client=test_client, Session=Session)

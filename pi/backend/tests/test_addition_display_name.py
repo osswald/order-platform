@@ -2,7 +2,7 @@
 
 from app.order_fiscal import _snapshot_additions
 from app.pricing import addition_display_name
-from app.print_worker import build_escpos_receipt_text, _escpos_text
+from app.print_worker import _escpos_text, build_escpos_receipt_text
 
 
 def test_addition_display_name_prefers_bundle_label():

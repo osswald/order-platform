@@ -1,16 +1,10 @@
 """Event station printer options: overlap with open current and planned lendings."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base, SessionLocal
-from tests.helpers import country_id_by_code, ensure_country
 from app.event_config_validation import (
     assert_printer_eligible,
     event_printer_candidates,
@@ -26,12 +20,18 @@ from app.models import (
 )
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import country_id_by_code, ensure_country
 
 client = TestClient(app)
 
 
 def _utc_dt(year: int, month: int, day: int, hour: int = 12) -> datetime:
-    return datetime(year, month, day, hour, 0, 0, tzinfo=timezone.utc)
+    return datetime(year, month, day, hour, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -157,7 +157,7 @@ def test_returned_lending_excluded(printer_scenario_db):
         appliance_id=printer.id,
         start=_utc_dt(2026, 6, 10),
         end=_utc_dt(2026, 6, 12),
-        returned_at=datetime.now(timezone.utc),
+        returned_at=datetime.now(UTC),
     )
     assert printer.id not in _candidate_ids(db, event)
 
@@ -192,7 +192,7 @@ def _api_fixture(suffix: str) -> tuple[int, int, int, str, int]:
         )
         db.add_all([user, printer])
         db.flush()
-        event_start = datetime.now(timezone.utc) + timedelta(days=14)
+        event_start = datetime.now(UTC) + timedelta(days=14)
         event_end = event_start + timedelta(days=2)
         event = Event(
             name=f"Future Fest {suffix}",
@@ -218,7 +218,7 @@ def _token_for(email: str, password: str = "secret") -> str:
 def test_configuration_api_lists_planned_printer():
     event_id, printer_id, org_id, email, _hc_id = _api_fixture("api")
     token = _token_for(email)
-    lend_start = (datetime.now(timezone.utc) + timedelta(days=14)).date()
+    lend_start = (datetime.now(UTC) + timedelta(days=14)).date()
     lend_end = lend_start + timedelta(days=2)
 
     lend_resp = client.post(

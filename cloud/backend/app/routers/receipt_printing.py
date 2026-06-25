@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.responses import Response
-from ..i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
-from ..models import Event, HireCompany, Organisation, User
+from ..deps import get_db
+from ..i18n.errors import api_error
+from ..models import Event, HireCompany, User
 from ..receipt_printing_config import (
     EventReceiptPrintingUpdate,
     ReceiptPrintingConfigUpdate,

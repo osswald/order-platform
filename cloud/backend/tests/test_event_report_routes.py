@@ -1,15 +1,15 @@
 """HTTP smoke tests for event report routes that delegate to service modules."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
-
-from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.main import app
 from app.models import Event, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
 from tests.helpers import ensure_country
 
 client = TestClient(app)
@@ -31,7 +31,7 @@ def _report_fixture() -> tuple[str, int]:
         )
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ev = Event(
             name="Report Fest",
             status="prod",

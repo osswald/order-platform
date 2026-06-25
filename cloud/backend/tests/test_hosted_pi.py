@@ -1,26 +1,26 @@
 """Hosted Cloud Pi API and provisioning rules."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.hosted_pi_manager_client import HostedPiManagerError
 from app.hosted_pi_service import expire_due_instances, reconcile_stuck_provisioning
 from app.main import app
 from app.models import Appliance, Event, HireCompany, HostedPiInstance, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
 
 def _utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @pytest.fixture(autouse=True)

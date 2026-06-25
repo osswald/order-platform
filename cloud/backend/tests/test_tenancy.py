@@ -1,10 +1,11 @@
 """Multi-tenant hire company isolation."""
 
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.models import HireCompany, Organisation, User
-from app.roles import ROLE_TENANT_ADMIN, ROLE_PLATFORM_ADMIN
+from app.roles import ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+
+from tests.helpers import country_id_by_code
 
 
 def test_default_hire_company_backfill_name():

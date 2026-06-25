@@ -4,7 +4,6 @@ import json
 import uuid
 
 import pytest
-
 from app.models import LocalOrder
 from tests.fixtures_bundles import bundle_copy, order_fiscal_bundle
 

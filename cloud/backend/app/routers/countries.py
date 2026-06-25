@@ -1,4 +1,3 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -49,7 +48,7 @@ class CountryUpdate(BaseModel):
         return value.strip().upper()
 
 
-@router.get("/", response_model=List[CountryRead])
+@router.get("/", response_model=list[CountryRead])
 def list_countries(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),

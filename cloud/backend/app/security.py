@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, timezone
 import os
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from jose import JWTError, jwt
 from pwdlib import PasswordHash
@@ -77,7 +77,7 @@ def get_password_hash(password: str) -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _encode_token(
@@ -101,7 +101,7 @@ def _decode_token(token: str, expected_type: str) -> dict[str, Any]:
     return payload
 
 
-def create_access_token(data: dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     delta = expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return _encode_token(data, TOKEN_TYPE_ACCESS, delta)
 
@@ -110,7 +110,7 @@ def decode_access_token(token: str) -> dict[str, Any]:
     return _decode_token(token, TOKEN_TYPE_ACCESS)
 
 
-def create_refresh_token(data: dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     delta = expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     return _encode_token(data, TOKEN_TYPE_REFRESH, delta)
 

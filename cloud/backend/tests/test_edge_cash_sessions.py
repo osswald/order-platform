@@ -1,15 +1,15 @@
 """Edge cash session ingest and list API."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
+from app.database import Base
+from app.event_cash_sessions import build_cash_sessions_page, upsert_edge_cash_session
+from app.models import EdgeCashSession, Event, HireCompany, Organisation
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base
 from tests.helpers import ensure_country
-from app.event_cash_sessions import build_cash_sessions_page, upsert_edge_cash_session
-from app.models import EdgeCashSession, Event, HireCompany, Organisation
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def db_session():
     db.add(hc)
     org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     db.add(org)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = Event(
         id=1,
         name="Fest",

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import uuid
 import re
-from datetime import date, datetime, timezone
+import uuid
+from datetime import UTC, date
 
 from fastapi import status
-from .i18n.errors import api_error
 from sqlalchemy.orm import Session, joinedload
 
+from .i18n.errors import api_error
 from .models import (
     Appliance,
     ApplianceLending,
@@ -27,14 +27,13 @@ from .models import (
 )
 from .vouchers import assert_layout_cells_vouchers, normalize_cell_voucher_uuids, replace_event_voucher_definitions
 
-
 PICKUP_PREFIX_RE = re.compile(r"^[A-Z]{1,3}$")
 
 
 def _event_calendar_dates(event: Event) -> tuple[date, date]:
     """Inclusive UTC calendar bounds for event.start / event.end."""
-    start = event.start.astimezone(timezone.utc).date()
-    end = event.end.astimezone(timezone.utc).date()
+    start = event.start.astimezone(UTC).date()
+    end = event.end.astimezone(UTC).date()
     return start, end
 
 

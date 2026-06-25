@@ -1,7 +1,6 @@
 """SECRET_KEY validation (security #4)."""
 
 import pytest
-
 from app.security import DEV_DEFAULT_SECRET_KEY, load_secret_key
 
 

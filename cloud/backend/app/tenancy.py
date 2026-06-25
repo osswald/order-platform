@@ -3,11 +3,12 @@
 from dataclasses import dataclass
 
 from fastapi import Depends, Header, status
-from .i18n.errors import api_error
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload, joinedload
+from sqlalchemy.orm import Session, joinedload
 
+from .auth_deps import get_current_user
 from .deps import get_db
+from .i18n.errors import api_error
 from .models import Event, HireCompany, Organisation, User
 from .user_access import (
     administered_organisation_ids,
@@ -16,9 +17,7 @@ from .user_access import (
     is_organisation_admin,
     is_platform_admin,
     is_tenant_admin,
-    user_hire_company_id,
 )
-from .auth_deps import get_current_user
 
 HIRE_COMPANY_HEADER = "x-hire-company-id"
 

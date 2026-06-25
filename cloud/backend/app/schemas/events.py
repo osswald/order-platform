@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -19,7 +19,7 @@ class EventBase(BaseModel):
     end: datetime
     organisation_id: int
     payment_mode: str = "pay_later"
-    payment_types: List[str] = Field(default_factory=lambda: ["cash"])
+    payment_types: list[str] = Field(default_factory=lambda: ["cash"])
     cash_registers_enabled: bool = False
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
@@ -54,7 +54,7 @@ class EventCreate(BaseModel):
     end: datetime
     organisation_id: int | None = None
     payment_mode: str = "pay_later"
-    payment_types: List[str] = Field(default_factory=lambda: ["cash"])
+    payment_types: list[str] = Field(default_factory=lambda: ["cash"])
     cash_registers_enabled: bool = False
     shift_settlement_enabled: bool = False
     vouchers_enabled: bool = False
@@ -93,7 +93,7 @@ class EventUpdate(BaseModel):
     end: datetime | None = None
     organisation_id: int | None = None
     payment_mode: str | None = None
-    payment_types: List[str] | None = None
+    payment_types: list[str] | None = None
     cash_registers_enabled: bool | None = None
     shift_settlement_enabled: bool | None = None
     vouchers_enabled: bool | None = None
@@ -136,8 +136,8 @@ class StationConfigRead(BaseModel):
     name: str
     sort_order: int
     printer_appliance_id: int | None
-    article_ids: List[int]
-    printer_rules: List[StationPrinterRuleRead] = Field(default_factory=list)
+    article_ids: list[int]
+    printer_rules: list[StationPrinterRuleRead] = Field(default_factory=list)
 
 
 class EventWaiterConfigRead(BaseModel):
@@ -153,7 +153,7 @@ class VoucherDefinitionRead(BaseModel):
     name: str
     kind: str
     value_cents: int | None = None
-    allowed_article_ids: List[int] = Field(default_factory=list)
+    allowed_article_ids: list[int] = Field(default_factory=list)
     include_additions: bool = True
     sort_order: int = 0
 
@@ -163,9 +163,9 @@ class LayoutCellRead(BaseModel):
     col: int
     label: str
     color: str
-    article_ids: List[int]
+    article_ids: list[int]
     voucher_definition_uuid: str | None = None
-    voucher_definition_uuids: List[str] = Field(default_factory=list)
+    voucher_definition_uuids: list[str] = Field(default_factory=list)
 
 
 class AppLayoutRead(BaseModel):
@@ -175,7 +175,7 @@ class AppLayoutRead(BaseModel):
     is_default: bool
     grid_width: int
     grid_height: int
-    cells: List[LayoutCellRead]
+    cells: list[LayoutCellRead]
 
 
 class CashRegisterRead(BaseModel):
@@ -190,13 +190,13 @@ class CashRegisterRead(BaseModel):
 
 
 class EventConfigurationRead(BaseModel):
-    stations: List[StationConfigRead]
-    event_waiters: List[EventWaiterConfigRead]
-    app_layouts: List[AppLayoutRead]
-    cash_registers: List[CashRegisterRead]
-    voucher_definitions: List[VoucherDefinitionRead] = Field(default_factory=list)
-    kitchen_monitors: List[KitchenMonitorPrinterRead] = Field(default_factory=list)
-    printer_options: List[PrinterOptionRead]
+    stations: list[StationConfigRead]
+    event_waiters: list[EventWaiterConfigRead]
+    app_layouts: list[AppLayoutRead]
+    cash_registers: list[CashRegisterRead]
+    voucher_definitions: list[VoucherDefinitionRead] = Field(default_factory=list)
+    kitchen_monitors: list[KitchenMonitorPrinterRead] = Field(default_factory=list)
+    printer_options: list[PrinterOptionRead]
 
 
 class StationPrinterRuleIn(BaseModel):
@@ -218,8 +218,8 @@ class StationConfigIn(BaseModel):
     uuid: str | None = None
     name: str = Field(..., min_length=1)
     printer_appliance_id: int | None = None
-    article_ids: List[int] = Field(default_factory=list)
-    printer_rules: List[StationPrinterRuleIn] = Field(default_factory=list)
+    article_ids: list[int] = Field(default_factory=list)
+    printer_rules: list[StationPrinterRuleIn] = Field(default_factory=list)
 
 
 class EventWaiterConfigIn(BaseModel):
@@ -235,7 +235,7 @@ class VoucherDefinitionIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     kind: str = Field(..., min_length=1, max_length=32)
     value_cents: int | None = Field(None, ge=1)
-    allowed_article_ids: List[int] = Field(default_factory=list)
+    allowed_article_ids: list[int] = Field(default_factory=list)
     include_additions: bool = True
 
 
@@ -244,9 +244,9 @@ class LayoutCellIn(BaseModel):
     col: int = Field(..., ge=0)
     label: str = ""
     color: str = "#eeeeee"
-    article_ids: List[int] = Field(default_factory=list)
+    article_ids: list[int] = Field(default_factory=list)
     voucher_definition_uuid: str | None = None
-    voucher_definition_uuids: List[str] = Field(default_factory=list)
+    voucher_definition_uuids: list[str] = Field(default_factory=list)
 
 
 class AppLayoutIn(BaseModel):
@@ -255,7 +255,7 @@ class AppLayoutIn(BaseModel):
     is_default: bool = False
     grid_width: int = Field(..., ge=1, le=64)
     grid_height: int = Field(..., ge=1, le=64)
-    cells: List[LayoutCellIn] = Field(default_factory=list)
+    cells: list[LayoutCellIn] = Field(default_factory=list)
 
 
 class CashRegisterIn(BaseModel):
@@ -269,12 +269,12 @@ class CashRegisterIn(BaseModel):
 
 
 class EventConfigurationIn(BaseModel):
-    stations: List[StationConfigIn] = Field(default_factory=list)
-    event_waiters: List[EventWaiterConfigIn] = Field(default_factory=list)
-    app_layouts: List[AppLayoutIn] = Field(default_factory=list)
-    cash_registers: List[CashRegisterIn] = Field(default_factory=list)
-    voucher_definitions: List[VoucherDefinitionIn] = Field(default_factory=list)
-    kitchen_monitors: List[KitchenMonitorPrinterIn] = Field(default_factory=list)
+    stations: list[StationConfigIn] = Field(default_factory=list)
+    event_waiters: list[EventWaiterConfigIn] = Field(default_factory=list)
+    app_layouts: list[AppLayoutIn] = Field(default_factory=list)
+    cash_registers: list[CashRegisterIn] = Field(default_factory=list)
+    voucher_definitions: list[VoucherDefinitionIn] = Field(default_factory=list)
+    kitchen_monitors: list[KitchenMonitorPrinterIn] = Field(default_factory=list)
 class SalesAdditionLineRead(BaseModel):
     article_id: int
     name: str
@@ -289,7 +289,7 @@ class SalesOrderLineRead(BaseModel):
     station_uuid: str | None = None
     station_name: str
     line_cents: int
-    additions: List[SalesAdditionLineRead] = Field(default_factory=list)
+    additions: list[SalesAdditionLineRead] = Field(default_factory=list)
 
 
 class SalesPaymentRead(BaseModel):
@@ -308,8 +308,8 @@ class SalesOrderRead(BaseModel):
     payment_status: str
     line_cents: int
     paid_cents: int
-    lines: List[SalesOrderLineRead] = Field(default_factory=list)
-    payments: List[SalesPaymentRead] = Field(default_factory=list)
+    lines: list[SalesOrderLineRead] = Field(default_factory=list)
+    payments: list[SalesPaymentRead] = Field(default_factory=list)
 
 
 class SalesTotalsRead(BaseModel):
@@ -350,11 +350,11 @@ class SalesByPaymentTypeRead(BaseModel):
 class EventSalesReportRead(BaseModel):
     currency: str
     totals: SalesTotalsRead
-    orders: List[SalesOrderRead]
-    by_waiter: List[SalesByWaiterRead]
-    by_station: List[SalesByStationRead]
-    by_article: List[SalesByArticleRead]
-    by_payment_type: List[SalesByPaymentTypeRead]
+    orders: list[SalesOrderRead]
+    by_waiter: list[SalesByWaiterRead]
+    by_station: list[SalesByStationRead]
+    by_article: list[SalesByArticleRead]
+    by_payment_type: list[SalesByPaymentTypeRead]
 
 class CollectiveBillOrderRead(BaseModel):
     id: int
@@ -364,8 +364,8 @@ class CollectiveBillOrderRead(BaseModel):
     payment_status: str
     line_cents: int
     paid_cents: int
-    lines: List[dict] = []
-    payments: List[dict] = []
+    lines: list[dict] = []
+    payments: list[dict] = []
 
 
 class CollectiveBillRead(BaseModel):
@@ -378,13 +378,13 @@ class CollectiveBillRead(BaseModel):
     line_cents: int
     open_cents: int
     paid_cents: int
-    line_groups: List[dict] = []
-    orders: List[CollectiveBillOrderRead] = []
+    line_groups: list[dict] = []
+    orders: list[CollectiveBillOrderRead] = []
 
 
 class EventCollectiveBillsListRead(BaseModel):
     currency: str
-    collective_bills: List[CollectiveBillRead]
+    collective_bills: list[CollectiveBillRead]
 class TransactionRead(BaseModel):
     id: int
     created_at: str | None = None
@@ -399,8 +399,8 @@ class TransactionRead(BaseModel):
     paid_cents: int
     payment_methods: str
     line_count: int
-    lines: List[dict] = []
-    moved_lines: List[dict] = []
+    lines: list[dict] = []
+    moved_lines: list[dict] = []
 
 
 class EventTransactionsPageRead(BaseModel):
@@ -408,7 +408,7 @@ class EventTransactionsPageRead(BaseModel):
     total: int
     page: int
     items_per_page: int
-    items: List[TransactionRead]
+    items: list[TransactionRead]
 class CashSessionRead(BaseModel):
     id: int
     cash_session_id: int
@@ -424,7 +424,7 @@ class CashSessionRead(BaseModel):
     variance_cents: int | None = None
     started_at: str | None = None
     ended_at: str | None = None
-    ledger: List[dict] = []
+    ledger: list[dict] = []
     payments_by_method: dict = {}
     vouchers_by_definition: dict = {}
 
@@ -434,7 +434,7 @@ class EventCashSessionsPageRead(BaseModel):
     total: int
     page: int
     items_per_page: int
-    items: List[CashSessionRead]
+    items: list[CashSessionRead]
 class V3SalesTotalsRead(BaseModel):
     distinct_orders_count: int
     line_cents: int

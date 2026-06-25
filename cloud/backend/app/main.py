@@ -9,11 +9,15 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .database import SessionLocal, apply_schema_patches, run_migrations, engine, Base
+from .database import SessionLocal, apply_schema_patches, run_migrations
+from .i18n import resolve_locale_from_accept_language
+from .i18n.context import set_request_locale
 from .models import User
+from .rate_limit import limiter
 from .roles import ROLE_PLATFORM_ADMIN
 from .routers import (
     accounting_accounts,
+    appliances,
     article_categories,
     articles,
     auth,
@@ -23,21 +27,17 @@ from .routers import (
     health,
     hire_companies,
     hosted_pi,
-    receipt_printing,
     organisations,
     payment_types,
     position_comments,
+    receipt_printing,
     stripe_connect,
     stripe_terminal,
     stripe_webhooks,
-    appliances,
     tax_codes,
     users,
     waiters,
 )
-from .i18n import resolve_locale_from_accept_language
-from .i18n.context import set_request_locale
-from .rate_limit import limiter
 from .security import get_password_hash
 
 log = logging.getLogger(__name__)

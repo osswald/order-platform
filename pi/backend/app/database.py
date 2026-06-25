@@ -171,8 +171,10 @@ def _dispose_engine_before_alembic() -> None:
 
 
 def _create_all_tables() -> None:
-    from . import models  # noqa: F401
-    from . import models_operational  # noqa: F401
+    from . import (
+        models,  # noqa: F401
+        models_operational,  # noqa: F401
+    )
 
     Base.metadata.create_all(bind=engine)
 

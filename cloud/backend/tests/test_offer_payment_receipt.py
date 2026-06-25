@@ -1,16 +1,16 @@
 """Event flag offer_payment_receipt (Pi payment receipt prompt)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.models import Event, HireCompany, Organisation
 from app.routers.edge import EdgeEventBundle
 from app.routers.events import event_response
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def db_session():
     Session = sessionmaker(bind=engine)
     db = Session()
     ch_country_id = ensure_country(db, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db.add(HireCompany(id=1, name="HC"))
     db.add(Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF"))
     ev = Event(

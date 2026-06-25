@@ -2,8 +2,6 @@
 
 import asyncio
 
-import pytest
-
 from app.sync_service import is_push_enabled, run_sync_cycle
 
 

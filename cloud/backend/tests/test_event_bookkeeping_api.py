@@ -1,9 +1,7 @@
 """Event bookkeeping HTTP route."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from uuid import uuid4
-
-from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.main import app
@@ -23,6 +21,8 @@ from app.models import (
 )
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
 from tests.helpers import ensure_country
 
 client = TestClient(app)
@@ -46,7 +46,7 @@ def _bookkeeping_fixture() -> tuple[str, int]:
         )
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ev = Event(
             name="Fest",
             status="prod",

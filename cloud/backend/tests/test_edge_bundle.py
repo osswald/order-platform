@@ -1,12 +1,9 @@
 """Edge bundle payload shape for paired appliances."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import (
     Appliance,
@@ -18,6 +15,9 @@ from app.models import (
 )
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
@@ -48,7 +48,7 @@ def _pair_edge_credentials() -> tuple[str, str]:
         )
         db.add(appliance)
         db.flush()
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         db.add(
             ApplianceLending(
                 appliance_id=appliance.id,

@@ -8,11 +8,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .currency import event_currency
-
 from .additions import load_links_for_bases
+from .currency import event_currency
 from .models import Article, EdgeSubmittedOrder, Event, EventVoucherRedemption, Waiter
-
 
 PAYMENT_TYPE_LABELS = {
     "cash": "Bargeld",

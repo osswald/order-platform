@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 from fastapi import status
-from .i18n.errors import api_error
 from sqlalchemy.orm import Session, joinedload
 from vendiqo_shared.stock_aggregate import aggregate_line_qty
 
+from .i18n.errors import api_error
 from .models import Article, ArticleCategory, Event, EventArticleStock
 
 

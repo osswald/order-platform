@@ -2,6 +2,14 @@
 
 from unittest.mock import AsyncMock
 
+from app.deps import get_db
+from app.main import app
+
+
+def test_api_context_overrides_deps_get_db(client):
+    """Regression: test DB override must target app.deps.get_db after edge_api router split."""
+    assert get_db in app.dependency_overrides
+
 
 def test_health_endpoint(client):
     r = client.get("/health")
@@ -76,8 +84,9 @@ def test_terminal_routes_require_stripe_event(client, bundle):
     ev["payment_types"] = ["cash"]
     b["events"] = [ev]
     import json
-    from app.models import SyncedBundle
+
     from app.database import SessionLocal
+    from app.models import SyncedBundle
 
     db = SessionLocal()
     try:
@@ -97,8 +106,9 @@ def test_terminal_connection_token_proxies_cloud(client, bundle, monkeypatch):
     ev["payment_types"] = ["stripe_terminal"]
     b["events"] = [ev]
     import json
-    from app.models import SyncedBundle
+
     from app.database import SessionLocal
+    from app.models import SyncedBundle
 
     db = SessionLocal()
     try:

@@ -7,3 +7,4 @@ ignore = ["E501"]
 
 [lint.per-file-ignores]
 "**/alembic/versions/*.py" = ["I001"]
+"**/tests/conftest.py" = ["E402"]

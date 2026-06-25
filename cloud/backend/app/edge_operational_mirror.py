@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ def upsert_edge_order_snapshot(
         ).delete(synchronize_session=False)
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = (
         db.query(EdgeOrderSnapshot)
         .filter(
@@ -80,7 +80,7 @@ def upsert_edge_kitchen_ticket_snapshot(
         ).delete(synchronize_session=False)
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = (
         db.query(EdgeKitchenTicketSnapshot)
         .filter(

@@ -1,12 +1,9 @@
 """Hosted virtual appliance edge bundle."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import (
     Appliance,
@@ -18,6 +15,9 @@ from app.models import (
     Organisation,
 )
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
@@ -32,7 +32,7 @@ def test_hosted_bundle_includes_config_event():
         org = Organisation(name=f"Hosted Bundle Org {suffix}", country_id=country_id_by_code(db, "CH"), hire_company_id=hc.id, currency="CHF")
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         event = Event(
             name="Future Config",
             status="config",

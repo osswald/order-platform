@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ from ..discounts import validate_submit_discounts
 from ..domain.items import upsert_items_from_payload
 from ..domain.kitchen_sync import enqueue_kitchen_tickets_sync
 from ..domain.sessions import ensure_order_session
-from ..domain.sync_enqueue import enrich_payload_for_cloud_sync, enqueue_payload_sync
+from ..domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync
 from ..instant_collective_bill import ensure_instant_collective_bill
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
 from ..models import CollectiveBill, LocalOrder
@@ -27,20 +27,20 @@ from ..order_fiscal import (
     snapshot_lines,
     waiter_name_from_event,
 )
-from ..order_line_utils import copy_line_fiscal_fields, line_key as _line_key
+from ..order_line_utils import copy_line_fiscal_fields
+from ..order_line_utils import line_key as _line_key
 from ..position_comments import validate_submit_position_notes
 from ..pricing import normalize_discount, order_lines_gross_cents, order_total_cents
 from ..print_worker import group_lines_by_station
 from ..printer_routing import printer_in_kitchen_monitor, subgroup_lines_by_printer
-from ..schemas.order_models import dump_discount, dump_lines, dump_payments
 from ..schemas.edge import (
     AccountSummaryResponse,
     AssignCollectiveBody,
     AssignCollectiveResponse,
+    CollectiveBillCreateBody,
     CollectiveBillCreatedResponse,
     CollectivePartialSettleResponse,
     CollectiveSettleResponse,
-    CollectiveBillCreateBody,
     LineSelection,
     LocalOrderCreate,
     LocalOrderCreatedResponse,
@@ -55,6 +55,7 @@ from ..schemas.edge import (
     TransferLinesBody,
     TransferLinesResponse,
 )
+from ..schemas.order_models import dump_discount, dump_lines, dump_payments
 from ..stock import apply_stock_to_bundle, save_bundle, validate_stock
 from ..vouchers import (
     article_lines_only,
@@ -209,7 +210,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     order_number: int | None = None
     if is_ferdig_client_order_id(body.client_order_id):
         order_number = allocate_order_number(db, body.event_id)
-        ordered_at = datetime.now(timezone.utc).isoformat()
+        ordered_at = datetime.now(UTC).isoformat()
         waiter_name = waiter_name_from_event(ev, body.waiter_uuid)
         order_lines = snapshot_lines(order_lines, arts, order_number=order_number, event=ev)
         payload["order_number"] = order_number
@@ -252,7 +253,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         collective_batch_id=None,
         lines=order_lines,
         order_number=order_number,
-        ordered_at=datetime.now(timezone.utc) if order_number else None,
+        ordered_at=datetime.now(UTC) if order_number else None,
     )
 
     groups = group_lines_by_station(ev, article_order_lines)
@@ -420,7 +421,7 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     payload = json.loads(order.payload_json)
     payload["payments"] = payments
     payload["payment_status"] = "paid"
-    payload["paid_at"] = datetime.now(timezone.utc).isoformat()
+    payload["paid_at"] = datetime.now(UTC).isoformat()
     order.payment_status = "paid"
     order.payload_json = json.dumps(payload)
     _sync_outbox_payload(db, order, payload)
@@ -594,7 +595,7 @@ def settle_table_partial(
 
     paid_lines: list[dict] = []
     order_discounts_collected: list[dict] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for order in orders:
         payload = json.loads(order.payload_json)
@@ -768,7 +769,7 @@ def settle_table(
     payments = dump_payments(body.payments)
     _validate_payment_types(ev, payments)
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     paid_ids = []
     arts = _article_map(ev)
     total_cents = 0
@@ -1138,7 +1139,7 @@ def _settle_orders_partial(
 
     paid_lines: list[dict] = []
     order_discounts_collected: list[dict] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for order in orders:
         payload = json.loads(order.payload_json)
@@ -1362,7 +1363,7 @@ def settle_collective(
     payments = dump_payments(body.payments)
     _validate_payment_types(ev, payments)
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     arts = _article_map(ev)
     total_cents = 0
     for o in orders:

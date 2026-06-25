@@ -1,8 +1,7 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from ..accounting_validation import (
     assert_accounting_account_deletable,
@@ -45,7 +44,7 @@ class AccountingAccountRead(BaseModel):
     name: str
     number: str
     is_default_for_article_categories: bool
-    default_payment_type_ids: List[int] = []
+    default_payment_type_ids: list[int] = []
 
 
 class AccountingAccountCreate(BaseModel):
@@ -67,7 +66,7 @@ class PaymentTypeAccountDefaultItem(BaseModel):
 
 
 class PaymentTypeAccountDefaultsUpdate(BaseModel):
-    defaults: List[PaymentTypeAccountDefaultItem] = Field(default_factory=list)
+    defaults: list[PaymentTypeAccountDefaultItem] = Field(default_factory=list)
 
 
 class PaymentTypeAccountDefaultRead(BaseModel):
@@ -82,7 +81,7 @@ class TaxCodeAccountDefaultItem(BaseModel):
 
 
 class TaxCodeAccountDefaultsUpdate(BaseModel):
-    defaults: List[TaxCodeAccountDefaultItem] = Field(default_factory=list)
+    defaults: list[TaxCodeAccountDefaultItem] = Field(default_factory=list)
 
 
 class TaxCodeAccountDefaultRead(BaseModel):
@@ -118,7 +117,7 @@ def _get_account_or_404(db: Session, account_id: int) -> AccountingAccount:
     return account
 
 
-@router.get("/", response_model=List[AccountingAccountRead])
+@router.get("/", response_model=list[AccountingAccountRead])
 def list_accounting_accounts(
     organisation_id: int = Query(...),
     db: Session = Depends(get_db),
@@ -135,7 +134,7 @@ def list_accounting_accounts(
     return [_account_response(db, account) for account in accounts]
 
 
-@router.get("/payment-type-defaults", response_model=List[PaymentTypeAccountDefaultRead])
+@router.get("/payment-type-defaults", response_model=list[PaymentTypeAccountDefaultRead])
 def read_payment_type_account_defaults(
     organisation_id: int = Query(...),
     db: Session = Depends(get_db),
@@ -165,7 +164,7 @@ def read_payment_type_account_defaults(
     ]
 
 
-@router.put("/payment-type-defaults", response_model=List[PaymentTypeAccountDefaultRead])
+@router.put("/payment-type-defaults", response_model=list[PaymentTypeAccountDefaultRead])
 def update_payment_type_account_defaults(
     body: PaymentTypeAccountDefaultsUpdate,
     organisation_id: int = Query(...),
@@ -208,7 +207,7 @@ def update_payment_type_account_defaults(
     )
 
 
-@router.get("/tax-code-defaults", response_model=List[TaxCodeAccountDefaultRead])
+@router.get("/tax-code-defaults", response_model=list[TaxCodeAccountDefaultRead])
 def read_tax_code_account_defaults(
     organisation_id: int = Query(...),
     db: Session = Depends(get_db),
@@ -238,7 +237,7 @@ def read_tax_code_account_defaults(
     ]
 
 
-@router.put("/tax-code-defaults", response_model=List[TaxCodeAccountDefaultRead])
+@router.put("/tax-code-defaults", response_model=list[TaxCodeAccountDefaultRead])
 def update_tax_code_account_defaults(
     body: TaxCodeAccountDefaultsUpdate,
     organisation_id: int = Query(...),

@@ -1,21 +1,21 @@
 """Event create/update and tenant isolation."""
 
-from datetime import datetime, timedelta, timezone
-
-from fastapi.testclient import TestClient
+from datetime import UTC, datetime, timedelta
 
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.main import app
 from app.models import Event, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
 
 def _utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _setup_two_tenants():

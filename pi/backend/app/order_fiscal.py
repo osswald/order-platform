@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .fiscal_vat import split_gross_cents
 from .order_line_utils import normalize_additions
 from .pricing import (
     _addition_price_cents,
@@ -15,7 +16,6 @@ from .pricing import (
     apply_discount_cents,
     line_unit_cents,
 )
-from .fiscal_vat import split_gross_cents
 
 
 def is_ferdig_client_order_id(client_order_id: str) -> bool:

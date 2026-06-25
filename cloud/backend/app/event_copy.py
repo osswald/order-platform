@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 import uuid
+from types import SimpleNamespace
 
 from sqlalchemy.orm import Session, joinedload
 
 from .event_config_validation import replace_event_configuration
+from .instant_collective_bill import apply_instant_collective_bill_settings
 from .models import (
     Event,
     EventAppLayout,
     EventAppLayoutCell,
     EventArticleStock,
-    EventCashRegister,
     EventStation,
-    EventVoucherDefinition,
-    EventWaiter,
 )
-from .instant_collective_bill import apply_instant_collective_bill_settings
 from .payment_types_config import payment_types_from_event
 from .stock import upsert_stock_rows
 from .vouchers import cell_voucher_uuids_for_read

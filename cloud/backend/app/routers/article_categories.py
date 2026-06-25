@@ -1,15 +1,14 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..accounting_validation import validate_category_accounting_account
-from ..models import AccountingAccount, Article, ArticleCategory, Organisation, User
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
+from ..models import AccountingAccount, Article, ArticleCategory, Organisation, User
 from ..tenancy import TenantContext, ensure_user_can_use_organisation, get_current_tenant
 from ..user_access import can_manage_tenant
 
@@ -68,7 +67,7 @@ def readable_categories_query(db: Session, current_user: User, hire_company_id: 
     return query.join(Organisation.users).filter(User.id == current_user.id)
 
 
-@router.get("/", response_model=List[ArticleCategoryRead])
+@router.get("/", response_model=list[ArticleCategoryRead])
 def read_article_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

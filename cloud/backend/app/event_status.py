@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 from fastapi import status
-from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
-from .models import EdgeSubmittedOrder, Event, EventCollectiveBill, EdgeOrderSnapshot, EdgeKitchenTicketSnapshot, EdgeCashSession
+from .i18n.errors import api_error
+from .models import (
+    EdgeCashSession,
+    EdgeKitchenTicketSnapshot,
+    EdgeOrderSnapshot,
+    EdgeSubmittedOrder,
+    Event,
+    EventCollectiveBill,
+)
 from .stock import reset_event_stock_to_baseline
 
 ALLOWED_STATUSES = frozenset({"config", "test", "prod", "archive"})

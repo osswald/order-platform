@@ -1,13 +1,9 @@
 """Event transactions list (paginated Pi sync chunks)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.event_transactions import build_event_transactions_page
 from app.models import (
     Appliance,
@@ -17,6 +13,10 @@ from app.models import (
     HireCompany,
     Organisation,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def db_session():
     db.add(hc)
     org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     db.add(org)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = Event(
         id=1,
         name="Fest",
@@ -63,9 +63,9 @@ def _add_order(db, *, chunk_id, created_at, payload):
 
 def test_transactions_pagination_and_kinds(db_session):
     db, event = db_session
-    t0 = datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc)
-    t1 = datetime(2026, 6, 1, 11, 0, tzinfo=timezone.utc)
-    t2 = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+    t0 = datetime(2026, 6, 1, 10, 0, tzinfo=UTC)
+    t1 = datetime(2026, 6, 1, 11, 0, tzinfo=UTC)
+    t2 = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
     _add_order(
         db,
@@ -126,13 +126,13 @@ def test_transactions_filter_payment_status(db_session):
     _add_order(
         db,
         chunk_id="a",
-        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
         payload={"client_order_id": "o1", "payment_status": "open", "lines": [{"article_id": 1, "qty": 1, "unit_cents": 100}]},
     )
     _add_order(
         db,
         chunk_id="b",
-        created_at=datetime(2026, 6, 1, 11, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 11, 0, tzinfo=UTC),
         payload={"client_order_id": "o2", "payment_status": "paid", "lines": [], "payments": [{"type": "cash", "amount_cents": 100}]},
     )
     db.commit()
@@ -147,13 +147,13 @@ def test_transactions_filter_kind(db_session):
     _add_order(
         db,
         chunk_id="a",
-        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
         payload={"client_order_id": "o1", "payment_status": "open", "lines": [{"article_id": 1, "qty": 1, "unit_cents": 100}]},
     )
     _add_order(
         db,
         chunk_id="b",
-        created_at=datetime(2026, 6, 1, 11, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 11, 0, tzinfo=UTC),
         payload={
             "client_order_id": "o2",
             "payment_status": "paid",
@@ -174,7 +174,7 @@ def test_transactions_transfer_events(db_session):
     _add_order(
         db,
         chunk_id="chunk-1",
-        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
         payload={
             "client_order_id": "table-5",
             "table_number": 5,
@@ -203,13 +203,13 @@ def test_transactions_sort_by_line_cents(db_session):
     _add_order(
         db,
         chunk_id="a",
-        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
         payload={"client_order_id": "o1", "payment_status": "open", "lines": [{"article_id": 1, "qty": 1, "unit_cents": 100}]},
     )
     _add_order(
         db,
         chunk_id="b",
-        created_at=datetime(2026, 6, 1, 11, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 6, 1, 11, 0, tzinfo=UTC),
         payload={"client_order_id": "o2", "payment_status": "open", "lines": [{"article_id": 1, "qty": 1, "unit_cents": 500}]},
     )
     db.commit()

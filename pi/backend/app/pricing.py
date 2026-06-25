@@ -163,7 +163,7 @@ def order_total_cents(lines: list, order_discount: dict | None, ev: dict, articl
 
 
 def order_lines_gross_cents(lines: list, ev: dict, articles: dict) -> int:
-    from .vouchers import is_voucher_sale_line
+    from .vouchers import is_voucher_sale_line, voucher_sale_unit_cents
 
     total = 0
     for line in lines or []:

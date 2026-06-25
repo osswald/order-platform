@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-
 from app.models import KitchenTicket, KitchenTicketLine, PrintJob
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle
 
