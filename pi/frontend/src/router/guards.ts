@@ -2,11 +2,12 @@ import type { Router } from 'vue-router'
 import * as store from '@/store'
 import '@/types/router'
 
-const ROUTES_WITHOUT_BUNDLE = new Set(['events', 'admin-unlock', 'admin'])
+const ROUTES_WITHOUT_BUNDLE = new Set(['events', 'admin-unlock', 'admin', 'admin-sync', 'admin-unpair'])
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {
-    if (to.meta.requiresAdmin && store.adminRequiresPin() && !store.adminUnlocked.value) {
+    const requiresAdmin = to.matched.some((r) => r.meta.requiresAdmin)
+    if (requiresAdmin && store.adminRequiresPin() && !store.adminUnlocked.value) {
       return { name: 'admin-unlock', query: { redirect: to.fullPath } }
     }
     if (to.meta.requiresBundle && !store.bundleReady()) {

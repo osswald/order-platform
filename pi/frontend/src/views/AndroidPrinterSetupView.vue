@@ -62,11 +62,23 @@
 
       <p v-if="message" :class="messageType === 'ok' ? 'ok' : 'err'">{{ message }}</p>
     </template>
+
+    <button
+      v-if="adminUnlocked"
+      type="button"
+      class="btn"
+      style="width: 100%; margin-top: 1.5rem"
+      @click="router.push({ name: 'admin' })"
+    >
+      Zurück zum Admin
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAdminSession } from '@/composables/useAdminSession'
 import { useEventContext } from '@/composables/useEventContext'
 import { getErrorMessage } from '@/types/api'
 import {
@@ -84,6 +96,8 @@ import {
   setReceiptPaperWidth,
 } from '@/utils/receiptPaperWidth'
 
+const router = useRouter()
+const { adminUnlocked } = useAdminSession()
 const { event } = useEventContext()
 const available = computed(() => isAndroidPrinterAvailable())
 
