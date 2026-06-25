@@ -563,6 +563,8 @@ defineExpose({
   resetLayoutCellsState,
   isCellInGrid,
   cellVoucherUuids,
+  layoutCellsLoaded,
+  layoutCellsLoading,
 })
 </script>
 

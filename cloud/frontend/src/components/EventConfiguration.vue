@@ -163,6 +163,7 @@ import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
+import { resolveAppLayoutsForPut } from '../utils/eventConfigLayoutsPayload'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import type {
   ArticleRead,
@@ -373,10 +374,6 @@ function cellVoucherUuids(c: EventLayoutCellLocal | null | undefined): string[] 
   if (Array.isArray(list) && list.length) return list.map(String)
   if (c?.voucher_definition_uuid) return [String(c.voucher_definition_uuid)]
   return []
-}
-
-function isCellInGrid(c: EventLayoutCellLocal, width: number, height: number): boolean {
-  return c.row >= 0 && c.col >= 0 && c.row < height && c.col < width
 }
 
 function onVoucherRemoved(uuid: string) {
@@ -608,7 +605,15 @@ function confirmPickWaiter(ids: number[] = pickedWaiterIds.value) {
   closeWaiterPick()
 }
 
-function buildPutPayload(): EventConfigurationIn {
+function layoutCellsLoaded(): boolean {
+  return Boolean(layoutsSectionRef.value?.layoutCellsLoaded)
+}
+
+function layoutCellsLoading(): boolean {
+  return Boolean(layoutsSectionRef.value?.layoutCellsLoading)
+}
+
+function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']): EventConfigurationIn {
   layoutsSectionRef.value?.ensureDefaultLayout()
   return {
     stations: stationsLocal.value.map((s) => {
@@ -641,27 +646,11 @@ function buildPutPayload(): EventConfigurationIn {
       if (w.uuid != null) row.uuid = w.uuid
       return row
     }),
-    app_layouts: layoutsLocal.value.map((lo) => ({
-      uuid: lo.uuid,
-      name: lo.name?.trim() || null,
-      is_default: !!lo.is_default,
-      grid_width: lo.grid_width,
-      grid_height: lo.grid_height,
-      cells: (lo.cells || [])
-        .filter((c) => isCellInGrid(c, lo.grid_width, lo.grid_height))
-        .map((c) => {
-          const vUuids = cellVoucherUuids(c)
-          return {
-            row: c.row,
-            col: c.col,
-            label: c.label || '',
-            color: c.color || '#eeeeee',
-            article_ids: Array.isArray(c.article_ids) ? c.article_ids : [],
-            voucher_definition_uuid: vUuids[0] || null,
-            voucher_definition_uuids: vUuids,
-          }
-        }),
-    })),
+    app_layouts: resolveAppLayoutsForPut({
+      layoutsLocal: layoutsLocal.value,
+      layoutCellsLoaded: layoutCellsLoaded(),
+      serverLayouts,
+    }),
     voucher_definitions: vouchersLocal.value.map((vd) => {
       const row: VoucherDefinitionIn = {
         name: vd.name,
@@ -702,10 +691,15 @@ async function persistConfiguration() {
     return false
   }
   try {
+    let serverLayouts: EventConfigurationRead['app_layouts'] | undefined
+    if (!layoutCellsLoaded()) {
+      const full = await apiJson<EventConfigurationRead>(`/events/${props.eventId}/configuration`)
+      serverLayouts = full.app_layouts
+    }
     const cfg = await apiJson<EventConfigurationRead>(`/events/${props.eventId}/configuration`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildPutPayload()),
+      body: JSON.stringify(buildPutPayload(serverLayouts)),
     })
     printerOptions.value = cfg.printer_options || []
     return true
@@ -724,7 +718,11 @@ const configWatchSource = computed(() => ({
 }))
 
 const configAutosaveEnabled = computed(
-  () => !loading.value && !loadError.value && !cellDialogOpen.value,
+  () =>
+    !loading.value &&
+    !loadError.value &&
+    !cellDialogOpen.value &&
+    !layoutCellsLoading(),
 )
 
 const {
@@ -735,7 +733,7 @@ const {
   setError: setConfigAutosaveError,
   isDirty: configIsDirty,
 } = useEventConfigurationAutosave({
-  getSnapshot: buildPutPayload,
+  getSnapshot: () => buildPutPayload(),
   saveFn: persistConfiguration,
   watchSource: configWatchSource,
   enabled: configAutosaveEnabled,

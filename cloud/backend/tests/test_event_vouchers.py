@@ -232,3 +232,69 @@ def test_layout_cell_multiple_vouchers(db_session):
     cell = db.query(EventAppLayoutCell).first()
     assert cell.voucher_definition_uuids == ["vd-10", "vd-20"]
     assert cell.voucher_definition_uuid == "vd-10"
+
+
+def test_replace_configuration_empty_cells_wipes_existing_layout_cells(db_session):
+    """Full replace: saving a layout shell without cells deletes configured cells."""
+    db, event, art = db_session
+    layouts_with_cell = [
+        SimpleNamespace(
+            uuid="lo-1",
+            name="Main",
+            is_default=True,
+            grid_width=1,
+            grid_height=1,
+            cells=[
+                SimpleNamespace(
+                    row=0,
+                    col=0,
+                    label="Beer",
+                    color="#fff",
+                    article_ids=[art.id],
+                    voucher_definition_uuid=None,
+                )
+            ],
+        )
+    ]
+    stations = [
+        SimpleNamespace(
+            uuid="st-1",
+            name="Bar",
+            printer_appliance_id=None,
+            article_ids=[art.id],
+            printer_rules=[],
+        )
+    ]
+    replace_event_configuration(
+        db,
+        event,
+        stations_in=stations,
+        event_waiters_in=[],
+        app_layouts_in=layouts_with_cell,
+        cash_registers_in=[],
+        voucher_definitions_in=[],
+    )
+    db.commit()
+    assert db.query(EventAppLayoutCell).count() == 1
+
+    layouts_empty_cells = [
+        SimpleNamespace(
+            uuid="lo-1",
+            name="Main",
+            is_default=True,
+            grid_width=1,
+            grid_height=1,
+            cells=[],
+        )
+    ]
+    replace_event_configuration(
+        db,
+        event,
+        stations_in=stations,
+        event_waiters_in=[],
+        app_layouts_in=layouts_empty_cells,
+        cash_registers_in=[],
+        voucher_definitions_in=[],
+    )
+    db.commit()
+    assert db.query(EventAppLayoutCell).count() == 0
