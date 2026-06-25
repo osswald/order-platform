@@ -6,13 +6,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useRouter } from 'vue-router'
-import TableKeypad from '../components/TableKeypad.vue'
+import TableKeypad from '@/components/TableKeypad.vue'
 
 const router = useRouter()
 
-function onTable(n) {
+function onTable(n: number) {
   router.push({ name: 'pay-table', query: { table: String(n) } })
 }
 </script>

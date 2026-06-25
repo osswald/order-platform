@@ -20,14 +20,20 @@
   </Teleport>
 </template>
 
-<script setup>
-defineProps({
-  open: Boolean,
-  dataUrl: { type: String, default: '' },
-  amountLabel: { type: String, default: '' },
-})
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    open?: boolean
+    dataUrl?: string
+    amountLabel?: string
+  }>(),
+  { open: false, dataUrl: '', amountLabel: '' },
+)
 
-defineEmits(['confirm', 'cancel'])
+defineEmits<{
+  confirm: []
+  cancel: []
+}>()
 </script>
 
 <style scoped>

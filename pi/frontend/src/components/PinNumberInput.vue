@@ -12,25 +12,32 @@
   />
 </template>
 
-<script setup>
-defineProps({
-  modelValue: { type: String, default: '' },
-  maxlength: { type: Number, default: 12 },
-})
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    modelValue?: string
+    maxlength?: number
+  }>(),
+  { modelValue: '', maxlength: 12 },
+)
 
-const emit = defineEmits(['update:modelValue', 'submit'])
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+  submit: []
+}>()
 
-function onKeydown(event) {
+function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter') {
     event.preventDefault()
     emit('submit')
   }
 }
 
-function onInput(event) {
-  const max = Number(event.target.getAttribute('maxlength') || 12)
-  const digits = String(event.target.value || '').replace(/\D/g, '').slice(0, max)
-  event.target.value = digits
+function onInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  const max = Number(target.getAttribute('maxlength') || 12)
+  const digits = String(target.value || '').replace(/\D/g, '').slice(0, max)
+  target.value = digits
   emit('update:modelValue', digits)
 }
 </script>

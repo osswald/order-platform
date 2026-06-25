@@ -54,13 +54,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { isAndroidApp } from '../api'
-import { useEventContext } from '../composables/useEventContext'
-import { maybeEndShiftOnSwitch } from '../composables/useShiftSession'
-import { useStationPrintFailures } from '../composables/useStationPrintFailures'
+import { isAndroidApp } from '@/api'
+import { useEventContext } from '@/composables/useEventContext'
+import { maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
+import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
 
 const router = useRouter()
 const { event, waiter, setWaiter, selectedEventId } = useEventContext()
@@ -68,18 +68,22 @@ const { failedCount, loadFailedJobs } = useStationPrintFailures()
 const androidApp = computed(() => isAndroidApp())
 
 onMounted(() => {
-  loadFailedJobs({
-    eventId: selectedEventId.value,
-    waiterUuid: waiter.value?.uuid,
-  })
+  const eventId = selectedEventId.value
+  const waiterUuid = waiter.value?.uuid
+  if (eventId && waiterUuid) {
+    loadFailedJobs({ eventId, waiterUuid })
+  }
 })
 
 async function switchWaiter() {
+  const ev = event.value
+  const waiterUuid = waiter.value?.uuid
+  if (!ev?.id || !waiterUuid) return
   const ok = await maybeEndShiftOnSwitch({
-    event: event.value,
-    eventId: event.value?.id,
+    event: ev,
+    eventId: ev.id,
     subjectType: 'waiter',
-    waiterUuid: waiter.value?.uuid,
+    waiterUuid,
   })
   if (!ok) return
   setWaiter(null)

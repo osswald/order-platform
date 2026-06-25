@@ -13,15 +13,20 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 
-const props = defineProps({
-  hint: { type: String, default: 'Tischnummer (1–99999)' },
-  maxLength: { type: Number, default: 5 },
-})
+const props = withDefaults(
+  defineProps<{
+    hint?: string
+    maxLength?: number
+  }>(),
+  { hint: 'Tischnummer (1–99999)', maxLength: 5 },
+)
 
-const emit = defineEmits(['submit'])
+const emit = defineEmits<{
+  submit: [tableNumber: number]
+}>()
 
 const value = ref('')
 const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
@@ -32,7 +37,7 @@ const canOk = computed(() => {
   return n >= 1 && n <= 99999
 })
 
-function press(d) {
+function press(d: string) {
   if (value.value.length >= props.maxLength) return
   if (value.value === '0') value.value = d
   else value.value += d

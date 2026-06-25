@@ -16,11 +16,11 @@
       <div>
         <strong>{{ title(payment) }}</strong>
         <p class="muted">
-          {{ formatAmount(payment.total_cents, payment.currency) }}
-          <template v-if="payment.paid_at"> · {{ formatDate(payment.paid_at) }}</template>
+          {{ formatAmount(payment.total_cents) }}
+          <template v-if="payment.paid_at"> · {{ formatDate(String(payment.paid_at)) }}</template>
         </p>
         <p class="muted small">
-          {{ payment.payment_types.join(', ') || 'Zahlung' }} · {{ payment.item_count }} Position(en)
+          {{ (payment.payment_types as string[] | undefined)?.join(', ') || 'Zahlung' }} · {{ payment.item_count }} Position(en)
         </p>
       </div>
       <button type="button" class="btn primary" :disabled="printingId === payment.payment_id" @click="reprint(payment)">
@@ -30,27 +30,29 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useEventContext } from '../composables/useEventContext'
-import { api } from '../api'
-import { formatAmount } from '../utils/money'
-import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
+import { useEventContext } from '@/composables/useEventContext'
+import { api } from '@/api'
+import type { PaymentListItem, PaymentsListResponse } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { formatAmount } from '@/utils/money'
+import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
 
 const { event, waiter, showToast } = useEventContext()
-const payments = ref([])
+const payments = ref<PaymentListItem[]>([])
 const loading = ref(false)
 const error = ref('')
-const printingId = ref(null)
+const printingId = ref<number | null>(null)
 
-function title(payment) {
+function title(payment: PaymentListItem) {
   if (payment.table_number) return `Tisch ${payment.table_number}`
   if (payment.collective_bill_name) return `Sammelrechnung ${payment.collective_bill_name}`
   if (payment.order_number) return `Bestellung #${payment.order_number}`
   return `Beleg #${payment.payment_id}`
 }
 
-function formatDate(iso) {
+function formatDate(iso: string) {
   try {
     return new Date(iso).toLocaleString('de-CH')
   } catch {
@@ -65,18 +67,19 @@ async function loadPayments() {
   try {
     const params = new URLSearchParams({ event_id: String(event.value.id) })
     if (waiter.value?.uuid) params.set('waiter_uuid', waiter.value.uuid)
-    const data = await api(`/v1/payments?${params.toString()}`)
+    const data = await api<PaymentsListResponse>(`/v1/payments?${params.toString()}`)
     payments.value = data?.payments || []
-  } catch (e) {
-    error.value = e.message || 'Belege konnten nicht geladen werden.'
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, 'Belege konnten nicht geladen werden.')
   } finally {
     loading.value = false
   }
 }
 
-async function reprint(payment) {
+async function reprint(payment: PaymentListItem) {
   printingId.value = payment.payment_id
   try {
+    if (!event.value) return
     await offerPaymentReceipt({
       paymentId: payment.payment_id,
       event: event.value,

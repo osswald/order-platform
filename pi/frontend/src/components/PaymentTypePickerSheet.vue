@@ -27,20 +27,34 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { paymentTypeLabel } from '../utils/paymentTypes'
+import { paymentTypeLabel } from '@/utils/paymentTypes'
+import type { PaymentPickerEntry } from '@/utils/pickPaymentType'
+import type { PaymentType } from '@/utils/paymentTypes'
 
-const props = defineProps({
-  open: Boolean,
-  types: { type: Array, default: () => [] },
-  amountLabel: { type: String, default: '' },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    types?: Array<PaymentPickerEntry | PaymentType>
+    amountLabel?: string
+  }>(),
+  { open: false, types: () => [], amountLabel: '' },
+)
 
-const emit = defineEmits(['select', 'cancel'])
+const emit = defineEmits<{
+  select: [value: PaymentType]
+  cancel: []
+}>()
 
-const normalizedTypes = computed(() =>
-  (props.types || []).map((t) => {
+interface NormalizedPaymentType {
+  value: PaymentType
+  disabled: boolean
+  hint: string
+}
+
+const normalizedTypes = computed((): NormalizedPaymentType[] =>
+  (props.types || []).map((t): NormalizedPaymentType => {
     if (typeof t === 'object' && t != null) {
       return {
         value: t.value,
@@ -52,11 +66,11 @@ const normalizedTypes = computed(() =>
   }),
 )
 
-function label(t) {
+function label(t: PaymentType) {
   return paymentTypeLabel(t)
 }
 
-function onSelect(entry) {
+function onSelect(entry: NormalizedPaymentType) {
   if (entry.disabled) return
   emit('select', entry.value)
 }

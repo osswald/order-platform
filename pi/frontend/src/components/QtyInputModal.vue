@@ -35,17 +35,23 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 
-const props = defineProps({
-  open: Boolean,
-  name: { type: String, default: '' },
-  max: { type: Number, default: 99 },
-  modelValue: { type: Number, default: 0 },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    name?: string
+    max?: number
+    modelValue?: number
+  }>(),
+  { open: false, name: '', max: 99, modelValue: 0 },
+)
 
-const emit = defineEmits(['close', 'confirm'])
+const emit = defineEmits<{
+  close: []
+  confirm: [qty: number]
+}>()
 
 const value = ref('0')
 const digitKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
@@ -59,7 +65,7 @@ watch(
   },
 )
 
-function press(d) {
+function press(d: string) {
   const next = value.value === '0' ? d : `${value.value}${d}`
   const n = parseInt(next, 10)
   if (Number.isNaN(n) || n > props.max) return

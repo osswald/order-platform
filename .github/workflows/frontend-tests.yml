@@ -34,9 +34,8 @@ jobs:
         working-directory: ${{ matrix.frontend }}/frontend
         run: npm ci
 
-      - name: Typecheck (cloud only)
-        if: matrix.frontend == 'cloud'
-        working-directory: cloud/frontend
+      - name: Typecheck (${{ matrix.frontend }})
+        working-directory: ${{ matrix.frontend }}/frontend
         run: npm run typecheck
 
       - name: Run tests with coverage (${{ matrix.frontend }})

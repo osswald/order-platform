@@ -54,19 +54,36 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '../api'
-import { useEventContext } from '../composables/useEventContext'
-import { formatAmount, lineTotalCents } from '../utils/money'
-import { cartLineLabelForEvent, lineAdditionLabels } from '../utils/bundleHelpers'
+import type { RegisterDisplayPayload } from '@/types/api'
+import type { CartLine } from '@/types/cart'
+import { api } from '@/api'
+import { useEventContext } from '@/composables/useEventContext'
+import { formatAmount, lineTotalCents, type MoneyLine } from '@/utils/money'
+import { cartLineLabelForEvent, lineAdditionLabels } from '@/utils/bundleHelpers'
+
+interface VoucherDisplayLine {
+  key?: string
+  label?: string
+  applied_cents?: number
+  appliedCents?: number
+}
+
+type DisplayPayload = RegisterDisplayPayload & {
+  show_twint?: boolean
+  twint_qr_data_url?: string | null
+  pickup_code?: string | null
+  voucher_lines?: VoucherDisplayLine[]
+  lines?: Array<CartLine & { display_label?: string }>
+}
 
 const route = useRoute()
-const payload = ref({})
-const orderBodyRef = ref(null)
+const payload = ref<DisplayPayload>({ state: 'idle' })
+const orderBodyRef = ref<HTMLElement | null>(null)
 const orderBodyScrolled = ref(false)
-let pollTimer = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
 let lastCartSignature = ''
 
 const { event } = useEventContext()
@@ -75,23 +92,37 @@ const lines = computed(() => payload.value.lines || [])
 const voucherLines = computed(() => payload.value.voucher_lines || [])
 const articles = computed(() => event.value?.articles || {})
 
-function lineKey(line) {
+function lineKey(line: CartLine & { display_label?: string }) {
   if (line?.lineId) return line.lineId
   if (line?.kind === 'voucher_sale') return `v-${line.voucher_definition_uuid}-${line.qty}`
   return `${line.article_id}-${line.qty}`
 }
 
-function lineLabel(line) {
+function lineLabel(line: CartLine & { display_label?: string }) {
   if (line?.display_label) return line.display_label
   return cartLineLabelForEvent(line, event.value)
 }
 
-function lineTotal(line) {
-  return formatAmount(lineTotalCents(line, articles.value, event.value))
+function toMoneyLine(line: CartLine & { display_label?: string }): MoneyLine {
+  return {
+    article_id: Number(line.article_id),
+    qty: line.qty,
+    note: line.note,
+    additions: line.additions,
+    discount: line.discount ?? undefined,
+  }
 }
 
-function additionLabelsFor(line) {
-  return lineAdditionLabels(line, articles.value)
+function lineTotal(line: CartLine & { display_label?: string }) {
+  return formatAmount(lineTotalCents(toMoneyLine(line), articles.value, event.value))
+}
+
+function additionLabelsFor(line: CartLine & { display_label?: string }) {
+  const moneyLine = toMoneyLine(line)
+  return lineAdditionLabels(
+    { article_id: moneyLine.article_id!, additions: moneyLine.additions },
+    articles.value,
+  )
 }
 
 function cartScrollSignature() {
@@ -145,10 +176,12 @@ watch(
 async function loadDisplay() {
   if (!event.value?.id || !registerUuid.value) return
   try {
-    const data = await api(`/v1/registers/${encodeURIComponent(registerUuid.value)}/display?event_id=${encodeURIComponent(event.value.id)}`)
-    payload.value = data?.payload || {}
+    const data = await api<{ payload?: DisplayPayload }>(
+      `/v1/registers/${encodeURIComponent(registerUuid.value)}/display?event_id=${encodeURIComponent(event.value.id)}`,
+    )
+    payload.value = data?.payload || { state: 'idle' }
   } catch {
-    payload.value = {}
+    payload.value = { state: 'idle' }
   }
 }
 

@@ -29,14 +29,21 @@
   </header>
 </template>
 
-<script setup>
-defineProps({
-  table: { type: [Number, String], required: true },
-  totalLabel: { type: String, required: true },
-  qty: { type: Number, default: 0 },
-  disabled: { type: Boolean, default: false },
-  showMenu: { type: Boolean, default: false },
-})
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    table: number | string
+    totalLabel: string
+    qty?: number
+    disabled?: boolean
+    showMenu?: boolean
+  }>(),
+  { qty: 0, disabled: false, showMenu: false },
+)
 
-defineEmits(['back', 'submit', 'menu'])
+defineEmits<{
+  back: []
+  submit: []
+  menu: []
+}>()
 </script>

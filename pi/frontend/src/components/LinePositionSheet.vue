@@ -142,30 +142,48 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent, PositionCommentPreset } from '@/types/api'
+import type { CartLine } from '@/types/cart'
 import MoneyKeypad from './MoneyKeypad.vue'
 import {
   applyDiscountCents,
   formatMoney,
   lineGrossCents,
   normalizeDiscount,
-} from '../utils/money'
-import { cartLineLabelForEvent } from '../utils/bundleHelpers'
+} from '@/utils/money'
+import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
 
-const props = defineProps({
-  open: Boolean,
-  line: { type: Object, default: null },
-  articles: { type: Object, default: () => ({}) },
-  event: { type: Object, default: null },
-  currency: { type: String, default: 'CHF' },
-  positionCommentsEnabled: { type: Boolean, default: false },
-  discountsEnabled: { type: Boolean, default: false },
-  presets: { type: Array, default: () => [] },
-  initialTab: { type: String, default: 'comment' },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    line?: CartLine | null
+    articles?: Record<string, EdgeBundleArticle>
+    event?: EdgeBundleEvent | null
+    currency?: string
+    positionCommentsEnabled?: boolean
+    discountsEnabled?: boolean
+    presets?: PositionCommentPreset[]
+    initialTab?: string
+  }>(),
+  {
+    open: false,
+    line: null,
+    articles: () => ({}),
+    event: null,
+    currency: 'CHF',
+    positionCommentsEnabled: false,
+    discountsEnabled: false,
+    presets: () => [],
+    initialTab: 'comment',
+  },
+)
 
-const emit = defineEmits(['close', 'save'])
+const emit = defineEmits<{
+  close: []
+  save: [payload: { lineId: string; note?: string; discount?: DiscountIn | null }]
+}>()
 
 const activeSection = ref('comment')
 const draftNote = ref('')
@@ -191,7 +209,7 @@ const hasExistingNote = computed(() => Boolean(String(props.line?.note || '').tr
 
 const hasExistingDiscount = computed(() => Boolean(normalizeDiscount(props.line?.discount)))
 
-const draftDiscount = computed(() => {
+const draftDiscount = computed((): DiscountIn | null => {
   if (!props.discountsEnabled) return null
   if (discountMode.value === 'percent') {
     const v = Math.max(0, Math.min(100, Number(draftPercent.value) || 0))
@@ -245,7 +263,7 @@ watch(
   },
 )
 
-function pickPercent(p) {
+function pickPercent(p: number) {
   customPercent.value = false
   draftPercent.value = p
 }

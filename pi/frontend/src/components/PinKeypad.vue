@@ -13,19 +13,24 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const props = defineProps({
-  maxLength: { type: Number, default: 6 },
-})
+const props = withDefaults(
+  defineProps<{
+    maxLength?: number
+  }>(),
+  { maxLength: 6 },
+)
 
-const emit = defineEmits(['complete'])
+const emit = defineEmits<{
+  complete: [pin: string]
+}>()
 
 const value = ref('')
 const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
-function press(d) {
+function press(d: string) {
   if (value.value.length >= props.maxLength) return
   value.value += d
 }

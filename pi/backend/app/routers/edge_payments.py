@@ -138,7 +138,7 @@ def put_register_display(
         row = RegisterDisplayState(cash_register_uuid=cash_register_uuid, event_id=body.event_id)
         db.add(row)
     row.event_id = body.event_id
-    row.payload_json = json.dumps(body.payload or {})
+    row.payload_json = json.dumps(body.payload.model_dump(exclude_none=True))
     db.commit()
     db.refresh(row)
     return RegisterDisplayResponse(

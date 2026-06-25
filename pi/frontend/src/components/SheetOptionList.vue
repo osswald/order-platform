@@ -13,22 +13,36 @@
   </ul>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
+import type { CSSProperties } from 'vue'
 
-const props = defineProps({
-  items: { type: Array, default: () => [] },
-  maxHeight: { type: String, default: '' },
-})
+export interface SheetOptionItem {
+  key?: string | number
+  label?: string
+  meta?: string
+  priceLabel?: string
+  [key: string]: unknown
+}
 
-defineEmits(['pick'])
+const props = withDefaults(
+  defineProps<{
+    items?: SheetOptionItem[]
+    maxHeight?: string
+  }>(),
+  { items: () => [], maxHeight: '' },
+)
 
-const listStyle = computed(() => {
+defineEmits<{
+  pick: [item: SheetOptionItem]
+}>()
+
+const listStyle = computed((): CSSProperties | undefined => {
   if (!props.maxHeight) return undefined
   return { maxHeight: props.maxHeight, overflowY: 'auto' }
 })
 
-function metaFor(item) {
+function metaFor(item: SheetOptionItem): string {
   return item.meta ?? item.priceLabel ?? ''
 }
 </script>

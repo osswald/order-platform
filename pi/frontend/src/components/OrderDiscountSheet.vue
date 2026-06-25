@@ -102,26 +102,41 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent } from '@/types/api'
+import type { CartLine } from '@/types/cart'
 import MoneyKeypad from './MoneyKeypad.vue'
 import {
   applyDiscountCents,
   formatMoney,
   normalizeDiscount,
   orderSubtotalCents,
-} from '../utils/money'
+} from '@/utils/money'
 
-const props = defineProps({
-  open: Boolean,
-  lines: { type: Array, default: () => [] },
-  articles: { type: Object, default: () => ({}) },
-  event: { type: Object, default: null },
-  currency: { type: String, default: 'CHF' },
-  orderDiscount: { type: Object, default: null },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    lines?: CartLine[]
+    articles?: Record<string, EdgeBundleArticle>
+    event?: EdgeBundleEvent | null
+    currency?: string
+    orderDiscount?: DiscountIn | null
+  }>(),
+  {
+    open: false,
+    lines: () => [],
+    articles: () => ({}),
+    event: null,
+    currency: 'CHF',
+    orderDiscount: null,
+  },
+)
 
-const emit = defineEmits(['close', 'discount-save'])
+const emit = defineEmits<{
+  close: []
+  'discount-save': [payload: { discount: DiscountIn | null }]
+}>()
 
 const mode = ref('percent')
 const draftPercent = ref(10)
@@ -133,7 +148,7 @@ const subtotalCents = computed(() => orderSubtotalCents(props.lines, props.artic
 
 const hasExisting = computed(() => Boolean(normalizeDiscount(props.orderDiscount)))
 
-const draftDiscount = computed(() => {
+const draftDiscount = computed((): DiscountIn | null => {
   if (mode.value === 'percent') {
     const v = Math.max(0, Math.min(100, Number(draftPercent.value) || 0))
     if (v <= 0) return null
@@ -168,7 +183,7 @@ watch(
   },
 )
 
-function pickPercent(p) {
+function pickPercent(p: number) {
   customPercent.value = false
   draftPercent.value = p
 }

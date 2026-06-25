@@ -122,7 +122,7 @@
 
     <PayTableActionsSheet
       :open="actionsOpen"
-      :event-id="event?.id"
+      :event-id="eventId"
       :from-table="table"
       :selections="selectionsPayload()"
       @close="actionsOpen = false"
@@ -135,37 +135,51 @@
       :event="event"
       :gross-cents="rawBasketCents"
       :selections="selectionsPayload()"
-      :line-groups="groups"
+      :line-groups="groups as unknown as LineGroupEntry[]"
       @close="voucherSheetOpen = false"
       @apply="onVoucherApply"
     />
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useEventContext } from '../composables/useEventContext'
-import { api } from '../api'
-import { formatAmount } from '../utils/money'
-import { useSplitPay } from '../composables/useSplitPay'
-import SplitPayHeader from '../components/SplitPayHeader.vue'
-import SplitPayLineRow from '../components/SplitPayLineRow.vue'
-import SplitPayVoucherRow from '../components/SplitPayVoucherRow.vue'
-import { voucherDefinitionByUuid } from '../utils/bundleHelpers'
-import QtyInputModal from '../components/QtyInputModal.vue'
-import PayTableActionsSheet from '../components/PayTableActionsSheet.vue'
-import VoucherRedeemSheet from '../components/VoucherRedeemSheet.vue'
-import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
+import { useEventContext } from '@/composables/useEventContext'
+import { api } from '@/api'
+import type { AccountSummaryResponse, LineGroupEntry, TablePartialSettleResponse } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { formatAmount } from '@/utils/money'
+import { useSplitPay, type SplitPaySummary, type VoucherRedemptionSelection } from '@/composables/useSplitPay'
+import SplitPayHeader from '@/components/SplitPayHeader.vue'
+import SplitPayLineRow from '@/components/SplitPayLineRow.vue'
+import SplitPayVoucherRow from '@/components/SplitPayVoucherRow.vue'
+import { voucherDefinitionByUuid } from '@/utils/bundleHelpers'
+import QtyInputModal from '@/components/QtyInputModal.vue'
+import PayTableActionsSheet from '@/components/PayTableActionsSheet.vue'
+import VoucherRedeemSheet from '@/components/VoucherRedeemSheet.vue'
+import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
 
 const route = useRoute()
 const router = useRouter()
 const actionsOpen = ref(false)
 const voucherSheetOpen = ref(false)
-const voucherRedemptions = ref([])
+const voucherRedemptions = ref<VoucherRedemptionSelection[]>([])
 const table = computed(() => parseInt(String(route.query.table), 10))
 const { event, showToast } = useEventContext()
 const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').toLowerCase())
+const eventId = computed(() => event.value?.id ?? 0)
+
+interface VoucherApplyPayload {
+  voucher_definition_uuid: string
+  applied_cents: number
+  article_id?: number
+  note?: string
+  qty?: number
+  additions?: LineGroupEntry['additions']
+}
+
+type SettleResult = SplitPaySummary & Pick<TablePartialSettleResponse, 'payment_id'>
 
 const {
   groups,
@@ -197,7 +211,7 @@ const {
   loadSummary: async () => {
     const ev = event.value
     if (!ev || !table.value) return { line_groups: [] }
-    return api(`/v1/tables/${table.value}?event_id=${ev.id}`)
+    return api<AccountSummaryResponse>(`/v1/tables/${table.value}?event_id=${ev.id}`)
   },
   settlePartialPath: () => `/v1/tables/${table.value}/settle-partial`,
 })
@@ -227,12 +241,20 @@ const voucherBasketLines = computed(() =>
   }),
 )
 
-function removeVoucherLine(index) {
+function removeVoucherLine(index: number) {
   voucherRedemptions.value = voucherRedemptions.value.filter((_, i) => i !== index)
 }
 
-function onVoucherApply(redemption) {
-  voucherRedemptions.value = [...voucherRedemptions.value, redemption]
+function onVoucherApply(redemption: VoucherApplyPayload) {
+  const next: VoucherRedemptionSelection = {
+    voucher_definition_uuid: redemption.voucher_definition_uuid,
+    article_id: redemption.article_id ?? 0,
+    applied_cents: redemption.applied_cents,
+    note: redemption.note,
+    qty: redemption.qty,
+    additions: redemption.additions as VoucherRedemptionSelection['additions'],
+  }
+  voucherRedemptions.value = [...voucherRedemptions.value, next]
   voucherSheetOpen.value = false
   showToast('Gutschein berücksichtigt', 'ok')
 }
@@ -244,10 +266,10 @@ async function onActionsDone() {
 
 async function onPay() {
   try {
-    const res = await onGreenCheck()
+    const res = (await onGreenCheck()) as SettleResult | undefined
     if (!res) return
     const fullySettled = Number(res.remaining_cents || 0) <= 0
-    if (res.payment_id) {
+    if (res.payment_id && event.value) {
       await offerPaymentReceipt({
         paymentId: res.payment_id,
         event: event.value,
@@ -258,8 +280,9 @@ async function onPay() {
       showToast('Tisch vollständig abgerechnet.', 'ok')
       router.replace({ name: 'hub' })
     }
-  } catch (e) {
-    if (e?.message) showToast(e.message, 'err')
+  } catch (e: unknown) {
+    const message = getErrorMessage(e, '')
+    if (message) showToast(message, 'err')
   }
 }
 
@@ -267,8 +290,8 @@ onMounted(async () => {
   loading.value = true
   try {
     await reload()
-  } catch (e) {
-    showToast(e.message || 'Laden fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Laden fehlgeschlagen'), 'err')
     router.replace({ name: 'hub' })
   } finally {
     loading.value = false

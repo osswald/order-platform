@@ -39,31 +39,56 @@
   </li>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
+import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent } from '@/types/api'
 import {
   discountLabel,
   formatAmount,
   lineGrossCents,
   lineTotalCents as computeLineTotalCents,
   normalizeDiscount,
-} from '../utils/money'
+} from '@/utils/money'
 
-const props = defineProps({
-  variant: { type: String, default: 'bottom' },
-  name: { type: String, required: true },
-  additionLabels: { type: Array, default: () => [] },
-  basketQty: { type: Number, default: 0 },
-  totalQty: { type: Number, default: 0 },
-  unitCents: { type: Number, default: 0 },
-  lineTotalCents: { type: Number, default: 0 },
-  discount: { type: Object, default: null },
-  note: { type: String, default: '' },
-  articles: { type: Object, default: () => ({}) },
-  event: { type: Object, default: null },
-})
+interface AdditionLabel {
+  id: number | string
+  name: string
+}
 
-defineEmits(['tap-qty', 'tap-name', 'tap-price', 'tap-row'])
+const props = withDefaults(
+  defineProps<{
+    variant?: 'bottom' | 'top' | string
+    name: string
+    additionLabels?: AdditionLabel[]
+    basketQty?: number
+    totalQty?: number
+    unitCents?: number
+    lineTotalCents?: number
+    discount?: DiscountIn | null
+    note?: string
+    articles?: Record<string, EdgeBundleArticle>
+    event?: EdgeBundleEvent | null
+  }>(),
+  {
+    variant: 'bottom',
+    additionLabels: () => [],
+    basketQty: 0,
+    totalQty: 0,
+    unitCents: 0,
+    lineTotalCents: 0,
+    discount: null,
+    note: '',
+    articles: () => ({}),
+    event: null,
+  },
+)
+
+defineEmits<{
+  'tap-qty': []
+  'tap-name': []
+  'tap-price': []
+  'tap-row': []
+}>()
 
 const remainingQty = computed(() => Math.max(0, props.totalQty - props.basketQty))
 
@@ -79,7 +104,7 @@ const lineForPricing = computed(() => ({
   discount: props.discount,
 }))
 
-function netCentsForQty(qty) {
+function netCentsForQty(qty: number) {
   const q = Math.max(0, Number(qty) || 0)
   const totalQty = Math.max(1, Number(props.totalQty) || 1)
   const lineTotal = Math.max(0, Number(props.lineTotalCents) || 0)

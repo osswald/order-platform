@@ -15,13 +15,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {
   shiftOpenDialogOpen,
   shiftOpenAmountChf,
   confirmShiftOpen,
   cancelShiftOpen,
-} from '../composables/useShiftSession'
+} from '@/composables/useShiftSession'
 </script>
 
 <style scoped>

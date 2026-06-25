@@ -14,7 +14,7 @@
         {{ syncStatus.auto_sync_enabled ? 'aktiv' : 'aus' }}
         <template v-if="syncStatus.configured">
           · ausstehend {{ syncStatus.pending_outbox_count }}
-          <template v-if="syncStatus.last_cycle_at"> · Zyklus {{ formatCycle(syncStatus.last_cycle_at) }}</template>
+          <template v-if="syncStatus.last_cycle_at"> · Zyklus {{ formatCycle(String(syncStatus.last_cycle_at)) }}</template>
         </template>
         <template v-else> · Cloud nicht konfiguriert</template>
       </p>
@@ -69,7 +69,7 @@
         <div class="field">
           <label for="ops-register">Kasse</label>
           <select id="ops-register" v-model="opsRegisterUuid" class="select">
-            <option v-for="reg in cashRegisters" :key="reg.uuid" :value="reg.uuid">{{ reg.name }}</option>
+            <option v-for="reg in cashRegisters" :key="String(reg.uuid)" :value="String(reg.uuid)">{{ reg.name }}</option>
           </select>
         </div>
         <code v-if="displayUrl" class="display-url">{{ displayUrl }}</code>
@@ -123,15 +123,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, isAndroidApp } from '../api'
-import { useAdminSession } from '../composables/useAdminSession'
-import { useBundle } from '../composables/useBundle'
-import { useSyncOperations } from '../composables/useSyncOperations'
-import { formatDateTime, parseApiDate } from '../utils/dateFormat'
-import { useAppVersion } from '../composables/useAppVersion'
+import { api, isAndroidApp } from '@/api'
+import { useAdminSession } from '@/composables/useAdminSession'
+import { useBundle } from '@/composables/useBundle'
+import { useSyncOperations } from '@/composables/useSyncOperations'
+import { formatDateTime, parseApiDate } from '@/utils/dateFormat'
+import { useAppVersion } from '@/composables/useAppVersion'
+import type {
+  EdgeBundleEvent,
+  PrinterTestStationPrintsResponse,
+  SetupStatusResponse,
+  StationTestPrintResult,
+} from '@/types/api'
+import { getErrorMessage } from '@/types/api'
 
 const { label } = useAppVersion()
 
@@ -139,14 +146,14 @@ const router = useRouter()
 const { clearAdminSession } = useAdminSession()
 const { syncStatus, loadSyncStatus, pullConfiguration, pushOutbox } = useSyncOperations()
 const { bundle, busy, lastSyncAt, syncError, refreshBundle, showToast, selectedEventId } = useBundle()
-const opsEventId = ref(null)
-const opsRegisterUuid = ref(null)
+const opsEventId = ref<number | null>(null)
+const opsRegisterUuid = ref<string | null>(null)
 const eventCount = computed(() => bundle.value?.events?.length || 0)
 const events = computed(() => bundle.value?.events || [])
 const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
-const setupStatus = ref(null)
+const setupStatus = ref<SetupStatusResponse | null>(null)
 const unpairSecret = ref('')
 const unpairLoading = ref(false)
 const unpairMessage = ref('')
@@ -184,7 +191,7 @@ const displayUrl = computed(() => {
   return `${window.location.origin}${path}`
 })
 
-function relativeFromNow(iso) {
+function relativeFromNow(iso: string | null | undefined) {
   const ts = parseApiDate(iso)
   if (!ts) return 'unbekannt'
   const diffMs = Date.now() - ts.getTime()
@@ -205,7 +212,7 @@ function relativeFromNow(iso) {
   return `vor ${days} Tag${days === 1 ? '' : 'en'}`
 }
 
-watch(events, (list) => {
+watch(events, (list: EdgeBundleEvent[]) => {
   if (!list.length) {
     opsEventId.value = null
     opsRegisterUuid.value = null
@@ -221,14 +228,14 @@ watch(cashRegisters, (regs) => {
     opsRegisterUuid.value = null
     return
   }
-  if (opsRegisterUuid.value == null || !regs.some((r) => r.uuid === opsRegisterUuid.value)) {
-    opsRegisterUuid.value = regs[0].uuid
+  if (opsRegisterUuid.value == null || !regs.some((r) => String(r.uuid) === opsRegisterUuid.value)) {
+    opsRegisterUuid.value = String(regs[0].uuid)
   }
 }, { immediate: true })
 
 onMounted(async () => {
   try {
-    setupStatus.value = await api('/v1/setup/status')
+    setupStatus.value = await api<SetupStatusResponse>('/v1/setup/status')
     await refreshBundle()
     await loadSyncStatus()
   } catch {
@@ -248,7 +255,7 @@ async function doTestPrint() {
   if (opsEventId.value == null) return
   testPrintBusy.value = true
   try {
-    const data = await api('/v1/printers/test-station-prints', {
+    const data = await api<PrinterTestStationPrintsResponse>('/v1/printers/test-station-prints', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event_id: opsEventId.value }),
@@ -259,14 +266,14 @@ async function doTestPrint() {
     if (failed === 0) {
       showToast(`Testdruck: ${printed}/${total} Stationen OK.`, 'ok')
     } else {
-      const firstErr = (data.results || []).find((r) => !r.ok)?.error
+      const firstErr = (data.results || []).find((r: StationTestPrintResult) => !r.ok)?.error
       showToast(
         `Testdruck: ${printed}/${total} OK, ${failed} Fehler.${firstErr ? ` ${firstErr}` : ''}`,
         'err',
       )
     }
-  } catch (error) {
-    showToast(error.message || 'Testdruck fehlgeschlagen.', 'err')
+  } catch (error: unknown) {
+    showToast(getErrorMessage(error, 'Testdruck fehlgeschlagen.'), 'err')
   } finally {
     testPrintBusy.value = false
   }
@@ -276,11 +283,11 @@ async function doPush() {
   pushing.value = true
   pushMsg.value = ''
   try {
-    const result = await pushOutbox()
-    pushMsg.value = `Gesendet: ${result.sent}${result.errors?.length ? `, Fehler: ${result.errors.length}` : ''}`
+    const result = (await pushOutbox()) as { sent?: number; errors?: unknown[] }
+    pushMsg.value = `Gesendet: ${result.sent ?? 0}${result.errors?.length ? `, Fehler: ${result.errors.length}` : ''}`
     pushOk.value = !result.errors?.length
-  } catch (error) {
-    pushMsg.value = error.message || 'Push fehlgeschlagen'
+  } catch (error: unknown) {
+    pushMsg.value = getErrorMessage(error, 'Push fehlgeschlagen')
     pushOk.value = false
     showToast(pushMsg.value, 'err')
   } finally {
@@ -302,7 +309,7 @@ async function uncoupleDevice() {
   unpairLoading.value = true
   unpairMessage.value = ''
   try {
-    setupStatus.value = await api('/v1/setup/unpair', {
+    setupStatus.value = await api<SetupStatusResponse>('/v1/setup/unpair', {
       method: 'POST',
       body: JSON.stringify({ unpair_secret: unpairSecret.value }),
     })
@@ -311,9 +318,9 @@ async function uncoupleDevice() {
     unpairMessage.value = 'Gerät erfolgreich entkoppelt.'
     clearAdminSession()
     window.setTimeout(() => router.replace({ name: 'setup' }), 600)
-  } catch (error) {
+  } catch (error: unknown) {
     unpairOk.value = false
-    unpairMessage.value = error.message || 'Entkoppeln fehlgeschlagen.'
+    unpairMessage.value = getErrorMessage(error, 'Entkoppeln fehlgeschlagen.')
   } finally {
     unpairLoading.value = false
   }

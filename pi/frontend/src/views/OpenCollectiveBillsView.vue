@@ -37,17 +37,23 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useEventContext } from '../composables/useEventContext'
-import { api } from '../api'
-import { formatAmount } from '../utils/money'
+import { useEventContext } from '@/composables/useEventContext'
+import { api } from '@/api'
+import type {
+  CollectiveBillCreatedResponse,
+  CollectiveBillListItem,
+  OpenCollectiveBillsResponse,
+} from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { formatAmount } from '@/utils/money'
 
 const router = useRouter()
 const loading = ref(true)
 const creating = ref(false)
-const bills = ref([])
+const bills = ref<CollectiveBillListItem[]>([])
 const { event, showToast } = useEventContext()
 
 const isInstantMode = computed(
@@ -64,10 +70,10 @@ async function load() {
     return
   }
   try {
-    const r = await api(`/v1/collective-bills/open?event_id=${ev.id}`)
+    const r = await api<OpenCollectiveBillsResponse>(`/v1/collective-bills/open?event_id=${ev.id}`)
     bills.value = r.collective_bills || []
-  } catch (e) {
-    showToast(e.message || 'Laden fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Laden fehlgeschlagen'), 'err')
     bills.value = []
   } finally {
     loading.value = false
@@ -81,7 +87,7 @@ async function createBill() {
   if (!ev) return
   creating.value = true
   try {
-    const r = await api('/v1/collective-bills', {
+    const r = await api<CollectiveBillCreatedResponse>('/v1/collective-bills', {
       method: 'POST',
       body: JSON.stringify({ event_id: ev.id, name: name.trim() }),
     })
@@ -90,14 +96,14 @@ async function createBill() {
     if (r.id) {
       router.push({ name: 'pay-collective', query: { id: String(r.id) } })
     }
-  } catch (e) {
-    showToast(e.message || 'Erstellen fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Erstellen fehlgeschlagen'), 'err')
   } finally {
     creating.value = false
   }
 }
 
-function openBill(id) {
+function openBill(id: number) {
   router.push({ name: 'pay-collective', query: { id: String(id) } })
 }
 </script>

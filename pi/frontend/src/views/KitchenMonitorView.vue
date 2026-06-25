@@ -68,9 +68,9 @@
           <ul class="line-list">
             <li v-for="line in ticket.lines" :key="line.id" class="line-row">
               <div class="line-main">
-                <strong>{{ line.qty_remaining }}x {{ lineName(line.line) }}</strong>
+                <strong>{{ line.qty_remaining }}x {{ ticketLineName(line) }}</strong>
                 <span v-if="line.line.note" class="line-note">{{ line.line.note }}</span>
-                <span v-if="additionText(line.line)" class="muted">{{ additionText(line.line) }}</span>
+                <span v-if="ticketAdditionText(line)" class="muted">{{ ticketAdditionText(line) }}</span>
                 <span v-if="line.qty_printed" class="muted">
                   {{ line.qty_printed }}/{{ line.qty_total }} gedruckt
                 </span>
@@ -93,35 +93,50 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
-import { useEventContext } from '../composables/useEventContext'
+import { api } from '@/api'
+import { useEventContext } from '@/composables/useEventContext'
+import type {
+  KitchenOrderTicket,
+  KitchenOrdersResponse,
+  KitchenTicketLineEntry,
+  LineAdditionIn,
+  OrderLineIn,
+} from '@/types/api'
+import { getErrorMessage } from '@/types/api'
 
 const router = useRouter()
 const { event, waiter } = useEventContext()
-const kitchenPrinters = computed(() => {
+
+interface KitchenPrinterTab {
+  printer_appliance_id: number
+  label: string
+  sort_order: number
+}
+
+const kitchenPrinters = computed((): KitchenPrinterTab[] => {
   const ev = event.value
   if (!ev?.kitchen_monitors_enabled) return []
   const rows = ev?.configuration?.kitchen_monitors || []
   return rows
     .map((row) => ({
       printer_appliance_id: Number(row.printer_appliance_id),
-      label: row.label || `Drucker #${row.printer_appliance_id}`,
+      label: String(row.label || `Drucker #${row.printer_appliance_id}`),
       sort_order: Number(row.sort_order) || 0,
     }))
     .filter((row) => Number.isFinite(row.printer_appliance_id))
     .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label))
 })
 
-const selectedPrinterId = ref(null)
-const orders = ref([])
+const selectedPrinterId = ref<number | null>(null)
+const orders = ref<KitchenOrderTicket[]>([])
 const loading = ref(false)
 const error = ref('')
-const busyTicketId = ref(null)
-const busyLineId = ref(null)
-let pollTimer = null
+const busyTicketId = ref<number | null>(null)
+const busyLineId = ref<number | null>(null)
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const selectedPrinter = computed(() =>
   kitchenPrinters.value.find((row) => row.printer_appliance_id === selectedPrinterId.value)
@@ -150,7 +165,7 @@ function restorePrinter() {
   selectedPrinterId.value = (match || printers[0]).printer_appliance_id
 }
 
-function selectPrinter(printerId) {
+function selectPrinter(printerId: number) {
   selectedPrinterId.value = Number(printerId)
   try {
     localStorage.setItem(storageKey(), String(printerId))
@@ -160,15 +175,24 @@ function selectPrinter(printerId) {
   loadOrders()
 }
 
-function lineName(line) {
+function lineName(line: OrderLineIn & { article_name?: string }) {
   if (line?.article_name) return line.article_name
   const aid = line?.article_id
+  if (aid == null) return `#?`
   const article = event.value?.articles?.[String(aid)] || event.value?.articles?.[aid]
   return article?.name || `#${aid}`
 }
 
-function additionText(line) {
-  const additions = line?.additions || []
+function ticketLineName(entry: KitchenTicketLineEntry) {
+  return lineName(entry.line as OrderLineIn & { article_name?: string })
+}
+
+function ticketAdditionText(entry: KitchenTicketLineEntry) {
+  return additionText(entry.line as OrderLineIn)
+}
+
+function additionText(line: OrderLineIn) {
+  const additions = (line?.additions || []) as LineAdditionIn[]
   if (!additions.length) return ''
   return additions
     .map((add) => {
@@ -190,40 +214,40 @@ async function loadOrders() {
   loading.value = true
   error.value = ''
   try {
-    const data = await api(
+    const data = await api<KitchenOrdersResponse>(
       `/v1/kitchen/orders?event_id=${encodeURIComponent(ev.id)}&printer_appliance_id=${encodeURIComponent(printerId)}`,
     )
     orders.value = data?.orders || []
-  } catch (e) {
-    error.value = e.message || 'Kitchen Monitor konnte nicht geladen werden.'
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, 'Kitchen Monitor konnte nicht geladen werden.')
   } finally {
     loading.value = false
   }
 }
 
-async function printTicket(ticket) {
+async function printTicket(ticket: KitchenOrderTicket) {
   if (busyTicketId.value || busyLineId.value) return
   busyTicketId.value = ticket.id
   error.value = ''
   try {
     await api(`/v1/kitchen/tickets/${ticket.id}/print`, { method: 'POST' })
     await loadOrders()
-  } catch (e) {
-    error.value = e.message || 'Drucken fehlgeschlagen.'
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, 'Drucken fehlgeschlagen.')
   } finally {
     busyTicketId.value = null
   }
 }
 
-async function printLineUnit(ticket, line) {
+async function printLineUnit(ticket: KitchenOrderTicket, line: KitchenTicketLineEntry) {
   if (busyTicketId.value || busyLineId.value) return
   busyLineId.value = line.id
   error.value = ''
   try {
     await api(`/v1/kitchen/tickets/${ticket.id}/lines/${line.id}/print-one`, { method: 'POST' })
     await loadOrders()
-  } catch (e) {
-    error.value = e.message || 'Drucken fehlgeschlagen.'
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, 'Drucken fehlgeschlagen.')
   } finally {
     busyLineId.value = null
   }

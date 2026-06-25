@@ -1,0 +1,5736 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "pi-backend",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/setup/status": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Read Setup Status",
+        "operationId": "read_setup_status_v1_setup_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/setup/unpair": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Unpair Device Route",
+        "operationId": "unpair_device_route_v1_setup_unpair_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnpairSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/setup/pair": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Pair With Cloud",
+        "operationId": "pair_with_cloud_v1_setup_pair_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairSetupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/status": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Admin Status",
+        "operationId": "admin_status_v1_admin_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/verify": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Verify Admin Pin",
+        "operationId": "verify_admin_pin_v1_admin_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminVerifyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/printers/test-receipt": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Printer Test Receipt",
+        "operationId": "printer_test_receipt_v1_printers_test_receipt_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PrinterTestReceiptBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscposPayloadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/printers/test-station-prints": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Printer Test Station Prints",
+        "operationId": "printer_test_station_prints_v1_printers_test_station_prints_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrinterTestStationPrintsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterTestStationPrintsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/print-jobs": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Print Jobs",
+        "operationId": "list_print_jobs_v1_print_jobs_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "waiter_uuid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Waiter Uuid"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "kinds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated job_kind values",
+              "title": "Kinds"
+            },
+            "description": "Comma-separated job_kind values"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrintJobSummary"
+                  },
+                  "title": "Response List Print Jobs V1 Print Jobs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/print-jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Print Job",
+        "operationId": "get_print_job_v1_print_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Delete Print Job",
+        "operationId": "delete_print_job_v1_print_jobs__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/print-jobs/{job_id}/retry": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Retry Print Job",
+        "operationId": "retry_print_job_v1_print_jobs__job_id__retry_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobRetryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/emulated-receipts": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Emulated Receipts",
+        "operationId": "list_emulated_receipts_v1_emulated_receipts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EmulatedReceiptSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Emulated Receipts V1 Emulated Receipts Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/emulated-receipts/{receipt_id}": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Emulated Receipt",
+        "operationId": "get_emulated_receipt_v1_emulated_receipts__receipt_id__get",
+        "parameters": [
+          {
+            "name": "receipt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Receipt Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmulatedReceiptDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Create Local Order",
+        "operationId": "create_local_order_v1_orders_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalOrderCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalOrderCreatedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{order_id}/pay": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Pay Local Order",
+        "operationId": "pay_local_order_v1_orders__order_id__pay_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderPayBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPayResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tables/open": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Open Tables",
+        "operationId": "list_open_tables_v1_tables_open_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenTablesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tables/{table_number}": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Table Summary",
+        "operationId": "get_table_summary_v1_tables__table_number__get",
+        "parameters": [
+          {
+            "name": "table_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Table Number"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tables/{table_number}/settle-partial": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Settle Table Partial",
+        "operationId": "settle_table_partial_v1_tables__table_number__settle_partial_post",
+        "parameters": [
+          {
+            "name": "table_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Table Number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableSettlePartialBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TablePartialSettleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tables/{table_number}/settle": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Settle Table",
+        "operationId": "settle_table_v1_tables__table_number__settle_post",
+        "parameters": [
+          {
+            "name": "table_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Table Number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableSettleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableSettleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tables/{from_table}/transfer-lines": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Transfer Table Lines",
+        "operationId": "transfer_table_lines_v1_tables__from_table__transfer_lines_post",
+        "parameters": [
+          {
+            "name": "from_table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "From Table"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferLinesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferLinesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tables/{from_table}/assign-collective": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Assign Table To Collective",
+        "operationId": "assign_table_to_collective_v1_tables__from_table__assign_collective_post",
+        "parameters": [
+          {
+            "name": "from_table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "From Table"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignCollectiveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignCollectiveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collective-bills": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Create Collective Bill",
+        "operationId": "create_collective_bill_v1_collective_bills_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectiveBillCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectiveBillCreatedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collective-bills/open": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Open Collective Bills",
+        "operationId": "list_open_collective_bills_v1_collective_bills_open_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenCollectiveBillsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collective-bills/{bill_id}": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Collective Bill Summary",
+        "operationId": "get_collective_bill_summary_v1_collective_bills__bill_id__get",
+        "parameters": [
+          {
+            "name": "bill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bill Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collective-bills/{bill_id}/settle-partial": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Settle Collective Partial",
+        "operationId": "settle_collective_partial_v1_collective_bills__bill_id__settle_partial_post",
+        "parameters": [
+          {
+            "name": "bill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bill Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableSettlePartialBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectivePartialSettleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collective-bills/{bill_id}/settle": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Settle Collective",
+        "operationId": "settle_collective_v1_collective_bills__bill_id__settle_post",
+        "parameters": [
+          {
+            "name": "bill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bill Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableSettleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectiveSettleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/kitchen/printers": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Kitchen Printers",
+        "operationId": "list_kitchen_printers_v1_kitchen_printers_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenPrintersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/kitchen/stations": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Kitchen Stations",
+        "description": "Legacy alias: returns printer tabs as pseudo-stations for older clients.",
+        "operationId": "list_kitchen_stations_v1_kitchen_stations_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenStationsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/kitchen/orders": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Kitchen Orders",
+        "operationId": "list_kitchen_orders_v1_kitchen_orders_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "station_uuid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Station Uuid"
+            }
+          },
+          {
+            "name": "printer_appliance_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Printer Appliance Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenOrdersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/kitchen/tickets/{ticket_id}/print": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Print Kitchen Ticket",
+        "operationId": "print_kitchen_ticket_v1_kitchen_tickets__ticket_id__print_post",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenTicketPrintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/kitchen/tickets/{ticket_id}/lines/{line_id}/print-one": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Print Kitchen Ticket Line Unit",
+        "operationId": "print_kitchen_ticket_line_unit_v1_kitchen_tickets__ticket_id__lines__line_id__print_one_post",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenTicketPrintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pickup/orders": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Pickup Orders",
+        "operationId": "list_pickup_orders_v1_pickup_orders_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupOrdersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pickup/orders/{order_id}/picked-up": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Mark Pickup Order Picked Up",
+        "operationId": "mark_pickup_order_picked_up_v1_pickup_orders__order_id__picked_up_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupPickedUpResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/terminal/connection-token": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Terminal Connection Token",
+        "operationId": "terminal_connection_token_v1_terminal_connection_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalConnectionTokenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Terminal Connection Token V1 Terminal Connection Token Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/terminal/payment-intents": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Terminal Payment Intent",
+        "operationId": "terminal_payment_intent_v1_terminal_payment_intents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalPaymentIntentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Terminal Payment Intent V1 Terminal Payment Intents Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/terminal/payment-intents/{payment_intent_id}": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Terminal Payment Intent Status",
+        "operationId": "terminal_payment_intent_status_v1_terminal_payment_intents__payment_intent_id__get",
+        "parameters": [
+          {
+            "name": "payment_intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Payment Intent Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Terminal Payment Intent Status V1 Terminal Payment Intents  Payment Intent Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/registers/{cash_register_uuid}/display": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Register Display",
+        "operationId": "get_register_display_v1_registers__cash_register_uuid__display_get",
+        "parameters": [
+          {
+            "name": "cash_register_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cash Register Uuid"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterDisplayResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Put Register Display",
+        "operationId": "put_register_display_v1_registers__cash_register_uuid__display_put",
+        "parameters": [
+          {
+            "name": "cash_register_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cash Register Uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDisplayBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterDisplayResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Payments",
+        "operationId": "list_payments_v1_payments_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "waiter_uuid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Waiter Uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{payment_id}/receipt": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Payment Receipt",
+        "operationId": "payment_receipt_v1_payments__payment_id__receipt_post",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Payment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentReceiptBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptEscposResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{payment_id}/receipt/print": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Payment Receipt Print To Station",
+        "operationId": "payment_receipt_print_to_station_v1_payments__payment_id__receipt_print_post",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Payment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentReceiptPrintBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReceiptPrintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cloud/reachable": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Cloud Reachable",
+        "operationId": "get_cloud_reachable_v1_cloud_reachable_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudReachableResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sync/status": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Sync Status",
+        "operationId": "get_sync_status_v1_sync_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sync/pull": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Sync Pull",
+        "operationId": "sync_pull_v1_sync_pull_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPullResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bundle": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Bundle",
+        "operationId": "get_bundle_v1_bundle_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdgeBundleContract"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/meta": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Meta",
+        "operationId": "get_meta_v1_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncMetaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sync/push": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Sync Push",
+        "operationId": "sync_push_v1_sync_push_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPushResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/shift-session/active": {
+      "get": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Session Active",
+        "operationId": "shift_session_active_v1_shift_session_active_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "subject_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Subject Type"
+            }
+          },
+          {
+            "name": "waiter_uuid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Waiter Uuid"
+            }
+          },
+          {
+            "name": "cash_register_uuid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cash Register Uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftSessionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/shift-session/open": {
+      "post": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Session Open",
+        "operationId": "shift_session_open_v1_shift_session_open_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftSessionOpenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftSessionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/shift-session/{session_id}/close": {
+      "post": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Session Close",
+        "operationId": "shift_session_close_v1_shift_session__session_id__close_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftSessionCloseBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftSessionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/shift-session/{session_id}/receipt": {
+      "post": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Session Receipt",
+        "operationId": "shift_session_receipt_v1_shift_session__session_id__receipt_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ShiftSessionReceiptBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftSessionEscposResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/shift-session/{session_id}/print": {
+      "post": {
+        "tags": [
+          "shift"
+        ],
+        "summary": "Shift Session Print",
+        "operationId": "shift_session_print_v1_shift_session__session_id__print_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftSessionCloseBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShiftSessionPrintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountSummaryResponse": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "open_orders": {
+            "items": {
+              "$ref": "#/components/schemas/OpenOrderEntry"
+            },
+            "type": "array",
+            "title": "Open Orders"
+          },
+          "line_groups": {
+            "items": {
+              "$ref": "#/components/schemas/LineGroupEntry"
+            },
+            "type": "array",
+            "title": "Line Groups"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "currency",
+          "open_orders",
+          "line_groups",
+          "total_cents",
+          "item_count"
+        ],
+        "title": "AccountSummaryResponse",
+        "description": "Table or collective-bill open balance summary."
+      },
+      "AdminStatusResponse": {
+        "properties": {
+          "bundle_ready": {
+            "type": "boolean",
+            "title": "Bundle Ready"
+          },
+          "requires_pin": {
+            "type": "boolean",
+            "title": "Requires Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bundle_ready",
+          "requires_pin"
+        ],
+        "title": "AdminStatusResponse"
+      },
+      "AdminVerifyBody": {
+        "properties": {
+          "pin": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pin"
+        ],
+        "title": "AdminVerifyBody"
+      },
+      "ArticleStockPatch": {
+        "properties": {
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          },
+          "sellable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellable"
+          },
+          "monitor_stock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitor Stock"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ArticleStockPatch"
+      },
+      "AssignCollectiveBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/LineSelection"
+            },
+            "type": "array",
+            "title": "Selections"
+          },
+          "collective_bill_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collective Bill Id"
+          },
+          "new_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "AssignCollectiveBody"
+      },
+      "AssignCollectiveResponse": {
+        "properties": {
+          "collective_bill_id": {
+            "type": "integer",
+            "title": "Collective Bill Id"
+          },
+          "collective_bill_uuid": {
+            "type": "string",
+            "title": "Collective Bill Uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "from_table": {
+            "type": "integer",
+            "title": "From Table"
+          }
+        },
+        "type": "object",
+        "required": [
+          "collective_bill_id",
+          "collective_bill_uuid",
+          "name",
+          "from_table"
+        ],
+        "title": "AssignCollectiveResponse"
+      },
+      "CloudReachableResponse": {
+        "properties": {
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reachable"
+        ],
+        "title": "CloudReachableResponse"
+      },
+      "CollectiveBillCreateBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "name"
+        ],
+        "title": "CollectiveBillCreateBody"
+      },
+      "CollectiveBillCreatedResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "uuid": {
+            "type": "string",
+            "title": "Uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "uuid",
+          "name",
+          "event_id",
+          "total_cents",
+          "order_count"
+        ],
+        "title": "CollectiveBillCreatedResponse"
+      },
+      "CollectiveBillListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "uuid": {
+            "type": "string",
+            "title": "Uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "uuid",
+          "name",
+          "order_count",
+          "total_cents",
+          "item_count",
+          "currency"
+        ],
+        "title": "CollectiveBillListItem"
+      },
+      "CollectivePartialSettleResponse": {
+        "properties": {
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "paid_order_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Paid Order Ids"
+          },
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "remaining_cents": {
+            "type": "integer",
+            "title": "Remaining Cents"
+          },
+          "collective_bill_id": {
+            "type": "integer",
+            "title": "Collective Bill Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "paid_cents",
+          "paid_order_ids",
+          "payment_id",
+          "remaining_cents",
+          "collective_bill_id"
+        ],
+        "title": "CollectivePartialSettleResponse"
+      },
+      "CollectiveSettleResponse": {
+        "properties": {
+          "paid_order_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Paid Order Ids"
+          },
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "collective_bill_id": {
+            "type": "integer",
+            "title": "Collective Bill Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "paid_order_ids",
+          "payment_id",
+          "total_cents",
+          "collective_bill_id"
+        ],
+        "title": "CollectiveSettleResponse"
+      },
+      "DiscountIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "percent",
+              "amount"
+            ],
+            "title": "Kind"
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "DiscountIn"
+      },
+      "EdgeBundleArticle": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "additions": {
+            "items": {
+              "$ref": "#/components/schemas/EdgeBundleArticleAddition"
+            },
+            "type": "array",
+            "title": "Additions"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          },
+          "sellable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellable"
+          },
+          "monitor_stock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitor Stock"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "price"
+        ],
+        "title": "EdgeBundleArticle"
+      },
+      "EdgeBundleArticleAddition": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          },
+          "sellable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellable"
+          },
+          "monitor_stock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitor Stock"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "article_id"
+        ],
+        "title": "EdgeBundleArticleAddition"
+      },
+      "EdgeBundleContract": {
+        "properties": {
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EdgeBundleEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "position_comments_enabled": {
+            "type": "boolean",
+            "title": "Position Comments Enabled",
+            "default": false
+          },
+          "position_comment_presets": {
+            "items": {
+              "$ref": "#/components/schemas/PositionCommentPreset"
+            },
+            "type": "array",
+            "title": "Position Comment Presets"
+          },
+          "admin_pin_hashes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Admin Pin Hashes"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "organisation_id"
+        ],
+        "title": "EdgeBundleContract",
+        "description": "Validated shape for synced organisation bundles."
+      },
+      "EdgeBundleEvent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "EUR"
+          },
+          "payment_mode": {
+            "type": "string",
+            "title": "Payment Mode",
+            "default": "pay_later"
+          },
+          "payment_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Payment Types"
+          },
+          "articles": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EdgeBundleArticle"
+            },
+            "type": "object",
+            "title": "Articles"
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/EdgeEventConfiguration"
+          },
+          "kitchen_monitors_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kitchen Monitors Enabled"
+          },
+          "printer_hosts": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printer Hosts"
+          },
+          "discounts_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discounts Enabled"
+          },
+          "twint_qr_data_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twint Qr Data Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EdgeBundleEvent"
+      },
+      "EdgeEventConfiguration": {
+        "properties": {
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/EdgeStationConfig"
+            },
+            "type": "array",
+            "title": "Stations"
+          },
+          "event_waiters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Event Waiters"
+          },
+          "waiters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Waiters"
+          },
+          "cash_registers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Cash Registers"
+          },
+          "kitchen_monitors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Kitchen Monitors"
+          },
+          "voucher_definitions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Voucher Definitions"
+          },
+          "app_layouts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "App Layouts"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EdgeEventConfiguration"
+      },
+      "EdgeStationConfig": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "title": "Uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          },
+          "article_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Article Ids"
+          },
+          "printer_appliance_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printer Appliance Id"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "uuid",
+          "name"
+        ],
+        "title": "EdgeStationConfig"
+      },
+      "EmulatedReceiptDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "job_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Kind"
+          },
+          "station_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Name"
+          },
+          "preview_text": {
+            "type": "string",
+            "title": "Preview Text"
+          },
+          "preview_lines": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewLine"
+            },
+            "type": "array",
+            "title": "Preview Lines",
+            "default": []
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "escpos_payload": {
+            "type": "string",
+            "title": "Escpos Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "preview_text",
+          "escpos_payload"
+        ],
+        "title": "EmulatedReceiptDetail"
+      },
+      "EmulatedReceiptSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "job_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Kind"
+          },
+          "station_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Name"
+          },
+          "preview_text": {
+            "type": "string",
+            "title": "Preview Text"
+          },
+          "preview_lines": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewLine"
+            },
+            "type": "array",
+            "title": "Preview Lines",
+            "default": []
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "preview_text"
+        ],
+        "title": "EmulatedReceiptSummary"
+      },
+      "EscposPayloadResponse": {
+        "properties": {
+          "escpos_payload": {
+            "type": "string",
+            "title": "Escpos Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "escpos_payload"
+        ],
+        "title": "EscposPayloadResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse"
+      },
+      "KitchenOrderTicket": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "station_uuid": {
+            "type": "string",
+            "title": "Station Uuid"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/KitchenTicketLineEntry"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "local_order_id",
+          "event_id",
+          "station_uuid",
+          "status",
+          "lines"
+        ],
+        "title": "KitchenOrderTicket"
+      },
+      "KitchenOrdersResponse": {
+        "properties": {
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/KitchenOrderTicket"
+            },
+            "type": "array",
+            "title": "Orders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orders"
+        ],
+        "title": "KitchenOrdersResponse"
+      },
+      "KitchenPrinterItem": {
+        "properties": {
+          "printer_appliance_id": {
+            "type": "integer",
+            "title": "Printer Appliance Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "printer_appliance_id",
+          "label",
+          "sort_order"
+        ],
+        "title": "KitchenPrinterItem"
+      },
+      "KitchenPrintersResponse": {
+        "properties": {
+          "printers": {
+            "items": {
+              "$ref": "#/components/schemas/KitchenPrinterItem"
+            },
+            "type": "array",
+            "title": "Printers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "printers"
+        ],
+        "title": "KitchenPrintersResponse"
+      },
+      "KitchenStationItem": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "title": "Uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid",
+          "name",
+          "sort_order"
+        ],
+        "title": "KitchenStationItem"
+      },
+      "KitchenStationsResponse": {
+        "properties": {
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/KitchenStationItem"
+            },
+            "type": "array",
+            "title": "Stations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stations"
+        ],
+        "title": "KitchenStationsResponse"
+      },
+      "KitchenTicketLineEntry": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "line_index": {
+            "type": "integer",
+            "title": "Line Index"
+          },
+          "line": {
+            "$ref": "#/components/schemas/OrderLineIn"
+          },
+          "qty_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Qty Total"
+          },
+          "qty_printed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Qty Printed"
+          },
+          "qty_remaining": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Qty Remaining"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "line_index",
+          "line",
+          "qty_total",
+          "qty_printed",
+          "qty_remaining"
+        ],
+        "title": "KitchenTicketLineEntry"
+      },
+      "KitchenTicketPrintResponse": {
+        "properties": {
+          "print_job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Job Id"
+          },
+          "ticket_status": {
+            "type": "string",
+            "title": "Ticket Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "print_job_id",
+          "ticket_status"
+        ],
+        "title": "KitchenTicketPrintResponse"
+      },
+      "LineAdditionIn": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty",
+            "default": 1
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "article_id"
+        ],
+        "title": "LineAdditionIn"
+      },
+      "LineGroupEntry": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "additions": {
+            "items": {
+              "$ref": "#/components/schemas/LineAdditionIn"
+            },
+            "type": "array",
+            "title": "Additions"
+          },
+          "discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Total Qty"
+          },
+          "unit_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unit Cents"
+          },
+          "line_total_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Line Total Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "total_qty",
+          "unit_cents",
+          "line_total_cents"
+        ],
+        "title": "LineGroupEntry"
+      },
+      "LineSelection": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty"
+          },
+          "additions": {
+            "items": {
+              "$ref": "#/components/schemas/LineAdditionIn"
+            },
+            "type": "array",
+            "title": "Additions"
+          },
+          "discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "qty"
+        ],
+        "title": "LineSelection"
+      },
+      "LocalOrderCreate": {
+        "properties": {
+          "client_order_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Client Order Id"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "table_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99999.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Number"
+          },
+          "waiter_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiter Uuid"
+          },
+          "order_source": {
+            "type": "string",
+            "title": "Order Source",
+            "default": "waiter"
+          },
+          "cash_register_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Register Uuid"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineIn"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "order_discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentIn"
+            },
+            "type": "array",
+            "title": "Payments"
+          },
+          "voucher_redemptions": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherRedemptionIn"
+            },
+            "type": "array",
+            "title": "Voucher Redemptions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_order_id",
+          "event_id"
+        ],
+        "title": "LocalOrderCreate"
+      },
+      "LocalOrderCreatedResponse": {
+        "properties": {
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "print_job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Job Id"
+          },
+          "print_job_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Print Job Ids"
+          },
+          "customer_print_job_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Customer Print Job Ids"
+          },
+          "kitchen_ticket_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Kitchen Ticket Ids"
+          },
+          "payment_status": {
+            "type": "string",
+            "title": "Payment Status"
+          },
+          "pickup_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Code"
+          },
+          "pickup_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Status"
+          },
+          "payment_mode": {
+            "type": "string",
+            "title": "Payment Mode"
+          },
+          "articles": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ArticleStockPatch"
+            },
+            "type": "object",
+            "title": "Articles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_order_id",
+          "payment_status",
+          "payment_mode"
+        ],
+        "title": "LocalOrderCreatedResponse"
+      },
+      "OkResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "OkResponse"
+      },
+      "OpenCollectiveBillsResponse": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "collective_bills": {
+            "items": {
+              "$ref": "#/components/schemas/CollectiveBillListItem"
+            },
+            "type": "array",
+            "title": "Collective Bills"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "currency",
+          "collective_bills"
+        ],
+        "title": "OpenCollectiveBillsResponse"
+      },
+      "OpenOrderEntry": {
+        "properties": {
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "client_order_id": {
+            "type": "string",
+            "title": "Client Order Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineIn"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "line_total_cents": {
+            "type": "integer",
+            "title": "Line Total Cents"
+          },
+          "order_discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "local_order_id",
+          "client_order_id",
+          "line_total_cents"
+        ],
+        "title": "OpenOrderEntry"
+      },
+      "OpenTableRow": {
+        "properties": {
+          "table_number": {
+            "type": "integer",
+            "title": "Table Number"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_number",
+          "order_count",
+          "total_cents",
+          "item_count",
+          "currency"
+        ],
+        "title": "OpenTableRow"
+      },
+      "OpenTablesResponse": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "tables": {
+            "items": {
+              "$ref": "#/components/schemas/OpenTableRow"
+            },
+            "type": "array",
+            "title": "Tables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "currency",
+          "tables"
+        ],
+        "title": "OpenTablesResponse"
+      },
+      "OrderLineIn": {
+        "properties": {
+          "article_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Id"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty",
+            "default": 1
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "additions": {
+            "items": {
+              "$ref": "#/components/schemas/LineAdditionIn"
+            },
+            "type": "array",
+            "title": "Additions"
+          },
+          "discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "station_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Uuid"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "voucher_definition_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Definition Uuid"
+          },
+          "voucher_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Name"
+          },
+          "value_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Cents"
+          },
+          "article_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "OrderLineIn"
+      },
+      "OrderPayBody": {
+        "properties": {
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentIn"
+            },
+            "type": "array",
+            "title": "Payments"
+          }
+        },
+        "type": "object",
+        "title": "OrderPayBody"
+      },
+      "OrderPayResponse": {
+        "properties": {
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "payment_status": {
+            "type": "string",
+            "title": "Payment Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_order_id",
+          "payment_id",
+          "payment_status"
+        ],
+        "title": "OrderPayResponse"
+      },
+      "PairSetupRequest": {
+        "properties": {
+          "pairing_code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Pairing Code"
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pairing_code"
+        ],
+        "title": "PairSetupRequest"
+      },
+      "PairSetupResponse": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "setup_url": {
+            "type": "string",
+            "title": "Setup Url",
+            "default": "http://192.168.192.10"
+          },
+          "cloud_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Base Url"
+          },
+          "edge_client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Client Id"
+          },
+          "can_unpair": {
+            "type": "boolean",
+            "title": "Can Unpair",
+            "default": false
+          },
+          "emulated_printer": {
+            "type": "boolean",
+            "title": "Emulated Printer",
+            "default": false
+          },
+          "appliance_id": {
+            "type": "integer",
+            "title": "Appliance Id"
+          },
+          "appliance_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appliance Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "appliance_id"
+        ],
+        "title": "PairSetupResponse"
+      },
+      "PaymentIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Amount Cents"
+          },
+          "stripe_payment_intent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Payment Intent Id"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type",
+          "amount_cents"
+        ],
+        "title": "PaymentIn"
+      },
+      "PaymentListItem": {
+        "properties": {
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "payment_id",
+          "total_cents",
+          "item_count",
+          "currency"
+        ],
+        "title": "PaymentListItem"
+      },
+      "PaymentReceiptBody": {
+        "properties": {
+          "reprint": {
+            "type": "boolean",
+            "title": "Reprint",
+            "default": false
+          },
+          "paper_width": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "80mm",
+                  "58mm",
+                  "53mm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Width"
+          }
+        },
+        "type": "object",
+        "title": "PaymentReceiptBody"
+      },
+      "PaymentReceiptEscposResponse": {
+        "properties": {
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "escpos_payload": {
+            "type": "string",
+            "title": "Escpos Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_id",
+          "escpos_payload"
+        ],
+        "title": "PaymentReceiptEscposResponse"
+      },
+      "PaymentReceiptPrintBody": {
+        "properties": {
+          "station_uuid": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Station Uuid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "station_uuid"
+        ],
+        "title": "PaymentReceiptPrintBody"
+      },
+      "PaymentReceiptPrintResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "print_job_id": {
+            "type": "integer",
+            "title": "Print Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "print_job_id"
+        ],
+        "title": "PaymentReceiptPrintResponse"
+      },
+      "PaymentsListResponse": {
+        "properties": {
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentListItem"
+            },
+            "type": "array",
+            "title": "Payments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payments"
+        ],
+        "title": "PaymentsListResponse"
+      },
+      "PickupOrderItem": {
+        "properties": {
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "client_order_id": {
+            "type": "string",
+            "title": "Client Order Id"
+          },
+          "pickup_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Code"
+          },
+          "pickup_status": {
+            "type": "string",
+            "title": "Pickup Status"
+          },
+          "cash_register_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Register Uuid"
+          },
+          "cash_register_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Register Name"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "local_order_id",
+          "client_order_id",
+          "pickup_status",
+          "item_count"
+        ],
+        "title": "PickupOrderItem"
+      },
+      "PickupOrdersResponse": {
+        "properties": {
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/PickupOrderItem"
+            },
+            "type": "array",
+            "title": "Orders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orders"
+        ],
+        "title": "PickupOrdersResponse"
+      },
+      "PickupPickedUpResponse": {
+        "properties": {
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "pickup_status": {
+            "type": "string",
+            "title": "Pickup Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_order_id",
+          "pickup_status"
+        ],
+        "title": "PickupPickedUpResponse"
+      },
+      "PositionCommentPreset": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "PositionCommentPreset"
+      },
+      "PreviewLine": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "default": ""
+          },
+          "align": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ],
+            "title": "Align",
+            "default": "left"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "small",
+              "normal",
+              "large",
+              "xlarge"
+            ],
+            "title": "Size",
+            "default": "normal"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale"
+          },
+          "bold": {
+            "type": "boolean",
+            "title": "Bold",
+            "default": false
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "logo"
+            ],
+            "title": "Kind",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "title": "PreviewLine"
+      },
+      "PrintJobRetryResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "print_job_id": {
+            "type": "integer",
+            "title": "Print Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "print_job_id",
+          "status"
+        ],
+        "title": "PrintJobRetryResponse"
+      },
+      "PrintJobSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "local_order_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Order Id"
+          },
+          "printer_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printer Host"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "station_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Uuid"
+          },
+          "station_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Name"
+          },
+          "table_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Number"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "job_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Kind"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "PrintJobSummary"
+      },
+      "PrinterTestReceiptBody": {
+        "properties": {
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "paper_width": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "80mm",
+                  "58mm",
+                  "53mm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Width"
+          }
+        },
+        "type": "object",
+        "title": "PrinterTestReceiptBody"
+      },
+      "PrinterTestStationPrintsBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "PrinterTestStationPrintsBody"
+      },
+      "PrinterTestStationPrintsResponse": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "printed": {
+            "type": "integer",
+            "title": "Printed"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/StationTestPrintResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "printed",
+          "failed"
+        ],
+        "title": "PrinterTestStationPrintsResponse"
+      },
+      "RegisterDisplayBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/RegisterDisplayPayload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "RegisterDisplayBody"
+      },
+      "RegisterDisplayPayload": {
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "total_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cents"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineIn"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RegisterDisplayPayload"
+      },
+      "RegisterDisplayResponse": {
+        "properties": {
+          "cash_register_uuid": {
+            "type": "string",
+            "title": "Cash Register Uuid"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/RegisterDisplayPayload"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cash_register_uuid",
+          "event_id"
+        ],
+        "title": "RegisterDisplayResponse"
+      },
+      "SetupStatusResponse": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "setup_url": {
+            "type": "string",
+            "title": "Setup Url",
+            "default": "http://192.168.192.10"
+          },
+          "cloud_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Base Url"
+          },
+          "edge_client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Client Id"
+          },
+          "can_unpair": {
+            "type": "boolean",
+            "title": "Can Unpair",
+            "default": false
+          },
+          "emulated_printer": {
+            "type": "boolean",
+            "title": "Emulated Printer",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured"
+        ],
+        "title": "SetupStatusResponse"
+      },
+      "ShiftSessionCloseBody": {
+        "properties": {
+          "counted_cash_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Counted Cash Cents"
+          },
+          "station_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Uuid"
+          },
+          "paper_width": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "80mm",
+                  "58mm",
+                  "53mm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Width"
+          }
+        },
+        "type": "object",
+        "required": [
+          "counted_cash_cents"
+        ],
+        "title": "ShiftSessionCloseBody"
+      },
+      "ShiftSessionEscposResponse": {
+        "properties": {
+          "cash_session_id": {
+            "type": "integer",
+            "title": "Cash Session Id"
+          },
+          "escpos_payload": {
+            "type": "string",
+            "title": "Escpos Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cash_session_id",
+          "escpos_payload"
+        ],
+        "title": "ShiftSessionEscposResponse"
+      },
+      "ShiftSessionOpenBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "subject_type": {
+            "type": "string",
+            "enum": [
+              "waiter",
+              "cash_register"
+            ],
+            "title": "Subject Type"
+          },
+          "waiter_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiter Uuid"
+          },
+          "cash_register_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Register Uuid"
+          },
+          "operator_waiter_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Waiter Uuid"
+          },
+          "opening_balance_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Opening Balance Cents",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "subject_type"
+        ],
+        "title": "ShiftSessionOpenBody"
+      },
+      "ShiftSessionPrintResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "print_job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "ShiftSessionPrintResponse"
+      },
+      "ShiftSessionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "subject_type": {
+            "type": "string",
+            "title": "Subject Type"
+          },
+          "subject_name": {
+            "type": "string",
+            "title": "Subject Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "opening_balance_cents": {
+            "type": "integer",
+            "title": "Opening Balance Cents"
+          },
+          "wallet_cents": {
+            "type": "integer",
+            "title": "Wallet Cents"
+          },
+          "total_cash_cents": {
+            "type": "integer",
+            "title": "Total Cash Cents"
+          },
+          "total_non_cash_cents": {
+            "type": "integer",
+            "title": "Total Non Cash Cents"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "event_id",
+          "subject_type",
+          "subject_name",
+          "status",
+          "opening_balance_cents",
+          "wallet_cents",
+          "total_cash_cents",
+          "total_non_cash_cents"
+        ],
+        "title": "ShiftSessionRead"
+      },
+      "ShiftSessionReceiptBody": {
+        "properties": {
+          "counted_cash_cents": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counted Cash Cents"
+          },
+          "paper_width": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "80mm",
+                  "58mm",
+                  "53mm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Width"
+          }
+        },
+        "type": "object",
+        "title": "ShiftSessionReceiptBody"
+      },
+      "StationTestPrintResult": {
+        "properties": {
+          "station_uuid": {
+            "type": "string",
+            "title": "Station Uuid"
+          },
+          "station_name": {
+            "type": "string",
+            "title": "Station Name"
+          },
+          "printer_host": {
+            "type": "string",
+            "title": "Printer Host"
+          },
+          "printer_port": {
+            "type": "integer",
+            "title": "Printer Port"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "station_uuid",
+          "station_name",
+          "printer_host",
+          "printer_port",
+          "ok"
+        ],
+        "title": "StationTestPrintResult"
+      },
+      "SyncMetaResponse": {
+        "properties": {
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_sync_at"
+        ],
+        "title": "SyncMetaResponse"
+      },
+      "SyncPullResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "event_count": {
+            "type": "integer",
+            "title": "Event Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_count"
+        ],
+        "title": "SyncPullResponse"
+      },
+      "SyncPushError": {
+        "properties": {
+          "client_order_id": {
+            "type": "string",
+            "title": "Client Order Id"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_order_id",
+          "error"
+        ],
+        "title": "SyncPushError"
+      },
+      "SyncPushResponse": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/SyncPushError"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent"
+        ],
+        "title": "SyncPushResponse"
+      },
+      "SyncStatusResponse": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "pending_outbox_count": {
+            "type": "integer",
+            "title": "Pending Outbox Count"
+          },
+          "bundle_last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Last Sync At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "configured",
+          "pending_outbox_count",
+          "bundle_last_sync_at"
+        ],
+        "title": "SyncStatusResponse",
+        "description": "Mirrors sync_service.sync_status plus per-request fields."
+      },
+      "TablePartialSettleResponse": {
+        "properties": {
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "paid_order_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Paid Order Ids"
+          },
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "remaining_cents": {
+            "type": "integer",
+            "title": "Remaining Cents"
+          },
+          "table_number": {
+            "type": "integer",
+            "title": "Table Number"
+          },
+          "voucher_credit_cents": {
+            "type": "integer",
+            "title": "Voucher Credit Cents",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "paid_cents",
+          "paid_order_ids",
+          "payment_id",
+          "remaining_cents",
+          "table_number"
+        ],
+        "title": "TablePartialSettleResponse"
+      },
+      "TableSettleBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentIn"
+            },
+            "type": "array",
+            "title": "Payments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "TableSettleBody"
+      },
+      "TableSettlePartialBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentIn"
+            },
+            "type": "array",
+            "title": "Payments"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/LineSelection"
+            },
+            "type": "array",
+            "title": "Selections"
+          },
+          "voucher_redemptions": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherRedemptionIn"
+            },
+            "type": "array",
+            "title": "Voucher Redemptions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "TableSettlePartialBody"
+      },
+      "TableSettleResponse": {
+        "properties": {
+          "paid_order_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Paid Order Ids"
+          },
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "table_number": {
+            "type": "integer",
+            "title": "Table Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "paid_order_ids",
+          "payment_id",
+          "total_cents",
+          "table_number"
+        ],
+        "title": "TableSettleResponse"
+      },
+      "TerminalConnectionTokenBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "TerminalConnectionTokenBody"
+      },
+      "TerminalPaymentIntentBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Cents"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "amount_cents"
+        ],
+        "title": "TerminalPaymentIntentBody"
+      },
+      "TransferLinesBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "target_table_number": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 1.0,
+            "title": "Target Table Number"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/LineSelection"
+            },
+            "type": "array",
+            "title": "Selections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "target_table_number"
+        ],
+        "title": "TransferLinesBody"
+      },
+      "TransferLinesResponse": {
+        "properties": {
+          "from_table": {
+            "type": "integer",
+            "title": "From Table"
+          },
+          "target_table_number": {
+            "type": "integer",
+            "title": "Target Table Number"
+          },
+          "moved_line_count": {
+            "type": "integer",
+            "title": "Moved Line Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_table",
+          "target_table_number",
+          "moved_line_count"
+        ],
+        "title": "TransferLinesResponse"
+      },
+      "UnpairSetupRequest": {
+        "properties": {
+          "unpair_secret": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Unpair Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unpair_secret"
+        ],
+        "title": "UnpairSetupRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VoucherRedemptionIn": {
+        "properties": {
+          "voucher_definition_uuid": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Voucher Definition Uuid"
+          },
+          "article_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Id"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty",
+            "default": 1
+          },
+          "additions": {
+            "items": {
+              "$ref": "#/components/schemas/LineAdditionIn"
+            },
+            "type": "array",
+            "title": "Additions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "voucher_definition_uuid"
+        ],
+        "title": "VoucherRedemptionIn"
+      }
+    }
+  }
+}

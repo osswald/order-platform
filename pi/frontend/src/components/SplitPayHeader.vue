@@ -8,13 +8,19 @@
   </header>
 </template>
 
-<script setup>
-defineProps({
-  table: { type: [Number, String], default: '' },
-  title: { type: String, default: '' },
-})
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    table?: number | string
+    title?: string
+  }>(),
+  { table: '', title: '' },
+)
 
-defineEmits(['back', 'menu'])
+defineEmits<{
+  back: []
+  menu: []
+}>()
 </script>
 
 <style scoped>

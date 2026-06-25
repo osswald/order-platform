@@ -16,17 +16,23 @@
   </Teleport>
 </template>
 
-<script setup>
-import SheetOptionList from './SheetOptionList.vue'
+<script setup lang="ts">
+import SheetOptionList, { type SheetOptionItem } from './SheetOptionList.vue'
 import SheetScrollBody from './SheetScrollBody.vue'
 
-defineProps({
-  open: Boolean,
-  title: { type: String, default: '' },
-  items: { type: Array, default: () => [] },
-})
+withDefaults(
+  defineProps<{
+    open?: boolean
+    title?: string
+    items?: SheetOptionItem[]
+  }>(),
+  { open: false, title: '', items: () => [] },
+)
 
-defineEmits(['close', 'pick'])
+defineEmits<{
+  close: []
+  pick: [item: SheetOptionItem]
+}>()
 </script>
 
 <style scoped>

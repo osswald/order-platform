@@ -24,12 +24,12 @@
             <span class="picker-chevron" aria-hidden="true">{{ registerListOpen ? '▲' : '▼' }}</span>
           </button>
           <ul v-if="registerListOpen" class="picker-list">
-            <li v-for="reg in registers" :key="reg.uuid">
+            <li v-for="reg in registers" :key="String(reg.uuid)">
               <button
                 type="button"
                 class="picker-row"
                 :class="{ 'picker-row--selected': reg.uuid === registerId }"
-                @click="pickRegister(reg.uuid)"
+                @click="pickRegister(String(reg.uuid))"
               >
                 <span class="picker-row-name">{{ reg.name }}</span>
                 <span v-if="reg.uuid === registerId" class="picker-row-check" aria-hidden="true">✓</span>
@@ -54,13 +54,14 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import PinNumberInput from '../components/PinNumberInput.vue'
-import { useEventContext } from '../composables/useEventContext'
-import { useRegisterSession } from '../composables/useRegisterSession'
-import { setWaiter } from '../store'
+import PinNumberInput from '@/components/PinNumberInput.vue'
+import { useEventContext } from '@/composables/useEventContext'
+import { useRegisterSession } from '@/composables/useRegisterSession'
+import { setWaiter } from '@/store'
+import type { RegisterSession } from '@/types/cart'
 
 const router = useRouter()
 const route = useRoute()
@@ -73,7 +74,7 @@ const registers = computed(() =>
     .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de')),
 )
 
-const registerId = ref(null)
+const registerId = ref<string | null>(null)
 const registerListOpen = ref(false)
 const pin = ref('')
 const err = ref('')
@@ -83,7 +84,7 @@ const selectedRegister = computed(() => registers.value.find((x) => x.uuid === r
 watch(
   registers,
   (regs) => {
-    if (regs.length && registerId.value == null) registerId.value = regs[0].uuid
+    if (regs.length && registerId.value == null) registerId.value = String(regs[0].uuid)
   },
   { immediate: true },
 )
@@ -92,7 +93,7 @@ function toggleRegisterList() {
   registerListOpen.value = !registerListOpen.value
 }
 
-function pickRegister(uuid) {
+function pickRegister(uuid: string) {
   registerId.value = uuid
   registerListOpen.value = false
 }
@@ -110,12 +111,13 @@ async function login() {
     return
   }
   setWaiter(null)
-  setRegisterSession({ uuid: reg.uuid, name: reg.name })
+  const session: RegisterSession = { uuid: String(reg.uuid), name: String(reg.name) }
+  setRegisterSession(session)
   const redir = route.query.redirect
   if (typeof redir === 'string' && redir.startsWith('/')) {
     router.replace(redir)
   } else {
-    router.replace({ name: 'register-hub', params: { registerUuid: reg.uuid }, query: { fresh: '1' } })
+    router.replace({ name: 'register-hub', params: { registerUuid: String(reg.uuid) }, query: { fresh: '1' } })
   }
 }
 </script>

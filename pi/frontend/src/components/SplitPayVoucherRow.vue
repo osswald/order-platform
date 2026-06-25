@@ -10,16 +10,18 @@
   </li>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { formatAmount } from '../utils/money'
+import { formatAmount } from '@/utils/money'
 
-const props = defineProps({
-  label: { type: String, required: true },
-  amountCents: { type: Number, required: true },
-})
+const props = defineProps<{
+  label: string
+  amountCents: number
+}>()
 
-defineEmits(['remove'])
+defineEmits<{
+  remove: []
+}>()
 
 const amountLabel = computed(() => {
   const c = Math.max(0, Number(props.amountCents) || 0)

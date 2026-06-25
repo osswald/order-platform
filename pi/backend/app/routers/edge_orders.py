@@ -32,6 +32,7 @@ from ..position_comments import validate_submit_position_notes
 from ..pricing import normalize_discount, order_lines_gross_cents, order_total_cents
 from ..print_worker import group_lines_by_station
 from ..printer_routing import printer_in_kitchen_monitor, subgroup_lines_by_printer
+from ..schemas.order_models import dump_discount, dump_lines, dump_payments
 from ..schemas.edge import (
     AccountSummaryResponse,
     AssignCollectiveBody,
@@ -98,6 +99,10 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
+    lines = dump_lines(body.lines)
+    payments = dump_payments(body.payments)
+    order_discount_raw = dump_discount(body.order_discount)
+
     if db.query(LocalOrder).filter(LocalOrder.client_order_id == body.client_order_id).first():
         raise HTTPException(status_code=409, detail="Duplicate client_order_id")
 
@@ -107,11 +112,11 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             "qty": ln.get("qty"),
             "note": ln.get("note") or "",
         }
-        for ln in body.lines
+        for ln in lines
         if isinstance(ln, dict) and ln.get("article_id") is not None and not is_voucher_sale_line(ln)
     ]
     validate_stock(ev, line_dicts)
-    has_voucher_sale = any(is_voucher_sale_line(ln) for ln in body.lines if isinstance(ln, dict))
+    has_voucher_sale = any(is_voucher_sale_line(ln) for ln in lines if isinstance(ln, dict))
 
     order_source = (body.order_source or "waiter").strip().lower()
     if order_source not in {"waiter", "cash_register"}:
@@ -127,15 +132,14 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
 
     pm = (ev.get("payment_mode") or "pay_later").lower()
     arts = _article_map(ev)
-    payments = list(body.payments or [])
     _validate_payment_types(ev, payments)
-    normalized_order_discount = validate_submit_discounts(ev, body.lines, body.order_discount, arts)
-    validate_submit_position_notes(bundle, body.lines)
-    line_cents, _ = order_lines_total_cents(body.lines, ev, arts, normalized_order_discount)
+    normalized_order_discount = validate_submit_discounts(ev, lines, order_discount_raw, arts)
+    validate_submit_position_notes(bundle, lines)
+    line_cents, _ = order_lines_total_cents(lines, ev, arts, normalized_order_discount)
     redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
     if redemptions_in and not payments:
         raise HTTPException(status_code=400, detail="Gutschein einlösen erfordert Zahlung")
-    article_gross = order_lines_gross_cents(article_lines_only(body.lines), ev, arts)
+    article_gross = order_lines_gross_cents(article_lines_only(lines), ev, arts)
     voucher_credit = 0
     voucher_records: list[dict] = []
     if redemptions_in:
@@ -161,7 +165,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     payment_status = "paid" if order_source == "cash_register" else _payment_status_for_create(ev, payments)
     if has_voucher_sale and payment_status != "paid":
         raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
-    order_lines = _lines_with_station_uuid(ev, body.lines)
+    order_lines = _lines_with_station_uuid(ev, lines)
     article_order_lines = article_lines_only(order_lines)
     table_number_payload = None if order_source == "cash_register" else body.table_number
     table_number_db = 0 if order_source == "cash_register" else body.table_number
@@ -410,10 +414,11 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     if not body.payments:
         raise HTTPException(status_code=400, detail="payments required")
 
-    _validate_payment_types(ev, body.payments)
+    payments = dump_payments(body.payments)
+    _validate_payment_types(ev, payments)
 
     payload = json.loads(order.payload_json)
-    payload["payments"] = body.payments
+    payload["payments"] = payments
     payload["payment_status"] = "paid"
     payload["paid_at"] = datetime.now(timezone.utc).isoformat()
     order.payment_status = "paid"
@@ -538,7 +543,8 @@ def settle_table_partial(
     if not body.selections:
         raise HTTPException(status_code=400, detail="selections required")
 
-    _validate_payment_types(ev, body.payments)
+    payments = dump_payments(body.payments)
+    _validate_payment_types(ev, payments)
 
     arts = _article_map(ev)
     selections = [s.model_dump() for s in body.selections]
@@ -569,7 +575,7 @@ def settle_table_partial(
         line_groups=line_groups,
     )
     expected_cents = max(0, gross_cents - voucher_credit)
-    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
     if paid_total != expected_cents:
         raise HTTPException(
             status_code=400,
@@ -653,7 +659,7 @@ def settle_table_partial(
             "table_number": table_number,
             "waiter_uuid": orders[0].waiter_uuid if orders else None,
             "lines": paid_lines,
-            "payments": body.payments,
+            "payments": payments,
             "payment_status": "paid",
             "settled_at": now,
             "settlement_table": table_number,
@@ -759,7 +765,8 @@ def settle_table(
     if not body.payments:
         raise HTTPException(status_code=400, detail="payments required")
 
-    _validate_payment_types(ev, body.payments)
+    payments = dump_payments(body.payments)
+    _validate_payment_types(ev, payments)
 
     now = datetime.now(timezone.utc).isoformat()
     paid_ids = []
@@ -771,7 +778,7 @@ def settle_table(
         cents, _ = _line_totals(lines, arts)
         total_cents += cents
 
-    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
     if paid_total != total_cents:
         raise HTTPException(
             status_code=400,
@@ -780,7 +787,7 @@ def settle_table(
 
     for o in orders:
         payload = json.loads(o.payload_json)
-        payload["payments"] = body.payments
+        payload["payments"] = payments
         payload["payment_status"] = "paid"
         payload["settled_at"] = now
         payload["settlement_table"] = table_number
@@ -792,7 +799,7 @@ def settle_table(
     receipt_payload = _receipt_payload_from_orders(
         ev,
         orders,
-        body.payments,
+        payments,
         table_number=table_number,
         paid_at=now,
     )
@@ -1091,7 +1098,8 @@ def _settle_orders_partial(
     if not body.selections:
         raise HTTPException(status_code=400, detail="selections required")
 
-    _validate_payment_types(ev, body.payments)
+    payments = dump_payments(body.payments)
+    _validate_payment_types(ev, payments)
 
     arts = _article_map(ev)
     selections = [s.model_dump() for s in body.selections]
@@ -1111,7 +1119,7 @@ def _settle_orders_partial(
         line_groups=line_groups,
     )
     expected_cents = max(0, gross_cents - voucher_credit)
-    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
     if paid_total != expected_cents:
         raise HTTPException(
             status_code=400,
@@ -1193,7 +1201,7 @@ def _settle_orders_partial(
             "event_id": body.event_id,
             "waiter_uuid": orders[0].waiter_uuid if orders else None,
             "lines": paid_lines,
-            "payments": body.payments,
+            "payments": payments,
             "payment_status": "paid",
             "settled_at": now,
             "partial_settlement": True,
@@ -1351,7 +1359,8 @@ def settle_collective(
     if not body.payments:
         raise HTTPException(status_code=400, detail="payments required")
 
-    _validate_payment_types(ev, body.payments)
+    payments = dump_payments(body.payments)
+    _validate_payment_types(ev, payments)
 
     now = datetime.now(timezone.utc).isoformat()
     arts = _article_map(ev)
@@ -1361,7 +1370,7 @@ def settle_collective(
         cents, _ = _line_totals(payload.get("lines") or [], arts)
         total_cents += cents
 
-    paid_total = sum(int(p.get("amount_cents") or 0) for p in body.payments if isinstance(p, dict))
+    paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
     if paid_total != total_cents:
         raise HTTPException(
             status_code=400,
@@ -1377,7 +1386,7 @@ def settle_collective(
     paid_ids = []
     for o in orders:
         payload = json.loads(o.payload_json)
-        payload["payments"] = body.payments
+        payload["payments"] = payments
         payload["payment_status"] = "paid"
         payload["settled_at"] = now
         payload.update(meta)
@@ -1389,7 +1398,7 @@ def settle_collective(
     receipt_payload = _receipt_payload_from_orders(
         ev,
         orders,
-        body.payments,
+        payments,
         collective_bill=bill,
         paid_at=now,
     )

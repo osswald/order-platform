@@ -30,40 +30,42 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useEventContext } from '../composables/useEventContext'
-import { api } from '../api'
+import { useEventContext } from '@/composables/useEventContext'
+import type { PickupOrderItem, PickupOrdersResponse } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { api } from '@/api'
 
-const orders = ref([])
+const orders = ref<PickupOrderItem[]>([])
 const error = ref('')
-let pollTimer = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const { event } = useEventContext()
 const pendingOrders = computed(() => orders.value.filter((o) => o.pickup_status !== 'ready'))
 const readyOrders = computed(() =>
   orders.value
     .filter((o) => o.pickup_status === 'ready')
-    .sort((a, b) => new Date(a.ready_at || 0) - new Date(b.ready_at || 0)),
+    .sort((a, b) => Date.parse(String(a.ready_at || 0)) - Date.parse(String(b.ready_at || 0))),
 )
 
 async function loadOrders() {
   if (!event.value?.id) return
   try {
-    const data = await api(`/v1/pickup/orders?event_id=${encodeURIComponent(event.value.id)}`)
+    const data = await api<PickupOrdersResponse>(`/v1/pickup/orders?event_id=${encodeURIComponent(event.value.id)}`)
     orders.value = data?.orders || []
     error.value = ''
-  } catch (e) {
-    error.value = e.message || 'Pickup Screen konnte nicht geladen werden.'
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, 'Pickup Screen konnte nicht geladen werden.')
   }
 }
 
-async function markPickedUp(order) {
+async function markPickedUp(order: PickupOrderItem) {
   try {
     await api(`/v1/pickup/orders/${order.local_order_id}/picked-up`, { method: 'POST' })
     await loadOrders()
-  } catch (e) {
-    error.value = e.message || 'Konnte nicht abgeschlossen werden.'
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e, 'Konnte nicht abgeschlossen werden.')
   }
 }
 

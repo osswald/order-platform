@@ -9,14 +9,17 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
-const props = defineProps({
-  active: { type: Boolean, default: true },
-})
+const props = withDefaults(
+  defineProps<{
+    active?: boolean
+  }>(),
+  { active: true },
+)
 
-const el = ref(null)
+const el = ref<HTMLElement | null>(null)
 const hasAbove = ref(false)
 const hasBelow = ref(false)
 
@@ -32,7 +35,7 @@ function update() {
   hasBelow.value = scrollTop + clientHeight < scrollHeight - 1
 }
 
-let resizeObserver = null
+let resizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => update())

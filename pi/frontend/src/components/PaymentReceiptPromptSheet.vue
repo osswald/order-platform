@@ -37,15 +37,28 @@
   </Teleport>
 </template>
 
-<script setup>
-defineProps({
-  open: Boolean,
-  step: { type: String, default: 'ask' },
-  targets: { type: Array, default: () => [] },
-  busy: Boolean,
-})
+<script setup lang="ts">
+interface ReceiptPrintTarget {
+  uuid: string
+  label: string
+}
 
-const emit = defineEmits(['yes', 'no', 'cancel', 'select-station'])
+withDefaults(
+  defineProps<{
+    open?: boolean
+    step?: string
+    targets?: ReceiptPrintTarget[]
+    busy?: boolean
+  }>(),
+  { open: false, step: 'ask', targets: () => [], busy: false },
+)
+
+const emit = defineEmits<{
+  yes: []
+  no: []
+  cancel: []
+  'select-station': [uuid: string]
+}>()
 
 function onBackdrop() {
   emit('cancel')

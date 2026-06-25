@@ -23,17 +23,28 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { EdgeBundleArticle } from '@/types/api'
 import SheetScrollBody from './SheetScrollBody.vue'
 
-defineProps({
-  open: Boolean,
-  articles: { type: Array, default: () => [] },
-})
+interface ArticlePickerItem extends EdgeBundleArticle {
+  label?: string | null
+}
 
-const emit = defineEmits(['close', 'add'])
+withDefaults(
+  defineProps<{
+    open?: boolean
+    articles?: ArticlePickerItem[]
+  }>(),
+  { open: false, articles: () => [] },
+)
 
-function pick(article_id) {
+const emit = defineEmits<{
+  close: []
+  add: [line: { article_id: number; qty: number }]
+}>()
+
+function pick(article_id: number) {
   emit('add', { article_id, qty: 1 })
 }
 </script>

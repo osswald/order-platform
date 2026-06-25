@@ -64,8 +64,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent } from '@/types/api'
+import type { CartLine } from '@/types/cart'
 import {
   applyDiscountCents,
   discountButtonLabel,
@@ -75,23 +77,42 @@ import {
   lineTotalCents,
   normalizeDiscount,
   orderSubtotalCents,
-} from '../utils/money'
-import { cartLineLabelForEvent } from '../utils/bundleHelpers'
+} from '@/utils/money'
+import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
 
-const props = defineProps({
-  lines: { type: Array, default: () => [] },
-  articles: { type: Object, default: () => ({}) },
-  event: { type: Object, default: null },
-  currency: { type: String, default: 'EUR' },
-  labelFn: { type: Function, default: null },
-  discountsEnabled: { type: Boolean, default: false },
-  positionCommentsEnabled: { type: Boolean, default: false },
-  orderDiscount: { type: Object, default: null },
-})
+const props = withDefaults(
+  defineProps<{
+    lines?: CartLine[]
+    articles?: Record<string, EdgeBundleArticle>
+    event?: EdgeBundleEvent | null
+    currency?: string
+    labelFn?: ((line: CartLine) => string) | null
+    discountsEnabled?: boolean
+    positionCommentsEnabled?: boolean
+    orderDiscount?: DiscountIn | null
+  }>(),
+  {
+    lines: () => [],
+    articles: () => ({}),
+    event: null,
+    currency: 'EUR',
+    labelFn: null,
+    discountsEnabled: false,
+    positionCommentsEnabled: false,
+    orderDiscount: null,
+  },
+)
 
-defineEmits(['tap-qty', 'tap-name', 'tap-price', 'tap-discount', 'tap-comment', 'remove-order-discount'])
+defineEmits<{
+  'tap-qty': [line: CartLine]
+  'tap-name': [line: CartLine]
+  'tap-price': [lineId: string]
+  'tap-discount': [line: CartLine]
+  'tap-comment': [line: CartLine]
+  'remove-order-discount': []
+}>()
 
-const panelRef = ref(null)
+const panelRef = ref<HTMLElement | null>(null)
 let prevLineCount = 0
 
 watch(
@@ -124,44 +145,48 @@ const orderDiscountOff = computed(() => {
   return Math.max(0, sub - total)
 })
 
-function lineLabel(line) {
+function lineLabel(line: CartLine) {
   if (props.labelFn) return props.labelFn(line)
   return cartLineLabelForEvent(line, props.event)
 }
 
-function showLineDiscountBtn(line) {
+function showLineDiscountBtn(line: CartLine) {
   return props.discountsEnabled && line?.kind !== 'voucher_sale'
 }
 
-function showLineCommentBtn(line) {
+function showLineCommentBtn(line: CartLine) {
   return props.positionCommentsEnabled && line?.kind !== 'voucher_sale'
 }
 
-function lineHasNote(line) {
+function lineHasNote(line: CartLine) {
   return Boolean(String(line?.note || '').trim())
 }
 
-function lineHasDiscount(line) {
+function lineHasDiscount(line: CartLine) {
   return Boolean(normalizeDiscount(line?.discount))
 }
 
-function lineDiscountHint(line) {
+function lineDiscountHint(line: CartLine) {
   if (!lineHasDiscount(line)) return ''
   return discountLabel(line.discount)
 }
 
-function discountBtnLabel(line) {
+function discountBtnLabel(line: CartLine) {
   return discountButtonLabel(line.discount)
 }
 
-function lineAdditions(line) {
+function lineAdditions(line: CartLine) {
   if (line?.kind === 'voucher_sale') return []
-  const base = props.articles[String(line.article_id)] || props.articles[line.article_id]
+  const articleId = line.article_id
+  if (articleId == null) return []
+  const base = props.articles[String(articleId)] || props.articles[articleId]
   const out = []
   for (const add of line.additions || []) {
     const id = add.article_id
     let name = `#${id}`
-    const fromLine = (base?.additions || []).find((x) => Number(x.article_id) === Number(id))
+    const fromLine = (base?.additions || []).find(
+      (x: { article_id?: number }) => Number(x.article_id) === Number(id),
+    )
     if (fromLine?.name) name = fromLine.name
     else {
       const a = props.articles[String(id)] || props.articles[id]
@@ -172,11 +197,11 @@ function lineAdditions(line) {
   return out
 }
 
-function formatLine(l) {
+function formatLine(l: CartLine) {
   return formatMoney(lineTotalCents(l, props.articles, props.event), props.currency)
 }
 
-function formatGross(l) {
+function formatGross(l: CartLine) {
   return formatMoney(lineGrossCents(l, props.articles, props.event), props.currency)
 }
 </script>

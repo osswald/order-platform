@@ -20,33 +20,79 @@
   </div>
 </template>
 
-<script setup>
-import { showToast } from '../store'
-import { formatAmount, lineUnitCents } from '../utils/money'
+<script setup lang="ts">
+import { showToast } from '@/store'
+import type { EdgeBundleEvent } from '@/types/api'
+import { formatAmount, lineUnitCents } from '@/utils/money'
 import {
   articlesForIds,
   fixedAmountVouchersForCell,
-} from '../utils/bundleHelpers'
-import { textColorForBackground } from '../utils/colorContrast'
+} from '@/utils/bundleHelpers'
+import { textColorForBackground } from '@vendiqo/frontend-shared/colorContrast'
 
-const props = defineProps({
-  layout: { type: Object, required: true },
-  event: { type: Object, required: true },
-})
+interface LayoutCell {
+  col: number
+  row: number
+  color?: string
+  label?: string
+  article_ids?: number[]
+  voucher_definition_uuids?: string[]
+  voucher_definition_uuid?: string
+}
 
-const emit = defineEmits(['pick', 'pick-voucher', 'pick-cell'])
+interface AppLayout {
+  grid_width?: number
+  grid_height?: number
+  cells?: LayoutCell[]
+}
 
-function cellArticleIds(cell) {
+interface VoucherDefinition {
+  uuid: string
+  name?: string
+  kind?: string
+  value_cents?: number
+}
+
+interface PickItemArticle {
+  key: string
+  type: 'article'
+  article_id: number
+  label: string
+  priceLabel: string
+}
+
+interface PickItemVoucher {
+  key: string
+  type: 'voucher'
+  voucher: VoucherDefinition
+  label: string
+  priceLabel: string
+}
+
+type PickItem = PickItemArticle | PickItemVoucher
+
+const props = defineProps<{
+  layout: AppLayout
+  event: EdgeBundleEvent
+}>()
+
+const emit = defineEmits<{
+  pick: [articleIds: number[]]
+  'pick-voucher': [voucher: VoucherDefinition]
+  'pick-cell': [payload: { cell: LayoutCell; items: PickItem[] }]
+}>()
+
+function cellArticleIds(cell: LayoutCell) {
   const ids = cell.article_ids || []
   const arts = articlesForIds(props.event, ids)
   return arts.map((a) => a.id)
 }
 
-function cellEnabled(cell) {
+function cellEnabled(cell: LayoutCell) {
   return fixedAmountVouchersForCell(props.event, cell).length > 0 || cellArticleIds(cell).length > 0
 }
 
-function cellStyle(cell) {
+function cellStyle(cell: LayoutCell) {
   const background = cell.color || '#334155'
   return {
     gridColumn: cell.col + 1,
@@ -56,16 +102,17 @@ function cellStyle(cell) {
   }
 }
 
-function buildPickItems(cell) {
+function buildPickItems(cell: LayoutCell): PickItem[] {
   const items = []
   const arts = props.event?.articles || {}
   for (const vd of fixedAmountVouchersForCell(props.event, cell)) {
-    const cents = Math.max(0, Number(vd.value_cents) || 0)
+    const voucher = vd as unknown as VoucherDefinition
+    const cents = Math.max(0, Number(voucher.value_cents) || 0)
     items.push({
-      key: `voucher-${vd.uuid}`,
-      type: 'voucher',
-      voucher: vd,
-      label: `Gutschein: ${vd.name || 'Gutschein'}`,
+      key: `voucher-${voucher.uuid}`,
+      type: 'voucher' as const,
+      voucher,
+      label: `Gutschein: ${voucher.name || 'Gutschein'}`,
       priceLabel: formatAmount(cents),
     })
   }
@@ -74,7 +121,7 @@ function buildPickItems(cell) {
     const unit = lineUnitCents({ article_id: id, qty: 1, additions: [] }, arts, props.event)
     items.push({
       key: `article-${id}`,
-      type: 'article',
+      type: 'article' as const,
       article_id: id,
       label: a?.name || `Artikel #${id}`,
       priceLabel: formatAmount(unit),
@@ -87,7 +134,7 @@ function buildPickItems(cell) {
   })
 }
 
-function onCellClick(cell) {
+function onCellClick(cell: LayoutCell) {
   const items = buildPickItems(cell)
   if (!items.length) {
     showToast('Zelle ohne verkaufbare Inhalte', 'err')

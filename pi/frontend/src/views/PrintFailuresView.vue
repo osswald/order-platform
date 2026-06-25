@@ -45,23 +45,24 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted } from 'vue'
-import { useEventContext } from '../composables/useEventContext'
-import { useStationPrintFailures } from '../composables/useStationPrintFailures'
+import { useEventContext } from '@/composables/useEventContext'
+import type { PrintJobSummary } from '@/types/api'
+import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
 
 const { event, waiter, showToast, selectedEventId } = useEventContext()
 const { failedJobs, loadingFailed, retryingId, deletingId, loadFailedJobs, retryJob, deleteJob, failureLabel } =
   useStationPrintFailures()
 
 async function refresh() {
-  await loadFailedJobs({
-    eventId: selectedEventId.value,
-    waiterUuid: waiter.value?.uuid,
-  })
+  const eventId = selectedEventId.value
+  const waiterUuid = waiter.value?.uuid
+  if (!eventId || !waiterUuid) return
+  await loadFailedJobs({ eventId, waiterUuid })
 }
 
-async function retry(job) {
+async function retry(job: PrintJobSummary) {
   await retryJob(job.id, {
     showToast,
     onFailed: (failed) => showToast(failureLabel(failed), 'err'),
@@ -69,7 +70,7 @@ async function retry(job) {
   await refresh()
 }
 
-async function dismiss(job) {
+async function dismiss(job: PrintJobSummary) {
   const station = job.station_name || job.station_uuid || 'Station'
   const confirmed = window.confirm(
     `Druckauftrag für «${station}» verwerfen? Der Bon wird nicht gedruckt.`,

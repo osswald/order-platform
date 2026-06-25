@@ -23,17 +23,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
-import { useCart } from '../composables/useCart'
-import { useEventContext } from '../composables/useEventContext'
-import { formatAmount } from '../utils/money'
+import { api } from '@/api'
+import { useCart } from '@/composables/useCart'
+import { useEventContext } from '@/composables/useEventContext'
+import type { OpenTableRow, OpenTablesResponse } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { formatAmount } from '@/utils/money'
 
 const router = useRouter()
 const loading = ref(true)
-const tables = ref([])
+const tables = ref<OpenTableRow[]>([])
 const { event, showToast } = useEventContext()
 const { activeTableNumber } = useCart()
 
@@ -47,17 +49,17 @@ async function load() {
     return
   }
   try {
-    const r = await api(`/v1/tables/open?event_id=${ev.id}`)
+    const r = await api<OpenTablesResponse>(`/v1/tables/open?event_id=${ev.id}`)
     tables.value = r.tables || []
-  } catch (e) {
-    showToast(e.message || 'Laden fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Laden fehlgeschlagen'), 'err')
     tables.value = []
   } finally {
     loading.value = false
   }
 }
 
-function openTable(n) {
+function openTable(n: number) {
   activeTableNumber.value = n
   router.push({ name: 'pay-table', query: { table: String(n) } })
 }

@@ -11,21 +11,26 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { formatAmount } from '../utils/money'
+import { formatAmount } from '@/utils/money'
 
-const props = defineProps({
-  modelValue: { type: Number, default: 0 },
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: number
+  }>(),
+  { modelValue: 0 },
+)
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits<{
+  'update:modelValue': [value: number]
+}>()
 
 const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0']
 
 const display = computed(() => formatAmount(props.modelValue))
 
-function press(d) {
+function press(d: string) {
   let v = props.modelValue
   if (d === '00') {
     v = Math.min(v * 100, 99999999)

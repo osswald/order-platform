@@ -65,9 +65,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useEventContext } from '../composables/useEventContext'
+import { useEventContext } from '@/composables/useEventContext'
+import { getErrorMessage } from '@/types/api'
 import {
   getSelectedPrinter,
   isAndroidPrinterAvailable,
@@ -76,21 +77,31 @@ import {
   printTestReceipt,
   requestPrinterPermissions,
   setSelectedPrinter,
-} from '../utils/androidPrinter'
+} from '@/utils/androidPrinter'
 import {
   getReceiptPaperWidth,
   RECEIPT_PAPER_WIDTH_OPTIONS,
   setReceiptPaperWidth,
-} from '../utils/receiptPaperWidth'
+} from '@/utils/receiptPaperWidth'
 
 const { event } = useEventContext()
 const available = computed(() => isAndroidPrinterAvailable())
-const printers = ref([])
+
+interface PairedPrinter {
+  address: string
+  name?: string
+}
+
+interface PermissionState {
+  granted?: boolean
+}
+
+const printers = ref<PairedPrinter[]>([])
 const selectedAddress = ref('')
-const permission = ref(null)
+const permission = ref<PermissionState | null>(null)
 const busy = ref(false)
 const message = ref('')
-const messageType = ref('ok')
+const messageType = ref<'ok' | 'err'>('ok')
 const paperWidthOptions = RECEIPT_PAPER_WIDTH_OPTIONS
 const paperWidth = ref(getReceiptPaperWidth())
 
@@ -99,13 +110,13 @@ const permissionLabel = computed(() => {
   return permission.value.granted ? 'erteilt' : 'fehlt'
 })
 
-function show(msg, type = 'ok') {
+function show(msg: string, type: 'ok' | 'err' = 'ok') {
   message.value = msg
   messageType.value = type
 }
 
 function refreshPermission() {
-  permission.value = permissionStatus()
+  permission.value = permissionStatus() as PermissionState
 }
 
 function refreshSelected() {
@@ -126,17 +137,17 @@ function loadPrinters() {
     show(result.error || 'Drucker konnten nicht geladen werden.', 'err')
     return
   }
-  printers.value = result.printers
+  printers.value = (result.printers || []) as PairedPrinter[]
   refreshSelected()
 }
 
-function onPaperWidthChange(value) {
+function onPaperWidthChange(value: string) {
   setReceiptPaperWidth(value)
   paperWidth.value = value
   show('Belegbreite gespeichert.', 'ok')
 }
 
-function selectPrinter(printer) {
+function selectPrinter(printer: PairedPrinter) {
   const result = setSelectedPrinter(printer.address)
   if (!result.ok) {
     show(result.error || 'Drucker konnte nicht gespeichert werden.', 'err')
@@ -149,10 +160,10 @@ function selectPrinter(printer) {
 async function testPrint() {
   busy.value = true
   try {
-    await printTestReceipt(event.value?.id)
+    await printTestReceipt(event.value?.id ?? null)
     show('Testbeleg gedruckt.', 'ok')
-  } catch (e) {
-    show(e.message || 'Testbeleg fehlgeschlagen.', 'err')
+  } catch (e: unknown) {
+    show(getErrorMessage(e, 'Testbeleg fehlgeschlagen.'), 'err')
   } finally {
     busy.value = false
   }

@@ -20,20 +20,23 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { isArticleSellable } from '../utils/bundleHelpers'
-import { formatPrice as formatPriceAmount } from '../utils/money'
+import type { EdgeBundleArticle, EdgeBundleEvent, EdgeStationConfig } from '@/types/api'
+import { isArticleSellable } from '@/utils/bundleHelpers'
+import { formatPrice as formatPriceAmount } from '@/utils/money'
 
-const props = defineProps({
-  event: { type: Object, required: true },
-})
+const props = defineProps<{
+  event: EdgeBundleEvent
+}>()
 
-defineEmits(['pick'])
+defineEmits<{
+  pick: [articleIds: number[]]
+}>()
 
 const stations = computed(() => props.event?.configuration?.stations || [])
 
-function stationArticles(st) {
+function stationArticles(st: EdgeStationConfig) {
   const arts = props.event?.articles || {}
   const out = []
   for (const id of st.article_ids || []) {
@@ -43,7 +46,7 @@ function stationArticles(st) {
   return out
 }
 
-function formatPrice(a) {
+function formatPrice(a: EdgeBundleArticle & { id: number }) {
   return formatPriceAmount(a.price ?? 0)
 }
 </script>

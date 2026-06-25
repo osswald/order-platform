@@ -30,29 +30,73 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useEventContext } from '../composables/useEventContext'
-import { formatAmount, voucherEntitlementCreditCents } from '../utils/money'
-import { lineAdditionLabels, voucherDefinitionsForEvent } from '../utils/bundleHelpers'
-import SheetOptionList from './SheetOptionList.vue'
+import { useEventContext } from '@/composables/useEventContext'
+import type {
+  EdgeBundleArticle,
+  EdgeBundleEvent,
+  LineGroupEntry,
+  LineSelection,
+} from '@/types/api'
+import { formatAmount, voucherEntitlementCreditCents } from '@/utils/money'
+import { lineAdditionLabels, voucherDefinitionsForEvent } from '@/utils/bundleHelpers'
+import SheetOptionList, { type SheetOptionItem } from './SheetOptionList.vue'
+
+interface VoucherDefinition {
+  uuid: string
+  name?: string
+  kind?: string
+  value_cents?: number
+  allowed_article_ids?: number[]
+  include_additions?: boolean
+}
+
+interface EligibleSelection extends LineSelection {
+  label: string
+  unit_cents: number
+}
+
+interface VoucherApplyPayload {
+  voucher_definition_uuid: string
+  kind?: string
+  applied_cents: number
+  article_id?: number
+  note?: string
+  qty?: number
+  additions?: LineSelection['additions']
+}
 
 const { showToast } = useEventContext()
 
-const props = defineProps({
-  open: Boolean,
-  event: { type: Object, default: null },
-  grossCents: { type: Number, default: 0 },
-  selections: { type: Array, default: () => [] },
-  lineGroups: { type: Array, default: () => [] },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    event?: EdgeBundleEvent | null
+    grossCents?: number
+    selections?: LineSelection[]
+    lineGroups?: LineGroupEntry[]
+  }>(),
+  {
+    open: false,
+    event: null,
+    grossCents: 0,
+    selections: () => [],
+    lineGroups: () => [],
+  },
+)
 
-const emit = defineEmits(['close', 'apply'])
+const emit = defineEmits<{
+  close: []
+  apply: [payload: VoucherApplyPayload]
+}>()
 
 const step = ref('types')
-const pendingType = ref(null)
+const pendingType = ref<VoucherDefinition | null>(null)
 
-const definitions = computed(() => voucherDefinitionsForEvent(props.event))
+const definitions = computed(
+  () => voucherDefinitionsForEvent(props.event) as unknown as VoucherDefinition[],
+)
 
 const stepTitle = computed(() => {
   if (step.value === 'types') return 'Gutschein einlösen'
@@ -76,14 +120,17 @@ const typeListItems = computed(() =>
   })),
 )
 
-function typeHint(vd) {
+function typeHint(vd: VoucherDefinition) {
   if (vd.kind === 'fixed_amount') {
     return formatAmount(vd.value_cents || 0)
   }
   return 'Artikel-Gutschein'
 }
 
-function selectionLabel(sel, arts) {
+function selectionLabel(
+  sel: LineSelection,
+  arts: Record<string, EdgeBundleArticle>,
+) {
   const a = arts[String(sel.article_id)] || arts[sel.article_id]
   const base = a?.name || `Artikel #${sel.article_id}`
   const adds = lineAdditionLabels(sel, arts)
@@ -92,7 +139,7 @@ function selectionLabel(sel, arts) {
   return `${base} (+ ${hint})`
 }
 
-const eligibleSelections = computed(() => {
+const eligibleSelections = computed((): EligibleSelection[] => {
   const vd = pendingType.value
   if (!vd || vd.kind !== 'article_entitlement') return []
   const allowed = new Set((vd.allowed_article_ids || []).map(Number))
@@ -115,11 +162,11 @@ const lineListItems = computed(() =>
   })),
 )
 
-function onPickType(item) {
-  pickType(item.vd)
+function onPickType(item: SheetOptionItem & { vd?: VoucherDefinition }) {
+  if (item.vd) pickType(item.vd)
 }
 
-function pickType(vd) {
+function pickType(vd: VoucherDefinition) {
   pendingType.value = vd
   if (vd.kind === 'fixed_amount') {
     step.value = 'amount-confirm'
@@ -147,8 +194,8 @@ function confirmAmount() {
   close()
 }
 
-function confirmArticle(item) {
-  const sel = item.sel ?? item
+function confirmArticle(item: SheetOptionItem & { sel?: EligibleSelection } | EligibleSelection) {
+  const sel = 'sel' in item && item.sel ? item.sel : (item as EligibleSelection)
   const vd = pendingType.value
   if (!vd) return
   const arts = props.event?.articles || {}

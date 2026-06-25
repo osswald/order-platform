@@ -58,27 +58,27 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ShiftOpenDialog from './components/ShiftOpenDialog.vue'
-import PaymentTypePickerSheet from './components/PaymentTypePickerSheet.vue'
-import PaymentReceiptPromptSheet from './components/PaymentReceiptPromptSheet.vue'
-import TwintQrSheet from './components/TwintQrSheet.vue'
-import EmulatedReceiptsPanel from './components/EmulatedReceiptsPanel.vue'
-import ReceiptBottomSheet from './components/ReceiptBottomSheet.vue'
-import { isAndroidApp } from './api'
-import { applyAndroidSafeAreaInsets } from './utils/androidInsets'
-import { useBundle } from './composables/useBundle'
-import { useBundleRefresh } from './composables/useBundleRefresh'
-import { useMediaQuery } from './composables/useMediaQuery'
-import { useSetupStatus } from './composables/useSetupStatus'
-import { useToast } from './composables/useToast'
-import { useWaiterSession } from './composables/useWaiterSession'
+import ShiftOpenDialog from '@/components/ShiftOpenDialog.vue'
+import PaymentTypePickerSheet from '@/components/PaymentTypePickerSheet.vue'
+import PaymentReceiptPromptSheet from '@/components/PaymentReceiptPromptSheet.vue'
+import TwintQrSheet from '@/components/TwintQrSheet.vue'
+import EmulatedReceiptsPanel from '@/components/EmulatedReceiptsPanel.vue'
+import ReceiptBottomSheet from '@/components/ReceiptBottomSheet.vue'
+import { isAndroidApp } from '@/api'
+import { applyAndroidSafeAreaInsets } from '@/utils/androidInsets'
+import { useBundle } from '@/composables/useBundle'
+import { useBundleRefresh } from '@/composables/useBundleRefresh'
+import { useMediaQuery } from '@/composables/useMediaQuery'
+import { useSetupStatus } from '@/composables/useSetupStatus'
+import { useToast } from '@/composables/useToast'
+import { useWaiterSession } from '@/composables/useWaiterSession'
 import {
   startWaiterPrintFailurePolling,
   stopWaiterPrintFailurePolling,
-} from './composables/useStationPrintFailures'
+} from '@/composables/useStationPrintFailures'
 import {
   pickerOpen as paymentPickerOpen,
   pickerTypes as paymentPickerTypes,
@@ -90,8 +90,10 @@ import {
   cancelPaymentType,
   confirmTwintQr,
   cancelTwintQr,
-} from './utils/pickPaymentType'
-import { terminalPaymentBusy } from './utils/resolvePayment'
+  type PaymentPickerEntry,
+} from '@/utils/pickPaymentType'
+import type { PaymentType } from '@/utils/paymentTypes'
+import { terminalPaymentBusy } from '@/utils/resolvePayment'
 import {
   receiptPromptOpen,
   receiptPromptStep,
@@ -101,7 +103,7 @@ import {
   confirmReceiptPrintNo,
   cancelReceiptPrompt,
   selectReceiptStation,
-} from './utils/paymentReceiptPrompt'
+} from '@/utils/paymentReceiptPrompt'
 
 const route = useRoute()
 const router = useRouter()
@@ -133,7 +135,7 @@ watch(
     if (waiterUuid && eventId) {
       startWaiterPrintFailurePolling(() => ({
         eventId: selectedEventId.value,
-        waiterUuid: waiter.value?.uuid,
+        waiterUuid: waiter.value?.uuid ?? null,
       }))
     }
   },
@@ -166,7 +168,7 @@ onMounted(async () => {
   }
 })
 
-function onPaymentTypeSelect(type) {
+function onPaymentTypeSelect(type: PaymentPickerEntry | PaymentType) {
   confirmPaymentType(type)
 }
 
@@ -194,7 +196,7 @@ function onReceiptPrintCancel() {
   cancelReceiptPrompt()
 }
 
-function onReceiptSelectStation(uuid) {
+function onReceiptSelectStation(uuid: string) {
   selectReceiptStation(uuid)
 }
 

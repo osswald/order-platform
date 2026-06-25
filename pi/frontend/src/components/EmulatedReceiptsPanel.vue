@@ -30,21 +30,25 @@
   </div>
 </template>
 
-<script setup>
-import { formatReceiptTime, useEmulatedReceipts } from '../composables/useEmulatedReceipts'
+<script setup lang="ts">
+import { formatReceiptTime, useEmulatedReceipts } from '@/composables/useEmulatedReceipts'
+import type { EmulatedReceiptSummary, PreviewLine } from '@/types/api'
 
-defineProps({
-  compact: { type: Boolean, default: false },
-  showHeader: { type: Boolean, default: true },
-})
+withDefaults(
+  defineProps<{
+    compact?: boolean
+    showHeader?: boolean
+  }>(),
+  { compact: false, showHeader: true },
+)
 
 const { receipts, loading } = useEmulatedReceipts()
 
-function hasStyledPreview(receipt) {
+function hasStyledPreview(receipt: EmulatedReceiptSummary) {
   return Array.isArray(receipt.preview_lines) && receipt.preview_lines.length > 0
 }
 
-function lineClass(line) {
+function lineClass(line: PreviewLine) {
   return [
     `receipt-line--align-${line.align || 'left'}`,
     `receipt-line--size-${line.size || 'normal'}`,
@@ -53,7 +57,7 @@ function lineClass(line) {
   ]
 }
 
-function lineStyle(line) {
+function lineStyle(line: PreviewLine) {
   if (line.size === 'xlarge' && line.scale) {
     return { fontSize: `calc(1em * ${line.scale} * 0.35)` }
   }

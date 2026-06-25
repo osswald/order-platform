@@ -23,12 +23,12 @@
             <span class="waiter-picker-chevron" aria-hidden="true">{{ waiterListOpen ? '▲' : '▼' }}</span>
           </button>
           <ul v-if="waiterListOpen" class="waiter-list">
-            <li v-for="w in waiters" :key="w.uuid">
+            <li v-for="w in waiters" :key="String(w.uuid)">
               <button
                 type="button"
                 class="waiter-row"
                 :class="{ 'waiter-row--selected': w.uuid === waiterId }"
-                @click="pickWaiter(w.uuid)"
+                @click="pickWaiter(String(w.uuid))"
               >
                 <span class="waiter-row-name">{{ w.name }}</span>
                 <span v-if="w.uuid === waiterId" class="waiter-row-check" aria-hidden="true">✓</span>
@@ -52,13 +52,15 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import PinNumberInput from '../components/PinNumberInput.vue'
-import { useWaiterSession } from '../composables/useWaiterSession'
-import { setRegisterSession } from '../store'
-import { ensureShiftForSubject } from '../composables/useShiftSession'
+import PinNumberInput from '@/components/PinNumberInput.vue'
+import { useWaiterSession } from '@/composables/useWaiterSession'
+import { setRegisterSession } from '@/store'
+import { ensureShiftForSubject } from '@/composables/useShiftSession'
+import { getErrorMessage } from '@/types/api'
+import type { WaiterSession } from '@/types/cart'
 
 const router = useRouter()
 const route = useRoute()
@@ -69,7 +71,7 @@ const waiters = computed(() =>
     .slice()
     .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de')),
 )
-const waiterId = ref(null)
+const waiterId = ref<string | null>(null)
 const waiterListOpen = ref(false)
 const pin = ref('')
 const err = ref('')
@@ -79,7 +81,7 @@ const selectedWaiter = computed(() => waiters.value.find((x) => x.uuid === waite
 watch(
   waiters,
   (ws) => {
-    if (ws.length && waiterId.value == null) waiterId.value = ws[0].uuid
+    if (ws.length && waiterId.value == null) waiterId.value = String(ws[0].uuid)
   },
   { immediate: true },
 )
@@ -88,7 +90,7 @@ function toggleWaiterList() {
   waiterListOpen.value = !waiterListOpen.value
 }
 
-function pickWaiter(uuid) {
+function pickWaiter(uuid: string) {
   waiterId.value = uuid
   waiterListOpen.value = false
 }
@@ -104,17 +106,23 @@ async function login() {
     err.value = 'PIN ungültig.'
     return
   }
+  const ev = event.value
+  if (!ev?.id) {
+    err.value = 'Event nicht geladen.'
+    return
+  }
   setRegisterSession(null)
-  setWaiter({ uuid: w.uuid, name: w.name })
+  const session: WaiterSession = { uuid: String(w.uuid), name: String(w.name) }
+  setWaiter(session)
   try {
     await ensureShiftForSubject({
-      event: event.value,
-      eventId: event.value?.id,
+      event: ev,
+      eventId: ev.id,
       subjectType: 'waiter',
-      waiterUuid: w.uuid,
+      waiterUuid: session.uuid,
     })
-  } catch (e) {
-    err.value = e.message || 'Schicht konnte nicht gestartet werden'
+  } catch (e: unknown) {
+    err.value = getErrorMessage(e, 'Schicht konnte nicht gestartet werden')
     setWaiter(null)
     return
   }

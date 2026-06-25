@@ -9,10 +9,10 @@
         <li v-for="(line, idx) in orderLines" :key="idx" class="pay-line">
           <div class="pay-line-main">
             <span class="pay-line-name">{{ lineName(line) }}</span>
-            <span class="pay-line-total">{{ formatAmount(lineTotalCents(line, articles)) }}</span>
+            <span class="pay-line-total">{{ payLineTotal(line) }}</span>
           </div>
           <span
-            v-for="add in lineAdditionLabels(line, articles)"
+            v-for="add in payLineAdditions(line)"
             :key="add.id"
             class="pay-line-addition"
           >+ {{ add.name }}</span>
@@ -40,17 +40,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api } from '../api'
-import { useCart } from '../composables/useCart'
-import { useEventContext } from '../composables/useEventContext'
-import { formatAmount, lineTotalCents } from '../utils/money'
-import { lineAdditionLabels } from '../utils/bundleHelpers'
-import { resolvePaymentsForAmount } from '../utils/resolvePayment'
-import { offerPaymentReceipt } from '../utils/paymentReceiptPrompt'
-import MoneyKeypad from '../components/MoneyKeypad.vue'
+import { api } from '@/api'
+import { useCart } from '@/composables/useCart'
+import { useEventContext } from '@/composables/useEventContext'
+import type { AccountSummaryResponse, EdgeBundleEvent, OrderLineIn, OrderPayResponse } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { formatAmount, lineTotalCents, type MoneyLine } from '@/utils/money'
+import { lineAdditionLabels } from '@/utils/bundleHelpers'
+import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
+import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
+import MoneyKeypad from '@/components/MoneyKeypad.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -62,15 +64,37 @@ const totalCents = ref(0)
 const cashCents = ref(0)
 const loading = ref(true)
 const paying = ref(false)
-const orderLines = ref([])
+const orderLines = ref<OrderLineIn[]>([])
 
 const articles = computed(() => event.value?.articles || {})
 
 const cashMismatch = computed(() => cashCents.value !== totalCents.value)
 
-function lineName(line) {
+function toMoneyLine(line: OrderLineIn): MoneyLine {
+  return {
+    article_id: Number(line.article_id),
+    qty: line.qty,
+    note: line.note,
+    additions: line.additions,
+    discount: line.discount ?? undefined,
+  }
+}
+
+function payLineTotal(line: OrderLineIn): string {
+  return formatAmount(lineTotalCents(toMoneyLine(line), articles.value))
+}
+
+function payLineAdditions(line: OrderLineIn) {
+  const moneyLine = toMoneyLine(line)
+  return lineAdditionLabels(
+    { article_id: moneyLine.article_id!, additions: moneyLine.additions },
+    articles.value,
+  )
+}
+
+function lineName(line: OrderLineIn) {
   const qty = Math.max(1, Number(line.qty) || 1)
-  const name = articleName(line.article_id)
+  const name = articleName(Number(line.article_id))
   return qty > 1 ? `${qty}× ${name}` : name
 }
 
@@ -82,9 +106,9 @@ onMounted(async () => {
   }
   const qTotal = parseInt(String(route.query.total_cents || ''), 10)
   try {
-    const summary = await api(`/v1/tables/${table.value}?event_id=${ev.id}`)
+    const summary = await api<AccountSummaryResponse>(`/v1/tables/${table.value}?event_id=${ev.id}`)
     const order = summary.open_orders?.find((o) => String(o.local_order_id) === String(orderId.value))
-    orderLines.value = (order?.lines || []).filter((l) => l && l.article_id != null)
+    orderLines.value = (order?.lines || []).filter((l): l is OrderLineIn => Boolean(l && l.article_id != null))
     if (Number.isFinite(qTotal) && qTotal > 0) {
       totalCents.value = qTotal
     } else {
@@ -107,25 +131,25 @@ async function pay() {
   let payments
   try {
     payments = await resolvePaymentsForAmount(
-      event.value,
+      event.value as EdgeBundleEvent,
       cashCents.value,
       String(orderId.value),
     )
-  } catch (e) {
-    if (e?.message !== 'cancelled') {
-      showToast(e?.message || 'Zahlung abgebrochen.', 'err')
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message !== 'cancelled') {
+      showToast(getErrorMessage(e, 'Zahlung abgebrochen.'), 'err')
     }
     return
   }
   paying.value = true
   try {
-    const res = await api(`/v1/orders/${orderId.value}/pay`, {
+    const res = await api<OrderPayResponse>(`/v1/orders/${orderId.value}/pay`, {
       method: 'POST',
       body: JSON.stringify({ payments }),
     })
     activeTableNumber.value = null
     showToast('Bezahlt.', 'ok')
-    if (res.payment_id) {
+    if (res.payment_id && event.value) {
       await offerPaymentReceipt({
         paymentId: res.payment_id,
         event: event.value,
@@ -133,8 +157,8 @@ async function pay() {
       })
     }
     router.replace({ name: 'hub' })
-  } catch (e) {
-    showToast(e.message || 'Zahlung fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Zahlung fehlgeschlagen'), 'err')
   } finally {
     paying.value = false
   }

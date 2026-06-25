@@ -61,11 +61,18 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { api } from '../api'
-import { useEventContext } from '../composables/useEventContext'
-import { formatAmount } from '../utils/money'
+import { api } from '@/api'
+import { useEventContext } from '@/composables/useEventContext'
+import type {
+  AssignCollectiveResponse,
+  CollectiveBillListItem,
+  LineSelection,
+  OpenCollectiveBillsResponse,
+} from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { formatAmount } from '@/utils/money'
 import TableKeypad from './TableKeypad.vue'
 
 const { showToast, event } = useEventContext()
@@ -74,18 +81,30 @@ const isInstantMode = computed(
   () => (event.value?.payment_mode || 'pay_later').toLowerCase() === 'instant',
 )
 
-const props = defineProps({
-  open: Boolean,
-  eventId: { type: Number, required: true },
-  fromTable: { type: Number, default: null },
-  selections: { type: Array, default: () => [] },
-  voucherOnly: { type: Boolean, default: false },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    eventId: number
+    fromTable?: number | null
+    selections?: LineSelection[]
+    voucherOnly?: boolean
+  }>(),
+  {
+    open: false,
+    fromTable: null,
+    selections: () => [],
+    voucherOnly: false,
+  },
+)
 
-const emit = defineEmits(['close', 'done', 'redeem-voucher'])
+const emit = defineEmits<{
+  close: []
+  done: []
+  'redeem-voucher': []
+}>()
 
 const step = ref('menu')
-const bills = ref([])
+const bills = ref<CollectiveBillListItem[]>([])
 const loadingBills = ref(false)
 const newName = ref('')
 const busy = ref(false)
@@ -116,20 +135,20 @@ async function openCollective() {
   step.value = 'collective'
   loadingBills.value = true
   try {
-    const r = await api(`/v1/collective-bills/open?event_id=${props.eventId}`)
+    const r = await api<OpenCollectiveBillsResponse>(`/v1/collective-bills/open?event_id=${props.eventId}`)
     bills.value = r.collective_bills || []
-  } catch (e) {
-    showToast(e.message || 'Laden fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Laden fehlgeschlagen'), 'err')
     step.value = 'menu'
   } finally {
     loadingBills.value = false
   }
 }
 
-async function postAssign(body) {
+async function postAssign(body: { collective_bill_id?: number; new_name?: string }) {
   busy.value = true
   try {
-    const res = await api(`/v1/tables/${props.fromTable}/assign-collective`, {
+    const res = await api<AssignCollectiveResponse>(`/v1/tables/${props.fromTable}/assign-collective`, {
       method: 'POST',
       body: JSON.stringify({
         event_id: props.eventId,
@@ -140,14 +159,14 @@ async function postAssign(body) {
     showToast(`Posten zu «${res.name}» hinzugefügt`, 'ok')
     emit('done')
     close()
-  } catch (e) {
-    showToast(e.message || 'Zuordnung fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Zuordnung fehlgeschlagen'), 'err')
   } finally {
     busy.value = false
   }
 }
 
-function assignToBill(b) {
+function assignToBill(b: CollectiveBillListItem) {
   postAssign({ collective_bill_id: b.id })
 }
 
@@ -157,7 +176,7 @@ function assignNewBill() {
   postAssign({ new_name: name })
 }
 
-async function onTransferSubmit(targetTable) {
+async function onTransferSubmit(targetTable: number) {
   if (targetTable === props.fromTable) {
     showToast('Ziel-Tisch muss ein anderer Tisch sein', 'err')
     return
@@ -175,8 +194,8 @@ async function onTransferSubmit(targetTable) {
     showToast(`Posten nach Tisch ${targetTable} verschoben`, 'ok')
     emit('done')
     close()
-  } catch (e) {
-    showToast(e.message || 'Umbuchen fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Umbuchen fehlgeschlagen'), 'err')
   } finally {
     busy.value = false
   }

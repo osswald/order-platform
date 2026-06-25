@@ -21,13 +21,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useCart } from '../composables/useCart'
-import { useRegisterDisplay } from '../composables/useRegisterDisplay'
-import { useRegisterSession } from '../composables/useRegisterSession'
-import { ensureShiftForSubject, maybeEndShiftOnSwitch } from '../composables/useShiftSession'
+import { useCart } from '@/composables/useCart'
+import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
+import { useRegisterSession } from '@/composables/useRegisterSession'
+import { ensureShiftForSubject, maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
 
 const router = useRouter()
 const route = useRoute()
@@ -47,11 +47,14 @@ function startOrder() {
 }
 
 async function switchRegister() {
+  const ev = event.value
+  const regUuid = register.value?.uuid
+  if (!ev?.id || !regUuid) return
   const ok = await maybeEndShiftOnSwitch({
-    event: event.value,
-    eventId: event.value?.id,
+    event: ev,
+    eventId: ev.id,
     subjectType: 'cash_register',
-    cashRegisterUuid: register.value?.uuid,
+    cashRegisterUuid: String(regUuid),
   })
   if (!ok) return
   setRegisterSession(null)
@@ -65,12 +68,18 @@ onMounted(async () => {
     router.replace({ name: 'registers' })
     return
   }
+  const ev = event.value
+  const reg = register.value
+  if (!ev?.id) {
+    router.replace({ name: 'registers' })
+    return
+  }
   try {
     await ensureShiftForSubject({
-      event: event.value,
-      eventId: event.value?.id,
+      event: ev,
+      eventId: ev.id,
       subjectType: 'cash_register',
-      cashRegisterUuid: register.value.uuid,
+      cashRegisterUuid: String(reg.uuid),
     })
   } catch {
     router.replace({ name: 'registers' })

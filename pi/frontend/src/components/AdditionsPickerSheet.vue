@@ -32,19 +32,26 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { formatMoney } from '../utils/money'
+import type { EdgeBundleArticleAddition } from '@/types/api'
+import { formatMoney } from '@/utils/money'
 import SheetScrollBody from './SheetScrollBody.vue'
 
-const props = defineProps({
-  open: Boolean,
-  articleName: { type: String, default: '' },
-  additions: { type: Array, default: () => [] },
-  currency: { type: String, default: 'EUR' },
-})
+const props = withDefaults(
+  defineProps<{
+    open?: boolean
+    articleName?: string
+    additions?: EdgeBundleArticleAddition[]
+    currency?: string
+  }>(),
+  { open: false, articleName: '', additions: () => [], currency: 'EUR' },
+)
 
-const emit = defineEmits(['cancel', 'confirm'])
+const emit = defineEmits<{
+  cancel: []
+  confirm: [additions: Array<{ article_id: number; qty: number }>]
+}>()
 
 const sortedAdditions = computed(() =>
   props.additions
@@ -52,7 +59,7 @@ const sortedAdditions = computed(() =>
     .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de')),
 )
 
-const selected = ref(new Set())
+const selected = ref<Set<number>>(new Set())
 
 watch(
   () => props.open,
@@ -61,20 +68,20 @@ watch(
   },
 )
 
-function priceHint(a) {
+function priceHint(a: EdgeBundleArticleAddition) {
   const p = Number(a.price) || 0
   if (p === 0) return 'inkl.'
   const cents = Math.round(p * 100)
   return formatMoney(cents, props.currency)
 }
 
-function canSelect(a) {
+function canSelect(a: EdgeBundleArticleAddition) {
   if (a.sellable === false) return false
   if (a.monitor_stock && (a.in_stock ?? 0) < 1) return false
   return true
 }
 
-function toggle(a) {
+function toggle(a: EdgeBundleArticleAddition) {
   const id = Number(a.article_id)
   const next = new Set(selected.value)
   if (next.has(id)) next.delete(id)

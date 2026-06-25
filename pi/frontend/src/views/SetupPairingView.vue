@@ -68,26 +68,28 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
-import { useAppVersion } from '../composables/useAppVersion'
+import { api } from '@/api'
+import type { SetupStatusResponse } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { useAppVersion } from '@/composables/useAppVersion'
 
 const { label } = useAppVersion()
 
 const router = useRouter()
-const status = ref(null)
+const status = ref<SetupStatusResponse | null>(null)
 const pairingCode = ref('')
 const unpairSecret = ref('')
 const loading = ref(false)
 const unpairLoading = ref(false)
 const message = ref('')
-const messageType = ref('')
+const messageType = ref<'success' | 'error' | ''>('')
 
 async function loadStatus() {
   try {
-    status.value = await api('/v1/setup/status')
+    status.value = await api<SetupStatusResponse>('/v1/setup/status')
   } catch {
     status.value = null
   }
@@ -101,7 +103,7 @@ async function pair() {
       pairing_code: pairingCode.value,
       device_name: 'vendiqo-pi',
     }
-    const result = await api('/v1/setup/pair', {
+    const result = await api<SetupStatusResponse>('/v1/setup/pair', {
       method: 'POST',
       body: JSON.stringify(body),
     })
@@ -109,8 +111,8 @@ async function pair() {
     message.value = 'Pi wurde erfolgreich gekoppelt. Die Synchronisation startet automatisch.'
     messageType.value = 'success'
     window.setTimeout(() => router.push({ name: 'events' }), 1200)
-  } catch (err) {
-    message.value = err.message || 'Kopplung fehlgeschlagen.'
+  } catch (err: unknown) {
+    message.value = getErrorMessage(err, 'Kopplung fehlgeschlagen.')
     messageType.value = 'error'
   } finally {
     loading.value = false
@@ -121,7 +123,7 @@ async function unpair() {
   unpairLoading.value = true
   message.value = ''
   try {
-    status.value = await api('/v1/setup/unpair', {
+    status.value = await api<SetupStatusResponse>('/v1/setup/unpair', {
       method: 'POST',
       body: JSON.stringify({ unpair_secret: unpairSecret.value }),
     })
@@ -129,8 +131,8 @@ async function unpair() {
     pairingCode.value = ''
     message.value = 'Pi wurde entkoppelt. Sie können jetzt erneut koppeln.'
     messageType.value = 'success'
-  } catch (err) {
-    message.value = err.message || 'Entkoppeln fehlgeschlagen.'
+  } catch (err: unknown) {
+    message.value = getErrorMessage(err, 'Entkoppeln fehlgeschlagen.')
     messageType.value = 'error'
   } finally {
     unpairLoading.value = false

@@ -14,10 +14,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useEventContext } from '../composables/useEventContext'
-import { setRegisterSession } from '../store'
+import { useEventContext } from '@/composables/useEventContext'
+import { setRegisterSession } from '@/store'
 
 const router = useRouter()
 const { event, setWaiter } = useEventContext()

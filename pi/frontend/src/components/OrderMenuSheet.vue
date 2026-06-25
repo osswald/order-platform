@@ -30,14 +30,21 @@
   </Teleport>
 </template>
 
-<script setup>
-defineProps({
-  open: Boolean,
-  showOrderDiscount: { type: Boolean, default: false },
-  showVoucher: { type: Boolean, default: false },
-})
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    open?: boolean
+    showOrderDiscount?: boolean
+    showVoucher?: boolean
+  }>(),
+  { open: false, showOrderDiscount: false, showVoucher: false },
+)
 
-const emit = defineEmits(['close', 'order-discount', 'redeem-voucher'])
+const emit = defineEmits<{
+  close: []
+  'order-discount': []
+  'redeem-voucher': []
+}>()
 
 function close() {
   emit('close')

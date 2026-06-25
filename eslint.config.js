@@ -62,10 +62,4 @@ export default tseslint.config(
       'vue/no-dupe-keys': 'warn',
     },
   },
-  {
-    files: ['pi/frontend/**/*.{js,vue}'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
 )

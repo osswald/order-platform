@@ -25,17 +25,29 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useBundle } from '../composables/useBundle'
-import { useEventContext } from '../composables/useEventContext'
+import { useBundle } from '@/composables/useBundle'
+import { useEventContext } from '@/composables/useEventContext'
 import { stockGroupsForEvent } from '@vendiqo/frontend-shared/stockByStation'
+
+interface StockListItem {
+  id?: number
+  name?: string
+  sellable?: boolean
+  in_stock?: number
+}
 
 const router = useRouter()
 const { event } = useEventContext()
 const { refreshBundle } = useBundle()
-const stockGroups = computed(() => stockGroupsForEvent(event.value))
+const stockGroups = computed(() =>
+  stockGroupsForEvent(event.value as Parameters<typeof stockGroupsForEvent>[0]).map((group) => ({
+    ...group,
+    items: group.items as StockListItem[],
+  })),
+)
 
 function onVisible() {
   if (document.visibilityState === 'visible') refreshBundle()

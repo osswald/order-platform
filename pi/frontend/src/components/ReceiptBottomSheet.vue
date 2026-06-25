@@ -15,12 +15,14 @@
   </Teleport>
 </template>
 
-<script setup>
-defineProps({
-  open: Boolean,
-})
+<script setup lang="ts">
+defineProps<{
+  open?: boolean
+}>()
 
-const emit = defineEmits(['close'])
+const emit = defineEmits<{
+  close: []
+}>()
 </script>
 
 <style scoped>

@@ -19,6 +19,24 @@ def test_edge_bundle_contract_accepts_minimal_payload():
     assert model.events == []
 
 
+def test_edge_bundle_contract_accepts_typed_event():
+    payload = {
+        "organisation_id": 1,
+        "events": [
+            {
+                "id": 1,
+                "name": "Live",
+                "currency": "CHF",
+                "articles": {"10": {"id": 10, "name": "Bier", "price": 5.0, "additions": []}},
+                "configuration": {"stations": []},
+            }
+        ],
+    }
+    model = EdgeBundleContract.model_validate(payload)
+    assert model.events[0].name == "Live"
+    assert model.events[0].articles["10"].price == 5.0
+
+
 def test_edge_bundle_payload_builds_valid_dict():
     payload = edge_bundle_payload(
         organisation_id=1,

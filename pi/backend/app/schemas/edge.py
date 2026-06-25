@@ -6,6 +6,18 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .order_models import (
+    ArticleStockPatch,
+    DiscountIn,
+    KitchenTicketLineEntry,
+    LineAdditionIn,
+    LineGroupEntry,
+    OpenOrderEntry,
+    OrderLineIn,
+    PaymentIn,
+    RegisterDisplayPayload,
+)
+
 ReceiptPaperWidth = Literal["80mm", "58mm", "53mm"]
 
 
@@ -17,7 +29,7 @@ class VoucherRedemptionIn(BaseModel):
     article_id: int | None = None
     note: str = ""
     qty: int = Field(1, ge=1)
-    additions: list[dict[str, Any]] = Field(default_factory=list)
+    additions: list[LineAdditionIn] = Field(default_factory=list)
 
 
 class LocalOrderCreate(BaseModel):
@@ -27,37 +39,37 @@ class LocalOrderCreate(BaseModel):
     waiter_uuid: str | None = None
     order_source: str = "waiter"
     cash_register_uuid: str | None = None
-    lines: list[dict[str, Any]] = Field(default_factory=list)
-    order_discount: dict[str, Any] | None = None
-    payments: list[dict[str, Any]] = Field(default_factory=list)
+    lines: list[OrderLineIn] = Field(default_factory=list)
+    order_discount: DiscountIn | None = None
+    payments: list[PaymentIn] = Field(default_factory=list)
     voucher_redemptions: list[VoucherRedemptionIn] = Field(default_factory=list)
 
 
 class RegisterDisplayBody(BaseModel):
     event_id: int
-    payload: dict[str, Any] = Field(default_factory=dict)
+    payload: RegisterDisplayPayload = Field(default_factory=RegisterDisplayPayload)
 
 
 class OrderPayBody(BaseModel):
-    payments: list[dict[str, Any]] = Field(default_factory=list)
+    payments: list[PaymentIn] = Field(default_factory=list)
 
 
 class TableSettleBody(BaseModel):
     event_id: int
-    payments: list[dict[str, Any]] = Field(default_factory=list)
+    payments: list[PaymentIn] = Field(default_factory=list)
 
 
 class LineSelection(BaseModel):
     article_id: int
     note: str = ""
     qty: int = Field(..., ge=1)
-    additions: list[dict[str, Any]] = Field(default_factory=list)
-    discount: dict[str, Any] | None = None
+    additions: list[LineAdditionIn] = Field(default_factory=list)
+    discount: DiscountIn | None = None
 
 
 class TableSettlePartialBody(BaseModel):
     event_id: int
-    payments: list[dict[str, Any]] = Field(default_factory=list)
+    payments: list[PaymentIn] = Field(default_factory=list)
     selections: list[LineSelection] = Field(default_factory=list)
     voucher_redemptions: list[VoucherRedemptionIn] = Field(default_factory=list)
 
@@ -166,7 +178,7 @@ class LocalOrderCreatedResponse(BaseModel):
     pickup_code: str | None = None
     pickup_status: str | None = None
     payment_mode: str
-    articles: dict[str, Any] = Field(default_factory=dict)
+    articles: dict[str, ArticleStockPatch] = Field(default_factory=dict)
 
 
 class KitchenStationItem(BaseModel):
@@ -221,7 +233,7 @@ class PickupPickedUpResponse(BaseModel):
 class RegisterDisplayResponse(BaseModel):
     cash_register_uuid: str
     event_id: int
-    payload: dict[str, Any] = Field(default_factory=dict)
+    payload: RegisterDisplayPayload = Field(default_factory=RegisterDisplayPayload)
     updated_at: str | None = None
 
 
@@ -296,8 +308,8 @@ class AccountSummaryResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     currency: str
-    open_orders: list[dict[str, Any]]
-    line_groups: list[dict[str, Any]]
+    open_orders: list[OpenOrderEntry]
+    line_groups: list[LineGroupEntry]
     total_cents: int
     item_count: int
 
@@ -379,7 +391,7 @@ class KitchenOrderTicket(BaseModel):
     event_id: int
     station_uuid: str
     status: str
-    lines: list[dict[str, Any]]
+    lines: list[KitchenTicketLineEntry]
 
 
 class KitchenOrdersResponse(BaseModel):

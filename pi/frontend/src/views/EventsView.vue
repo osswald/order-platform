@@ -25,7 +25,7 @@
       <li v-for="e in events" :key="e.id">
         <button type="button" class="event-btn" @click="pick(e)">
           <span class="event-name">{{ e.name }}</span>
-          <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }} · {{ eventStatusLabel(e.status) }}</span>
+          <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }} · {{ eventStatusLabel(String(e.status ?? '')) }}</span>
         </button>
       </li>
     </ul>
@@ -40,14 +40,16 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAdminSession } from '../composables/useAdminSession'
-import { useBundle } from '../composables/useBundle'
-import { useWaiterSession } from '../composables/useWaiterSession'
-import { setRegisterSession } from '../store'
-import { eventStatusLabel } from '../utils/eventStatus'
+import { useAdminSession } from '@/composables/useAdminSession'
+import { useBundle } from '@/composables/useBundle'
+import { useWaiterSession } from '@/composables/useWaiterSession'
+import { setRegisterSession } from '@/store'
+import type { EdgeBundleEvent } from '@/types/api'
+import { getErrorMessage } from '@/types/api'
+import { eventStatusLabel } from '@/utils/eventStatus'
 
 const router = useRouter()
 const loading = ref(false)
@@ -62,10 +64,13 @@ const PAYMENT_MODE_LABELS = {
   instant: 'Sofort bezahlt',
   pay_now: 'Jetzt bezahlen',
   pay_later: 'Später bezahlen',
-}
+} as const
 
-function paymentModeLabel(mode) {
-  return PAYMENT_MODE_LABELS[String(mode || '').toLowerCase()] || mode || '—'
+type PaymentModeKey = keyof typeof PAYMENT_MODE_LABELS
+
+function paymentModeLabel(mode: string | null | undefined): string {
+  const key = String(mode || '').toLowerCase() as PaymentModeKey
+  return PAYMENT_MODE_LABELS[key] || mode || '—'
 }
 
 async function reload() {
@@ -74,14 +79,14 @@ async function reload() {
     const n = await refreshBundle()
     if (n > 0) showToast(`${n} Event(s) geladen.`, 'ok')
     else showToast('Weiterhin keine aktiven Events.', 'err')
-  } catch (e) {
-    showToast(e.message || 'Laden fehlgeschlagen', 'err')
+  } catch (e: unknown) {
+    showToast(getErrorMessage(e, 'Laden fehlgeschlagen'), 'err')
   } finally {
     loading.value = false
   }
 }
 
-function pick(e) {
+function pick(e: EdgeBundleEvent) {
   selectedEventId.value = e.id
   setWaiter(null)
   setRegisterSession(null)

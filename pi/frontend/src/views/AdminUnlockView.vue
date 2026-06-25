@@ -15,18 +15,18 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAdminSession } from '../composables/useAdminSession'
-import PinKeypad from '../components/PinKeypad.vue'
+import { useAdminSession } from '@/composables/useAdminSession'
+import PinKeypad from '@/components/PinKeypad.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { requiresPin, setAdminUnlocked, verifyAdminPin } = useAdminSession()
 const error = ref('')
 const verifying = ref(false)
-const keypadRef = ref(null)
+const keypadRef = ref<InstanceType<typeof PinKeypad> | null>(null)
 const needsPin = computed(() => requiresPin.value)
 
 function redirectAfterUnlock() {
@@ -45,14 +45,14 @@ onMounted(() => {
   }
 })
 
-async function onComplete(pin) {
+async function onComplete(pin: string) {
   error.value = ''
   verifying.value = true
   try {
     await verifyAdminPin(pin)
     redirectAfterUnlock()
-  } catch (e) {
-    error.value = e.message || 'Ungültiger Code'
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Ungültiger Code'
     keypadRef.value?.clear()
   } finally {
     verifying.value = false
