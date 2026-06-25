@@ -27,9 +27,34 @@ function buildRouter() {
       },
       {
         path: '/admin',
-        name: 'admin',
-        component: { template: '<div/>' },
-        meta: { requiresBundle: true, requiresAdmin: true },
+        component: { template: '<router-view />' },
+        meta: { requiresAdmin: true },
+        children: [
+          { path: '', name: 'admin', component: { template: '<div/>' } },
+          {
+            path: 'sync',
+            name: 'admin-sync',
+            component: { template: '<div/>' },
+          },
+          {
+            path: 'operations',
+            component: { template: '<router-view />' },
+            meta: { requiresBundle: true },
+            children: [
+              { path: '', name: 'admin-operations', component: { template: '<div/>' } },
+              {
+                path: 'test-print',
+                name: 'admin-operations-test-print',
+                component: { template: '<div/>' },
+              },
+            ],
+          },
+          {
+            path: 'unpair',
+            name: 'admin-unpair',
+            component: { template: '<div/>' },
+          },
+        ],
       },
     ],
   })
@@ -91,5 +116,45 @@ describe('setupRouterGuards', () => {
     const router = buildRouter()
     await router.push('/admin')
     expect(router.currentRoute.value.name).toBe('admin')
+  })
+
+  it('redirects admin child routes to admin-unlock when pin is required', async () => {
+    store.bundle.value = { ...defaultBundle(), admin_pin_hashes: ['hash'] }
+    store.adminUnlocked.value = false
+    const router = buildRouter()
+    await router.push('/admin/sync')
+    expect(router.currentRoute.value.name).toBe('admin-unlock')
+  })
+
+  it('allows admin-sync without bundle', async () => {
+    vi.spyOn(store, 'refreshBundle').mockResolvedValue(0)
+    store.bundle.value = null
+    const router = buildRouter()
+    await router.push('/admin/sync')
+    expect(router.currentRoute.value.name).toBe('admin-sync')
+  })
+
+  it('redirects admin-operations to events when bundle is unavailable', async () => {
+    vi.spyOn(store, 'refreshBundle').mockResolvedValue(0)
+    store.bundle.value = null
+    const router = buildRouter()
+    await router.push('/admin/operations')
+    expect(router.currentRoute.value.name).toBe('events')
+  })
+
+  it('redirects admin-operations child routes to events when bundle is unavailable', async () => {
+    vi.spyOn(store, 'refreshBundle').mockResolvedValue(0)
+    store.bundle.value = null
+    const router = buildRouter()
+    await router.push('/admin/operations/test-print')
+    expect(router.currentRoute.value.name).toBe('events')
+  })
+
+  it('allows admin-unpair without bundle', async () => {
+    vi.spyOn(store, 'refreshBundle').mockResolvedValue(0)
+    store.bundle.value = null
+    const router = buildRouter()
+    await router.push('/admin/unpair')
+    expect(router.currentRoute.value.name).toBe('admin-unpair')
   })
 })

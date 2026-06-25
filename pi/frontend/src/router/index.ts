@@ -19,9 +19,64 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin',
-    name: 'admin',
-    component: () => import('../views/AdminPanelView.vue'),
-    meta: { title: 'Sync', requiresAdmin: true, nav: true, navLabel: 'Sync' },
+    component: () => import('../views/admin/AdminShell.vue'),
+    meta: { requiresAdmin: true },
+    children: [
+      {
+        path: '',
+        name: 'admin',
+        component: () => import('../views/admin/AdminHubView.vue'),
+        meta: { title: 'Admin' },
+      },
+      {
+        path: 'sync',
+        name: 'admin-sync',
+        component: () => import('../views/admin/AdminSyncView.vue'),
+        meta: { title: 'Synchronisation' },
+      },
+      {
+        path: 'operations',
+        component: () => import('../views/admin/operations/AdminOperationsShell.vue'),
+        meta: { title: 'Betrieb', requiresBundle: true },
+        children: [
+          {
+            path: '',
+            name: 'admin-operations',
+            component: () => import('../views/admin/operations/AdminOperationsHubView.vue'),
+          },
+          {
+            path: 'test-print',
+            name: 'admin-operations-test-print',
+            component: () => import('../views/admin/operations/AdminOperationsTestPrintView.vue'),
+            meta: { title: 'Testdruck' },
+          },
+          {
+            path: 'kitchen',
+            name: 'admin-operations-kitchen',
+            component: () => import('../views/admin/operations/AdminOperationsKitchenView.vue'),
+            meta: { title: 'Küchenmonitor' },
+          },
+          {
+            path: 'pickup',
+            name: 'admin-operations-pickup',
+            component: () => import('../views/admin/operations/AdminOperationsPickupView.vue'),
+            meta: { title: 'Pickup Screen' },
+          },
+          {
+            path: 'display',
+            name: 'admin-operations-display',
+            component: () => import('../views/admin/operations/AdminOperationsCustomerDisplayView.vue'),
+            meta: { title: 'Kundendisplay' },
+          },
+        ],
+      },
+      {
+        path: 'unpair',
+        name: 'admin-unpair',
+        component: () => import('../views/admin/AdminUnpairView.vue'),
+        meta: { title: 'Entkoppeln' },
+      },
+    ],
   },
   {
     path: '/android/printer',
