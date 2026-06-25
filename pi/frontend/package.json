@@ -15,7 +15,7 @@
   "dependencies": {
     "openapi-fetch": "^0.14.0",
     "vue": "^3.4.0",
-    "vue-router": "^4.6.4"
+    "vue-router": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
