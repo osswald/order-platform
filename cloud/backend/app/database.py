@@ -1,14 +1,13 @@
-from pathlib import Path
 import logging
 import os
 import uuid
+from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .env import is_production
-
-from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
-from sqlalchemy.orm import declarative_base, sessionmaker
+from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_PLATFORM_ADMIN
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}

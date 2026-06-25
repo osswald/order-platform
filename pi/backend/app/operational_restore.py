@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .bundle_cache import event_from_bundle
 from .domain.sessions import ensure_order_session
 from .models import (
     EventOrderCounter,
@@ -34,7 +35,7 @@ def _parse_dt(val: str | None) -> datetime | None:
     except ValueError:
         return None
 
-from .bundle_cache import event_from_bundle
+
 def _local_open_fingerprint(db: Session, event_id: int) -> str:
     rows = (
         db.query(LocalOrder)

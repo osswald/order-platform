@@ -1,27 +1,26 @@
 """Unit tests for event configuration validation helpers."""
 
-from datetime import datetime, timezone
-from types import SimpleNamespace
+from datetime import UTC, datetime
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.event_config_validation import (
+    article_ids_in_event_organisation,
     assert_cell_articles_subset_of_stations,
     assert_exactly_one_default_layout,
     assert_layout_cells_within_grid,
     assert_source_waiter_in_org,
     assert_station_articles_in_org,
-    article_ids_in_event_organisation,
     build_station_article_tree,
     station_article_union_from_payload,
 )
 from app.models import Article, ArticleCategory, Event, HireCompany, Organisation, Waiter
 from app.schemas.events import AppLayoutIn, LayoutCellIn, StationConfigIn
+from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -30,7 +29,7 @@ def db():
     Base.metadata.create_all(bind=engine)
     session = sessionmaker(bind=engine)()
     ch_country_id = ensure_country(session, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add_all(
         [
             HireCompany(id=1, name="HC"),

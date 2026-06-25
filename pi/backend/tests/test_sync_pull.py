@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import httpx
-import pytest
 
 
 def _isolate_edge_config(monkeypatch, tmp_path: Path) -> None:

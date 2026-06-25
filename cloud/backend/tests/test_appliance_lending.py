@@ -1,16 +1,16 @@
 """Appliance lending create API: date range, overlap, planned vs active status."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.main import app
-from app.models import Appliance, ApplianceLending, HireCompany, Organisation, User
+from app.models import Appliance, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
@@ -53,7 +53,7 @@ def _lending_fixture(suffix: str) -> tuple[int, int, str]:
 def test_create_lending_with_duration_days_sets_end_date():
     appliance_id, org_id, email = _lending_fixture("duration")
     token = _token_for(email, "secret")
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
 
     response = client.post(
         f"/appliances/{appliance_id}/lendings",
@@ -77,7 +77,7 @@ def test_create_lending_with_duration_days_sets_end_date():
 def test_create_lending_with_end_date_derives_duration():
     appliance_id, org_id, email = _lending_fixture("end-date")
     token = _token_for(email, "secret")
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     end = today + timedelta(days=6)
 
     response = client.post(
@@ -97,7 +97,7 @@ def test_create_lending_with_end_date_derives_duration():
 def test_create_lending_rejects_overlap():
     appliance_id, org_id, email = _lending_fixture("overlap")
     token = _token_for(email, "secret")
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
 
     first = client.post(
         f"/appliances/{appliance_id}/lendings",
@@ -126,7 +126,7 @@ def test_create_lending_rejects_overlap():
 def test_planned_lending_not_marked_lent_until_start():
     appliance_id, org_id, email = _lending_fixture("planned")
     token = _token_for(email, "secret")
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     future_start = today + timedelta(days=7)
 
     response = client.post(

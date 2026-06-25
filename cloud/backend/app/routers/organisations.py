@@ -1,19 +1,18 @@
-from datetime import date, datetime, timezone
-from typing import List
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import appliance_display_name
+from ..auth_deps import get_current_user
 from ..dashboard_summary import build_organisation_dashboard_summary
+from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
 from ..models import ApplianceLending, Event, HireCompany, Organisation, User
 from ..reference_countries import country_response, get_country_or_404
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
-from ..auth_deps import get_current_user
-from ..deps import get_db
-from ..db_errors import commit_or_raise
 from ..tenancy import (
     TenantContext,
     ensure_can_manage_organisation,
@@ -52,7 +51,7 @@ class OrganisationBase(BaseModel):
 
 
 class OrganisationCreate(OrganisationBase):
-    user_ids: List[int] | None = None
+    user_ids: list[int] | None = None
 
 
 class OrganisationUpdate(BaseModel):
@@ -62,7 +61,7 @@ class OrganisationUpdate(BaseModel):
     city: str | None = None
     country_id: int | None = None
     currency: str | None = Field(None, min_length=3, max_length=3)
-    user_ids: List[int] | None = None
+    user_ids: list[int] | None = None
     vat_liable: bool | None = None
     default_tax_code_id: int | None = None
     accounts_enabled: bool | None = None
@@ -80,7 +79,7 @@ class OrganisationRead(OrganisationBase):
     id: int
     hire_company_id: int
     country: CountryRead
-    user_ids: List[int] = []
+    user_ids: list[int] = []
     vat_liable: bool = False
     default_tax_code_id: int | None = None
     default_tax_code: TaxCodeSummaryRead | None = None
@@ -98,9 +97,9 @@ class OrgApplianceLendingItem(BaseModel):
 
 
 class OrganisationApplianceLendingsRead(BaseModel):
-    current: List[OrgApplianceLendingItem]
-    planned: List[OrgApplianceLendingItem]
-    past: List[OrgApplianceLendingItem]
+    current: list[OrgApplianceLendingItem]
+    planned: list[OrgApplianceLendingItem]
+    past: list[OrgApplianceLendingItem]
 
 
 def organisation_response(org: Organisation) -> dict:
@@ -126,7 +125,7 @@ def organisation_response(org: Organisation) -> dict:
     }
 
 
-@router.get("/", response_model=List[OrganisationRead])
+@router.get("/", response_model=list[OrganisationRead])
 def read_organisations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -148,7 +147,7 @@ def read_organisation_appliance_lendings(
 ):
     ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
 
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     rows = (
         db.query(ApplianceLending)
         .options(joinedload(ApplianceLending.appliance))

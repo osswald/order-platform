@@ -1,9 +1,8 @@
 """Bookkeeping report builder."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
-
 from app.event_bookkeeping import build_event_bookkeeping_report
 from app.fiscal_vat import split_gross_cents
 from app.models import (
@@ -21,6 +20,7 @@ from app.models import (
     TaxCode,
     TaxCodeRate,
 )
+
 from tests.helpers import ensure_country
 
 
@@ -39,7 +39,7 @@ def bookkeeping_db(memory_db_session):
         vat_liable=True,
     )
     memory_db_session.add(org)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = Event(
         id=1,
         name="Fest",

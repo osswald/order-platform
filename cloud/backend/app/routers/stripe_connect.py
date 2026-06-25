@@ -3,21 +3,20 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import stripe
-from fastapi import APIRouter, Depends, HTTPException, status
-from ..i18n.errors import api_error
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..deps import get_db
-from ..db_errors import commit_or_raise
-from ..models import Organisation, User
-from ..stripe_client import StripeConfigError, stripe_error
 from .. import stripe_client
-from ..stripe_connect_status import update_organisation_from_stripe_account
 from ..auth_deps import get_current_user
+from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
+from ..models import Organisation, User
+from ..stripe_client import stripe_error
+from ..stripe_connect_status import update_organisation_from_stripe_account
 from ..tenancy import (
     TenantContext,
     ensure_can_manage_organisation,
@@ -108,7 +107,7 @@ def create_connect_account_link(
     except Exception as exc:
         raise stripe_error(exc) from exc
 
-    organisation.stripe_onboarding_started_at = datetime.now(timezone.utc)
+    organisation.stripe_onboarding_started_at = datetime.now(UTC)
     commit_or_raise(db)
     db.refresh(organisation)
     return StripeAccountLinkResponse(**_status_response(organisation).model_dump(), url=link.url)

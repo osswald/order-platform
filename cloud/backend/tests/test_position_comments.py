@@ -1,9 +1,7 @@
 """Organisation position comment presets and feature flag."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
-
-from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.main import app
@@ -18,6 +16,8 @@ from app.models import (
 )
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)
@@ -137,7 +137,7 @@ def test_edge_bundle_includes_position_comments_when_enabled():
         )
         db.add(appliance)
         db.flush()
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         db.add(
             ApplianceLending(
                 appliance_id=appliance.id,

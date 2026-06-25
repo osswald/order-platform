@@ -19,16 +19,15 @@ from dataclasses import dataclass
 from unittest.mock import patch
 
 import pytest
+from app import models, models_operational  # noqa: F401
+from app.database import Base, init_test_schema
+from app.main import app
+from app.models import SyncedBundle
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app import models, models_operational  # noqa: F401
-from app.database import Base, init_test_schema
-from app.main import app
-from app.models import SyncedBundle
 from tests.fixtures_bundles import bundle_copy, default_bundle
 
 

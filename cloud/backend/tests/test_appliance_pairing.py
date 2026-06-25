@@ -1,16 +1,24 @@
 """Headless Raspberry Pi pairing flow for server appliances."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
-from tests.helpers import country_id_by_code
 from app.main import app
-from app.models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, HireCompany, Organisation, User
+from app.models import (
+    Appliance,
+    ApplianceEdgeCredential,
+    ApplianceLending,
+    AppliancePairingSession,
+    HireCompany,
+    Organisation,
+    User,
+)
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash, verify_password
+from fastapi.testclient import TestClient
+
+from tests.helpers import country_id_by_code
 
 client = TestClient(app)
 
@@ -45,7 +53,7 @@ def _server_appliance_fixture(suffix: str) -> tuple[int, str]:
         )
         db.add_all([user, appliance])
         db.flush()
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         db.add(
             ApplianceLending(
                 appliance_id=appliance.id,
@@ -111,7 +119,7 @@ def test_pairing_code_must_not_be_expired():
         session = AppliancePairingSession(
             appliance_id=appliance_id,
             code_hash=get_password_hash("123456"),
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+            expires_at=datetime.now(UTC) - timedelta(minutes=1),
         )
         db.add(session)
         db.commit()

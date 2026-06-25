@@ -5,8 +5,6 @@ import uuid
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
-from app.models import CollectiveBill, LocalOrder
-
 
 def _add_table_order(client, table: int, qty: int = 2):
     cid = f"ord-{table}-{uuid.uuid4().hex[:8]}"

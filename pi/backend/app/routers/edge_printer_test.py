@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 from ..bundle_cache import event_from_bundle, get_bundle_dict
 from ..deps import get_db
 from ..print_worker import (
+    _send_to_printer,
     build_escpos_station_test_slip,
     build_payment_receipt_text,
     station_name_from_event,
-    _send_to_printer,
 )
 from ..printer_endpoint import resolve_printer_endpoint
 from ..schemas.edge import (
@@ -53,7 +53,7 @@ def printer_test_receipt(
         "lines": [{"article_id": 1, "qty": 1, "article_name": "Testartikel", "note": "Bluetooth Test", "additions": []}],
         "payments": [{"type": "cash", "amount_cents": 100}],
         "payment_status": "paid",
-        "paid_at": datetime.now(timezone.utc).isoformat(),
+        "paid_at": datetime.now(UTC).isoformat(),
     }
     esc = build_payment_receipt_text(
         payload,
@@ -121,7 +121,7 @@ async def printer_test_station_prints(
 
     event_name = ev.get("name", "Event")
     arts = _article_map(ev)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     results: list[StationTestPrintResult] = []
     printed = 0
     failed = 0

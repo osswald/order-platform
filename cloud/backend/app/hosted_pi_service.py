@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import status
-from .i18n.errors import api_error
 from sqlalchemy.orm import Session
 
 from .event_status import normalize_status
 from .hosted_pi_manager_client import HostedPiManagerError, destroy_instance, provision_instance
+from .i18n.errors import api_error
 from .models import (
     Appliance,
     ApplianceEdgeCredential,
@@ -31,7 +31,7 @@ CLOUD_BASE_URL = os.getenv("HOSTED_PI_CLOUD_BASE_URL", "https://api.vendiqo.ch")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _public_url(slug: str) -> str:

@@ -1,10 +1,9 @@
 """i18n helpers and locale resolution."""
 
-from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
-
 from app.i18n import DEFAULT_LOCALE, normalize_locale, resolve_locale_from_accept_language, t
 from app.i18n.deps import get_locale
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
 
 
 def test_t_nested_key():

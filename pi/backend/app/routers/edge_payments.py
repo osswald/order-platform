@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,8 +14,14 @@ from sqlalchemy.orm import Session
 from ..bundle_cache import event_from_bundle, get_bundle_dict
 from ..cloud_client import (
     CloudConfigError,
+)
+from ..cloud_client import (
     create_terminal_connection_token as cloud_create_terminal_connection_token,
+)
+from ..cloud_client import (
     create_terminal_payment_intent as cloud_create_terminal_payment_intent,
+)
+from ..cloud_client import (
     retrieve_terminal_payment_intent as cloud_retrieve_terminal_payment_intent,
 )
 from ..deps import get_db
@@ -214,7 +220,7 @@ def payment_receipt(
         articles=_article_map(ev),
         currency=ev.get("currency", "EUR"),
         reprint=bool(body and body.reprint),
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         event=ev,
         paper_width=body.paper_width if body else None,
     )

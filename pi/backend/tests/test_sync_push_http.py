@@ -3,8 +3,6 @@
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-import pytest
-
 
 def _isolate_edge_config(monkeypatch, tmp_path: Path) -> None:
     import app.edge_config as edge_config

@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from app.security import get_password_hash
 from tests.fixtures_bundles import admin_bundle, bundle_copy
 
@@ -26,7 +25,6 @@ def test_admin_verify_wrong_pin(client):
 
 def test_admin_verify_no_hashes(client):
     import app.database as database
-
     from app.models import SyncedBundle
 
     Session = database.SessionLocal
@@ -44,7 +42,6 @@ def test_admin_verify_no_hashes(client):
 
 def test_admin_verify_skips_corrupt_hash(client):
     import app.database as database
-
     from app.models import SyncedBundle
 
     Session = database.SessionLocal

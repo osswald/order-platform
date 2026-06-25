@@ -6,20 +6,26 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-
-# Serialize pull/push with the background sync worker (SQLite).
-sync_cycle_lock = asyncio.Lock()
 
 from sqlalchemy.orm import Session
 
-from .cloud_client import CloudConfigError, _resolve_config, fetch_bundle, fetch_operational_snapshot, submit_operational_chunk
 from .bundle_cache import get_bundle_dict_raw
+from .cloud_client import (
+    CloudConfigError,
+    _resolve_config,
+    fetch_bundle,
+    fetch_operational_snapshot,
+    submit_operational_chunk,
+)
 from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .operational_restore import needs_operational_restore, restore_operational_snapshot
 from .stock import apply_stock_to_bundle, save_bundle
+
+# Serialize pull/push with the background sync worker (SQLite).
+sync_cycle_lock = asyncio.Lock()
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +83,6 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
     for row in rows:
         try:
             payload = json.loads(row.payload_json)
-            client_order_id = payload.get("client_order_id") or row.chunk_id
             await submit_operational_chunk(
                 chunk_id=row.chunk_id,
                 event_id=row.event_id,
@@ -85,7 +90,7 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
                 payload=payload,
             )
             row.status = "acked"
-            row.acked_at = datetime.now(timezone.utc)
+            row.acked_at = datetime.now(UTC)
             row.last_error = None
             sent += 1
         except CloudConfigError:
@@ -104,7 +109,7 @@ async def pull_bundle(db: Session) -> dict[str, Any]:
     old_bundle = get_bundle_dict_raw(db)
     data = await fetch_bundle()
     body = json.dumps(data)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     if not row:
         db.add(SyncedBundle(id=1, json_body=body, updated_at=now))
@@ -162,7 +167,7 @@ async def pull_and_restore(db: Session) -> dict[str, Any]:
 
 async def run_sync_cycle(db: Session) -> dict[str, Any]:
     """Pull bundle, reconcile lifecycle, push outbox, reapply local stock."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     sync_status["configured"] = is_cloud_configured()
     sync_status["pending_outbox_count"] = pending_outbox_count(db)
 

@@ -1,13 +1,16 @@
 import re
-from typing import List
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from ..auth_deps import get_current_user
+from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
 from ..models import Organisation, User
+from ..rate_limit import USERS_RATE_LIMIT, limiter
 from ..roles import (
     ALL_ROLES,
     ASSIGNABLE_BY_ORGANISATION_ADMIN,
@@ -17,9 +20,6 @@ from ..roles import (
     ROLE_TENANT_ADMIN,
 )
 from ..security import get_password_hash
-from ..auth_deps import get_current_user
-from ..deps import get_db
-from ..db_errors import commit_or_raise
 from ..tenancy import (
     TenantContext,
     ensure_organisation_ids_in_admin_scope,
@@ -37,7 +37,6 @@ from ..user_access import (
     is_tenant_admin,
     user_role,
 )
-from ..rate_limit import USERS_RATE_LIMIT, limiter
 
 router = APIRouter()
 
@@ -76,8 +75,8 @@ class UserRead(BaseModel):
     is_admin: bool
     hire_company_id: int | None = None
     has_event_admin_pin: bool = False
-    organisation_ids: List[int] = []
-    organisations: List[OrganisationLinkRead] = []
+    organisation_ids: list[int] = []
+    organisations: list[OrganisationLinkRead] = []
 
 
 class UserCreate(BaseModel):
@@ -86,7 +85,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=1)
     role: str = ROLE_MEMBER
     hire_company_id: int | None = None
-    organisation_ids: List[int] = Field(default_factory=list)
+    organisation_ids: list[int] = Field(default_factory=list)
     event_admin_pin: str | None = Field(None, max_length=6)
 
     @field_validator("event_admin_pin")
@@ -111,7 +110,7 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     role: str | None = None
     hire_company_id: int | None = None
-    organisation_ids: List[int] | None = None
+    organisation_ids: list[int] | None = None
     event_admin_pin: str | None = Field(None, max_length=6)
 
     @field_validator("event_admin_pin")
@@ -213,7 +212,7 @@ def _filter_users_for_organisation_admin(
     return [u for u in users if user_shares_administered_org(u, admin_org_ids)]
 
 
-@router.get("/", response_model=List[UserRead])
+@router.get("/", response_model=list[UserRead])
 @limiter.limit(USERS_RATE_LIMIT)
 def list_or_search_users(
     request: Request,

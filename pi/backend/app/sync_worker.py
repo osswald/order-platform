@@ -62,7 +62,7 @@ async def sync_worker_loop(stop_event: asyncio.Event) -> None:
                 sync_status["last_error"] = str(e)[:2000]
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
     log.info("Cloud sync worker stopped")

@@ -1,6 +1,5 @@
 """Event CRUD routes."""
 
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -9,7 +8,12 @@ from ..auth_deps import get_current_user
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..event_copy import copy_event, default_copy_name
-from ..event_status import ALLOWED_STATUSES, assert_create_status, purge_event_operational_data, validate_status_transition
+from ..event_status import (
+    ALLOWED_STATUSES,
+    assert_create_status,
+    purge_event_operational_data,
+    validate_status_transition,
+)
 from ..i18n.errors import api_error
 from ..instant_collective_bill import apply_instant_collective_bill_settings
 from ..models import Event, User
@@ -29,7 +33,7 @@ from .events_helpers import event_response, get_event_for_configuration
 router = APIRouter()
 
 
-@router.get("/", response_model=List[EventRead])
+@router.get("/", response_model=list[EventRead])
 def read_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

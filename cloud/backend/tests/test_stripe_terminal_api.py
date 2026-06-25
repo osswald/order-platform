@@ -1,10 +1,8 @@
 """Stripe Terminal edge HTTP API."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
-
-from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.main import app
@@ -17,6 +15,8 @@ from app.models import (
     Organisation,
 )
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)
@@ -39,7 +39,7 @@ def _edge_terminal_fixture() -> tuple[dict[str, str], int]:
         )
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ev = Event(
             name="Live",
             status="prod",

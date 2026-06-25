@@ -1,8 +1,22 @@
 import uuid as uuid_lib
 
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, Table, ForeignKey, UniqueConstraint, JSON, Text
-from sqlalchemy.sql import func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from .database import Base
 
 organisation_users = Table(

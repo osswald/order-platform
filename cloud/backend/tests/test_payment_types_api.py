@@ -1,12 +1,13 @@
 """Payment types reference API."""
 
-from fastapi.testclient import TestClient
+from datetime import UTC
 
 from app.database import SessionLocal
 from app.main import app
 from app.models import PaymentType, User
 from app.roles import ROLE_MEMBER, ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -74,9 +75,9 @@ def test_member_cannot_create_payment_type():
 
 
 def test_delete_payment_type_in_use_by_event():
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    from app.models import Event, Organisation, HireCompany
+    from app.models import Event, HireCompany, Organisation
 
     _setup_users()
     db = SessionLocal()
@@ -89,7 +90,7 @@ def test_delete_payment_type_in_use_by_event():
         org = Organisation(name="PT Org", hire_company_id=hc.id, country_id=1, currency="EUR")
         db.add(org)
         db.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         event = Event(
             name="PT Event",
             status="config",

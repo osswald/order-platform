@@ -1,12 +1,8 @@
 """Unit tests for article addition helpers."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.additions import (
     addition_delta_cents,
     load_links_for_bases,
@@ -14,8 +10,12 @@ from app.additions import (
     validate_base_article,
 )
 from app.database import Base
+from app.models import Article, ArticleCategory, Event, HireCompany, Organisation
+from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from tests.helpers import ensure_country
-from app.models import Article, ArticleAdditionLink, ArticleCategory, Event, HireCompany, EventStation, Organisation
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def db():
     Base.metadata.create_all(bind=engine)
     session = sessionmaker(bind=engine)()
     ch_country_id = ensure_country(session, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     session.add_all(
         [
             HireCompany(id=1, name="HC"),

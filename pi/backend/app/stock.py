@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from datetime import UTC
 from typing import Any
 
 from fastapi import HTTPException
@@ -91,14 +91,14 @@ def apply_stock_to_bundle(bundle: dict, event_id: int, lines: list) -> dict[str,
 
 
 def save_bundle(db, bundle: dict) -> None:
-    from datetime import datetime, timezone
     import json
+    from datetime import datetime
 
     from .instant_collective_bill import ensure_instant_collective_bills_for_bundle
     from .models import SyncedBundle
 
     body = json.dumps(bundle)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     if row:
         row.json_body = body

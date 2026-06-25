@@ -1,9 +1,8 @@
 """Stock validation unit tests."""
 
 import pytest
-from fastapi import HTTPException
-
 from app.stock import validate_stock
+from fastapi import HTTPException
 
 
 def test_validate_stock_raises_409_when_insufficient():

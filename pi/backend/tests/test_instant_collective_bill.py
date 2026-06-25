@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from app.fiscal_vat import split_gross_cents
 from app.instant_collective_bill import ensure_instant_collective_bill
 from app.models import CollectiveBill, SyncedBundle

@@ -76,8 +76,9 @@ def test_terminal_routes_require_stripe_event(client, bundle):
     ev["payment_types"] = ["cash"]
     b["events"] = [ev]
     import json
-    from app.models import SyncedBundle
+
     from app.database import SessionLocal
+    from app.models import SyncedBundle
 
     db = SessionLocal()
     try:
@@ -97,8 +98,9 @@ def test_terminal_connection_token_proxies_cloud(client, bundle, monkeypatch):
     ev["payment_types"] = ["stripe_terminal"]
     b["events"] = [ev]
     import json
-    from app.models import SyncedBundle
+
     from app.database import SessionLocal
+    from app.models import SyncedBundle
 
     db = SessionLocal()
     try:

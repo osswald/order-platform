@@ -5,7 +5,6 @@ import json
 import uuid
 
 import pytest
-
 from app.models import LocalOrder, PrintJob
 from tests.fixtures_bundles import bundle_copy, voucher_bundle
 

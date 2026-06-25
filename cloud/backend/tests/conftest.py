@@ -16,13 +16,12 @@ if _shared_pkg.is_dir() and str(_shared_pkg) not in sys.path:
 from collections.abc import Generator
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
 from app.database import Base, apply_schema_patches, engine
 from app.main import app
 from app.rate_limit import limiter
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 
 def _reset_rate_limiter() -> None:

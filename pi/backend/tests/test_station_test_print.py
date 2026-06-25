@@ -1,7 +1,6 @@
 """Admin test prints: one station slip per configured station."""
 
 import pytest
-
 from tests.fixtures_bundles import bundle_copy, default_bundle, kitchen_monitor_bundle
 
 pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
@@ -37,6 +36,7 @@ def test_test_station_prints_unknown_event(client):
 def test_test_station_prints_no_stations(client_session):
     c, Session = client_session
     import json
+
     from app.models import SyncedBundle
 
     empty = bundle_copy(default_bundle())

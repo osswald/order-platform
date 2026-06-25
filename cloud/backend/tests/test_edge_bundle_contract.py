@@ -1,7 +1,6 @@
 """Edge bundle contract tests."""
 
 import pytest
-
 from app.edge_bundle import edge_bundle_payload, validate_edge_bundle_payload
 from vendiqo_shared.bundle_contract import EdgeBundleContract
 

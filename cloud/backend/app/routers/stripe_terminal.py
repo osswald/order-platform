@@ -5,20 +5,19 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import stripe
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from ..i18n.errors import api_error
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
+from .. import stripe_client
 from ..currency import event_currency, organisation_currency
 from ..deps import get_db
 from ..event_status import ORDER_ACCEPT_STATUSES
+from ..i18n.errors import api_error
 from ..models import Event, Organisation
 from ..payment_types_config import payment_types_from_event
-from ..stripe_client import StripeConfigError, stripe_error
-from .. import stripe_client
-from .edge import ApplianceEdgeContext, get_edge_server_appliance, _load_event_for_org
+from ..stripe_client import stripe_error
+from .edge import ApplianceEdgeContext, _load_event_for_org, get_edge_server_appliance
 
 router = APIRouter()
 STRIPE_TERMINAL_PAYMENT_TYPE = "stripe_terminal"

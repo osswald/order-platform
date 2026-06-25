@@ -1,18 +1,15 @@
 """Cash shift sessions (Kellner-/Kassenabrechnung)."""
 
-import base64
 import json
-import uuid
-
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import app.database as database
+import pytest
 from app.database import Base, init_test_schema
 from app.domain.cash_sessions import close_session, open_session, record_payments_on_session
 from app.models import SyncedBundle
-from app.print_worker import build_shift_close_receipt_text, _escpos_text
+from app.print_worker import build_shift_close_receipt_text
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture

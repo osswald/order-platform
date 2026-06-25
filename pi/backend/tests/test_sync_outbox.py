@@ -5,7 +5,6 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
-
 from app.cloud_client import CloudConfigError
 from app.models import OutboxEntry
 from app.sync_service import push_outbox

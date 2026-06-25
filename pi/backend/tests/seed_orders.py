@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy.orm import Session
-
 from app.models import LocalOrder
 from app.models_operational import OrderSession
+from sqlalchemy.orm import Session
 
 
 def seed_open_submission(

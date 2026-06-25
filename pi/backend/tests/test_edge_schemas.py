@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from app.schemas.edge import AccountSummaryResponse, LocalOrderCreate
 from app.schemas.order_models import DiscountIn, OrderLineIn, PaymentIn
+from pydantic import ValidationError
 from tests.fixtures_bundles import default_bundle, kitchen_monitor_bundle
 from vendiqo_shared.bundle_contract import EdgeBundleContract
 

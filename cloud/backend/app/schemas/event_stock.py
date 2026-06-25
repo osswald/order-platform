@@ -1,6 +1,5 @@
 """Event stock API schemas."""
 
-from typing import List
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -16,7 +15,7 @@ class EventStockItemRead(BaseModel):
 
 
 class EventStockListRead(BaseModel):
-    items: List[EventStockItemRead]
+    items: list[EventStockItemRead]
 
 
 class EventStockItemIn(BaseModel):
@@ -33,4 +32,4 @@ class EventStockItemIn(BaseModel):
 
 
 class EventStockUpdateIn(BaseModel):
-    items: List[EventStockItemIn] = Field(default_factory=list)
+    items: list[EventStockItemIn] = Field(default_factory=list)

@@ -4,8 +4,6 @@ import asyncio
 import json
 from pathlib import Path
 
-import pytest
-
 from app.models import OutboxEntry, SyncedBundle
 from app.sync_service import is_cloud_configured, pending_outbox_count, run_sync_cycle
 

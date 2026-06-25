@@ -1,17 +1,17 @@
 """Edge operational snapshot for Pi restore."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.edge_operational_mirror import upsert_edge_kitchen_ticket_snapshot, upsert_edge_order_snapshot
 from app.edge_operational_snapshot import build_operational_snapshot_for_events
 from app.event_cash_sessions import upsert_edge_cash_session
 from app.models import Event, HireCompany, Organisation
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def db_session():
     db.add(hc)
     org = Organisation(id=1, hire_company_id=1, name="Org", country_id=ch_country_id, currency="CHF")
     db.add(org)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = Event(
         id=1,
         name="Fest",

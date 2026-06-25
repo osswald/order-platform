@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from .domain.sessions import ensure_order_session
-from .domain.sync_enqueue import enrich_payload_for_cloud_sync, enqueue_payload_sync
+from .domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync
 from .models import CollectiveBill, LocalOrder
 from .order_line_utils import merge_lines_into_list, take_selections_from_orders
 

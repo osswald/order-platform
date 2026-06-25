@@ -1,12 +1,11 @@
 """Session invalidation, refresh rotation, and refresh rate limit (security #9)."""
 
-from fastapi.testclient import TestClient
-
 from app.database import SessionLocal
 from app.main import app
 from app.models import User
 from app.roles import ROLE_PLATFORM_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

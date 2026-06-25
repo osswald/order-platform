@@ -1,6 +1,6 @@
 """Datetime helpers for API serialization."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utc_iso(dt: datetime | None) -> str | None:
@@ -8,5 +8,5 @@ def utc_iso(dt: datetime | None) -> str | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).isoformat()
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat()

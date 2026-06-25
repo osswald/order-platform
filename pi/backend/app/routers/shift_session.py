@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import json
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -19,17 +17,16 @@ from ..domain.cash_sessions import (
     session_to_sync_payload,
     shift_settlement_enabled,
 )
-from ..domain.sync_enqueue import enqueue_cash_session_sync
-from ..models import PrintJob, SyncedBundle
+from ..models import PrintJob
 from ..print_worker import _send_to_printer, build_shift_close_receipt_text
 from ..printer_endpoint import resolve_printer_endpoint
 from ..schemas.edge import (
     ShiftSessionCloseBody,
-    ShiftSessionReceiptBody,
     ShiftSessionEscposResponse,
     ShiftSessionOpenBody,
     ShiftSessionPrintResponse,
     ShiftSessionRead,
+    ShiftSessionReceiptBody,
 )
 from ..shift_integration import session_to_api_dict, sync_cash_session
 

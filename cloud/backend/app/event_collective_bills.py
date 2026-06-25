@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -67,7 +67,7 @@ def _maybe_close_collective_bill(db: Session, header: EventCollectiveBill) -> No
     if any(str((o.payload or {}).get("payment_status") or "open").lower() != "paid" for o in related):
         return
     if header.closed_at is None:
-        header.closed_at = datetime.now(timezone.utc)
+        header.closed_at = datetime.now(UTC)
 
 
 def _logical_client_order_id(order: EdgeSubmittedOrder) -> str:
@@ -88,7 +88,7 @@ def _deduped_orders_for_bill(raw_orders: list[EdgeSubmittedOrder]) -> list[EdgeS
     by_key: dict[str, list[EdgeSubmittedOrder]] = defaultdict(list)
     for order in raw_orders:
         by_key[_logical_client_order_id(order)].append(order)
-    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
     out: list[EdgeSubmittedOrder] = []
     for group in by_key.values():
         sorted_g = sorted(group, key=lambda o: (o.created_at or epoch, o.id))

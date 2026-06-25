@@ -1,16 +1,16 @@
 """Schema patch behaviour for legacy production drift."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import inspect, text
-
 from app.database import SessionLocal, apply_schema_patches, engine
 from app.main import app
 from app.models import HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
+from fastapi.testclient import TestClient
+from sqlalchemy import inspect, text
+
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)
@@ -67,7 +67,7 @@ def test_create_event_after_legacy_currency_column_removed():
     token = client.post("/auth/token", data={"username": "patch@test.local", "password": "secret"})
     assert token.status_code == 200, token.text
     headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     created = client.post(
         "/events/",
         headers=headers,

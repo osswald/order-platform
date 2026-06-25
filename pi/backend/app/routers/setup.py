@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from ..cloud_client import CloudConfigError, CloudRequestError, unpair_device
 from ..database import SessionLocal
 from ..edge_config import clear_edge_config, is_edge_configured, read_edge_config, write_edge_config
-from ..event_lifecycle import purge_on_unpair
 from ..emulated_printer import is_emulated_printer_mode
+from ..event_lifecycle import purge_on_unpair
 from ..setup_cloud import DEFAULT_CLOUD_BASE_URL, resolve_cloud_base_url
 
 router = APIRouter(prefix="/v1/setup")

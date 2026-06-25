@@ -5,7 +5,6 @@ from pathlib import Path
 
 import httpx
 import pytest
-
 from app.cloud_client import CloudConfigError, _require_config, fetch_bundle
 
 

@@ -1,8 +1,6 @@
 """Access vs refresh JWT separation (security #2)."""
 
 import pytest
-from jose import JWTError
-
 from app.security import (
     TOKEN_TYPE_ACCESS,
     TOKEN_TYPE_REFRESH,
@@ -11,6 +9,7 @@ from app.security import (
     decode_access_token,
     decode_refresh_token,
 )
+from jose import JWTError
 
 
 def test_access_token_includes_typ_claim():

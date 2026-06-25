@@ -4,16 +4,14 @@ import asyncio
 import base64
 
 import pytest
-from sqlalchemy.orm import Session
-
 from app.emulated_printer import (
     escpos_bytes_to_preview,
     escpos_bytes_to_preview_lines,
     is_emulated_printer_mode,
-    store_emulated_receipt,
 )
 from app.models import EmulatedReceipt
 from app.print_worker import _send_to_printer, build_escpos_station_test_slip
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture

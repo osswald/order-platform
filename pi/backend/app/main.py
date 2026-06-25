@@ -6,14 +6,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import models_operational  # noqa: F401
 from .bootstrap import ensure_default_synced_bundle
 from .database import run_migrations
 from .edge_config import is_edge_configured, write_edge_config
 from .models import SyncedBundle  # noqa: F401
-from . import models_operational  # noqa: F401
 from .print_worker import print_worker_loop
+from .routers import edge_api, health, setup, shift_session
 from .sync_worker import sync_worker_loop
-from .routers import health, edge_api, setup, shift_session
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)

@@ -1,19 +1,18 @@
 import re
 import secrets
-from datetime import date, datetime, timedelta, timezone
-from typing import List
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import generate_appliance_name
 from ..auth_deps import get_current_user
-from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, Organisation, User
-from ..security import get_password_hash
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
+from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, User
+from ..security import get_password_hash
 from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
 
 router = APIRouter()
@@ -27,7 +26,7 @@ AUTO_NAMED_TYPES = {"server", "printer"}
 
 
 def _utc_today() -> date:
-    return datetime.now(timezone.utc).date()
+    return datetime.now(UTC).date()
 
 
 def _intervals_overlap(a_start: date, a_end: date, b_start: date, b_end: date) -> bool:
@@ -42,15 +41,15 @@ def _assert_lending_is_planned(lending: ApplianceLending, today: date) -> None:
         raise api_error("only_planned_lendings_cancelled", status.HTTP_400_BAD_REQUEST)
 
 
-def _lending_segment(l: ApplianceLending, today: date) -> str:
+def _lending_segment(lending: ApplianceLending, today: date) -> str:
     """past | current | future — see plan: future = start > today and not returned; past = end < today or returned."""
-    if l.returned_at is not None:
+    if lending.returned_at is not None:
         return "past"
-    if l.start_date > today:
+    if lending.start_date > today:
         return "future"
-    if l.end_date < today:
+    if lending.end_date < today:
         return "past"
-    if l.start_date <= today <= l.end_date:
+    if lending.start_date <= today <= lending.end_date:
         return "current"
     return "past"
 
@@ -212,7 +211,7 @@ def _appliance_to_read(
     if include_lendings and appliance.type == "server":
         rows = sorted(
             getattr(appliance, "edge_credentials", []) or [],
-            key=lambda row: (row.created_at or datetime.min.replace(tzinfo=timezone.utc), row.id),
+            key=lambda row: (row.created_at or datetime.min.replace(tzinfo=UTC), row.id),
             reverse=True,
         )
         edge_credentials = [
@@ -303,7 +302,7 @@ def _format_pairing_code(code: str) -> str:
     return f"{code[:3]}-{code[3:]}"
 
 
-@router.get("/", response_model=List[ApplianceRead])
+@router.get("/", response_model=list[ApplianceRead])
 def read_appliances(
     lend_check_start: date | None = Query(None),
     lend_check_duration: int | None = Query(None, ge=1),
@@ -490,7 +489,7 @@ def create_appliance_pairing_session(
     if appliance.type != "server":
         raise api_error("pairing_sessions_server_only", status.HTTP_400_BAD_REQUEST)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db.query(AppliancePairingSession).filter(
         AppliancePairingSession.appliance_id == appliance.id,
         AppliancePairingSession.consumed_at.is_(None),
@@ -537,7 +536,7 @@ def revoke_appliance_edge_credential(
     )
     if credential is None:
         raise api_error("edge_credential_not_found", status.HTTP_404_NOT_FOUND)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     credential.status = "revoked"
     credential.revoked_at = now
     commit_or_raise(db)
@@ -674,7 +673,7 @@ def return_appliance_lending(
     if lending.returned_at is not None:
         raise api_error("lending_already_returned", status.HTTP_400_BAD_REQUEST)
 
-    lending.returned_at = datetime.now(timezone.utc)
+    lending.returned_at = datetime.now(UTC)
     commit_or_raise(db)
 
     today = _utc_today()

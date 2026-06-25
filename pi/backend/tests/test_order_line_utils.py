@@ -1,12 +1,10 @@
 """Unit tests for order line merge and selection helpers."""
 
 import pytest
-
 from app.order_line_utils import (
     additions_signature,
     line_key,
     merge_lines_into_list,
-    normalize_additions,
     take_selections_from_orders,
 )
 

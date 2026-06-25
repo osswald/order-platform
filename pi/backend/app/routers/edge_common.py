@@ -5,12 +5,12 @@ from __future__ import annotations
 import base64
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..domain.sync_enqueue import enrich_payload_for_cloud_sync, enqueue_payload_sync
+from ..domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync
 from ..models import (
     CollectiveBill,
     EventPickupCounter,
@@ -22,15 +22,14 @@ from ..models import (
     PrintJob,
 )
 from ..order_fiscal import waiter_name_from_event
-from ..order_line_utils import discount_signature, line_key as _line_key
+from ..order_line_utils import discount_signature
+from ..order_line_utils import line_key as _line_key
 from ..pricing import (
     line_total_cents,
     line_unit_cents,
     normalize_discount,
     order_total_cents,
 )
-from ..printer_endpoint import parse_printer_host_entry, resolve_printer_endpoint
-from ..printer_routing import resolve_endpoint_by_appliance, resolve_printer_target
 from ..print_worker import (
     build_customer_pickup_text,
     build_escpos_receipt_text,
@@ -39,6 +38,8 @@ from ..print_worker import (
     resolve_station_uuid_for_line,
     station_name_from_event,
 )
+from ..printer_endpoint import parse_printer_host_entry, resolve_printer_endpoint
+from ..printer_routing import resolve_endpoint_by_appliance, resolve_printer_target
 from ..vouchers import is_voucher_sale_line, order_lines_total_cents
 
 PAYMENT_MODES_CASH = {"pay_now", "instant"}
@@ -73,7 +74,6 @@ def _validate_payment_types(ev: dict, payments: list) -> None:
     if not payments:
         return
     allowed = _event_payment_types(ev)
-    pm = (ev.get("payment_mode") or "pay_later").lower()
     for p in payments:
         if not isinstance(p, dict):
             continue
@@ -492,7 +492,7 @@ def _set_pickup_ready_if_complete(db: Session, order: LocalOrder) -> None:
     if pending:
         return
     order.pickup_status = "ready"
-    order.ready_at = datetime.now(timezone.utc)
+    order.ready_at = datetime.now(UTC)
     payload = json.loads(order.payload_json)
     payload["pickup_status"] = "ready"
     payload["ready_at"] = order.ready_at.isoformat()
@@ -509,7 +509,7 @@ def _create_payment_receipt(
 ) -> PaymentReceipt:
     receipt_payload = dict(payload)
     receipt_payload.setdefault("payment_status", "paid")
-    receipt_payload.setdefault("paid_at", datetime.now(timezone.utc).isoformat())
+    receipt_payload.setdefault("paid_at", datetime.now(UTC).isoformat())
     _add_waiter_name(ev, receipt_payload)
     from ..shift_integration import record_shift_for_payment_receipt
 
@@ -566,7 +566,7 @@ def _create_payment_receipt_print_job(
         payment_id=row.id,
         articles=_article_map(ev),
         currency=ev.get("currency", "EUR"),
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         event=ev,
         feed_lines=feed_lines,
     )
@@ -614,7 +614,7 @@ def _receipt_payload_from_orders(
         "lines": lines,
         "payments": payments,
         "payment_status": "paid",
-        "paid_at": paid_at or datetime.now(timezone.utc).isoformat(),
+        "paid_at": paid_at or datetime.now(UTC).isoformat(),
     }
     if table_number:
         out["settlement_table"] = table_number

@@ -1,13 +1,9 @@
 """Sales report v3 resolves waiter and station UUIDs to display names."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from app.database import Base
-from tests.helpers import ensure_country
 from app.edge_reporting import build_sales_report_v3
 from app.models import (
     Article,
@@ -19,6 +15,10 @@ from app.models import (
     HireCompany,
     Organisation,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from tests.helpers import ensure_country
 
 WAITER_UUID = "11111111-1111-1111-1111-111111111111"
 STATION_UUID = "22222222-2222-2222-2222-222222222222"
@@ -32,7 +32,7 @@ def db_session():
     Session = sessionmaker(bind=engine)
     db = Session()
     ch_country_id = ensure_country(db, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db.add(HireCompany(id=1, name="HC"))
     db.add(Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="EUR"))
     db.add(ArticleCategory(id=1, name="Food", organisation_id=1))
@@ -147,7 +147,7 @@ def test_sales_report_v3_counts_orders_by_session_and_order_number_without_submi
     Session = sessionmaker(bind=engine)
     db = Session()
     ch_country_id = ensure_country(db, "CH", country_id=1)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db.add(HireCompany(id=1, name="HC"))
     db.add(Organisation(id=1, name="Org", country_id=ch_country_id, hire_company_id=1, currency="CHF"))
     ev = Event(

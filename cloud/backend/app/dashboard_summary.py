@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ from .twint_qr import has_twint_qr
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def events_by_status_counts(events: list[Event]) -> dict[str, int]:
@@ -37,9 +37,9 @@ def running_event_ids(events: list[Event], now: datetime | None = None) -> list[
         start = event.start
         end = event.end
         if start is not None and start.tzinfo is None:
-            start = start.replace(tzinfo=timezone.utc)
+            start = start.replace(tzinfo=UTC)
         if end is not None and end.tzinfo is None:
-            end = end.replace(tzinfo=timezone.utc)
+            end = end.replace(tzinfo=UTC)
         if start <= now <= end:
             ids.append(event.id)
     return ids
@@ -54,7 +54,7 @@ def build_attention_items(events: list[Event], now: datetime | None = None) -> l
         status = normalize_status(event.status)
         start = event.start
         if start is not None and start.tzinfo is None:
-            start = start.replace(tzinfo=timezone.utc)
+            start = start.replace(tzinfo=UTC)
 
         if status == "config" and start is not None and start <= horizon:
             items.append(

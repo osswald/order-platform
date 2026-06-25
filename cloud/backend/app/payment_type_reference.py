@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy.orm import Session
-
 from fastapi import status
+from sqlalchemy.orm import Session
 
 from .i18n.errors import api_error
 from .models import AccountingAccountPaymentTypeDefault, Event, PaymentType

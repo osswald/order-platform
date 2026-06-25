@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -234,7 +234,7 @@ def close_session(
     session.counted_cash_cents = counted
     session.variance_cents = counted - expected
     session.status = "CLOSED"
-    session.ended_at = datetime.now(timezone.utc)
+    session.ended_at = datetime.now(UTC)
     db.flush()
     return session
 

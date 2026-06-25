@@ -1,12 +1,11 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import PaymentType, User
 from ..payment_type_reference import assert_payment_type_deletable, get_payment_type_or_404
@@ -68,7 +67,7 @@ def _payment_type_response(payment_type: PaymentType) -> dict:
     }
 
 
-@router.get("/", response_model=List[PaymentTypeRead])
+@router.get("/", response_model=list[PaymentTypeRead])
 def list_payment_types(
     active_only: bool = False,
     db: Session = Depends(get_db),

@@ -1,14 +1,13 @@
 """Organisation-level preset comments for order positions."""
 
-from typing import List
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import Organisation, OrganisationPositionComment, User
 from ..tenancy import (
@@ -69,7 +68,7 @@ def _ensure_org_access(
 
 @router.get(
     "/organisations/{organisation_id}/position-comments",
-    response_model=List[PositionCommentPresetRead],
+    response_model=list[PositionCommentPresetRead],
 )
 def list_position_comments(
     organisation_id: int,

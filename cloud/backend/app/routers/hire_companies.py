@@ -1,13 +1,12 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, status
-from ..i18n.errors import api_error
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth_deps import get_current_user
-from ..deps import get_db
 from ..db_errors import commit_or_raise
+from ..deps import get_db
+from ..i18n.errors import api_error
 from ..models import Appliance, HireCompany, Organisation, User
 from ..reference_countries import country_response, get_country_or_404
 from ..tenancy import ensure_can_access_hire_company, get_current_platform_admin
@@ -69,7 +68,7 @@ def _load_hire_company(db: Session, hire_company_id: int) -> HireCompany | None:
     )
 
 
-@router.get("/", response_model=List[HireCompanyRead])
+@router.get("/", response_model=list[HireCompanyRead])
 def list_hire_companies(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_platform_admin),
