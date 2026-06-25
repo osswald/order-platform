@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
@@ -554,8 +554,13 @@ watch(
   () => props.eventId,
   () => {
     resetLayoutCellsState()
+    void loadLayoutCells()
   },
 )
+
+onMounted(() => {
+  void loadLayoutCells()
+})
 
 defineExpose({
   loadLayoutCells,

@@ -570,6 +570,9 @@ async function loadConfiguration() {
   }
   if (!loadError.value) {
     void loadCatalog()
+    if (activeConfigTab.value === 'layouts') {
+      void layoutsSectionRef.value?.loadLayoutCells()
+    }
   }
 }
 
@@ -774,9 +777,6 @@ watch(
   { immediate: true },
 )
 
-watch(activeConfigTab, (tab) => {
-  if (tab === 'layouts') layoutsSectionRef.value?.loadLayoutCells()
-})
 
 defineExpose({
   loadConfiguration,

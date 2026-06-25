@@ -60,6 +60,27 @@ export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
 }
 
 /**
+ * Preserve server-side cells for existing layouts while keeping local-only rows
+ * (e.g. a layout the user just added before cells finished loading).
+ */
+export function mergeLayoutsWithServerCells(
+  layoutsLocal: EventLayoutLocal[],
+  serverLayouts: EventConfigurationRead['app_layouts'],
+): LayoutLike[] {
+  const serverByUuid = new Map(
+    (serverLayouts || []).map((layout) => [String(layout.uuid), layout]),
+  )
+  return layoutsLocal.map((local) => {
+    const server = local.uuid ? serverByUuid.get(String(local.uuid)) : undefined
+    if (!server) return local
+    return {
+      ...local,
+      cells: server.cells || [],
+    }
+  })
+}
+
+/**
  * When the config page loads with ?fields=summary, layout cells are empty locally.
  * Autosave must not PUT those empty cells or the backend replaces all cells with [].
  */
@@ -69,8 +90,11 @@ export function resolveAppLayoutsForPut(options: {
   serverLayouts?: EventConfigurationRead['app_layouts'] | null
 }): AppLayoutIn[] {
   const { layoutsLocal, layoutCellsLoaded, serverLayouts } = options
-  if (!layoutCellsLoaded && serverLayouts?.length) {
-    return mapLayoutsToPutPayload(serverLayouts)
+  if (layoutCellsLoaded) {
+    return mapLayoutsToPutPayload(layoutsLocal)
   }
-  return mapLayoutsToPutPayload(layoutsLocal)
+  if (!serverLayouts?.length) {
+    return mapLayoutsToPutPayload(layoutsLocal)
+  }
+  return mapLayoutsToPutPayload(mergeLayoutsWithServerCells(layoutsLocal, serverLayouts))
 }
