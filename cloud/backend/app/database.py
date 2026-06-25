@@ -317,6 +317,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS tax_code_id INTEGER",
     )
     _patch_edge_order_item_fiscal_columns()
+    _patch_edge_order_items_ordered_at()
     _patch_edge_operational_snapshot_tables()
     _patch_event_waiter_register_subsidiary_columns()
     _ensure_accounting_tax_code_defaults_table()
@@ -386,6 +387,68 @@ def _patch_edge_operational_snapshot_tables() -> None:
                     "ON edge_cash_sessions (organisation_id, event_id, subject_key)"
                 )
             )
+
+
+def _patch_edge_order_items_ordered_at() -> None:
+    _add_column_if_missing(
+        "edge_order_items",
+        "ordered_at",
+        "ALTER TABLE edge_order_items ADD COLUMN ordered_at DATETIME",
+        "ALTER TABLE edge_order_items ADD COLUMN IF NOT EXISTS ordered_at TIMESTAMPTZ",
+    )
+    try:
+        inspector = inspect(engine)
+        if "edge_order_items" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_order_items_event_id_ordered_at "
+                "ON edge_order_items (event_id, ordered_at)"
+            )
+        )
+        if is_sqlite:
+            conn.execute(
+                text("UPDATE edge_order_items SET ordered_at = created_at WHERE ordered_at IS NULL")
+            )
+        else:
+            conn.execute(
+                text(
+                    "UPDATE edge_order_items SET ordered_at = created_at WHERE ordered_at IS NULL"
+                )
+            )
+    _backfill_edge_order_items_ordered_at_from_payload()
+
+
+def _backfill_edge_order_items_ordered_at_from_payload() -> None:
+    from .event_stats import parse_ordered_at
+    from .models import EdgeOrderItem
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(EdgeOrderItem)
+            .filter(EdgeOrderItem.ordered_at == EdgeOrderItem.created_at)
+            .all()
+        )
+        changed = False
+        for row in rows:
+            line = row.payload if isinstance(row.payload, dict) else {}
+            parsed = parse_ordered_at(line.get("ordered_at"))
+            if parsed is None:
+                continue
+            row.ordered_at = parsed
+            changed = True
+        if changed:
+            db.commit()
+    except Exception:
+        db.rollback()
+        log.exception("Failed to backfill edge_order_items.ordered_at from payload")
+    finally:
+        db.close()
 
 
 def _patch_edge_order_item_fiscal_columns() -> None:

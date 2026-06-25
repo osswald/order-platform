@@ -711,6 +711,7 @@ class EdgeOrderItem(Base):
     payment_batch_uuid = Column(String(36), nullable=True, index=True)
     method = Column(String(32), nullable=True, index=True)
     payload = Column(JSON, nullable=False, default=dict)
+    ordered_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

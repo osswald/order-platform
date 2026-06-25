@@ -10,10 +10,9 @@ from sqlalchemy.orm import Session, joinedload
 from .currency import event_currency
 from .event_sales import (
     _build_name_maps,
+    _resolve_attribution_bucket,
     _resolve_station_name,
-    _resolve_waiter_name,
     _station_bucket_key,
-    _waiter_bucket_key,
     payment_type_label,
 )
 from .models import EdgeOrderItem, EdgePaymentBatch, EdgeSubmittedOrder, Event, EventStation
@@ -49,6 +48,7 @@ def _load_event_for_reporting(db: Session, *, organisation_id: int, event_id: in
             joinedload(Event.organisation),
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.event_waiters),
+            joinedload(Event.cash_registers),
         )
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
@@ -99,17 +99,7 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
         if is_paid:
             total_paid += lc
 
-        waiter_uuid = str(r.waiter_uuid).strip() if r.waiter_uuid else None
-        w_key = _waiter_bucket_key(waiter_uuid, None) or "__none__"
-        if w_key == "__none__":
-            waiter_name = "Unbekannt"
-        else:
-            waiter_name = _resolve_waiter_name(
-                {"waiter_uuid": waiter_uuid},
-                waiter_uuid,
-                None,
-                maps,
-            )
+        w_key, waiter_name = _resolve_attribution_bucket(r, event=event, maps=maps)
         if w_key not in by_waiter:
             by_waiter[w_key] = {
                 "name": waiter_name,

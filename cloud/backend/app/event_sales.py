@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .additions import load_links_for_bases
 from .currency import event_currency
-from .models import Article, EdgeSubmittedOrder, Event, EventVoucherRedemption, Waiter
+from .models import Article, EdgeOrderItem, EdgeSubmittedOrder, Event, EventVoucherRedemption, Waiter
 
 PAYMENT_TYPE_LABELS = {
     "cash": "Bargeld",
@@ -421,6 +421,45 @@ def _resolve_waiter_name(
         if name:
             return name
     return _fallback_waiter_label(waiter_uuid, waiter_id_int)
+
+
+def _cash_register_bucket_key(cash_register_uuid: str | None) -> str | None:
+    if cash_register_uuid:
+        return f"cr:{cash_register_uuid}"
+    return None
+
+
+def _resolve_cash_register_name(event: Event | None, cash_register_uuid: str | None) -> str:
+    reg_uuid = str(cash_register_uuid).strip() if cash_register_uuid else None
+    if not reg_uuid:
+        return "Unbekannt"
+    if event:
+        for reg in event.cash_registers or []:
+            if str(reg.uuid) == reg_uuid:
+                return reg.name
+    return f"Kasse {reg_uuid[:8]}…"
+
+
+def _resolve_attribution_bucket(
+    row: EdgeOrderItem,
+    *,
+    event: Event | None,
+    maps: dict[str, Any],
+) -> tuple[str, str]:
+    waiter_uuid = str(row.waiter_uuid).strip() if row.waiter_uuid else None
+    if waiter_uuid:
+        w_key = _waiter_bucket_key(waiter_uuid, None)
+        if w_key:
+            name = _resolve_waiter_name({"waiter_uuid": waiter_uuid}, waiter_uuid, None, maps)
+            return w_key, name
+
+    if str(row.order_source or "").lower() == "cash_register" and row.cash_register_uuid:
+        reg_uuid = str(row.cash_register_uuid).strip()
+        key = _cash_register_bucket_key(reg_uuid)
+        if key:
+            return key, _resolve_cash_register_name(event, reg_uuid)
+
+    return "__none__", "Unbekannt"
 
 
 def _waiter_bucket_key(waiter_uuid: str | None, waiter_id_int: int | None) -> str | None:

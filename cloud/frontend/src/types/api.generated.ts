@@ -747,6 +747,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{event_id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Event Stats */
+        get: operations["read_event_stats_events__event_id__stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{event_id}/payment-batches-v3": {
         parameters: {
             query?: never;
@@ -2583,6 +2600,31 @@ export interface components {
             /** By Payment Type */
             by_payment_type: components["schemas"]["V3SalesByPaymentTypeRead"][];
         };
+        /** EventStatsRead */
+        EventStatsRead: {
+            /** Currency */
+            currency: string;
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+            /** Bucket Count */
+            bucket_count: number;
+            totals: components["schemas"]["StatsTotalsRead"];
+            revenue_timeline: components["schemas"]["StatsRevenueTimelineRead"];
+            /** Top Articles */
+            top_articles: components["schemas"]["StatsTopArticleRead"][];
+            /** By Order Source */
+            by_order_source: components["schemas"]["StatsByOrderSourceRead"][];
+            article_timeline: components["schemas"]["StatsArticleTimelineRead"];
+            category_timeline: components["schemas"]["StatsCategoryTimelineRead"];
+            /** By Payment Type */
+            by_payment_type: components["schemas"]["StatsByPaymentTypeRead"][];
+            /** By Waiter */
+            by_waiter: components["schemas"]["StatsByWaiterRead"][];
+            /** By Station */
+            by_station: components["schemas"]["StatsByStationRead"][];
+        };
         /** EventStockItemIn */
         EventStockItemIn: {
             /** Article Id */
@@ -3423,6 +3465,148 @@ export interface components {
             pickup_prefix?: string | null;
             /** Printer Appliance Id */
             printer_appliance_id: number | null;
+        };
+        /** StatsArticleSeriesRead */
+        StatsArticleSeriesRead: {
+            /** Article Id */
+            article_id: number;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number[];
+        };
+        /** StatsArticleTimelineRead */
+        StatsArticleTimelineRead: {
+            /** Bucket Count */
+            bucket_count: number;
+            /** Buckets */
+            buckets: components["schemas"]["StatsTimelineBucketRead"][];
+            /** Series */
+            series: components["schemas"]["StatsArticleSeriesRead"][];
+            /** Totals */
+            totals: components["schemas"]["StatsArticleTotalRead"][];
+        };
+        /** StatsArticleTotalRead */
+        StatsArticleTotalRead: {
+            /** Article Id */
+            article_id: number;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+        };
+        /** StatsByOrderSourceRead */
+        StatsByOrderSourceRead: {
+            /** Source */
+            source: string;
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
+            /** Line Cents */
+            line_cents: number;
+        };
+        /** StatsByPaymentTypeRead */
+        StatsByPaymentTypeRead: {
+            /** Type */
+            type: string;
+            /** Label */
+            label: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** StatsByStationRead */
+        StatsByStationRead: {
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+            /** Line Cents */
+            line_cents: number;
+        };
+        /** StatsByWaiterRead */
+        StatsByWaiterRead: {
+            /** Name */
+            name: string;
+            /** Order Count */
+            order_count: number;
+            /** Qty */
+            qty: number;
+            /** Line Cents */
+            line_cents: number;
+            /** Paid Cents */
+            paid_cents: number;
+        };
+        /** StatsCategorySeriesRead */
+        StatsCategorySeriesRead: {
+            /** Category Id */
+            category_id: number;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number[];
+        };
+        /** StatsCategoryTimelineRead */
+        StatsCategoryTimelineRead: {
+            /** Bucket Count */
+            bucket_count: number;
+            /** Buckets */
+            buckets: components["schemas"]["StatsTimelineBucketRead"][];
+            /** Series */
+            series: components["schemas"]["StatsCategorySeriesRead"][];
+            /** Totals */
+            totals: components["schemas"]["StatsCategoryTotalRead"][];
+        };
+        /** StatsCategoryTotalRead */
+        StatsCategoryTotalRead: {
+            /** Category Id */
+            category_id: number;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+        };
+        /** StatsRevenueTimelineRead */
+        StatsRevenueTimelineRead: {
+            /** Bucket Count */
+            bucket_count: number;
+            /** Buckets */
+            buckets: components["schemas"]["StatsTimelineBucketRead"][];
+            /** Line Cents */
+            line_cents: number[];
+        };
+        /** StatsTimelineBucketRead */
+        StatsTimelineBucketRead: {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Label */
+            label: string;
+        };
+        /** StatsTopArticleRead */
+        StatsTopArticleRead: {
+            /** Article Id */
+            article_id: number;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+            /** Line Cents */
+            line_cents: number;
+        };
+        /** StatsTotalsRead */
+        StatsTotalsRead: {
+            /** Distinct Orders Count */
+            distinct_orders_count: number;
+            /** Line Cents */
+            line_cents: number;
+            /** Paid Cents */
+            paid_cents: number;
+            /** Open Cents */
+            open_cents: number;
+            /** Average Order Value Cents */
+            average_order_value_cents: number;
         };
         /** StripeAccountLinkRequest */
         StripeAccountLinkRequest: {
@@ -6251,6 +6435,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventSalesReportV3Read"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_event_stats_events__event_id__stats_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                article_ids?: number[] | null;
+                category_ids?: number[] | null;
+                bucket_count?: number;
+            };
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventStatsRead"];
                 };
             };
             /** @description Validation Error */

@@ -75,3 +75,17 @@ export function formatDateRange(
     return '—'
   }
 }
+
+export function formatTimeRange(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+  locale = 'de',
+): string {
+  if (!startIso || !endIso) return '—'
+  const start = new Date(startIso)
+  const end = new Date(endIso)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—'
+  const intl = intlLocale(locale)
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
+  return `${start.toLocaleTimeString(intl, timeOptions)} – ${end.toLocaleTimeString(intl, timeOptions)}`
+}

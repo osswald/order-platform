@@ -474,6 +474,118 @@ class EventSalesReportV3Read(BaseModel):
     by_station: list[V3SalesByStationRead]
     by_article: list[V3SalesByArticleRead]
     by_payment_type: list[V3SalesByPaymentTypeRead]
+
+
+class StatsTotalsRead(BaseModel):
+    distinct_orders_count: int
+    line_cents: int
+    paid_cents: int
+    open_cents: int
+    average_order_value_cents: int
+
+
+class StatsTimelineBucketRead(BaseModel):
+    start: str
+    end: str
+    label: str
+
+
+class StatsArticleSeriesRead(BaseModel):
+    article_id: int
+    name: str
+    qty: list[int]
+
+
+class StatsArticleTotalRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+
+
+class StatsArticleTimelineRead(BaseModel):
+    bucket_count: int
+    buckets: list[StatsTimelineBucketRead]
+    series: list[StatsArticleSeriesRead]
+    totals: list[StatsArticleTotalRead]
+
+
+class StatsCategorySeriesRead(BaseModel):
+    category_id: int
+    name: str
+    qty: list[int]
+
+
+class StatsCategoryTotalRead(BaseModel):
+    category_id: int
+    name: str
+    qty: int
+
+
+class StatsCategoryTimelineRead(BaseModel):
+    bucket_count: int
+    buckets: list[StatsTimelineBucketRead]
+    series: list[StatsCategorySeriesRead]
+    totals: list[StatsCategoryTotalRead]
+
+
+class StatsRevenueTimelineRead(BaseModel):
+    bucket_count: int
+    buckets: list[StatsTimelineBucketRead]
+    line_cents: list[int]
+
+
+class StatsTopArticleRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+    line_cents: int
+
+
+class StatsByOrderSourceRead(BaseModel):
+    source: str
+    label: str
+    qty: int
+    line_cents: int
+
+
+class StatsByWaiterRead(BaseModel):
+    name: str
+    order_count: int
+    qty: int
+    line_cents: int
+    paid_cents: int
+
+
+class StatsByStationRead(BaseModel):
+    name: str
+    qty: int
+    line_cents: int
+
+
+class StatsByPaymentTypeRead(BaseModel):
+    type: str
+    label: str
+    amount_cents: int
+
+
+class EventStatsRead(BaseModel):
+    currency: str
+    from_: str = Field(alias="from")
+    to: str
+    bucket_count: int
+    totals: StatsTotalsRead
+    revenue_timeline: StatsRevenueTimelineRead
+    top_articles: list[StatsTopArticleRead]
+    by_order_source: list[StatsByOrderSourceRead]
+    article_timeline: StatsArticleTimelineRead
+    category_timeline: StatsCategoryTimelineRead
+    by_payment_type: list[StatsByPaymentTypeRead]
+    by_waiter: list[StatsByWaiterRead]
+    by_station: list[StatsByStationRead]
+
+    model_config = {"populate_by_name": True}
+
+
 class PaymentBatchV3Read(BaseModel):
     uuid: str
     name: str

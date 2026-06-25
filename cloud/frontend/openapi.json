@@ -4465,6 +4465,139 @@
         }
       }
     },
+    "/events/{event_id}/stats": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Read Event Stats",
+        "operationId": "read_event_stats_events__event_id__stats_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "To"
+            }
+          },
+          {
+            "name": "article_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Article Ids"
+            }
+          },
+          {
+            "name": "category_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Ids"
+            }
+          },
+          {
+            "name": "bucket_count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 48,
+              "minimum": 12,
+              "default": 24,
+              "title": "Bucket Count"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventStatsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/payment-batches-v3": {
       "get": {
         "tags": [
@@ -11544,6 +11677,90 @@
         ],
         "title": "EventSalesReportV3Read"
       },
+      "EventStatsRead": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/StatsTotalsRead"
+          },
+          "revenue_timeline": {
+            "$ref": "#/components/schemas/StatsRevenueTimelineRead"
+          },
+          "top_articles": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTopArticleRead"
+            },
+            "type": "array",
+            "title": "Top Articles"
+          },
+          "by_order_source": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByOrderSourceRead"
+            },
+            "type": "array",
+            "title": "By Order Source"
+          },
+          "article_timeline": {
+            "$ref": "#/components/schemas/StatsArticleTimelineRead"
+          },
+          "category_timeline": {
+            "$ref": "#/components/schemas/StatsCategoryTimelineRead"
+          },
+          "by_payment_type": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByPaymentTypeRead"
+            },
+            "type": "array",
+            "title": "By Payment Type"
+          },
+          "by_waiter": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByWaiterRead"
+            },
+            "type": "array",
+            "title": "By Waiter"
+          },
+          "by_station": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByStationRead"
+            },
+            "type": "array",
+            "title": "By Station"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "from",
+          "to",
+          "bucket_count",
+          "totals",
+          "revenue_timeline",
+          "top_articles",
+          "by_order_source",
+          "article_timeline",
+          "category_timeline",
+          "by_payment_type",
+          "by_waiter",
+          "by_station"
+        ],
+        "title": "EventStatsRead"
+      },
       "EventStockItemIn": {
         "properties": {
           "article_id": {
@@ -14105,6 +14322,398 @@
           "printer_appliance_id"
         ],
         "title": "StationPrinterRuleRead"
+      },
+      "StatsArticleSeriesRead": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsArticleSeriesRead"
+      },
+      "StatsArticleTimelineRead": {
+        "properties": {
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTimelineBucketRead"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/StatsArticleSeriesRead"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/StatsArticleTotalRead"
+            },
+            "type": "array",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_count",
+          "buckets",
+          "series",
+          "totals"
+        ],
+        "title": "StatsArticleTimelineRead"
+      },
+      "StatsArticleTotalRead": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsArticleTotalRead"
+      },
+      "StatsByOrderSourceRead": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "label",
+          "qty",
+          "line_cents"
+        ],
+        "title": "StatsByOrderSourceRead"
+      },
+      "StatsByPaymentTypeRead": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "label",
+          "amount_cents"
+        ],
+        "title": "StatsByPaymentTypeRead"
+      },
+      "StatsByStationRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "qty",
+          "line_cents"
+        ],
+        "title": "StatsByStationRead"
+      },
+      "StatsByWaiterRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "order_count",
+          "qty",
+          "line_cents",
+          "paid_cents"
+        ],
+        "title": "StatsByWaiterRead"
+      },
+      "StatsCategorySeriesRead": {
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsCategorySeriesRead"
+      },
+      "StatsCategoryTimelineRead": {
+        "properties": {
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTimelineBucketRead"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/StatsCategorySeriesRead"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/StatsCategoryTotalRead"
+            },
+            "type": "array",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_count",
+          "buckets",
+          "series",
+          "totals"
+        ],
+        "title": "StatsCategoryTimelineRead"
+      },
+      "StatsCategoryTotalRead": {
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsCategoryTotalRead"
+      },
+      "StatsRevenueTimelineRead": {
+        "properties": {
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTimelineBucketRead"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "line_cents": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_count",
+          "buckets",
+          "line_cents"
+        ],
+        "title": "StatsRevenueTimelineRead"
+      },
+      "StatsTimelineBucketRead": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "label"
+        ],
+        "title": "StatsTimelineBucketRead"
+      },
+      "StatsTopArticleRead": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "name",
+          "qty",
+          "line_cents"
+        ],
+        "title": "StatsTopArticleRead"
+      },
+      "StatsTotalsRead": {
+        "properties": {
+          "distinct_orders_count": {
+            "type": "integer",
+            "title": "Distinct Orders Count"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "open_cents": {
+            "type": "integer",
+            "title": "Open Cents"
+          },
+          "average_order_value_cents": {
+            "type": "integer",
+            "title": "Average Order Value Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distinct_orders_count",
+          "line_cents",
+          "paid_cents",
+          "open_cents",
+          "average_order_value_cents"
+        ],
+        "title": "StatsTotalsRead"
       },
       "StripeAccountLinkRequest": {
         "properties": {

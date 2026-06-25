@@ -1,6 +1,6 @@
 """HTTP smoke tests for event report routes that delegate to service modules."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.database import SessionLocal
@@ -80,6 +80,24 @@ def test_event_sales_report_v3_route():
     assert r.status_code == 200, r.text
     body = r.json()
     assert "totals" in body
+
+
+def test_event_stats_route():
+    email, event_id = _report_fixture()
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    now = datetime.now(UTC)
+    start = (now - timedelta(hours=1)).isoformat()
+    end = (now + timedelta(hours=1)).isoformat()
+    r = client.get(
+        f"/events/{event_id}/stats",
+        params={"from": start, "to": end},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "totals" in body
+    assert "article_timeline" in body
+    assert body["article_timeline"]["bucket_count"] == 24
 
 
 def test_event_payment_batches_v3_route():

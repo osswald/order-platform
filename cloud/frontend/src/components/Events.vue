@@ -136,10 +136,26 @@
         </template>
         <template #item.start="{ item }">{{ formatDateTime(item.start) }}</template>
         <template #item.end="{ item }">{{ formatDateTime(item.end) }}</template>
-        <template v-if="isAdmin" #item.actions="{ item }">
-          <v-btn color="error" variant="outlined" size="small" @click.stop="deleteEvent(item.id)">
-            {{ t('common.delete') }}
-          </v-btn>
+        <template #item.actions="{ item }">
+          <div class="row-actions">
+            <v-btn
+              v-if="item.status !== 'config'"
+              icon="mdi-chart-bar"
+              variant="text"
+              size="small"
+              :title="t('events.stats.openStats')"
+              @click.stop="openStats(item.id)"
+            />
+            <v-btn
+              v-if="isAdmin"
+              color="error"
+              variant="outlined"
+              size="small"
+              @click.stop="deleteEvent(item.id)"
+            >
+              {{ t('common.delete') }}
+            </v-btn>
+          </div>
         </template>
         <template #no-data>{{ t('events.noResults') }}</template>
       </VqDataTable>
@@ -149,7 +165,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
@@ -171,6 +187,7 @@ import type { EventStammdatenForm } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const props = withDefaults(
   defineProps<{
@@ -304,10 +321,8 @@ const tableHeaders = computed((): DataTableHeader[] => {
     { title: t('events.table.organisation'), key: 'organisation_name' },
     { title: t('events.table.start'), key: 'start', sortable: false },
     { title: t('events.table.end'), key: 'end', sortable: false },
+    { title: t('events.table.actions'), key: 'actions', sortable: false, align: 'end', width: '8rem' },
   ]
-  if (props.isAdmin) {
-    headers.push({ title: t('events.table.actions'), key: 'actions', sortable: false, align: 'end' })
-  }
   return headers
 })
 
@@ -519,6 +534,10 @@ async function editEvent(event: EventRead) {
   goToDetail(event.id)
 }
 
+function openStats(id: number) {
+  router.push({ name: 'events-stats', params: { id: String(id) } })
+}
+
 function defaultCopyName(name: string | null | undefined): string {
   const base = (name || '').trim() || t('events.copy.defaultName')
   const suffix = t('events.copy.defaultSuffix')
@@ -664,6 +683,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0.45rem;
   margin-bottom: 1rem;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
 }
 
 .actions {

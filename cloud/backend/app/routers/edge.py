@@ -21,6 +21,7 @@ from ..edge_operational_mirror import (
 )
 from ..edge_operational_snapshot import build_operational_snapshot_for_events
 from ..event_cash_sessions import upsert_edge_cash_session
+from ..event_stats import resolve_sync_ordered_at
 from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status
 from ..i18n.errors import api_error
 from ..models import (
@@ -681,6 +682,8 @@ def submit_operational_chunk(
             )
         )
     line_sum = 0
+    sync_now = datetime.now(UTC)
+    header_ordered_at = resolve_sync_ordered_at(order_payload=payload, line_payload={}) or sync_now
     for line in lines:
         if not isinstance(line, dict):
             continue
@@ -695,6 +698,7 @@ def submit_operational_chunk(
         tax_rate = float(line["tax_rate_percent"]) if line.get("tax_rate_percent") is not None else None
         net_cents = int(line["net_cents"]) if line.get("net_cents") is not None else None
         vat_cents = int(line["vat_cents"]) if line.get("vat_cents") is not None else None
+        line_ordered_at = resolve_sync_ordered_at(order_payload=payload, line_payload=line) or header_ordered_at
         db.add(
             EdgeOrderItem(
                 organisation_id=ctx.organisation_id,
@@ -720,6 +724,7 @@ def submit_operational_chunk(
                 payment_batch_uuid=batch_uuid or None,
                 method=method,
                 payload=line,
+                ordered_at=line_ordered_at,
             )
         )
     if batch_uuid:

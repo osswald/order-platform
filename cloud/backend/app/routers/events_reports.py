@@ -1,5 +1,7 @@
 """Event reporting routes."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,7 @@ from ..event_bookkeeping import build_event_bookkeeping_report
 from ..event_cash_sessions import build_cash_sessions_page
 from ..event_collective_bills import build_event_collective_bills_list
 from ..event_sales import build_event_sales_report
+from ..event_stats import build_event_stats
 from ..event_transactions import build_event_transactions_page
 from ..i18n.errors import api_error
 from ..models import User
@@ -19,6 +22,7 @@ from ..schemas.events import (
     EventPaymentBatchesV3Read,
     EventSalesReportRead,
     EventSalesReportV3Read,
+    EventStatsRead,
     EventTransactionsPageRead,
 )
 from ..tenancy import TenantContext, get_current_tenant
@@ -106,6 +110,43 @@ def read_event_sales_report_v3(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_sales_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
+
+
+@router.get("/{event_id}/stats", response_model=EventStatsRead)
+def read_event_stats(
+    event_id: int,
+    from_dt: datetime = Query(..., alias="from"),
+    to_dt: datetime = Query(..., alias="to"),
+    article_ids: list[int] | None = Query(None),
+    category_ids: list[int] | None = Query(None),
+    bucket_count: int = Query(24, ge=12, le=48),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    try:
+        return build_event_stats(
+            db,
+            organisation_id=event.organisation_id,
+            event_id=event.id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+            article_ids=article_ids,
+            category_ids=category_ids,
+            bucket_count=bucket_count,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code == "invalid_time_range":
+            raise api_error("invalid_time_range", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        if code == "invalid_article_ids":
+            raise api_error("invalid_article_ids", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        if code == "invalid_category_ids":
+            raise api_error("invalid_category_ids", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        if code == "invalid_bucket_count":
+            raise api_error("invalid_bucket_count", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        raise
 
 
 @router.get("/{event_id}/payment-batches-v3", response_model=EventPaymentBatchesV3Read)
