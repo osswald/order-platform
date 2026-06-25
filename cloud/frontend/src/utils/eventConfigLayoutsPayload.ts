@@ -1,4 +1,4 @@
-import type { AppLayoutIn, EventConfigurationRead } from '@/types/api'
+import type { AppLayoutIn } from '@/types/api'
 import type { EventLayoutLocal } from '@/types/ui'
 
 type LayoutCellLike = {
@@ -19,6 +19,9 @@ type LayoutLike = {
   grid_height: number
   cells?: LayoutCellLike[] | null
 }
+
+/** Server layouts only need uuid + cells for merge-before-save. */
+export type ServerLayoutCellsSource = Pick<LayoutLike, 'uuid' | 'cells'>
 
 export function cellVoucherUuidsForPayload(cell: LayoutCellLike): string[] {
   const list = cell.voucher_definition_uuids
@@ -65,7 +68,7 @@ export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
  */
 export function mergeLayoutsWithServerCells(
   layoutsLocal: EventLayoutLocal[],
-  serverLayouts: EventConfigurationRead['app_layouts'],
+  serverLayouts: readonly ServerLayoutCellsSource[],
 ): LayoutLike[] {
   const serverByUuid = new Map(
     (serverLayouts || []).map((layout) => [String(layout.uuid), layout]),
@@ -87,7 +90,7 @@ export function mergeLayoutsWithServerCells(
 export function resolveAppLayoutsForPut(options: {
   layoutsLocal: EventLayoutLocal[]
   layoutCellsLoaded: boolean
-  serverLayouts?: EventConfigurationRead['app_layouts'] | null
+  serverLayouts?: readonly ServerLayoutCellsSource[] | null
 }): AppLayoutIn[] {
   const { layoutsLocal, layoutCellsLoaded, serverLayouts } = options
   if (layoutCellsLoaded) {
