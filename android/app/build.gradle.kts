@@ -102,7 +102,8 @@ tasks.register<Exec>("buildPiFrontend") {
     dependsOn("installPiFrontend")
     workingDir = frontendDir
     inputs.dir(frontendDir.resolve("src"))
-    inputs.file(frontendDir.resolve("vite.config.js"))
+    inputs.file(frontendDir.resolve("vite.config.ts"))
+    inputs.file(frontendDir.resolve("tsconfig.json"))
     inputs.file(frontendLockFile)
     outputs.dir(frontendDistDir)
     val apiBase = (project.findProperty("VITE_API_BASE") as String?)?.trim().orEmpty()

@@ -38,7 +38,7 @@ services:
       # Browser on your machine calls the Pi API via the published host port (not a Docker service name).
       VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8001}
     ports:
-      # Must match Vite dev port inside the image (see pi/frontend/vite.config.js).
+      # Must match Vite dev port inside the image (see pi/frontend/vite.config.ts).
       - "5174:5174"
     networks:
       - app-net
