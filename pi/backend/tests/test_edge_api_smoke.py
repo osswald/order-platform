@@ -2,6 +2,14 @@
 
 from unittest.mock import AsyncMock
 
+from app.deps import get_db
+from app.main import app
+
+
+def test_api_context_overrides_deps_get_db(client):
+    """Regression: test DB override must target app.deps.get_db after edge_api router split."""
+    assert get_db in app.dependency_overrides
+
 
 def test_health_endpoint(client):
     r = client.get("/health")
