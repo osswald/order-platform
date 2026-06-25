@@ -61,6 +61,31 @@ describe('useDirtyAutosave', () => {
     expect(api.status.value).toBe('saved')
   })
 
+  it('does not autosave when only an unwatched snapshot field changes', async () => {
+    const watched = ref({ stations: [] as string[] })
+    const unwatched = ref({ kitchenMonitors: [] as number[] })
+    const saveFn = vi.fn(async () => true)
+    const api = mountAutosave({
+      getSnapshot: () => ({ ...watched.value, ...unwatched.value }),
+      saveFn,
+      watchSource: watched,
+      enabled: true,
+      debounceMs: 200,
+    })
+
+    api.markSaved()
+    unwatched.value = { kitchenMonitors: [42] }
+    await nextTick()
+
+    expect(api.isDirty.value).toBe(true)
+    expect(api.status.value).toBe('dirty')
+
+    vi.advanceTimersByTime(200)
+    await flushPromises()
+
+    expect(saveFn).not.toHaveBeenCalled()
+  })
+
   it('blocks save when validate returns an error message', async () => {
     const state = ref({ ok: true })
     const saveFn = vi.fn(async () => true)

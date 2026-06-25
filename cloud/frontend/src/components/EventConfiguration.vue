@@ -719,6 +719,7 @@ async function persistConfiguration() {
 
 const configWatchSource = computed(() => ({
   stations: stationsLocal.value,
+  kitchenMonitors: kitchenMonitorsLocal.value,
   waiters: waitersLocal.value,
   layouts: layoutsLocal.value,
   vouchers: vouchersLocal.value,
