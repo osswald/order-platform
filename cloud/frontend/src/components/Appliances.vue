@@ -292,6 +292,17 @@
             density="compact"
           />
         </div>
+        <div class="filter-field">
+          <v-select
+            v-model="statusFilter"
+            :items="statusFilterOptions"
+            item-title="label"
+            item-value="value"
+            :label="t('appliances.table.status')"
+            hide-details
+            density="compact"
+          />
+        </div>
       </div>
       <VqDataTable
         v-model:page="currentPage"
@@ -356,6 +367,7 @@ import {
   toIsoDate,
 } from '../utils/applianceLending'
 import { APPLIANCE_TYPES, applianceTypeLabel } from '../utils/applianceType'
+import { filterApplianceList } from '../utils/applianceListFilters'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
@@ -388,6 +400,7 @@ const messageType = ref('')
 const searchQuery = ref('')
 const typeFilter = ref('')
 const ipFilter = ref('')
+const statusFilter = ref('')
 
 const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('appliances.table.id'), key: 'id' },
@@ -469,6 +482,11 @@ const ipFilterOptions = computed(() => [
   { value: 'with-ip', label: t('appliances.table.withIp') },
   { value: 'without-ip', label: t('appliances.table.withoutIp') },
 ])
+const statusFilterOptions = computed(() => [
+  { value: '', label: t('appliances.table.allStatus') },
+  { value: 'available', label: t('appliances.lending.statusAvailable') },
+  { value: 'lent', label: t('appliances.lending.statusLent') },
+])
 
 const organisationOptions = computed(() =>
   organisations.value.map((o) => ({ label: o.name, value: o.id })),
@@ -500,6 +518,7 @@ function matchesSearch(device: ApplianceRead, term: string) {
     device.model,
     device.comment,
     device.current_lending?.organisation_name,
+    lendingStatusLabel(device.lending_status),
   ]
     .filter((value) => value !== null && value !== undefined)
     .some((value) => String(value).toLowerCase().includes(term))
@@ -530,20 +549,21 @@ function formatDeDateTime(iso: string | null | undefined) {
   return d.toLocaleString('de-DE')
 }
 
-const filteredAppliances = computed(() => {
-  const term = searchQuery.value.trim().toLowerCase()
-  return appliances.value.filter((device) => {
-    if (!matchesSearch(device, term)) return false
-    if (typeFilter.value && device.type !== typeFilter.value) return false
-    const hasIp = !!device.ip_address
-    if (ipFilter.value === 'with-ip' && !hasIp) return false
-    if (ipFilter.value === 'without-ip' && hasIp) return false
-    return true
-  })
-})
+const filteredAppliances = computed(() =>
+  filterApplianceList(
+    appliances.value,
+    {
+      search: searchQuery.value,
+      type: typeFilter.value,
+      ip: ipFilter.value as '' | 'with-ip' | 'without-ip',
+      lendingStatus: statusFilter.value as '' | 'available' | 'lent',
+    },
+    matchesSearch,
+  ),
+)
 
 const { currentPage, pageSize } = useClientPagination(filteredAppliances, {
-  resetOn: [searchQuery, typeFilter, ipFilter],
+  resetOn: [searchQuery, typeFilter, ipFilter, statusFilter],
 })
 
 async function fetchAppliances() {
@@ -997,7 +1017,7 @@ textarea {
 
 .list-controls {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px 180px;
+  grid-template-columns: minmax(240px, 1fr) 180px 180px 180px;
   gap: 1rem;
   margin-bottom: 1rem;
 }

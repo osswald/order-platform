@@ -958,6 +958,7 @@
       "entryCount": "{filtered} von {total} Einträgen",
       "searchPlaceholder": "Name, Typ, IP, Modell oder Bemerkung suchen...",
       "allTypes": "Alle Typen",
+      "allStatus": "Alle Status",
       "allIp": "Alle",
       "withIp": "Mit IP",
       "withoutIp": "Ohne IP",
