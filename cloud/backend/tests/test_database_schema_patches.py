@@ -194,6 +194,7 @@ def test_run_migrations_reraises_in_production(monkeypatch):
     import alembic.command as alembic_command
 
     monkeypatch.setattr("app.database.is_production", lambda: True)
+    monkeypatch.setattr("app.database._database_pre_alembic", lambda: False)
 
     def _boom(*_args, **_kwargs):
         raise RuntimeError("alembic upgrade failed")
@@ -204,3 +205,29 @@ def test_run_migrations_reraises_in_production(monkeypatch):
 
     with pytest.raises(RuntimeError, match="alembic upgrade failed"):
         run_migrations()
+
+
+def test_run_migrations_bootstraps_pre_alembic_database():
+    from app.database import Base, _alembic_current_revision, run_migrations
+    from app.models import EdgeOrderSession
+
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine, tables=[User.__table__])
+    EdgeOrderSession.__table__.create(bind=engine, checkfirst=True)
+
+    run_migrations()
+
+    assert _alembic_current_revision() == "005_stripe_webhook_events"
+    inspector = inspect(engine)
+    assert "stripe_webhook_events" in inspector.get_table_names()
+
+
+def test_run_migrations_applies_fresh_database_from_scratch():
+    from app.database import Base, _alembic_current_revision, run_migrations
+
+    Base.metadata.drop_all(bind=engine)
+
+    run_migrations()
+
+    assert _alembic_current_revision() == "005_stripe_webhook_events"
+    assert "users" in inspect(engine).get_table_names()

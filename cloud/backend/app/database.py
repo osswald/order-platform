@@ -1104,19 +1104,80 @@ def _ensure_accounting_accounts_tables() -> None:
     AccountingAccountPaymentTypeDefault.__table__.create(bind=engine, checkfirst=True)
 
 
+def _alembic_current_revision() -> str | None:
+    try:
+        inspector = inspect(engine)
+        if "alembic_version" not in inspector.get_table_names():
+            return None
+        with engine.begin() as conn:
+            row = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
+        if not row or not row[0]:
+            return None
+        return str(row[0])
+    except Exception:
+        return None
+
+
+def _database_pre_alembic() -> bool:
+    try:
+        inspector = inspect(engine)
+        if "users" not in inspector.get_table_names():
+            return False
+        return _alembic_current_revision() is None
+    except Exception:
+        return False
+
+
+def _is_already_applied_schema_error(exc: BaseException) -> bool:
+    from sqlalchemy.exc import ProgrammingError
+
+    if isinstance(exc, ProgrammingError):
+        message = str(getattr(exc, "orig", exc)).lower()
+        return any(
+            token in message
+            for token in (
+                "already exists",
+                "duplicate table",
+                "duplicate column",
+            )
+        )
+    return False
+
+
+def _alembic_config():
+    from alembic.config import Config
+
+    root = Path(__file__).resolve().parent.parent
+    cfg = Config(str(root / "alembic.ini"))
+    cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+    return cfg
+
+
 def run_migrations() -> None:
     """Apply cloud Alembic migrations; fallback to metadata create_all only in development."""
+    from alembic import command
+
+    cfg = _alembic_config()
     try:
-        from alembic import command
-        from alembic.config import Config
-        root = Path(__file__).resolve().parent.parent
-        cfg = Config(str(root / "alembic.ini"))
-        cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+        if _database_pre_alembic():
+            log.warning("Pre-Alembic database detected; stamping head before upgrade")
+            command.stamp(cfg, "head")
         command.upgrade(cfg, "head")
-    except Exception:
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+    except Exception as exc:
+        if _is_already_applied_schema_error(exc):
+            try:
+                if "users" in inspect(engine).get_table_names():
+                    log.warning("Alembic upgrade conflict with existing schema; stamping head")
+                    command.stamp(cfg, "head")
+                    Base.metadata.create_all(bind=engine, checkfirst=True)
+                    return
+            except Exception:
+                pass
         log.exception("Alembic upgrade failed")
         if is_production():
             raise
         log.warning("Falling back to Base.metadata.create_all()")
         Base.metadata.create_all(bind=engine)
+
 
