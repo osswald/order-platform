@@ -27,3 +27,10 @@ def test_cloud_backend_dockerfile_copy_paths_exist_in_repo_root_context() -> Non
 
     for source in copy_sources:
         assert (REPO_ROOT / source).exists(), f"missing COPY source: {source}"
+
+
+def test_cloud_backend_prod_dockerfile_includes_alembic_assets() -> None:
+    dockerfile = BACKEND_DOCKERFILE.read_text()
+
+    assert "cloud/backend/alembic.ini" in dockerfile
+    assert "cloud/backend/alembic" in dockerfile

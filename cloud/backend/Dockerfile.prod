@@ -5,5 +5,7 @@ RUN pip install --no-cache-dir -e /packages/vendiqo_shared
 COPY cloud/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY cloud/backend/app ./app
+COPY cloud/backend/alembic.ini .
+COPY cloud/backend/alembic ./alembic
 EXPOSE 8000
 CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:8000"]
