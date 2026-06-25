@@ -16,8 +16,8 @@ services:
     restart: unless-stopped
     env_file: .env
     build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+      context: ..
+      dockerfile: cloud/backend/Dockerfile.prod
     depends_on:
       - cloud-db
     environment:
