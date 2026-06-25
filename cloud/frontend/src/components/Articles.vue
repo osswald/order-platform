@@ -79,6 +79,9 @@
       <div class="stock-field">
         <v-checkbox v-model="form.isAddition" :label="$t('articles.isAddition')" hide-details density="compact" />
       </div>
+      <div class="stock-field">
+        <v-checkbox v-model="form.isActive" :label="$t('articles.isActive')" hide-details density="compact" />
+      </div>
       <small v-if="form.isAddition" class="muted block-hint">
         {{ $t('articles.additionPriceHint') }}
       </small>
@@ -216,6 +219,17 @@
         </div>
         <div class="filter-field">
           <v-select
+            v-model="statusFilter"
+            :items="statusFilterOptions"
+            item-title="label"
+            item-value="value"
+            :label="$t('articles.filterStatus')"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <div class="filter-field">
+          <v-select
             v-model="categoryFilter"
             :items="categoryFilterOptions"
             item-title="label"
@@ -243,6 +257,9 @@
             {{ item.is_addition ? $t('articles.typeAddition') : $t('articles.typeArticle') }}
           </v-chip>
         </template>
+        <template #item.is_active="{ item }">
+          {{ item.is_active ? $t('common.yes') : $t('common.no') }}
+        </template>
         <template #item.price="{ item }">{{ formatPrice(item.price, item.organisation_currency) }}</template>
         <template #item.actions="{ item }">
           <v-btn color="error" variant="outlined" size="small" @click.stop="deleteArticle(item.id)">
@@ -265,6 +282,7 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation, organisationAccountsEnabled } from '../utils/orgScope'
+import { filterArticleList } from '../utils/articleListFilters'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
@@ -310,7 +328,8 @@ const message = ref('')
 const messageType = ref('')
 const searchQuery = ref('')
 const categoryFilter = ref<number | null>(null)
-const typeFilter = ref('articles')
+const typeFilter = ref<'articles' | 'additions' | 'all'>('articles')
+const statusFilter = ref<'active' | 'inactive' | 'all'>('active')
 const additionsLocal = ref<AdditionLinkLocal[]>([])
 const additionPickIds = ref<number[]>([])
 const additionsMessage = ref('')
@@ -319,6 +338,7 @@ const additionsMessageType = ref('')
 const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
   { title: t('common.type'), key: 'is_addition', sortable: false },
+  { title: t('articles.isActive'), key: 'is_active', sortable: false },
   { title: t('common.name'), key: 'name' },
   { title: t('articles.importNumberShort'), key: 'import_article_number' },
   { title: t('common.label'), key: 'label' },
@@ -345,13 +365,20 @@ const emptyForm = (): ArticleForm => ({
   taxCodeId: null,
   price: 0,
   isAddition: false,
+  isActive: true,
   articleCategoryId: null,
 })
 
 const typeFilterOptions = computed(() => [
-  { value: 'articles', label: t('articles.typeArticle') },
-  { value: 'additions', label: t('articles.typeAddition') },
-  { value: 'all', label: t('articles.typeAll') },
+  { value: 'articles' as const, label: t('articles.typeArticle') },
+  { value: 'additions' as const, label: t('articles.typeAddition') },
+  { value: 'all' as const, label: t('articles.typeAll') },
+])
+
+const statusFilterOptions = computed(() => [
+  { value: 'active' as const, label: t('articles.statusActive') },
+  { value: 'inactive' as const, label: t('articles.statusInactive') },
+  { value: 'all' as const, label: t('articles.statusAll') },
 ])
 
 const form = ref<ArticleForm>(emptyForm())
@@ -414,6 +441,7 @@ const additionOptions = computed(() =>
     .filter(
       (a) =>
         a.is_addition &&
+        a.is_active &&
         matchesActiveOrganisation(props.activeOrganisationId, a.organisation_id) &&
         !additionsLocal.value.some((l) => l.addition_article_id === a.id),
     )
@@ -504,23 +532,26 @@ function matchesSearch(article: ArticleRead, term: string) {
     .some((value) => String(value).toLowerCase().includes(term))
 }
 
-const filteredArticles = computed(() => {
-  const term = searchQuery.value.trim().toLowerCase()
-  return articles.value.filter((article) => {
-    if (!matchesSearch(article, term)) return false
-    if (!matchesActiveOrganisation(props.activeOrganisationId, article.organisation_id)) return false
-    if (categoryFilter.value != null && Number(article.article_category_id) !== Number(categoryFilter.value)) return false
-    if (typeFilter.value === 'articles' && article.is_addition) return false
-    if (typeFilter.value === 'additions' && !article.is_addition) return false
-    return true
-  })
-})
+const filteredArticles = computed(() =>
+  filterArticleList(
+    articles.value.filter((article) =>
+      matchesActiveOrganisation(props.activeOrganisationId, article.organisation_id),
+    ),
+    {
+      search: searchQuery.value,
+      categoryId: categoryFilter.value,
+      type: typeFilter.value,
+      status: statusFilter.value,
+    },
+    matchesSearch,
+  ),
+)
 
 const { currentPage, pageSize } = useClientPagination(filteredArticles, {
-  resetOn: [searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId],
+  resetOn: [searchQuery, categoryFilter, typeFilter, statusFilter, () => props.activeOrganisationId],
 })
 
-watch([searchQuery, categoryFilter, typeFilter, () => props.activeOrganisationId], () => {
+watch([searchQuery, categoryFilter, typeFilter, statusFilter, () => props.activeOrganisationId], () => {
   if (
     categoryFilter.value != null &&
     !visibleCategories.value.some((category) => Number(category.id) === Number(categoryFilter.value))
@@ -571,6 +602,7 @@ async function applyArticleToForm(article: ArticleRead) {
     taxCodeId: article.tax_code_id ?? null,
     price: article.price ?? 0,
     isAddition: !!article.is_addition,
+    isActive: article.is_active !== false,
     articleCategoryId: article.article_category_id || null,
   }
   message.value = ''
@@ -703,6 +735,7 @@ async function saveArticle() {
     accounting_account_id: showAccountingAccountField.value ? form.value.accountingAccountId : null,
     tax_code_id: showTaxCodeField.value ? form.value.taxCodeId : null,
     is_addition: form.value.isAddition,
+    is_active: form.value.isActive,
     article_category_id: form.value.articleCategoryId,
   }
 
@@ -829,7 +862,7 @@ small,
 
 .list-controls {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 260px;
+  grid-template-columns: minmax(240px, 1fr) repeat(3, 200px);
   gap: 1rem;
   margin-bottom: 1rem;
 }

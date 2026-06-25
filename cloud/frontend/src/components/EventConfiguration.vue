@@ -337,7 +337,12 @@ let waiterKey = 0
 const articleOptions = computed((): ArticleSelectOption[] => {
   const oid = props.organisationId
   return articlesRaw.value
-    .filter((a) => !a.is_addition && (oid == null || Number(a.organisation_id) === Number(oid)))
+    .filter(
+      (a) =>
+        !a.is_addition &&
+        a.is_active &&
+        (oid == null || Number(a.organisation_id) === Number(oid)),
+    )
     .map((a) => ({
       name: a.name,
       value: a.id,

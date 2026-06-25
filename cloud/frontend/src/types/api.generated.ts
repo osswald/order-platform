@@ -1680,6 +1680,11 @@ export interface components {
              * @default false
              */
             is_addition: boolean;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
             /** Article Category Id */
             article_category_id: number;
         };
@@ -1695,6 +1700,8 @@ export interface components {
             organisation_id: number | null;
             /** Is Addition */
             is_addition: boolean;
+            /** Is Active */
+            is_active: boolean;
         };
         /** ArticleRead */
         ArticleRead: {
@@ -1719,6 +1726,11 @@ export interface components {
              * @default false
              */
             is_addition: boolean;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
             /** Article Category Id */
             article_category_id: number;
             /** Id */
@@ -1758,6 +1770,8 @@ export interface components {
             tax_code_id?: number | null;
             /** Is Addition */
             is_addition?: boolean | null;
+            /** Is Active */
+            is_active?: boolean | null;
             /** Article Category Id */
             article_category_id?: number | null;
         };
@@ -7267,6 +7281,7 @@ export interface operations {
             query?: {
                 is_addition?: boolean | null;
                 organisation_id?: number | null;
+                active_only?: boolean;
                 minimal?: boolean;
             };
             header?: {

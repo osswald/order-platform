@@ -6680,6 +6680,16 @@
             }
           },
           {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Active Only"
+            }
+          },
+          {
             "name": "minimal",
             "in": "query",
             "required": false,
@@ -9112,6 +9122,11 @@
             "title": "Is Addition",
             "default": false
           },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
           "article_category_id": {
             "type": "integer",
             "title": "Article Category Id"
@@ -9154,6 +9169,10 @@
           "is_addition": {
             "type": "boolean",
             "title": "Is Addition"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
           }
         },
         "type": "object",
@@ -9162,7 +9181,8 @@
           "name",
           "label",
           "organisation_id",
-          "is_addition"
+          "is_addition",
+          "is_active"
         ],
         "title": "ArticleMinimalRead"
       },
@@ -9242,6 +9262,11 @@
             "type": "boolean",
             "title": "Is Addition",
             "default": false
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
           },
           "article_category_id": {
             "type": "integer",
@@ -9418,6 +9443,17 @@
               }
             ],
             "title": "Is Addition"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
           },
           "article_category_id": {
             "anyOf": [

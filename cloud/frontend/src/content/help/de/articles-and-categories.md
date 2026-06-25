@@ -11,7 +11,7 @@ Für jeden Artikel definieren Sie mindestens:
 - **Name** und optional eine Beschreibung
 - **Kategorie**
 - **Preis** in der Organisationswährung
-- **Verfügbarkeit** (aktiv/inaktiv)
+- **Verfügbarkeit** — über die Checkbox **Aktiv**; inaktive Artikel bleiben im Katalog, können aber nicht neu Stationen oder Zusatz-Verknüpfungen zugewiesen werden. Bereits verknüpfte Zusätze und Stationszuweisungen funktionieren auf dem Pi weiter.
 
 Zusatzoptionen (Additions, Varianten) erweitern Artikel um konfigurierbare Extras.
 
@@ -26,5 +26,5 @@ Lagerstände werden pro Event und Station unter **Lagerartikel** gepflegt, nicht
 ## Tipps
 
 - Einheitliche Kategorien erleichtern die Layout-Pflege
-- Inaktive Artikel bleiben im Stamm, erscheinen aber nicht in neuen Layouts
+- Inaktive Artikel bleiben im Stamm, erscheinen aber nicht in neuen Stations- oder Layout-Zuweisungen
 - Preisänderungen wirken auf künftige Verkäufe; laufende Events können eigene Bundles haben
