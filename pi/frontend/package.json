@@ -14,22 +14,22 @@
   },
   "dependencies": {
     "openapi-fetch": "^0.14.0",
-    "vue": "^3.4.0",
-    "vue-router": "^4.6.4"
+    "vue": "^3.5.38",
+    "vue-router": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
     "@typescript-eslint/eslint-plugin": "^8.32.0",
     "@typescript-eslint/parser": "^8.32.0",
     "@vitejs/plugin-vue": "^6.0.7",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^4.1.9",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.7.0",
-    "happy-dom": "^20.10.1",
+    "happy-dom": "^20.10.6",
     "openapi-typescript": "^7.8.0",
     "typescript": "^5.8.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.8",
+    "vitest": "^4.1.9",
     "vue-tsc": "^2.2.10"
   }
 }

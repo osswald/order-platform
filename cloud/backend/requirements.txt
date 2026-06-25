@@ -10,4 +10,4 @@ email-validator
 python-multipart
 slowapi
 stripe
-httpx>=0.27,<1
+httpx>=0.28.1,<1
