@@ -16,7 +16,9 @@
     "filterStatus": "Status",
     "statusActive": "Active",
     "statusInactive": "Inactive",
-    "statusAll": "All"
+    "statusAll": "All",
+    "preselectedColumn": "Preselected on Pi",
+    "preselectedHint": "Preselected additions are checked by default when ordering on Pi (can be deselected)."
   },
   "eventStatus": {
     "config": "Configuration",

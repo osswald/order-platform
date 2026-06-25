@@ -1060,6 +1060,8 @@ export interface components {
             sellable?: boolean | null;
             /** Monitor Stock */
             monitor_stock?: boolean | null;
+            /** Preselected */
+            preselected?: boolean | null;
         } & {
             [key: string]: unknown;
         };

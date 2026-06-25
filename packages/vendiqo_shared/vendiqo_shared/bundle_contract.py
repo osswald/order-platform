@@ -27,6 +27,7 @@ class EdgeBundleArticleAddition(BaseModel):
     in_stock: int | None = None
     sellable: bool | None = None
     monitor_stock: bool | None = None
+    preselected: bool | None = None
 
 
 class EdgeBundleArticle(BaseModel):

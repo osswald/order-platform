@@ -132,6 +132,7 @@
       <div v-if="editMode && activeId && !form.isAddition" class="additions-section">
         <h3>{{ $t('articles.additionsTitle') }}</h3>
         <p class="muted small">{{ $t('articles.additionsHint') }}</p>
+        <p class="muted small">{{ $t('articles.preselectedHint') }}</p>
         <div class="form-field">
           <v-select
             v-model="additionPickIds"
@@ -155,6 +156,14 @@
           hide-default-footer
         >
           <template #item.price="{ item }">{{ formatPrice(item.price, formCurrency) }}</template>
+          <template #item.preselected="{ item }">
+            <v-checkbox
+              :model-value="item.preselected"
+              hide-details
+              density="compact"
+              @update:model-value="(v: boolean | null) => (item.preselected = v === true)"
+            />
+          </template>
           <template #item.actions="{ item }">
             <v-btn
               icon="mdi-delete"
@@ -352,6 +361,7 @@ const tableHeaders = computed((): DataTableHeader[] => [
 const additionsHeaders = computed((): DataTableHeader[] => [
   { title: t('articles.additionColumn'), key: 'name' },
   { title: t('common.price'), key: 'price', sortable: false },
+  { title: t('articles.preselectedColumn'), key: 'preselected', sortable: false, align: 'center', width: 120 },
   { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
 ])
 
@@ -660,6 +670,7 @@ async function loadAdditions(articleId: number | string) {
       name: String(row.name ?? ''),
       price: Number(row.price ?? 0),
       sort_order: Number(row.sort_order ?? idx),
+      preselected: Boolean(row.preselected),
     }))
   } catch {
     additionsLocal.value = []
@@ -681,6 +692,7 @@ function onAdditionPick(ids: number | number[]) {
       name: art.name,
       price: art.price,
       sort_order: additionsLocal.value.length,
+      preselected: false,
     })
   }
   additionPickIds.value = []
@@ -701,6 +713,7 @@ async function saveAdditions() {
         items: additionsLocal.value.map((l, idx) => ({
           addition_article_id: l.addition_article_id,
           sort_order: l.sort_order ?? idx,
+          preselected: l.preselected,
         })),
       }),
     })
@@ -709,6 +722,7 @@ async function saveAdditions() {
       name: String(row.name ?? ''),
       price: Number(row.price ?? 0),
       sort_order: Number(row.sort_order ?? idx),
+      preselected: Boolean(row.preselected),
     }))
     additionsMessage.value = t('articles.additionsSaved')
     additionsMessageType.value = 'success'

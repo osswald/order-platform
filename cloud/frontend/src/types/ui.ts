@@ -378,6 +378,7 @@ export interface AdditionLinkLocal {
   name: string
   price: number
   sort_order: number
+  preselected: boolean
 }
 
 export interface ArticleCategoryForm {
