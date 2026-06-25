@@ -54,6 +54,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0",
     )
+    _add_column_if_missing(
+        "users",
+        "theme_preference",
+        "ALTER TABLE users ADD COLUMN theme_preference VARCHAR(16) NOT NULL DEFAULT 'system'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(16) NOT NULL DEFAULT 'system'",
+    )
     appliance_columns = [
         ("name", "VARCHAR", "VARCHAR"),
         ("ip_address", "VARCHAR", "VARCHAR"),

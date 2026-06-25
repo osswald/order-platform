@@ -76,6 +76,7 @@ export type TaxCodeRateRead = components['schemas']['TaxCodeRateRead']
 
 export type TokenResponse = components['schemas']['Token']
 export type AuthMeResponse = components['schemas']['MeResponse']
+export type AuthMeUpdate = components['schemas']['MeUpdate']
 
 export interface ApiError extends Error {
   status?: number

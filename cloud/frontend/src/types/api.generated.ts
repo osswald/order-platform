@@ -1093,7 +1093,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Me */
+        patch: operations["update_me_auth_me_patch"];
         trace?: never;
     };
     "/auth/refresh": {
@@ -2724,6 +2725,17 @@ export interface components {
              * @default []
              */
             hire_companies: components["schemas"]["HireCompanyBrief"][];
+            /**
+             * Theme Preference
+             * @default system
+             * @enum {string}
+             */
+            theme_preference: "light" | "dark" | "system";
+        };
+        /** MeUpdate */
+        MeUpdate: {
+            /** Theme Preference */
+            theme_preference?: ("light" | "dark" | "system") | null;
         };
         /** MessageResponse */
         MessageResponse: {
@@ -7572,6 +7584,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    update_me_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

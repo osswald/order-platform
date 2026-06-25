@@ -25,5 +25,14 @@
     "test": "Test mode",
     "prod": "Production",
     "archive": "Archived"
+  },
+  "settings": {
+    "appearance": "Appearance",
+    "appearanceSubtitle": "Light, dark, or match your system setting.",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "themeUpdated": "Appearance saved.",
+    "themeUpdateFailed": "Could not save appearance."
   }
 }

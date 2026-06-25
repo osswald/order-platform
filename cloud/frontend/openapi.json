@@ -7203,6 +7203,50 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Me",
+        "operationId": "update_me_auth_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/auth/refresh": {
@@ -12011,6 +12055,16 @@
             "type": "array",
             "title": "Hire Companies",
             "default": []
+          },
+          "theme_preference": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark",
+              "system"
+            ],
+            "title": "Theme Preference",
+            "default": "system"
           }
         },
         "type": "object",
@@ -12020,6 +12074,28 @@
           "is_admin"
         ],
         "title": "MeResponse"
+      },
+      "MeUpdate": {
+        "properties": {
+          "theme_preference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "light",
+                  "dark",
+                  "system"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Preference"
+          }
+        },
+        "type": "object",
+        "title": "MeUpdate"
       },
       "MessageResponse": {
         "properties": {

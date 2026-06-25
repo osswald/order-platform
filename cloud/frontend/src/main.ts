@@ -11,6 +11,7 @@ import '@mdi/font/css/materialdesignicons.css'
 import App from './App.vue'
 import { router } from './router/index'
 import { i18n } from './i18n'
+import { resolveInitialTheme } from './utils/themePreference'
 
 const vuetify = createVuetify({
   components: { ...components, VDateInput },
@@ -27,7 +28,11 @@ const vuetify = createVuetify({
     },
   },
   theme: {
-    defaultTheme: 'light',
+    defaultTheme: resolveInitialTheme(),
+    themes: {
+      light: {},
+      dark: {},
+    },
   },
   defaults: {
     VBtn: { variant: 'outlined' },

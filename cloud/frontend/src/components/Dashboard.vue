@@ -113,7 +113,7 @@
                 <v-icon
                   :icon="attentionIcon(item.type)"
                   size="small"
-                  color="white"
+                  class="activity-badge-icon"
                 />
               </span>
               <div class="activity-text">
@@ -419,8 +419,16 @@ function attentionIcon(type: string) {
   background: rgb(var(--v-theme-primary));
 }
 
+.activity-badge.info .activity-badge-icon {
+  color: rgb(var(--v-theme-on-primary));
+}
+
 .activity-badge.warn {
   background: rgb(var(--v-theme-warning));
+}
+
+.activity-badge.warn .activity-badge-icon {
+  color: rgb(var(--v-theme-on-warning));
 }
 
 .activity-text {

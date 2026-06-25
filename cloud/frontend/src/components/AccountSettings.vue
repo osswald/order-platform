@@ -8,6 +8,31 @@
       </v-card-text>
     </v-card>
 
+    <v-card class="settings-card appearance-card" max-width="42rem">
+      <v-card-title>{{ $t('settings.appearance') }}</v-card-title>
+      <v-card-subtitle>{{ $t('settings.appearanceSubtitle') }}</v-card-subtitle>
+      <v-card-text>
+        <v-btn-toggle
+          v-model="themePreference"
+          mandatory
+          divided
+          color="primary"
+          @update:model-value="onThemeChange"
+        >
+          <v-btn value="light" prepend-icon="mdi-white-balance-sunny">
+            {{ $t('settings.themeLight') }}
+          </v-btn>
+          <v-btn value="dark" prepend-icon="mdi-weather-night">
+            {{ $t('settings.themeDark') }}
+          </v-btn>
+          <v-btn value="system" prepend-icon="mdi-monitor">
+            {{ $t('settings.themeSystem') }}
+          </v-btn>
+        </v-btn-toggle>
+        <p v-if="themeMessage" :class="themeMessageType">{{ themeMessage }}</p>
+      </v-card-text>
+    </v-card>
+
     <v-card class="settings-card" max-width="42rem">
       <v-card-title>{{ $t('settings.changePassword') }}</v-card-title>
       <v-card-subtitle>{{ $t('settings.changePasswordSubtitle') }}</v-card-subtitle>
@@ -73,10 +98,15 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
+import { themePreference, updateThemePreference } from '../composables/useThemePreference'
+import type { ThemePreference } from '../utils/themePreference'
 import { rules, validateForm } from '../utils/formRules.js'
 
 const { t } = useI18n()
 const { label } = useAppVersion()
+
+const themeMessage = ref('')
+const themeMessageType = ref('')
 
 const form = ref({
   currentPassword: '',
@@ -94,6 +124,19 @@ const confirmRules = computed(() => [
   rules.required,
   rules.passwordMatch(form.value.newPassword),
 ])
+
+async function onThemeChange(value: ThemePreference | null) {
+  if (!value) return
+  themeMessage.value = ''
+  try {
+    await updateThemePreference(value)
+    themeMessage.value = t('settings.themeUpdated')
+    themeMessageType.value = 'success'
+  } catch {
+    themeMessage.value = t('settings.themeUpdateFailed')
+    themeMessageType.value = 'error'
+  }
+}
 
 async function changePassword() {
   if (!(await validateForm(formRef))) return
@@ -129,6 +172,10 @@ async function changePassword() {
 }
 
 .version-card {
+  margin-bottom: 1.5rem;
+}
+
+.appearance-card {
   margin-bottom: 1.5rem;
 }
 
