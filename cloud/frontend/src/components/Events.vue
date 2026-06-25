@@ -8,6 +8,12 @@
     @open-create="openCreateForm"
   >
     <template #detail>
+      <EventStatusStepper
+        v-model="form.status"
+        class="event-detail-status-stepper"
+        :selectable-status-options="selectableStatusOptions"
+        :edit-mode="editMode"
+      />
       <div class="detail-header-row">
         <h2>{{ editMode ? t('events.editTitle') : t('events.createTitle') }}</h2>
         <HelpLink v-if="editMode && form.status === 'config'" slug="event-setup" variant="icon" />
@@ -34,7 +40,6 @@
           <v-form ref="stammdatenFormRef" @submit.prevent="saveEvent">
             <EventStammdatenFields
               v-model:form="form"
-              :selectable-status-options="selectableStatusOptions"
               :payment-mode-options="paymentModeOptions"
               :payment-type-options="paymentTypeOptions"
               :show-twint-qr-section="showTwintQrSection"
@@ -62,7 +67,6 @@
       <v-form v-else ref="stammdatenFormRef" @submit.prevent="saveEvent">
         <EventStammdatenFields
           v-model:form="form"
-          :selectable-status-options="selectableStatusOptions"
           :payment-mode-options="paymentModeOptions"
           :payment-type-options="paymentTypeOptions"
           :show-twint-qr-section="showTwintQrSection"
@@ -126,7 +130,7 @@
         @click:row="(_, { item }) => editEvent(item)"
       >
         <template #item.status="{ item }">
-          <v-chip :color="statusChipColor(item.status)" size="small" variant="tonal">
+          <v-chip :color="eventStatusColor(item.status)" size="small" variant="tonal">
             {{ statusLabel(item.status) }}
           </v-chip>
         </template>
@@ -151,6 +155,7 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
 import EventConfiguration from './EventConfiguration.vue'
 import EventStammdatenFields from './EventStammdatenFields.vue'
+import EventStatusStepper from './EventStatusStepper.vue'
 import HostedPiCard from './HostedPiCard.vue'
 import { apiFetch, apiJson } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
@@ -158,6 +163,7 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
 import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
+import { eventStatusColor } from '../utils/eventStatus'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
 import VqDataTable from './VqDataTable.vue'
 import type { EventRead, EventCreate, EventUpdate } from '@/types/api'
@@ -289,16 +295,6 @@ const selectableStatusOptions = computed(() => {
   for (const s of next) allowed.add(s)
   return statusOptions.value.filter((o) => allowed.has(o.value))
 })
-
-function statusChipColor(status: string): string | undefined {
-  const colors: Record<string, string | undefined> = {
-    config: undefined,
-    test: 'info',
-    prod: 'success',
-    archive: 'warning',
-  }
-  return colors[status]
-}
 
 const tableHeaders = computed((): DataTableHeader[] => {
   const headers: DataTableHeader[] = [
@@ -568,14 +564,6 @@ async function saveEvent() {
     return
   }
   if (!(await validateForm(stammdatenFormRef))) return
-  if (
-    editMode.value &&
-    originalStatus.value === 'test' &&
-    form.value.status === 'prod' &&
-    !confirm(t('events.confirmProd'))
-  ) {
-    return
-  }
 
   const payload: EventCreate | EventUpdate = {
     name: form.value.name,
@@ -652,6 +640,10 @@ onUnmounted(() => {
 .empty-hint {
   color: rgba(var(--v-theme-on-surface), 0.65);
   margin: 0 0 1rem;
+}
+
+.event-detail-status-stepper {
+  margin-bottom: 1.25rem;
 }
 
 .detail-header-row {

@@ -604,6 +604,12 @@
       "defaultName": "Event"
     },
     "confirmProd": "Wechsel zu Produktivbetrieb: Alle Testbestellungen auf dem Pi, Statistiken in der Cloud und Bestandsänderungen aus dem Testbetrieb werden gelöscht bzw. zurückgesetzt. Fortfahren?",
+    "statusConfirm": {
+      "title": "Status ändern",
+      "confirm": "Fortfahren",
+      "toTest": "Wechsel zu Testbetrieb: Die Veranstaltung wird auf Pis sichtbar und kann Testbestellungen annehmen. Fortfahren?",
+      "toArchive": "Wechsel zu Archiviert: Die Veranstaltung wird abgeschlossen und ist nicht mehr aktiv. Fortfahren?"
+    },
     "confirmDelete": "Veranstaltung wirklich löschen?",
     "table": {
       "id": "ID",

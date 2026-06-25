@@ -1,1 +1,20 @@
-{}
+{
+  "events": {
+    "confirmProd": "Switch to production: All test orders on the Pi, cloud statistics, and stock changes from test mode will be deleted or reset. Continue?",
+    "statusConfirm": {
+      "title": "Change status",
+      "confirm": "Continue",
+      "toTest": "Switch to test mode: The event will be visible on Pis and can accept test orders. Continue?",
+      "toArchive": "Switch to archived: The event will be completed and no longer active. Continue?"
+    }
+  },
+  "common": {
+    "cancel": "Cancel"
+  },
+  "eventStatus": {
+    "config": "Configuration",
+    "test": "Test mode",
+    "prod": "Production",
+    "archive": "Archived"
+  }
+}

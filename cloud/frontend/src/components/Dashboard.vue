@@ -87,7 +87,7 @@
             <v-chip
               v-for="status in statusOrder"
               :key="status"
-              :color="statusChipColor(status)"
+              :color="eventStatusColor(status)"
               variant="tonal"
               size="small"
             >
@@ -177,6 +177,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useDashboardSummary } from '../composables/useDashboardSummary'
 import { attentionMessage, eventsStatDetail, formatEventDateRange, statusLabel } from '../utils/dashboardMetrics'
+import { eventStatusColor } from '../utils/eventStatus'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 
@@ -218,11 +219,6 @@ const hasSalesSection = computed(() => {
 
 function routeTo(name: string) {
   return { name }
-}
-
-function statusChipColor(status: string) {
-  const map: Record<string, string | undefined> = { prod: 'success', test: 'warning', config: 'info', archive: undefined }
-  return map[status]
 }
 
 function attentionClass(type: string) {

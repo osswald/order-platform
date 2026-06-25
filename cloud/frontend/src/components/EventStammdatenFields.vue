@@ -14,21 +14,6 @@
       </div>
       <div class="field-row">
         <div class="form-field">
-          <FormLabel required>{{ t('events.stammdaten.status') }}</FormLabel>
-          <v-select
-            v-model="form.status"
-            :items="selectableStatusOptions"
-            item-title="label"
-            item-value="value"
-            :placeholder="t('events.stammdaten.statusPlaceholder')"
-            hide-details="auto"
-            required
-            :rules="[rules.required]"
-          />
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="form-field">
           <FormLabel required>{{ t('events.stammdaten.start') }}</FormLabel>
           <v-text-field
             :model-value="formatLocalDatetime(form.start)"
@@ -224,7 +209,6 @@ const form = defineModel<EventStammdatenForm>('form', { required: true })
 
 withDefaults(
   defineProps<{
-    selectableStatusOptions: SelectOption<string>[]
     paymentModeOptions: SelectOption<string>[]
     paymentTypeOptions: SelectOption<string>[]
     showTwintQrSection?: boolean
