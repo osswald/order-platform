@@ -212,8 +212,39 @@ def _events_for_edge_bundle(db: Session, ctx: ApplianceEdgeContext) -> tuple[lis
     return _active_events_for_org(db, ctx.organisation_id), False
 
 
+def _deduct_stock_for_order_lines(db: Session, event: Event, lines: list) -> None:
+    stock_lines = [
+        ln for ln in lines if isinstance(ln, dict) and str(ln.get("kind") or "") != "voucher_sale"
+    ]
+    if not stock_lines:
+        return
+    from ..models import Article
+
+    names: dict[int, str] = {}
+    for st in event.stations or []:
+        for a in st.articles or []:
+            names[a.id] = a.name
+    extra_ids: set[int] = set()
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        for add in line.get("additions") or []:
+            if isinstance(add, dict) and add.get("article_id") is not None:
+                extra_ids.add(int(add["article_id"]))
+    if extra_ids:
+        for a in db.query(Article).filter(Article.id.in_(list(extra_ids))).all():
+            names[a.id] = a.name
+    apply_stock_deductions(db, event.id, stock_lines, article_names=names)
+
+
 def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
     return article_snapshot_for_event(db, event)
+
+
+def _ingredient_snapshot(db: Session, event: Event) -> dict[str, Any]:
+    from ..ingredient_stock import ingredient_snapshot_for_event
+
+    return ingredient_snapshot_for_event(db, event)
 
 
 def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, dict]:
@@ -277,6 +308,7 @@ class EdgeEventBundle(BaseModel):
     end: datetime
     configuration: dict[str, Any]
     articles: dict[str, Any]
+    ingredients: dict[str, Any] = Field(default_factory=dict)
     printer_hosts: dict[str, dict] = Field(default_factory=dict)
 
 
@@ -293,6 +325,7 @@ class EdgeBundleRead(BaseModel):
     admin_pin_hashes: list[str] = Field(default_factory=list)
     position_comments_enabled: bool = False
     position_comment_presets: list[PositionCommentPresetBundleRead] = Field(default_factory=list)
+    ingredients_enabled: bool = False
 
 
 class EdgePairRequest(BaseModel):
@@ -420,11 +453,13 @@ def read_edge_bundle(
                 end=ev.end,
                 configuration=cfg_dict,
                 articles=_article_snapshot(db, ev),
+                ingredients=_ingredient_snapshot(db, ev),
                 printer_hosts=printer_hosts,
             )
         )
     org = db.query(Organisation).filter(Organisation.id == org_id).first()
     position_comments_enabled = bool(org and org.position_comments_enabled)
+    ingredients_enabled = bool(org and org.ingredients_enabled)
     position_comment_presets = (
         _position_comment_presets_for_org(db, org_id) if position_comments_enabled else []
     )
@@ -435,6 +470,7 @@ def read_edge_bundle(
         admin_pin_hashes=_admin_pin_hashes_for_org(db, org_id),
         position_comments_enabled=position_comments_enabled,
         position_comment_presets=position_comment_presets,
+        ingredients_enabled=ingredients_enabled,
     )
     return EdgeBundleRead(
         organisation_id=bundle_core["organisation_id"],
@@ -444,6 +480,7 @@ def read_edge_bundle(
         admin_pin_hashes=bundle_core["admin_pin_hashes"],
         position_comments_enabled=bundle_core["position_comments_enabled"],
         position_comment_presets=bundle_core["position_comment_presets"],
+        ingredients_enabled=bundle_core["ingredients_enabled"],
     )
 
 
@@ -549,25 +586,7 @@ def submit_edge_order(
         return EdgeOrderAck(server_order_id=existing.id, duplicate=True)
 
     lines = payload.get("lines") or []
-    stock_lines = [
-        ln for ln in lines if isinstance(ln, dict) and str(ln.get("kind") or "") != "voucher_sale"
-    ]
-    if stock_lines:
-        from ..models import Article
-
-        names: dict[int, str] = {}
-        for st in event.stations or []:
-            for a in st.articles or []:
-                names[a.id] = a.name
-        extra_ids: set[int] = set()
-        for line in lines:
-            for add in line.get("additions") or []:
-                if isinstance(add, dict) and add.get("article_id") is not None:
-                    extra_ids.add(int(add["article_id"]))
-        if extra_ids:
-            for a in db.query(Article).filter(Article.id.in_(list(extra_ids))).all():
-                names[a.id] = a.name
-        apply_stock_deductions(db, event.id, stock_lines, article_names=names)
+    _deduct_stock_for_order_lines(db, event, lines)
 
     from ..event_collective_bills import upsert_collective_bill_from_payload
 
@@ -659,6 +678,7 @@ def submit_operational_chunk(
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
 
     lines = payload.get("lines") or []
+    _deduct_stock_for_order_lines(db, event, lines)
     payments = payload.get("payments") or []
     submission_id = int(payload.get("submission_id") or payload.get("local_order_id") or 0) or None
     session_id = int(payload.get("session_id") or 0) or submission_id or 0

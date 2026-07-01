@@ -12,7 +12,9 @@
         <ul class="stock-list">
           <li v-for="a in group.items" :key="a.id" class="stock-row">
             <span class="name">{{ a.name }}</span>
-            <span class="qty" :class="{ warn: !a.sellable }">{{ a.in_stock ?? 0 }} Stk.</span>
+            <span class="qty" :class="{ warn: !a.sellable }">
+              {{ formatQty(a) }}
+            </span>
             <span v-if="!a.sellable" class="badge muted">nicht verkaufbar</span>
           </li>
         </ul>
@@ -30,24 +32,40 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBundle } from '@/composables/useBundle'
 import { useEventContext } from '@/composables/useEventContext'
-import { stockGroupsForEvent } from '@vendiqo/frontend-shared/stockByStation'
+import { stockGroupsWithIngredientsForEvent } from '@vendiqo/frontend-shared/ingredientStock'
+import { stockGroupsForItems } from '@vendiqo/frontend-shared/stockByStation'
 
 interface StockListItem {
   id?: number
   name?: string
   sellable?: boolean
   in_stock?: number
+  unit?: string | null
 }
 
 const router = useRouter()
 const { event } = useEventContext()
-const { refreshBundle } = useBundle()
+const { refreshBundle, bundle } = useBundle()
 const stockGroups = computed(() =>
-  stockGroupsForEvent(event.value as Parameters<typeof stockGroupsForEvent>[0]).map((group) => ({
+  stockGroupsWithIngredientsForEvent(
+    event.value as Parameters<typeof stockGroupsWithIngredientsForEvent>[0],
+    stockGroupsForItems,
+  ).map((group) => ({
     ...group,
     items: group.items as StockListItem[],
   })),
 )
+
+function formatQty(a: StockListItem): string {
+  const qty = a.in_stock ?? 0
+  const unit = a.unit?.trim()
+  if (groupIsIngredients(a)) return unit ? `${qty} ${unit}` : `${qty}`
+  return `${qty} Stk.`
+}
+
+function groupIsIngredients(a: StockListItem): boolean {
+  return Boolean(bundle.value?.ingredients_enabled && a.unit)
+}
 
 function onVisible() {
   if (document.visibilityState === 'visible') refreshBundle()

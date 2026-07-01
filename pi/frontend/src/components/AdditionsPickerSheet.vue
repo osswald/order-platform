@@ -18,8 +18,8 @@
               />
               <span class="sheet-option-row__name">{{ a.name }}</span>
               <span class="sheet-option-row__meta">{{ priceHint(a) }}</span>
-              <span v-if="a.monitor_stock && !a.sellable" class="badge">ausverkauft</span>
-              <span v-else-if="a.monitor_stock" class="stock-hint">{{ a.in_stock ?? 0 }} Stk.</span>
+              <span v-if="isSoldOut(a)" class="badge">ausverkauft</span>
+              <span v-else-if="stockHint(a)" class="stock-hint">{{ stockHint(a) }}</span>
             </label>
           </li>
         </ul>
@@ -36,6 +36,7 @@
 import { computed, ref, watch } from 'vue'
 import type { EdgeBundleArticleAddition } from '@/types/api'
 import { formatMoney } from '@/utils/money'
+import { isAdditionSellable } from '@/store'
 import SheetScrollBody from './SheetScrollBody.vue'
 
 const props = withDefaults(
@@ -80,10 +81,18 @@ function priceHint(a: EdgeBundleArticleAddition) {
   return formatMoney(cents, props.currency)
 }
 
+function isSoldOut(a: EdgeBundleArticleAddition) {
+  return !isAdditionSellable(a.article_id, null, a as EdgeBundleArticleAddition)
+}
+
+function stockHint(a: EdgeBundleArticleAddition): string | null {
+  if (isSoldOut(a)) return null
+  if (!a.monitor_stock) return null
+  return `${a.in_stock ?? 0} Stk.`
+}
+
 function canSelect(a: EdgeBundleArticleAddition) {
-  if (a.sellable === false) return false
-  if (a.monitor_stock && (a.in_stock ?? 0) < 1) return false
-  return true
+  return isAdditionSellable(a.article_id, null, a as EdgeBundleArticleAddition)
 }
 
 function toggle(a: EdgeBundleArticleAddition) {

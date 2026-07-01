@@ -42,7 +42,13 @@
       "downloadCollectiveBillPdf": "Download PDF",
       "downloadCollectiveBillPdfFailed": "Could not download PDF.",
       "collectiveBillPdfSettingsTitle": "PDF settings",
-      "collectiveBillPdfIncludeOrderDetail": "Include individual orders in PDF"
+      "collectiveBillPdfIncludeOrderDetail": "Include individual orders in PDF",
+      "ingredientsTitle": "Ingredients",
+      "ingredient": "Ingredient",
+      "monitorStock": "Track stock",
+      "initialStock": "Initial stock",
+      "currentStock": "Current stock",
+      "stock": "Stock"
     }
   },
   "common": {
@@ -50,7 +56,17 @@
   },
   "organisations": {
     "config": {
-      "sectionColorPalette": "Color palette (app layout)"
+      "sectionColorPalette": "Color palette (app layout)",
+      "sectionZutaten": "Ingredients"
+    },
+    "ingredients": {
+      "sectionTitle": "Ingredient stock",
+      "enabled": "Ingredient stock enabled",
+      "enabledHint": "Ingredients can be linked to articles and tracked in event stock.",
+      "loading": "Loading settings…",
+      "loadError": "Could not load settings.",
+      "saved": "Settings saved.",
+      "saveError": "Could not save settings."
     },
     "colorPalette": {
       "sectionTitle": "Color palette",
@@ -75,7 +91,41 @@
     "statusInactive": "Inactive",
     "statusAll": "All",
     "preselectedColumn": "Preselected on Pi",
-    "preselectedHint": "Preselected additions are checked by default when ordering on Pi (can be deselected)."
+    "preselectedHint": "Preselected additions are checked by default when ordering on Pi (can be deselected).",
+    "ingredientsTitle": "Ingredients",
+    "ingredientsHint": "Ingredients deducted from stock when this article is sold.",
+    "addIngredient": "Add ingredient",
+    "selectIngredients": "Select ingredients",
+    "ingredientColumn": "Ingredient",
+    "amountColumn": "Amount",
+    "noIngredientsLinked": "No ingredients linked yet.",
+    "saveIngredients": "Save ingredients",
+    "ingredientsSaved": "Ingredients saved."
+  },
+  "ingredients": {
+    "title": "Ingredients",
+    "subtitle": "Manage ingredients per organisation.",
+    "createLabel": "New ingredient",
+    "editTitle": "Edit ingredient",
+    "newTitle": "New ingredient",
+    "allTitle": "All ingredients",
+    "namePlaceholder": "Milk",
+    "unitPlaceholder": "l",
+    "searchPlaceholder": "Search name or organisation...",
+    "noData": "No ingredients found.",
+    "isActive": "Active",
+    "usageCount": "Usage",
+    "loadError": "Could not load ingredients.",
+    "notFound": "Ingredient not found.",
+    "created": "Ingredient created.",
+    "updated": "Ingredient updated.",
+    "saveError": "Could not save ingredient.",
+    "deleteConfirm": "Delete this ingredient?",
+    "deleted": "Ingredient deleted.",
+    "deleteError": "Ingredient can only be deleted when not linked to articles."
+  },
+  "nav": {
+    "ingredients": "Ingredients"
   },
   "eventStatus": {
     "config": "Configuration",

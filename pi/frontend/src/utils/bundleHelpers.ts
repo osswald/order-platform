@@ -15,12 +15,121 @@ export function getDefaultLayout(event: EdgeBundleEvent | null | undefined) {
 export function isArticleSellable(article: EdgeBundleArticle | null | undefined): boolean {
   if (!article) return false
   if (article.is_addition) return false
+  if (hasIngredients(article)) {
+    if (article.sellable === false) return false
+    return true
+  }
   if (article.sellable === false) return false
   return true
 }
 
 export function hasAdditions(article: EdgeBundleArticle | null | undefined): boolean {
   return Array.isArray(article?.additions) && article.additions.length > 0
+}
+
+type ArticleIngredient = { ingredient_id?: number; amount?: number; name?: string }
+type IngredientStock = { monitor_stock?: boolean; in_stock?: number; name?: string }
+
+export function hasIngredients(article: EdgeBundleArticle | null | undefined): boolean {
+  const list = (article as { ingredients?: ArticleIngredient[] } | null | undefined)?.ingredients
+  return Array.isArray(list) && list.length > 0
+}
+
+export function cartIngredientUsage(
+  lines: Array<{
+    article_id: number
+    qty: number
+    additions?: Array<{ article_id: number; qty?: number }>
+  }>,
+  articles: Record<string, EdgeBundleArticle> | null | undefined,
+): Record<number, number> {
+  const totals: Record<number, number> = {}
+  for (const line of lines) {
+    const art = articles?.[String(line.article_id)] ?? articles?.[line.article_id as unknown as string]
+    if (art && hasIngredients(art)) {
+      for (const item of (art as { ingredients?: ArticleIngredient[] }).ingredients || []) {
+        const iid = Number(item.ingredient_id)
+        if (!iid) continue
+        const amount = Number(item.amount ?? 1)
+        totals[iid] = (totals[iid] || 0) + line.qty * amount
+      }
+    }
+    for (const add of line.additions || []) {
+      const addArt =
+        articles?.[String(add.article_id)] ?? articles?.[add.article_id as unknown as string]
+      if (!addArt || !hasIngredients(addArt)) continue
+      const addQty = Math.max(1, Number(add.qty) || 1)
+      for (const item of (addArt as { ingredients?: ArticleIngredient[] }).ingredients || []) {
+        const iid = Number(item.ingredient_id)
+        if (!iid) continue
+        const amount = Number(item.amount ?? 1)
+        totals[iid] = (totals[iid] || 0) + line.qty * addQty * amount
+      }
+    }
+  }
+  return totals
+}
+
+export function maxOrderableFromIngredients(
+  article: EdgeBundleArticle | null | undefined,
+  ingredients: Record<string, IngredientStock> | null | undefined,
+  cartUsage: Record<number, number>,
+): { max: number | null; limitingName: string | null } {
+  const recipe = (article as { ingredients?: ArticleIngredient[] } | null | undefined)?.ingredients || []
+  let maxPortions: number | null = null
+  let limitingName: string | null = null
+  for (const item of recipe) {
+    const iid = Number(item.ingredient_id)
+    if (!iid) continue
+    const ing = ingredients?.[String(iid)] ?? ingredients?.[iid as unknown as string]
+    if (!ing?.monitor_stock) continue
+    const amount = Number(item.amount ?? 1)
+    if (amount <= 0) continue
+    const available = (ing.in_stock ?? 0) - (cartUsage[iid] || 0)
+    if (available <= 0) {
+      return { max: 0, limitingName: ing.name || item.name || `Zutat #${iid}` }
+    }
+    const portions = Math.floor(available / amount)
+    const name = ing.name || item.name || `Zutat #${iid}`
+    if (maxPortions === null || portions < maxPortions) {
+      maxPortions = portions
+      limitingName = name
+    }
+  }
+  return { max: maxPortions, limitingName }
+}
+
+export function maxOrderableForArticle(
+  article: EdgeBundleArticle | null | undefined,
+  event: EdgeBundleEvent | null | undefined,
+  cartLines: Array<{
+    article_id: number
+    qty: number
+    lineId?: string
+    additions?: Array<{ article_id: number; qty?: number }>
+  }>,
+  excludeLineId: string | null = null,
+): number | null {
+  if (!article) return null
+  if (hasIngredients(article)) {
+    const usage = cartIngredientUsage(
+      cartLines.filter((l) => !excludeLineId || l.lineId !== excludeLineId),
+      event?.articles ?? null,
+    )
+    const { max } = maxOrderableFromIngredients(
+      article,
+      (event as { ingredients?: Record<string, IngredientStock> } | null | undefined)?.ingredients ?? null,
+      usage,
+    )
+    return max
+  }
+  if (!article.monitor_stock) return null
+  const stock = article.in_stock ?? 0
+  const inCart = cartLines
+    .filter((l) => !excludeLineId || l.lineId !== excludeLineId)
+    .filter((l) => Number(l.article_id) === Number(article.id))
+    .reduce((sum, l) => sum + l.qty, 0)
+  return Math.max(0, stock - inCart)
 }
 
 /** Normalize additions like Pi edge API _normalize_additions. */

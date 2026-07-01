@@ -11,6 +11,11 @@ from ..currency import organisation_currency
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
+from ..ingredients import (
+    replace_ingredient_links,
+    serialize_ingredient_links_for_admin,
+    validate_base_article_for_ingredients,
+)
 from ..models import Article, ArticleCategory, Organisation, User
 from ..tax_code_validation import validate_article_tax_code
 from ..tenancy import TenantContext, get_current_tenant
@@ -84,6 +89,20 @@ class ArticleAdditionsUpdateIn(BaseModel):
 
 
 class ArticleAdditionsRead(BaseModel):
+    items: list[dict]
+
+
+class ArticleIngredientLinkIn(BaseModel):
+    ingredient_id: int
+    amount: float = Field(1, gt=0)
+    sort_order: int | None = None
+
+
+class ArticleIngredientsUpdateIn(BaseModel):
+    items: list[ArticleIngredientLinkIn] = Field(default_factory=list)
+
+
+class ArticleIngredientsRead(BaseModel):
     items: list[dict]
 
 
@@ -243,6 +262,55 @@ def put_article_additions(
         db.rollback()
         raise
     return ArticleAdditionsRead(items=serialize_links_for_admin(db, base))
+
+
+@router.get("/{article_id}/ingredients", response_model=ArticleIngredientsRead)
+def read_article_ingredients(
+    article_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
+    if not article:
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
+    base = validate_base_article_for_ingredients(db, article_id)
+    return ArticleIngredientsRead(items=serialize_ingredient_links_for_admin(db, base))
+
+
+@router.put("/{article_id}/ingredients", response_model=ArticleIngredientsRead)
+def put_article_ingredients(
+    article_id: int,
+    body: ArticleIngredientsUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
+    if not article:
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
+    base = validate_base_article_for_ingredients(db, article_id)
+    try:
+        replace_ingredient_links(
+            db,
+            base,
+            [
+                {
+                    "ingredient_id": i.ingredient_id,
+                    "amount": i.amount,
+                    "sort_order": i.sort_order,
+                }
+                for i in body.items
+            ],
+        )
+        commit_or_raise(db)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    return ArticleIngredientsRead(items=serialize_ingredient_links_for_admin(db, base))
 
 
 @router.get("/{article_id}", response_model=ArticleRead)

@@ -1203,6 +1203,47 @@
         }
       }
     },
+    "/v1/stock/validate-order": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Validate Order Stock",
+        "operationId": "validate_order_stock_v1_stock_validate_order_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockValidateOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockValidateOrderResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/kitchen/printers": {
       "get": {
         "tags": [
@@ -2850,6 +2891,13 @@
             "type": "array",
             "title": "Additions"
           },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/EdgeBundleArticleIngredient"
+            },
+            "type": "array",
+            "title": "Ingredients"
+          },
           "label": {
             "anyOf": [
               {
@@ -2995,6 +3043,64 @@
         ],
         "title": "EdgeBundleArticleAddition"
       },
+      "EdgeBundleArticleIngredient": {
+        "properties": {
+          "ingredient_id": {
+            "type": "integer",
+            "title": "Ingredient Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ingredient_id"
+        ],
+        "title": "EdgeBundleArticleIngredient"
+      },
       "EdgeBundleContract": {
         "properties": {
           "organisation_id": {
@@ -3019,6 +3125,11 @@
             },
             "type": "array",
             "title": "Position Comment Presets"
+          },
+          "ingredients_enabled": {
+            "type": "boolean",
+            "title": "Ingredients Enabled",
+            "default": false
           },
           "admin_pin_hashes": {
             "items": {
@@ -3069,6 +3180,13 @@
             },
             "type": "object",
             "title": "Articles"
+          },
+          "ingredients": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EdgeBundleIngredient"
+            },
+            "type": "object",
+            "title": "Ingredients"
           },
           "configuration": {
             "$ref": "#/components/schemas/EdgeEventConfiguration"
@@ -3126,6 +3244,69 @@
           "name"
         ],
         "title": "EdgeBundleEvent"
+      },
+      "EdgeBundleIngredient": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          },
+          "sellable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellable"
+          },
+          "monitor_stock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitor Stock"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EdgeBundleIngredient"
       },
       "EdgeEventConfiguration": {
         "properties": {
@@ -3957,6 +4138,13 @@
             },
             "type": "object",
             "title": "Articles"
+          },
+          "ingredients": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ArticleStockPatch"
+            },
+            "type": "object",
+            "title": "Ingredients"
           }
         },
         "type": "object",
@@ -5371,6 +5559,63 @@
           "ok"
         ],
         "title": "StationTestPrintResult"
+      },
+      "StockValidateLineIn": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty"
+          },
+          "additions": {
+            "items": {
+              "$ref": "#/components/schemas/LineAdditionIn"
+            },
+            "type": "array",
+            "title": "Additions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "qty"
+        ],
+        "title": "StockValidateLineIn"
+      },
+      "StockValidateOrderIn": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/StockValidateLineIn"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "title": "StockValidateOrderIn"
+      },
+      "StockValidateOrderResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "StockValidateOrderResponse"
       },
       "SyncMetaResponse": {
         "properties": {

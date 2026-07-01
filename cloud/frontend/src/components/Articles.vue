@@ -188,6 +188,68 @@
         <p v-if="additionsMessage" :class="additionsMessageType">{{ additionsMessage }}</p>
       </div>
 
+      <div v-if="showIngredientsSection" class="ingredients-section">
+        <h3>{{ $t('articles.ingredientsTitle') }}</h3>
+        <p class="muted small">{{ $t('articles.ingredientsHint') }}</p>
+        <div class="form-field">
+          <v-select
+            v-model="ingredientPickIds"
+            :items="ingredientOptions"
+            item-title="label"
+            item-value="value"
+            :label="$t('articles.addIngredient')"
+            :placeholder="$t('articles.selectIngredients')"
+            multiple
+            chips
+            closable-chips
+            hide-details="auto"
+            @update:model-value="onIngredientPick"
+          />
+        </div>
+        <VqDataTable
+          :headers="ingredientsHeaders"
+          :items="ingredientsLocal"
+          item-value="ingredient_id"
+          class="vq-data-table list-table nested"
+          hide-default-footer
+        >
+          <template #item.unit="{ item }">
+            {{ item.unit || $t('common.emDash') }}
+          </template>
+          <template #item.amount="{ item }">
+            <v-text-field
+              v-model.number="item.amount"
+              type="number"
+              min="0.001"
+              step="any"
+              hide-details
+              density="compact"
+            />
+          </template>
+          <template #item.actions="{ item }">
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              color="error"
+              size="small"
+              type="button"
+              @click="removeIngredientLink(item)"
+            />
+          </template>
+          <template #no-data>{{ $t('articles.noIngredientsLinked') }}</template>
+        </VqDataTable>
+        <v-btn
+          color="primary"
+          type="button"
+          style="margin-top: 0.75rem"
+          :disabled="!activeId"
+          @click="saveIngredients"
+        >
+          {{ $t('articles.saveIngredients') }}
+        </v-btn>
+        <p v-if="ingredientsMessage" :class="ingredientsMessageType">{{ ingredientsMessage }}</p>
+      </div>
+
       <div class="actions">
         <v-btn variant="outlined" type="button" @click="resetForm">{{ $t('common.back') }}</v-btn>
         <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
@@ -290,7 +352,7 @@ import { apiJson } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
-import { matchesActiveOrganisation, organisationAccountsEnabled } from '../utils/orgScope'
+import { matchesActiveOrganisation, organisationAccountsEnabled, organisationIngredientsEnabled } from '../utils/orgScope'
 import { filterArticleList } from '../utils/articleListFilters'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
@@ -298,9 +360,9 @@ import { useTaxCodes } from '../composables/useTaxCodes'
 import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
-import type { ArticleRead, ArticleCategoryRead, ArticleAdditionsRead } from '@/types/api'
+import type { ArticleRead, ArticleCategoryRead, ArticleAdditionsRead, ArticleIngredientsRead, IngredientRead } from '@/types/api'
 import { isApiError, getErrorMessage } from '@/types/api'
-import type { AccessibleOrganisation, AdditionLinkLocal, ArticleForm, SessionContext } from '@/types/ui'
+import type { AccessibleOrganisation, AdditionLinkLocal, IngredientLinkLocal, ArticleForm, SessionContext } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
 const { t, locale } = useI18n()
@@ -343,6 +405,11 @@ const additionsLocal = ref<AdditionLinkLocal[]>([])
 const additionPickIds = ref<number[]>([])
 const additionsMessage = ref('')
 const additionsMessageType = ref('')
+const ingredientsLocal = ref<IngredientLinkLocal[]>([])
+const ingredientCatalog = ref<IngredientRead[]>([])
+const ingredientPickIds = ref<number[]>([])
+const ingredientsMessage = ref('')
+const ingredientsMessageType = ref('')
 
 const tableHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'id' },
@@ -362,6 +429,13 @@ const additionsHeaders = computed((): DataTableHeader[] => [
   { title: t('articles.additionColumn'), key: 'name' },
   { title: t('common.price'), key: 'price', sortable: false },
   { title: t('articles.preselectedColumn'), key: 'preselected', sortable: false, align: 'center', width: 120 },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
+])
+
+const ingredientsHeaders = computed((): DataTableHeader[] => [
+  { title: t('articles.ingredientColumn'), key: 'name' },
+  { title: t('common.unit'), key: 'unit', sortable: false },
+  { title: t('articles.amountColumn'), key: 'amount', sortable: false, width: 120 },
   { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
 ])
 
@@ -403,6 +477,13 @@ const activeOrganisation = computed(() => {
 const showTaxCodeField = computed(() => Boolean(activeOrganisation.value?.vat_liable))
 const showAccountingAccountField = computed(() =>
   organisationAccountsEnabled(organisationsList.value, props.activeOrganisationId),
+)
+
+const showIngredientsSection = computed(
+  () =>
+    editMode.value &&
+    !!activeId.value &&
+    organisationIngredientsEnabled(organisationsList.value, props.activeOrganisationId),
 )
 
 const activeOrganisationCountryId = computed(() => activeOrganisation.value?.country_id ?? null)
@@ -458,6 +539,19 @@ const additionOptions = computed(() =>
     .map((a) => ({
       value: a.id,
       label: `${a.name} (${formatPrice(a.price, a.organisation_currency)})`,
+    })),
+)
+
+const ingredientOptions = computed(() =>
+  ingredientCatalog.value
+    .filter(
+      (ingredient) =>
+        ingredient.is_active &&
+        !ingredientsLocal.value.some((l) => l.ingredient_id === ingredient.id),
+    )
+    .map((ingredient) => ({
+      value: ingredient.id,
+      label: ingredient.unit ? `${ingredient.name} (${ingredient.unit})` : ingredient.name,
     })),
 )
 
@@ -593,6 +687,9 @@ function clearFormState() {
   additionsLocal.value = []
   additionPickIds.value = []
   additionsMessage.value = ''
+  ingredientsLocal.value = []
+  ingredientPickIds.value = []
+  ingredientsMessage.value = ''
   if (categoryOptions.value.length > 0) {
     form.value.articleCategoryId = categoryOptions.value[0].value
   }
@@ -617,8 +714,16 @@ async function applyArticleToForm(article: ArticleRead) {
   }
   message.value = ''
   syncFormCurrencyFromContext(article)
-  if (!article.is_addition) await loadAdditions(article.id)
-  else additionsLocal.value = []
+  if (!article.is_addition) {
+    await loadAdditions(article.id)
+  } else {
+    additionsLocal.value = []
+  }
+  if (organisationIngredientsEnabled(organisationsList.value, props.activeOrganisationId)) {
+    await loadArticleIngredients(article.id)
+  } else {
+    ingredientsLocal.value = []
+  }
 }
 
 async function syncRouteToForm() {
@@ -738,6 +843,86 @@ async function saveAdditions() {
   }
 }
 
+async function fetchIngredientCatalog() {
+  if (props.activeOrganisationId == null) {
+    ingredientCatalog.value = []
+    return
+  }
+  try {
+    ingredientCatalog.value = await apiJson<IngredientRead[]>(
+      `/ingredients/?organisation_id=${props.activeOrganisationId}`,
+    )
+  } catch {
+    ingredientCatalog.value = []
+  }
+}
+
+async function loadArticleIngredients(articleId: number | string) {
+  ingredientsLocal.value = []
+  try {
+    const data = await apiJson<ArticleIngredientsRead>(`/articles/${articleId}/ingredients`)
+    ingredientsLocal.value = (data.items || []).map((row, idx) => ({
+      ingredient_id: Number(row.ingredient_id),
+      name: String(row.name ?? ''),
+      unit: row.unit ?? null,
+      amount: Number(row.amount ?? 1),
+      sort_order: Number(row.sort_order ?? idx),
+    }))
+  } catch {
+    ingredientsLocal.value = []
+  }
+}
+
+function onIngredientPick(ids: number | number[]) {
+  const list = Array.isArray(ids) ? ids : []
+  for (const id of list) {
+    const ingredient = ingredientCatalog.value.find((row) => row.id === id)
+    if (!ingredient || ingredientsLocal.value.some((l) => l.ingredient_id === id)) continue
+    ingredientsLocal.value.push({
+      ingredient_id: id,
+      name: ingredient.name,
+      unit: ingredient.unit,
+      amount: 1,
+      sort_order: ingredientsLocal.value.length,
+    })
+  }
+  ingredientPickIds.value = []
+}
+
+function removeIngredientLink(row: IngredientLinkLocal) {
+  ingredientsLocal.value = ingredientsLocal.value.filter((l) => l.ingredient_id !== row.ingredient_id)
+}
+
+async function saveIngredients() {
+  if (!activeId.value) return
+  ingredientsMessage.value = ''
+  try {
+    const data = await apiJson<ArticleIngredientsRead>(`/articles/${activeId.value}/ingredients`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: ingredientsLocal.value.map((l, idx) => ({
+          ingredient_id: l.ingredient_id,
+          amount: l.amount > 0 ? l.amount : 1,
+          sort_order: l.sort_order ?? idx,
+        })),
+      }),
+    })
+    ingredientsLocal.value = (data.items || []).map((row, idx) => ({
+      ingredient_id: Number(row.ingredient_id),
+      name: String(row.name ?? ''),
+      unit: row.unit ?? null,
+      amount: Number(row.amount ?? 1),
+      sort_order: Number(row.sort_order ?? idx),
+    }))
+    ingredientsMessage.value = t('articles.ingredientsSaved')
+    ingredientsMessageType.value = 'success'
+  } catch (e: unknown) {
+    ingredientsMessage.value = isApiError(e) ? e.message || t('common.saveFailed') : t('common.saveFailed')
+    ingredientsMessageType.value = 'error'
+  }
+}
+
 async function saveArticle() {
   if (props.activeOrganisationId == null) {
     message.value = t('common.noOrganisation')
@@ -803,7 +988,15 @@ async function deleteArticle(id: number | string) {
 onMounted(async () => {
   await fetchCategories()
   await fetchArticles()
+  await fetchIngredientCatalog()
 })
+
+watch(
+  () => props.activeOrganisationId,
+  () => {
+    fetchIngredientCatalog()
+  },
+)
 </script>
 
 <style scoped>
@@ -840,6 +1033,14 @@ h2 {
   border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .additions-section h3 {
+  margin: 0 0 0.5rem;
+}
+.ingredients-section {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.ingredients-section h3 {
   margin: 0 0 0.5rem;
 }
 .stock-field {

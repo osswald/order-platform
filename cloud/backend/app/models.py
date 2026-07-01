@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Table,
     Text,
@@ -136,6 +137,7 @@ class Organisation(Base):
     default_tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     accounts_enabled = Column(Boolean, nullable=False, default=False)
     position_comments_enabled = Column(Boolean, nullable=False, default=False)
+    ingredients_enabled = Column(Boolean, nullable=False, default=False)
     color_palette = Column(JSON, nullable=True)
     hire_company = relationship("HireCompany", back_populates="organisations")
     country = relationship("Country", back_populates="organisations")
@@ -450,6 +452,28 @@ class ArticleAdditionLink(Base):
     addition_article = relationship("Article", foreign_keys=[addition_article_id])
 
 
+class Ingredient(Base):
+    __tablename__ = "ingredients"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    unit = Column(String(32), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    organisation = relationship("Organisation", backref="ingredients")
+
+
+class ArticleIngredientLink(Base):
+    """Recipe ingredients for a composite article."""
+
+    __tablename__ = "article_ingredient_links"
+    base_article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
+    ingredient_id = Column(Integer, ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True)
+    amount = Column(Numeric(12, 3), nullable=False, default=1)
+    sort_order = Column(Integer, nullable=False, default=0)
+    base_article = relationship("Article", foreign_keys=[base_article_id])
+    ingredient = relationship("Ingredient")
+
+
 class EventStation(Base):
     __tablename__ = "event_stations"
     id = Column(Integer, primary_key=True, index=True)
@@ -672,6 +696,19 @@ class EventArticleStock(Base):
     baseline_in_stock = Column(Integer, nullable=True)
     event = relationship("Event", backref="article_stock")
     article = relationship("Article")
+
+
+class EventIngredientStock(Base):
+    """Per-event stock for ingredients used by composite articles."""
+
+    __tablename__ = "event_ingredient_stock"
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), primary_key=True)
+    ingredient_id = Column(Integer, ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True)
+    monitor_stock = Column(Boolean, nullable=False, default=False)
+    in_stock = Column(Numeric(12, 3), nullable=True)
+    baseline_in_stock = Column(Numeric(12, 3), nullable=True)
+    event = relationship("Event", backref="ingredient_stock")
+    ingredient = relationship("Ingredient")
 
 
 class EdgeOrderSession(Base):

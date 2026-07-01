@@ -206,6 +206,16 @@ export interface EventStockItemLocal {
   name: string
   label: string
   monitor_stock: boolean
+  initial_in_stock: number
+  in_stock: number
+}
+
+export interface EventIngredientStockItemLocal {
+  id: number
+  name: string
+  unit: string | null
+  monitor_stock: boolean
+  initial_in_stock: number
   in_stock: number
 }
 
@@ -313,6 +323,7 @@ export interface AccessibleOrganisation {
   vat_liable: boolean
   default_tax_code_id: number | null
   accounts_enabled: boolean
+  ingredients_enabled: boolean
 }
 
 export interface DashboardAttentionItem {
@@ -398,6 +409,20 @@ export interface AdditionLinkLocal {
   price: number
   sort_order: number
   preselected: boolean
+}
+
+export interface IngredientLinkLocal {
+  ingredient_id: number
+  name: string
+  unit: string | null
+  amount: number
+  sort_order: number
+}
+
+export interface IngredientForm {
+  name: string
+  unit: string
+  isActive: boolean
 }
 
 export interface ArticleCategoryForm {

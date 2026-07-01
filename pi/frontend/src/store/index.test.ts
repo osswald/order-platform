@@ -52,6 +52,113 @@ describe('addCartLine', () => {
     expect(store.cartQtyForAddition(20)).toBe(2)
     expect(store.availableAdditionQty(20)).toBe(0)
   })
+
+  it('limits composite addition qty from ingredient stock', () => {
+    const b = bundleWithStock()
+    const ev = b.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Käse', monitor_stock: true, in_stock: 2 },
+    }
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Extra Käse',
+      price: 1.0,
+      is_addition: true,
+      ingredients: [{ ingredient_id: 1, amount: 1 }],
+      sellable: true,
+    }
+    store.bundle.value = b
+    expect(store.availableAdditionQty(20)).toBe(2)
+    store.addCartLine({
+      article_id: 11,
+      qty: 1,
+      additions: [{ article_id: 20, qty: 1 }],
+    })
+    expect(store.availableAdditionQty(20)).toBe(1)
+  })
+})
+
+describe('lineQtyModalMax and availableQty for line edit', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+    const ev = store.bundle.value!.events![0]!
+    ev.articles!['40'] = {
+      id: 40,
+      name: 'Cervelat',
+      price: 5.0,
+      monitor_stock: true,
+      in_stock: 17,
+    }
+  })
+
+  it('modal max equals stock when editing line with qty 1', () => {
+    store.addCartLine({ article_id: 40, qty: 1 })
+    const lineId = store.cartLines.value[0].lineId
+    const avail = store.availableQty(40, lineId)
+    expect(avail).toBe(17)
+    expect(store.lineQtyModalMax(avail)).toBe(17)
+    expect(store.lineQtyModalMax(avail)).not.toBe(18)
+  })
+})
+
+describe('isAdditionSellable', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+  })
+
+  it('returns false when direct article stock is zero', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Zitrone',
+      price: 1.0,
+      is_addition: true,
+      monitor_stock: true,
+      in_stock: 0,
+      sellable: false,
+    }
+    expect(store.isAdditionSellable(20)).toBe(false)
+  })
+
+  it('returns false when ingredient stock is exhausted', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Kartoffelsalat', monitor_stock: true, in_stock: 0 },
+    }
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'mit Kartoffelsalat',
+      price: 1.0,
+      is_addition: true,
+      ingredients: [{ ingredient_id: 1, amount: 0.5 }],
+      sellable: false,
+    }
+    expect(store.isAdditionSellable(20)).toBe(false)
+  })
+
+  it('rejects cart line with sold-out addition', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Zitrone',
+      price: 1.0,
+      is_addition: true,
+      monitor_stock: true,
+      in_stock: 0,
+      sellable: false,
+    }
+    expect(
+      store.addCartLine({
+        article_id: 11,
+        qty: 1,
+        additions: [{ article_id: 20, qty: 1 }],
+      }),
+    ).toBe(false)
+  })
 })
 
 describe('session validation', () => {

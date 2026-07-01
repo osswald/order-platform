@@ -144,7 +144,9 @@ import LinePositionSheet from '@/components/LinePositionSheet.vue'
 import OrderDiscountSheet from '@/components/OrderDiscountSheet.vue'
 import { bundle } from '@/store'
 import type { EdgeBundleArticle, EdgeBundleEvent, LocalOrderCreate, LocalOrderCreatedResponse, OrderLineIn } from '@/types/api'
-import { getErrorMessage } from '@/types/api'
+import { getErrorMessage, isApiError } from '@/types/api'
+import { stockInsufficientMessage } from '@/utils/stockError'
+import { validateCartStockBeforeSubmit } from '@/utils/validateCartStock'
 import type { CartLine } from '@/types/cart'
 import type { SheetOptionItem } from '@/components/SheetOptionList.vue'
 
@@ -168,11 +170,12 @@ const {
   updateCartLine,
   decrementCartLine,
   availableQty,
+  lineQtyModalMax,
   getArticle,
   cartLineLabel,
   clearCart,
 } = useCart()
-const { event, currency, waiter, showToast, patchEventArticles, selectedEventId } = useEventContext()
+const { event, currency, waiter, showToast, patchEventStock, refreshBundle, selectedEventId } = useEventContext()
 const { watchJobIds, failureLabel, loadFailedJobs } = useStationPrintFailures()
 const submitting = ref(false)
 const sheetOpen = ref(false)
@@ -224,8 +227,7 @@ const qtyModalMax = computed(() => {
   const articleId = line.article_id
   if (articleId == null) return 999
   const avail = availableQty(articleId, line.lineId)
-  if (avail === null) return 999
-  return line.qty + avail
+  return lineQtyModalMax(avail)
 })
 
 function onPickVoucher(vd: VoucherDefinition) {
@@ -337,9 +339,9 @@ function onQtyConfirm(n: number) {
     const articleId = line.article_id
     if (articleId == null) return
     const avail = availableQty(articleId, line.lineId)
-    if (avail !== null && qty > line.qty + avail) {
+    if (avail !== null && qty > avail) {
       showToast(`Nur noch ${avail} verfügbar`, 'err')
-      qty = line.qty + avail
+      qty = avail
     }
   }
   if (qty <= 0) removeCartLine(line.lineId)
@@ -460,12 +462,24 @@ async function submitOrder() {
     if (discountsEnabled.value && orderDiscount.value) {
       body.order_discount = orderDiscount.value
     }
+    const stockLines = payloadLines
+      .filter((l) => l.article_id != null && l.kind !== 'voucher_sale')
+      .map((l) => ({
+        article_id: l.article_id!,
+        qty: l.qty,
+        additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
+      }))
+    await refreshBundle()
+    await validateCartStockBeforeSubmit(event.value.id, stockLines)
     const res = await api<LocalOrderCreatedResponse>('/v1/orders', {
       method: 'POST',
       body: JSON.stringify(body),
     })
-    if (res.articles) {
-      patchEventArticles(event.value.id, res.articles)
+    if (res.articles || res.ingredients) {
+      patchEventStock(event.value.id, {
+        articles: res.articles,
+        ingredients: (res as { ingredients?: Record<string, unknown> }).ingredients,
+      })
     }
     const pm = res.payment_mode || paymentMode.value
     if (pm === 'pay_now') {
@@ -494,7 +508,12 @@ async function submitOrder() {
     }
     router.replace({ name: 'hub' })
   } catch (e: unknown) {
-    showToast(getErrorMessage(e, 'Fehler'), 'err')
+    if (isApiError(e) && e.status === 409) {
+      await refreshBundle()
+      showToast(stockInsufficientMessage(e, getErrorMessage(e, 'Bestand nicht ausreichend.')), 'err')
+    } else {
+      showToast(getErrorMessage(e, 'Fehler'), 'err')
+    }
   } finally {
     submitting.value = false
   }

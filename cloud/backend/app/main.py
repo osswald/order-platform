@@ -28,6 +28,7 @@ from .routers import (
     health,
     hire_companies,
     hosted_pi,
+    ingredients,
     organisations,
     payment_types,
     position_comments,
@@ -164,6 +165,7 @@ app.include_router(tax_codes.router, prefix="/tax-codes", tags=["tax-codes"])
 app.include_router(payment_types.router, prefix="/payment-types", tags=["payment-types"])
 app.include_router(accounting_accounts.router, prefix="/accounting-accounts", tags=["accounting-accounts"])
 app.include_router(articles.router, prefix="/articles", tags=["articles"])
+app.include_router(ingredients.router, prefix="/ingredients", tags=["ingredients"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])
 app.include_router(stripe_connect.router, prefix="/stripe/connect", tags=["stripe-connect"])

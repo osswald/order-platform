@@ -78,11 +78,19 @@ def load_stock_map(db: Session, event_id: int, article_ids: set[int]) -> dict[in
 def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
     from .additions import build_additions_for_base, load_links_for_bases
     from .fiscal_snapshot import fiscal_fields_for_article, load_organisation_for_event
+    from .ingredient_stock import ingredient_snapshot_for_event
+    from .ingredients import (
+        build_ingredients_for_base,
+        load_ingredient_links_for_bases,
+        organisation_ingredients_enabled,
+    )
+    from .models import Ingredient
 
     ids = all_bundle_article_ids(db, event)
     if not ids:
         return {}
     organisation = load_organisation_for_event(db, event)
+    ingredients_on = organisation_ingredients_enabled(db, event.organisation_id)
     ensure_stock_rows_for_event_articles(db, event, commit=False)
     arts = {
         a.id: a
@@ -96,13 +104,27 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
     stock_map = load_stock_map(db, event.id, ids)
     base_ids = bundle_article_ids(event)
     links_by_base = load_links_for_bases(db, base_ids)
+    ingredient_links_by_base = load_ingredient_links_for_bases(db, ids) if ingredients_on else {}
+    all_ingredient_ids: set[int] = set()
+    for links in ingredient_links_by_base.values():
+        for link in links:
+            all_ingredient_ids.add(link.ingredient_id)
+    ingredients_map = (
+        {i.id: i for i in db.query(Ingredient).filter(Ingredient.id.in_(all_ingredient_ids)).all()}
+        if all_ingredient_ids
+        else {}
+    )
 
     out: dict[str, Any] = {}
     for aid in ids:
         a = arts.get(aid)
         if not a:
             continue
-        fields = snapshot_article_fields(stock_map.get(aid))
+        has_recipe = bool(ingredient_links_by_base.get(aid))
+        if has_recipe and ingredients_on:
+            fields = {"monitor_stock": False, "in_stock": None, "sellable": True}
+        else:
+            fields = snapshot_article_fields(stock_map.get(aid))
         entry: dict[str, Any] = {
             "id": aid,
             "name": a.name,
@@ -116,9 +138,41 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
         }
         if not a.is_addition and aid in links_by_base:
             entry["additions"] = build_additions_for_base(links_by_base.get(aid, []), arts, stock_map)
+        if ingredients_on and aid in ingredient_links_by_base:
+            recipe = build_ingredients_for_base(ingredient_links_by_base.get(aid, []), ingredients_map)
+            entry["ingredients"] = recipe
+            if recipe:
+                from vendiqo_shared.ingredient_stock import max_orderable_from_ingredients
+
+                ing_snap = ingredient_snapshot_for_event(db, event)
+                ing_stock = {int(k): v for k, v in ing_snap.items()}
+                max_info = max_orderable_from_ingredients(recipe, ing_stock, cart_usage={})
+                max_qty = max_info.get("max")
+                if max_qty is not None:
+                    entry["sellable"] = max_qty > 0
         if organisation is not None:
             entry.update(fiscal_fields_for_article(db, organisation, a))
         out[str(aid)] = entry
+
+    for entry in out.values():
+        adds = entry.get("additions")
+        if not adds:
+            continue
+        enriched: list[dict[str, Any]] = []
+        for add in adds:
+            full = out.get(str(add.get("article_id")))
+            if full:
+                add = {
+                    **add,
+                    "monitor_stock": full.get("monitor_stock"),
+                    "in_stock": full.get("in_stock"),
+                    "sellable": full.get("sellable"),
+                }
+                if full.get("ingredients"):
+                    add["ingredients"] = full["ingredients"]
+            enriched.append(add)
+        entry["additions"] = enriched
+
     return out
 
 
@@ -129,10 +183,34 @@ def apply_stock_deductions(
     *,
     article_names: dict[int, str] | None = None,
 ) -> dict[str, Any]:
-    """Decrement EventArticleStock for monitored articles. Returns updated snapshot entries."""
+    """Decrement EventArticleStock and ingredient stock. Returns updated article snapshot entries."""
+    from .ingredient_stock import apply_ingredient_deductions, ingredient_snapshot_for_event
+    from .ingredients import article_ids_with_ingredients, organisation_ingredients_enabled
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    articles_snapshot = article_snapshot_for_event(db, event) if event else {}
+    skip_article_ids: set[int] = set()
+    if event and organisation_ingredients_enabled(db, event.organisation_id):
+        skip_article_ids = article_ids_with_ingredients(db, all_bundle_article_ids(db, event))
+        from .ingredient_stock import ingredient_snapshot_for_event
+
+        ing_snap = ingredient_snapshot_for_event(db, event)
+        ing_names = {int(k): v.get("name", f"Zutat #{k}") for k, v in ing_snap.items()}
+        apply_ingredient_deductions(
+            db,
+            event_id,
+            lines,
+            articles_snapshot,
+            ingredient_names=ing_names,
+        )
+
     totals = aggregate_line_qty(lines)
+    if skip_article_ids:
+        totals = {aid: qty for aid, qty in totals.items() if aid not in skip_article_ids}
+
+    updated: dict[str, Any] = {}
     if not totals:
-        return {}
+        return updated
 
     rows = (
         db.query(EventArticleStock)
@@ -144,7 +222,6 @@ def apply_stock_deductions(
         .all()
     )
     by_id = {r.article_id: r for r in rows}
-    updated: dict[str, Any] = {}
 
     for aid, need in totals.items():
         row = by_id.get(aid)
@@ -172,10 +249,15 @@ def ensure_stock_rows_for_event_articles(
     *,
     commit: bool = False,
 ) -> list[EventArticleStock]:
-    """Lazy-create EventArticleStock for station articles and linked Zusätze."""
-    from .additions import addition_article_ids_for_event
+    """Lazy-create EventArticleStock for station articles and linked Zusätze (excludes composite articles)."""
+    from .additions import event_stock_article_ids
+    from .ingredients import article_ids_with_ingredients, organisation_ingredients_enabled
 
-    ids = station_linked_article_ids(event) | addition_article_ids_for_event(db, event)
+    all_ids = event_stock_article_ids(db, event)
+    composite: set[int] = set()
+    if organisation_ingredients_enabled(db, event.organisation_id):
+        composite = article_ids_with_ingredients(db, all_ids)
+    ids = all_ids - composite
     if not ids:
         return []
     existing = load_stock_map(db, event.id, ids)
@@ -214,22 +296,30 @@ def upsert_stock_rows(
     items: list[dict],
 ) -> list[EventArticleStock]:
     from .additions import event_stock_article_ids
+    from .ingredients import article_ids_with_ingredients, organisation_ingredients_enabled
 
     allowed = event_stock_article_ids(db, event)
+    if organisation_ingredients_enabled(db, event.organisation_id):
+        composite = article_ids_with_ingredients(db, allowed)
+        allowed -= composite
     if not allowed and items:
         raise api_error("no_stock_managed_articles", status.HTTP_400_BAD_REQUEST)
 
     org_id = event.organisation_id
-    by_article: dict[int, tuple[bool, int | None]] = {}
+    by_article: dict[int, dict] = {}
     for item in items:
         aid = int(item["article_id"])
         if aid not in allowed:
             raise api_error("article_not_linked_to_event", status.HTTP_400_BAD_REQUEST, article_id=aid)
-        monitor, in_stock = normalize_stock_fields(
-            bool(item.get("monitor_stock")),
-            item.get("in_stock"),
-        )
-        by_article[aid] = (monitor, in_stock)
+        monitor = bool(item.get("monitor_stock"))
+        entry: dict = {"monitor_stock": monitor}
+        if "in_stock" in item:
+            _, in_stock = normalize_stock_fields(monitor, item.get("in_stock"))
+            entry["in_stock"] = in_stock
+        if "initial_in_stock" in item:
+            _, initial = normalize_stock_fields(monitor, item.get("initial_in_stock"))
+            entry["initial_in_stock"] = initial
+        by_article[aid] = entry
 
     valid_ids = {
         r[0]
@@ -247,19 +337,31 @@ def upsert_stock_rows(
 
     existing = load_stock_map(db, event.id, set(by_article.keys()))
     out: list[EventArticleStock] = []
-    for aid, (monitor, in_stock) in by_article.items():
+    for aid, entry in by_article.items():
+        monitor = entry["monitor_stock"]
         row = existing.get(aid)
         if row:
             row.monitor_stock = monitor
-            row.in_stock = in_stock
-            row.baseline_in_stock = in_stock
+            if "in_stock" in entry:
+                row.in_stock = entry["in_stock"]
+            if "initial_in_stock" in entry:
+                row.baseline_in_stock = entry["initial_in_stock"]
         else:
+            cur = entry.get("in_stock")
+            init = entry.get("initial_in_stock")
+            if cur is None and init is not None:
+                cur = init
+            if init is None and cur is not None:
+                init = cur
+            if cur is None and init is None:
+                _, cur = normalize_stock_fields(monitor, None)
+                init = cur
             row = EventArticleStock(
                 event_id=event.id,
                 article_id=aid,
                 monitor_stock=monitor,
-                in_stock=in_stock,
-                baseline_in_stock=in_stock,
+                in_stock=cur,
+                baseline_in_stock=init,
             )
             db.add(row)
         out.append(row)

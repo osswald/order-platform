@@ -10,6 +10,7 @@ import EventStatsPage from '../components/EventStatsPage.vue'
 import Waiters from '../components/Waiters.vue'
 import Articles from '../components/Articles.vue'
 import ArticleCategories from '../components/ArticleCategories.vue'
+import Ingredients from '../components/Ingredients.vue'
 import ApplianceLendings from '../components/ApplianceLendings.vue'
 import Organisations from '../components/Organisations.vue'
 import HireCompanies from '../components/HireCompanies.vue'
@@ -62,6 +63,12 @@ const routes = [
     path: '/article-categories',
     listName: 'article-categories',
     component: ArticleCategories,
+    meta: orgScoped,
+  }),
+  ...listDetailRoutes({
+    path: '/ingredients',
+    listName: 'ingredients',
+    component: Ingredients,
     meta: orgScoped,
   }),
   {

@@ -1146,6 +1146,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/articles/{article_id}/ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Article Ingredients */
+        get: operations["read_article_ingredients_articles__article_id__ingredients_get"];
+        /** Put Article Ingredients */
+        put: operations["put_article_ingredients_articles__article_id__ingredients_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/articles/{article_id}": {
         parameters: {
             query?: never;
@@ -1160,6 +1178,43 @@ export interface paths {
         post?: never;
         /** Delete Article */
         delete: operations["delete_article_articles__article_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredients/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Ingredients */
+        get: operations["read_ingredients_ingredients__get"];
+        put?: never;
+        /** Create Ingredient */
+        post: operations["create_ingredient_ingredients__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredients/{ingredient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Ingredient */
+        get: operations["read_ingredient_ingredients__ingredient_id__get"];
+        /** Update Ingredient */
+        put: operations["update_ingredient_ingredients__ingredient_id__put"];
+        post?: never;
+        /** Delete Ingredient */
+        delete: operations["delete_ingredient_ingredients__ingredient_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1797,6 +1852,30 @@ export interface components {
             /** Article Category Id */
             article_category_id: number;
         };
+        /** ArticleIngredientLinkIn */
+        ArticleIngredientLinkIn: {
+            /** Ingredient Id */
+            ingredient_id: number;
+            /**
+             * Amount
+             * @default 1
+             */
+            amount: number;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** ArticleIngredientsRead */
+        ArticleIngredientsRead: {
+            /** Items */
+            items: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ArticleIngredientsUpdateIn */
+        ArticleIngredientsUpdateIn: {
+            /** Items */
+            items?: components["schemas"]["ArticleIngredientLinkIn"][];
+        };
         /** ArticleMinimalRead */
         ArticleMinimalRead: {
             /** Id */
@@ -2264,6 +2343,11 @@ export interface components {
             position_comments_enabled: boolean;
             /** Position Comment Presets */
             position_comment_presets?: components["schemas"]["PositionCommentPresetBundleRead"][];
+            /**
+             * Ingredients Enabled
+             * @default false
+             */
+            ingredients_enabled: boolean;
         };
         /** EdgeEventBundle */
         EdgeEventBundle: {
@@ -2326,6 +2410,10 @@ export interface components {
             };
             /** Articles */
             articles: {
+                [key: string]: unknown;
+            };
+            /** Ingredients */
+            ingredients?: {
                 [key: string]: unknown;
             };
             /** Printer Hosts */
@@ -2546,6 +2634,35 @@ export interface components {
             /** Instant Collective Bill Uuid */
             instant_collective_bill_uuid?: string | null;
         };
+        /** EventIngredientStockItemIn */
+        EventIngredientStockItemIn: {
+            /** Ingredient Id */
+            ingredient_id: number;
+            /**
+             * Monitor Stock
+             * @default false
+             */
+            monitor_stock: boolean;
+            /** Initial In Stock */
+            initial_in_stock?: number | null;
+            /** In Stock */
+            in_stock?: number | null;
+        };
+        /** EventIngredientStockItemRead */
+        EventIngredientStockItemRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+            /** Monitor Stock */
+            monitor_stock: boolean;
+            /** Initial In Stock */
+            initial_in_stock?: number | null;
+            /** In Stock */
+            in_stock?: number | null;
+        };
         /** EventPaymentBatchesV3Read */
         EventPaymentBatchesV3Read: {
             /** Currency */
@@ -2726,6 +2843,8 @@ export interface components {
              * @default false
              */
             monitor_stock: boolean;
+            /** Initial In Stock */
+            initial_in_stock?: number | null;
             /** In Stock */
             in_stock?: number | null;
         };
@@ -2739,16 +2858,22 @@ export interface components {
             label: string;
             /** Monitor Stock */
             monitor_stock: boolean;
+            /** Initial In Stock */
+            initial_in_stock?: number | null;
             /** In Stock */
             in_stock?: number | null;
         };
         /** EventStockListRead */
         EventStockListRead: {
+            /** Ingredients */
+            ingredients?: components["schemas"]["EventIngredientStockItemRead"][];
             /** Items */
             items: components["schemas"]["EventStockItemRead"][];
         };
         /** EventStockUpdateIn */
         EventStockUpdateIn: {
+            /** Ingredients */
+            ingredients?: components["schemas"]["EventIngredientStockItemIn"][];
             /** Items */
             items?: components["schemas"]["EventStockItemIn"][];
         };
@@ -2909,6 +3034,52 @@ export interface components {
             stopped_at?: string | null;
             /** Last Error */
             last_error?: string | null;
+        };
+        /** IngredientCreate */
+        IngredientCreate: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Organisation Id */
+            organisation_id?: number | null;
+        };
+        /** IngredientRead */
+        IngredientRead: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Id */
+            id: number;
+            /** Organisation Id */
+            organisation_id: number;
+            /** Organisation Name */
+            organisation_name: string;
+            /**
+             * Usage Count
+             * @default 0
+             */
+            usage_count: number;
+        };
+        /** IngredientUpdate */
+        IngredientUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /** KitchenMonitorPrinterIn */
         KitchenMonitorPrinterIn: {
@@ -3154,6 +3325,11 @@ export interface components {
              * @default false
              */
             position_comments_enabled: boolean;
+            /**
+             * Ingredients Enabled
+             * @default false
+             */
+            ingredients_enabled: boolean;
         };
         /** OrganisationUpdate */
         OrganisationUpdate: {
@@ -3179,6 +3355,8 @@ export interface components {
             accounts_enabled?: boolean | null;
             /** Position Comments Enabled */
             position_comments_enabled?: boolean | null;
+            /** Ingredients Enabled */
+            ingredients_enabled?: boolean | null;
         };
         /** PasswordChange */
         PasswordChange: {
@@ -8134,6 +8312,76 @@ export interface operations {
             };
         };
     };
+    read_article_ingredients_articles__article_id__ingredients_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                article_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleIngredientsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_article_ingredients_articles__article_id__ingredients_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                article_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleIngredientsUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleIngredientsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_article_articles__article_id__get: {
         parameters: {
             query?: never;
@@ -8212,6 +8460,175 @@ export interface operations {
             };
             path: {
                 article_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_ingredients_ingredients__get: {
+        parameters: {
+            query?: {
+                organisation_id?: number | null;
+            };
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_ingredient_ingredients__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_ingredient_ingredients__ingredient_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_ingredient_ingredients__ingredient_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_ingredient_ingredients__ingredient_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                ingredient_id: number;
             };
             cookie?: never;
         };

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { EdgeBundleArticle, EdgeBundleEvent, EdgeBundleResponse } from '@/types/api'
 import {
   articlesForIds,
+  cartIngredientUsage,
   cartLineLabelForEvent,
   cellVoucherUuids,
   fixedAmountVouchersForCell,
@@ -68,6 +69,26 @@ describe('lineIdentityKeyFromItem', () => {
       discount: { kind: 'amount', value: 250 },
     })
     expect(key).toContain('{"kind":"amount","value":250}')
+  })
+})
+
+describe('cartIngredientUsage', () => {
+  it('includes base and addition ingredient consumption', () => {
+    const articles = {
+      10: {
+        id: 10,
+        ingredients: [{ ingredient_id: 1, amount: 1 }],
+      },
+      20: {
+        id: 20,
+        ingredients: [{ ingredient_id: 1, amount: 0.5 }],
+      },
+    } as unknown as Record<string, EdgeBundleArticle>
+    const usage = cartIngredientUsage(
+      [{ article_id: 10, qty: 2, additions: [{ article_id: 20, qty: 1 }] }],
+      articles,
+    )
+    expect(usage[1]).toBe(3)
   })
 })
 

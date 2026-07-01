@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import type { DiscountIn, LineAdditionIn } from '@/types/api'
 import type { CartLine, ToastState, RegisterSession, WaiterSession } from '@/types/cart'
-import { cartLineLabelForEvent, voucherDefinitionByUuid } from '@/utils/bundleHelpers'
+import { cartLineLabelForEvent, cartIngredientUsage, hasIngredients, maxOrderableForArticle, maxOrderableFromIngredients, voucherDefinitionByUuid } from '@/utils/bundleHelpers'
 import {
   lineGrossCents,
   normalizeDiscount,
@@ -38,6 +38,7 @@ export {
   getArticle,
   lastSyncAt,
   patchEventArticles,
+  patchEventStock,
   refreshBundle,
   selectedEvent,
   stockArticlesForEvent,
@@ -186,9 +187,39 @@ export function availableAdditionQty(
   excludeLineId: string | null = null,
 ): number | null {
   const a = getArticle(additionId)
-  if (!a?.monitor_stock) return null
+  if (!a) return null
+  if (hasIngredients(a)) {
+    const usageLines = cartLines.value
+      .filter((l) => !excludeLineId || l.lineId !== excludeLineId)
+      .map((l) => ({
+        article_id: l.article_id,
+        qty: l.qty,
+        additions: l.additions,
+      }))
+    const { max } = maxOrderableFromIngredients(
+      a,
+      (selectedEvent.value as { ingredients?: Record<string, { monitor_stock?: boolean; in_stock?: number; name?: string }> } | null)?.ingredients ?? null,
+      cartIngredientUsage(usageLines, selectedEvent.value?.articles ?? null),
+    )
+    return max
+  }
+  if (!a.monitor_stock) return null
   const stock = a.in_stock ?? 0
   return Math.max(0, stock - cartQtyForAddition(additionId, excludeLineId))
+}
+
+/** Whether a Zusatz can still be ordered (article stock or ingredient stock). */
+export function isAdditionSellable(
+  additionId: number | string,
+  excludeLineId: string | null = null,
+  fallback?: EdgeBundleArticle | null,
+): boolean {
+  const a = getArticle(additionId) ?? fallback ?? null
+  if (!a) return false
+  if (a.sellable === false) return false
+  const avail = availableAdditionQty(additionId, excludeLineId)
+  if (avail !== null && avail < 1) return false
+  return true
 }
 
 export function additionsSignature(additions: LineAdditionIn[] | null | undefined): string {
@@ -205,10 +236,26 @@ export function discountSignature(discount: DiscountIn | null | undefined): stri
   return d ? JSON.stringify(d) : ''
 }
 
-/** Remaining units that can still be added to the cart (null = unlimited). */
+/** Max editable quantity for a cart line (null available = unlimited). */
+export function lineQtyModalMax(available: number | null): number {
+  if (available === null) return 999
+  return available
+}
+
+/** Remaining capacity or max line qty depending on excludeLineId (null = unlimited). */
 export function availableQty(articleId: number | string, excludeLineId: string | null = null): number | null {
   const a = getArticle(articleId)
-  if (!a?.monitor_stock) return null
+  if (!a) return null
+  if (hasIngredients(a)) {
+    const usageLines = cartLines.value.map((l) => ({
+      article_id: l.article_id,
+      qty: l.qty,
+      lineId: l.lineId,
+      additions: l.additions,
+    }))
+    return maxOrderableForArticle(a, selectedEvent.value, usageLines, excludeLineId)
+  }
+  if (!a.monitor_stock) return null
   const stock = a.in_stock ?? 0
   return Math.max(0, stock - cartQtyForArticle(articleId, excludeLineId))
 }
@@ -241,24 +288,66 @@ export function addCartLine({
   const avail = availableQty(aid, excludeLineId)
   if (avail !== null) {
     if (avail < 1) {
-      showToast('Ausverkauft', 'err')
+      const a = getArticle(aid)
+      if (hasIngredients(a)) {
+        const { limitingName } = maxOrderableFromIngredients(
+          a,
+          (selectedEvent.value as { ingredients?: Record<string, { monitor_stock?: boolean; in_stock?: number; name?: string }> } | null)?.ingredients ?? null,
+          {},
+        )
+        showToast(limitingName ? `${limitingName} ausverkauft` : 'Ausverkauft', 'err')
+      } else {
+        showToast('Ausverkauft', 'err')
+      }
       return false
     }
     if (addQty > avail) {
-      showToast(`Nur noch ${avail} verfügbar`, 'err')
+      const a = getArticle(aid)
+      const name = a?.name || 'Artikel'
+      if (hasIngredients(a)) {
+        const { limitingName } = maxOrderableFromIngredients(
+          a,
+          (selectedEvent.value as { ingredients?: Record<string, { monitor_stock?: boolean; in_stock?: number; name?: string }> } | null)?.ingredients ?? null,
+          {},
+        )
+        const hint = limitingName ? ` (Engpass: ${limitingName})` : ''
+        showToast(`«${name}»: maximal ${avail} Stück bestellbar${hint}`, 'err')
+      } else {
+        showToast(`Nur noch ${avail} verfügbar`, 'err')
+      }
       addQty = avail
     }
   }
   for (const add of adds) {
     const a = getArticle(add.article_id)
-    if (a?.sellable === false) {
-      showToast(`${a.name || 'Zusatz'} ausverkauft`, 'err')
+    if (!isAdditionSellable(add.article_id, excludeLineId)) {
+      const name = a?.name || `Zusatz #${add.article_id}`
+      if (hasIngredients(a)) {
+        const { limitingName } = maxOrderableFromIngredients(
+          a,
+          (selectedEvent.value as { ingredients?: Record<string, { monitor_stock?: boolean; in_stock?: number; name?: string }> } | null)?.ingredients ?? null,
+          {},
+        )
+        showToast(limitingName ? `${limitingName} ausverkauft` : `${name} ausverkauft`, 'err')
+      } else {
+        showToast(`${name} ausverkauft`, 'err')
+      }
       return false
     }
     const addAvail = availableAdditionQty(add.article_id, excludeLineId)
     if (addAvail !== null && addAvail < add.qty * addQty) {
       const name = a?.name || `Zusatz #${add.article_id}`
-      showToast(`Nur noch ${addAvail} von «${name}» verfügbar`, 'err')
+      if (hasIngredients(a)) {
+        const { limitingName } = maxOrderableFromIngredients(
+          a,
+          (selectedEvent.value as { ingredients?: Record<string, { monitor_stock?: boolean; in_stock?: number; name?: string }> } | null)?.ingredients ?? null,
+          {},
+        )
+        const hint = limitingName ? ` (Engpass: ${limitingName})` : ''
+        showToast(`«${name}»: maximal ${addAvail} verfügbar${hint}`, 'err')
+      } else {
+        showToast(`Nur noch ${addAvail} von «${name}» verfügbar`, 'err')
+      }
       return false
     }
   }

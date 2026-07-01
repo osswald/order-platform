@@ -5,6 +5,7 @@ import {
   bundleReady,
   lastSyncAt,
   patchEventArticles,
+  patchEventStock,
   refreshBundle,
   selectedEventId,
   showToast,
@@ -23,5 +24,7 @@ export function useBundle() {
     isBundleReady: computed(() => bundleReady()),
     showToast,
     patchEventArticles,
+    patchEventStock,
+    refreshBundle,
   }
 }

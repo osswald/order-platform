@@ -6,6 +6,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from .i18n.errors import api_error
+from .ingredient_stock import reset_event_ingredient_stock_to_baseline
 from .models import (
     EdgeCashSession,
     EdgeKitchenTicketSnapshot,
@@ -102,3 +103,4 @@ def purge_event_operational_data(db: Session, event: Event) -> None:
         synchronize_session=False
     )
     reset_event_stock_to_baseline(db, event)
+    reset_event_ingredient_stock_to_baseline(db, event)
