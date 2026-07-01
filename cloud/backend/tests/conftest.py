@@ -1,4 +1,4 @@
-"""Shared fixtures for cloud backend tests."""
+"""Shared fixtures for cloud backend tests (CI path-scoping verification)."""
 
 from __future__ import annotations
 
