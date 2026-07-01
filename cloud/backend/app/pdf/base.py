@@ -17,6 +17,7 @@ class VqPdf(FPDF):
     MAX_LOGO_HEIGHT_MM = 18.0
     MAX_LOGO_WIDTH_MM = 35.0
     LOGO_GAP_MM = 4.0
+    LOGO_RASTER_DPI = 300.0
     FOOTER_HEIGHT_MM = 14.0
     BODY_BOTTOM_MARGIN_MM = 20.0
 
@@ -67,6 +68,9 @@ class VqPdf(FPDF):
         if self.get_y() + needed_mm > self.content_bottom:
             self.add_page()
 
+    def _logo_raster_px(self, mm: float) -> int:
+        return max(1, round(mm / 25.4 * self.LOGO_RASTER_DPI))
+
     def _scaled_logo_mm(self, raw: bytes) -> tuple[bytes, float, float]:
         image = Image.open(BytesIO(raw))
         if image.mode in ("RGBA", "P", "LA"):
@@ -88,11 +92,13 @@ class VqPdf(FPDF):
             height_mm = self.MAX_LOGO_HEIGHT_MM
             width_mm = height_mm * ratio
 
-        target_w = max(1, int(px_w * (width_mm / (px_w * 0.264583))))
-        target_h = max(1, int(px_h * (height_mm / (px_h * 0.264583))))
-        resized = image.resize((target_w, target_h), Image.Resampling.LANCZOS)
+        target_w = self._logo_raster_px(width_mm)
+        target_h = self._logo_raster_px(height_mm)
+        if px_w > target_w or px_h > target_h:
+            image.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+
         out = BytesIO()
-        resized.save(out, format="PNG")
+        image.save(out, format="PNG", optimize=False)
         return out.getvalue(), width_mm, height_mm
 
     def write_logo_header_block(

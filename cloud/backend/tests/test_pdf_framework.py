@@ -13,6 +13,7 @@ from app.pdf.logo import resolve_logo_for_event
 from app.pdf.response import pdf_download_response
 from app.pdf.tables import TableColumn, TableSpec, write_table_header, write_table_row
 from app.receipt_printing_config import store_receipt_logo
+from PIL import Image
 from pypdf import PdfReader
 
 
@@ -83,6 +84,33 @@ def test_write_logo_header_block_smoke():
     raw = pdf.output_bytes()
     assert raw.startswith(b"%PDF")
     assert len(raw) > 1000
+
+
+def test_scaled_logo_rasterizes_at_print_dpi_for_large_source():
+    pdf = VqPdf(locale="de")
+    wide = Image.new("RGB", (1200, 300), color=(255, 255, 255))
+    source = BytesIO()
+    wide.save(source, format="PNG")
+
+    prepared, width_mm, _height_mm = pdf._scaled_logo_mm(source.getvalue())
+    raster = Image.open(BytesIO(prepared))
+
+    expected_w = max(1, round(pdf.MAX_LOGO_WIDTH_MM / 25.4 * pdf.LOGO_RASTER_DPI))
+    assert width_mm == pdf.MAX_LOGO_WIDTH_MM
+    assert raster.width >= expected_w - 2
+    assert raster.width > 200
+
+
+def test_scaled_logo_does_not_upscale_small_source():
+    pdf = VqPdf(locale="de")
+    tiny = Image.new("RGB", (40, 10), color=(255, 255, 255))
+    source = BytesIO()
+    tiny.save(source, format="PNG")
+
+    prepared, _, _ = pdf._scaled_logo_mm(source.getvalue())
+    raster = Image.open(BytesIO(prepared))
+
+    assert raster.size == (40, 10)
 
 
 def test_format_money_locale():
