@@ -20,6 +20,11 @@ def _pdf_text(pdf_bytes: bytes) -> str:
     return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 
+def _pdf_pages(pdf_bytes: bytes) -> list[str]:
+    reader = PdfReader(BytesIO(pdf_bytes))
+    return [page.extract_text() or "" for page in reader.pages]
+
+
 def test_write_table_row_does_not_duplicate_text():
     pdf = VqPdf(locale="de", title="Table test")
     spec = TableSpec(
@@ -33,6 +38,27 @@ def test_write_table_row_does_not_duplicate_text():
     text = _pdf_text(pdf.output_bytes())
     assert text.count("EinzigartigerArtikel") == 1
     assert text.count("2") >= 1
+
+
+def test_table_row_columns_not_split_across_pages():
+    pdf = VqPdf(locale="de", title="Break test")
+    spec = TableSpec(
+        columns=(
+            TableColumn("Artikel", 80, "L"),
+            TableColumn("Menge", 25, "R"),
+            TableColumn("Betrag", 35, "R"),
+        )
+    )
+    pdf.write_text("\n".join(["Füller"] * 45))
+    write_table_header(pdf, spec)
+    write_table_row(pdf, spec, ["Mineral mit 0.5l", "2", "10.00 CHF"])
+    orphan_headers = {"Artikel", "Menge", "Einzelpreis", "Betrag"}
+    for page_text in _pdf_pages(pdf.output_bytes()):
+        lines = [line.strip() for line in page_text.splitlines() if line.strip()]
+        for line in lines:
+            assert line not in orphan_headers
+        if "Mineral mit 0.5l" in page_text:
+            assert "10.00 CHF" in page_text
 
 
 def test_vqpdf_renders_unicode_pdf():

@@ -175,6 +175,7 @@
       "payment_line": "{method}: {amount} ({time})",
       "no_positions": "Keine Positionen.",
       "no_payments": "Keine Zahlungen erfasst.",
+      "payments_not_itemized": "Bezahlt (Einzelzahlungen nicht synchronisiert).",
       "article": "Artikel",
       "note": "Bemerkung",
       "qty": "Menge",

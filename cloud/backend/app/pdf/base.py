@@ -52,6 +52,10 @@ class VqPdf(FPDF):
     def write_spacer(self, height_mm: float = 4.0) -> None:
         self.ln(height_mm)
 
+    def ensure_vertical_space(self, needed_mm: float) -> None:
+        if self.get_y() + needed_mm > self.h - self.b_margin:
+            self.add_page()
+
     def _scaled_logo_mm(self, raw: bytes) -> tuple[bytes, float, float]:
         image = Image.open(BytesIO(raw))
         if image.mode in ("RGBA", "P", "LA"):

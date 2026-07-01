@@ -127,6 +127,38 @@ def test_build_collective_bill_pdf_content(db_session):
     assert "Bemerkung" not in text
 
 
+def test_build_collective_bill_pdf_paid_without_payment_details(db_session):
+    db, event, org = db_session
+    payload = {
+        "collective_bill_uuid": "cb-pdf-paid",
+        "collective_bill_name": "Personal",
+        "payment_status": "paid",
+        "lines": [{"article_id": 1, "qty": 1, "unit_cents": 500, "additions": []}],
+    }
+    upsert_collective_bill_from_payload(db, event_id=event.id, appliance_id=1, payload=payload)
+    db.add(
+        EdgeSubmittedOrder(
+            client_order_id="order-pdf-paid",
+            appliance_id=1,
+            organisation_id=event.organisation_id,
+            event_id=event.id,
+            payload=payload,
+        )
+    )
+    db.commit()
+    bill = build_single_collective_bill(db, event, "cb-pdf-paid")
+    pdf_bytes = build_collective_bill_pdf(
+        event=event,
+        organisation=org,
+        bill=bill,
+        currency="CHF",
+        locale="de",
+    )
+    text = _pdf_text(pdf_bytes)
+    assert "Keine Zahlungen erfasst" not in text
+    assert "Einzelzahlungen nicht synchronisiert" in text
+
+
 def test_build_collective_bill_pdf_note_with_addition(db_session):
     db, event, org = db_session
     payload = {

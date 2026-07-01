@@ -127,6 +127,7 @@ def build_collective_bill_pdf(
                 else t("pdf.collective_bill.order_heading_unknown", locale)
             )
             order_time = format_datetime(order.get("ordered_at") or order.get("created_at"), locale)
+            pdf.ensure_vertical_space(22)
             pdf.write_text(f"{order_label} · {order_time}", size=10)
             write_table_header(pdf, table)
             for line in order.get("lines") or []:
@@ -171,6 +172,8 @@ def build_collective_bill_pdf(
                 ),
                 size=9,
             )
+    elif int(bill.get("paid_cents") or 0) > 0:
+        pdf.write_muted(t("pdf.collective_bill.payments_not_itemized", locale))
     else:
         pdf.write_muted(t("pdf.collective_bill.no_payments", locale))
 
