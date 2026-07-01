@@ -49,7 +49,8 @@ const { refreshBundle, bundle } = useBundle()
 const stockGroups = computed(() =>
   stockGroupsWithIngredientsForEvent(
     event.value as Parameters<typeof stockGroupsWithIngredientsForEvent>[0],
-    stockGroupsForItems,
+    (items, stations, opts) =>
+      stockGroupsForItems(items, stations as Parameters<typeof stockGroupsForItems>[1], opts),
   ).map((group) => ({
     ...group,
     items: group.items as StockListItem[],

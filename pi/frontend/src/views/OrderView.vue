@@ -478,7 +478,7 @@ async function submitOrder() {
     if (res.articles || res.ingredients) {
       patchEventStock(event.value.id, {
         articles: res.articles,
-        ingredients: (res as { ingredients?: Record<string, unknown> }).ingredients,
+        ingredients: res.ingredients,
       })
     }
     const pm = res.payment_mode || paymentMode.value

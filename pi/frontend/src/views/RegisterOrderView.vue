@@ -682,10 +682,10 @@ async function submitOrder() {
       method: 'POST',
       body: JSON.stringify(body),
     })
-    if (res.articles || (res as { ingredients?: Record<string, unknown> }).ingredients) {
+    if (res.articles || res.ingredients) {
       patchEventStock(event.value.id, {
         articles: res.articles,
-        ingredients: (res as { ingredients?: Record<string, unknown> }).ingredients,
+        ingredients: res.ingredients,
       })
     }
     scheduleIdleAfterPickup(10000)

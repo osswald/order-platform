@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import type { DiscountIn, LineAdditionIn } from '@/types/api'
+import type { DiscountIn, EdgeBundleArticle, EdgeBundleArticleAddition, LineAdditionIn } from '@/types/api'
 import type { CartLine, ToastState, RegisterSession, WaiterSession } from '@/types/cart'
 import { cartLineLabelForEvent, cartIngredientUsage, hasIngredients, maxOrderableForArticle, maxOrderableFromIngredients, voucherDefinitionByUuid } from '@/utils/bundleHelpers'
 import {
@@ -190,7 +190,7 @@ export function availableAdditionQty(
   if (!a) return null
   if (hasIngredients(a)) {
     const usageLines = cartLines.value
-      .filter((l) => !excludeLineId || l.lineId !== excludeLineId)
+      .filter((l): l is CartLine & { article_id: number } => l.article_id != null && (!excludeLineId || l.lineId !== excludeLineId))
       .map((l) => ({
         article_id: l.article_id,
         qty: l.qty,
@@ -212,7 +212,7 @@ export function availableAdditionQty(
 export function isAdditionSellable(
   additionId: number | string,
   excludeLineId: string | null = null,
-  fallback?: EdgeBundleArticle | null,
+  fallback?: EdgeBundleArticle | EdgeBundleArticleAddition | null,
 ): boolean {
   const a = getArticle(additionId) ?? fallback ?? null
   if (!a) return false
@@ -247,12 +247,14 @@ export function availableQty(articleId: number | string, excludeLineId: string |
   const a = getArticle(articleId)
   if (!a) return null
   if (hasIngredients(a)) {
-    const usageLines = cartLines.value.map((l) => ({
-      article_id: l.article_id,
-      qty: l.qty,
-      lineId: l.lineId,
-      additions: l.additions,
-    }))
+    const usageLines = cartLines.value
+      .filter((l): l is CartLine & { article_id: number } => l.article_id != null)
+      .map((l) => ({
+        article_id: l.article_id,
+        qty: l.qty,
+        lineId: l.lineId,
+        additions: l.additions,
+      }))
     return maxOrderableForArticle(a, selectedEvent.value, usageLines, excludeLineId)
   }
   if (!a.monitor_stock) return null

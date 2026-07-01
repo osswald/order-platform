@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { api } from '@/api'
-import type { EdgeBundleArticle, EdgeBundleEvent, EdgeBundleResponse } from '@/types/api'
+import type { EdgeBundleArticle, EdgeBundleEvent, EdgeBundleResponse, ArticleStockPatch } from '@/types/api'
 import { selectedEventId } from './sessions'
 
 export const bundle = ref<EdgeBundleResponse | null>(null)
@@ -39,7 +39,7 @@ export function patchEventStock(
   eventId: number,
   patch: {
     articles?: Record<string, Partial<EdgeBundleArticle>>
-    ingredients?: Record<string, Partial<{ id?: number; in_stock?: number; sellable?: boolean; monitor_stock?: boolean }>>
+    ingredients?: Record<string, ArticleStockPatch>
   },
 ): void {
   const b = bundle.value

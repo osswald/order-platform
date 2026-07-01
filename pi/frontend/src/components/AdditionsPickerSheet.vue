@@ -82,7 +82,7 @@ function priceHint(a: EdgeBundleArticleAddition) {
 }
 
 function isSoldOut(a: EdgeBundleArticleAddition) {
-  return !isAdditionSellable(a.article_id, null, a as EdgeBundleArticleAddition)
+  return !isAdditionSellable(a.article_id, null, a)
 }
 
 function stockHint(a: EdgeBundleArticleAddition): string | null {
@@ -92,7 +92,7 @@ function stockHint(a: EdgeBundleArticleAddition): string | null {
 }
 
 function canSelect(a: EdgeBundleArticleAddition) {
-  return isAdditionSellable(a.article_id, null, a as EdgeBundleArticleAddition)
+  return isAdditionSellable(a.article_id, null, a)
 }
 
 function toggle(a: EdgeBundleArticleAddition) {

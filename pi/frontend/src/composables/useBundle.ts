@@ -25,6 +25,5 @@ export function useBundle() {
     showToast,
     patchEventArticles,
     patchEventStock,
-    refreshBundle,
   }
 }
