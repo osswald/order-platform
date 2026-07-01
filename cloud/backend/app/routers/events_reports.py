@@ -3,19 +3,23 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..edge_reporting import build_payment_batches_report_v3, build_sales_report_v3
 from ..event_bookkeeping import build_event_bookkeeping_report
 from ..event_cash_sessions import build_cash_sessions_page
-from ..event_collective_bills import build_event_collective_bills_list
+from ..event_collective_bills import build_event_collective_bills_list, build_single_collective_bill
 from ..event_sales import build_event_sales_report
 from ..event_stats import build_event_stats
 from ..event_transactions import build_event_transactions_page
+from ..i18n.deps import get_locale
 from ..i18n.errors import api_error
-from ..models import User
+from ..models import Organisation, User
+from ..pdf.documents.collective_bill import build_collective_bill_pdf
+from ..pdf.formatting import safe_filename
+from ..pdf.response import pdf_download_response
 from ..schemas.events import (
     EventCashSessionsPageRead,
     EventCollectiveBillsListRead,
@@ -51,6 +55,40 @@ def read_event_collective_bills(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_event_collective_bills_list(db, event)
+
+
+@router.get("/{event_id}/collective-bills/{bill_uuid}/pdf")
+def read_event_collective_bill_pdf(
+    event_id: int,
+    bill_uuid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+    locale: str = Depends(get_locale),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    bill = build_single_collective_bill(db, event, bill_uuid)
+    if bill is None:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    organisation = (
+        db.query(Organisation)
+        .options(joinedload(Organisation.hire_company))
+        .filter(Organisation.id == event.organisation_id)
+        .first()
+    )
+    if organisation is None:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    event.organisation = organisation
+    currency = str(bill.pop("_currency", None) or "CHF")
+    pdf_bytes = build_collective_bill_pdf(
+        event=event,
+        organisation=organisation,
+        bill=bill,
+        currency=currency,
+        locale=locale,
+    )
+    filename = f"Sammelrechnung-{safe_filename(bill.get('name') or 'bill')}.pdf"
+    return pdf_download_response(pdf_bytes, filename)
 
 
 @router.get("/{event_id}/transactions", response_model=EventTransactionsPageRead)

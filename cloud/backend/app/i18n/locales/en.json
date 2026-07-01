@@ -1,1 +1,28 @@
-{}
+{
+  "pdf": {
+    "common": {
+      "page": "Page {page}",
+      "generated_at": "Generated at {time}"
+    },
+    "collective_bill": {
+      "title": "Collective bill",
+      "for_recipient": "For: {name}",
+      "event": "Event: {name}",
+      "summary_heading": "Positions (summary)",
+      "orders_heading": "Orders in detail",
+      "order_heading": "Order #{number}",
+      "order_heading_unknown": "Order",
+      "payments_heading": "Payments",
+      "totals_line": "Total: {total} · Paid: {paid} · Open: {open_amount}",
+      "payment_line": "{method}: {amount} ({time})",
+      "no_positions": "No positions.",
+      "no_payments": "No payments recorded.",
+      "article": "Article",
+      "note": "Note",
+      "qty": "Qty",
+      "unit_price": "Unit price",
+      "amount": "Amount",
+      "no_note": "—"
+    }
+  }
+}

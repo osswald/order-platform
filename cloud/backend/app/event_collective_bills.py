@@ -209,3 +209,13 @@ def build_event_collective_bills_list(db: Session, event: Event) -> dict:
         )
 
     return {"currency": currency, "collective_bills": bills}
+
+
+def build_single_collective_bill(db: Session, event: Event, bill_uuid: str) -> dict | None:
+    """Return one collective bill dict from build_event_collective_bills_list, or None."""
+    result = build_event_collective_bills_list(db, event)
+    target = str(bill_uuid)
+    for bill in result.get("collective_bills") or []:
+        if str(bill.get("uuid") or "") == target:
+            return {**bill, "_currency": result.get("currency")}
+    return None

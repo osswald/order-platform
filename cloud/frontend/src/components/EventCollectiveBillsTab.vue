@@ -4,6 +4,7 @@
       <v-btn variant="outlined" type="button" :disabled="loading" @click="load">{{ $t('common.refresh') }}</v-btn>
     </div>
     <p v-if="loadError" class="error">{{ loadError }}</p>
+    <p v-else-if="pdfError" class="error">{{ pdfError }}</p>
     <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else-if="data">
       <p v-if="!data.collective_bills.length" class="muted">{{ $t('events.tabs.noCollectiveBills') }}</p>
@@ -24,6 +25,18 @@
             </div>
           </v-expansion-panel-title>
           <v-expansion-panel-text>
+            <div class="bill-actions">
+              <v-btn
+                variant="outlined"
+                type="button"
+                size="small"
+                :disabled="pdfLoadingUuid === bill.uuid"
+                :loading="pdfLoadingUuid === bill.uuid"
+                @click="downloadPdf(bill)"
+              >
+                {{ $t('events.tabs.downloadCollectiveBillPdf') }}
+              </v-btn>
+            </div>
             <div class="bill-summary">
               <div class="summary-grid">
                 <div class="summary-card">
@@ -79,7 +92,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiJson } from '../api'
+import { apiFetch, apiJson } from '../api'
 import { formatAmount } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 import type { CollectiveBillRead, EventCollectiveBillsListRead } from '@/types/api'
@@ -87,7 +100,7 @@ import { getErrorMessage } from '@/types/api'
 import type { CollectiveBillLineGroup, CollectiveBillPositionRow } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps<{ eventId: number }>()
 
@@ -99,6 +112,8 @@ const positionHeaders = computed((): DataTableHeader[] => [
 
 const loading = ref(false)
 const loadError = ref('')
+const pdfLoadingUuid = ref('')
+const pdfError = ref('')
 const data = ref<EventCollectiveBillsListRead | null>(null)
 
 function formatMoney(cents: number | null | undefined): string {
@@ -137,6 +152,33 @@ function positionRows(bill: CollectiveBillRead): CollectiveBillPositionRow[] {
     qty: g.total_qty ?? 1,
     line_cents: g.line_total_cents ?? 0,
   }))
+}
+
+async function downloadPdf(bill: CollectiveBillRead) {
+  pdfLoadingUuid.value = bill.uuid
+  pdfError.value = ''
+  try {
+    const response = await apiFetch(`/events/${props.eventId}/collective-bills/${bill.uuid}/pdf`, {
+      headers: {
+        'Accept-Language': locale.value === 'en' ? 'en' : 'de',
+      },
+    })
+    if (!response.ok) {
+      throw new Error(t('events.tabs.downloadCollectiveBillPdfFailed'))
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const safeName = (bill.name || 'Sammelrechnung').replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-') || 'Sammelrechnung'
+    anchor.href = url
+    anchor.download = `Sammelrechnung-${safeName}.pdf`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  } catch (e: unknown) {
+    pdfError.value = getErrorMessage(e, t('events.tabs.downloadCollectiveBillPdfFailed'))
+  } finally {
+    pdfLoadingUuid.value = ''
+  }
 }
 
 async function load() {
@@ -187,6 +229,10 @@ watch(() => props.eventId, load, { immediate: true })
 
 .panel-meta {
   font-size: 0.85rem;
+}
+
+.bill-actions {
+  margin-bottom: 0.75rem;
 }
 
 .bill-summary {

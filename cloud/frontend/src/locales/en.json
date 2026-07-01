@@ -37,6 +37,10 @@
       "orderSource": "Order source",
       "orderSourceWaiter": "Waiter",
       "orderSourceCashRegister": "Cash register"
+    },
+    "tabs": {
+      "downloadCollectiveBillPdf": "Download PDF",
+      "downloadCollectiveBillPdfFailed": "Could not download PDF."
     }
   },
   "common": {
