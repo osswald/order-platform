@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..accounting_validation import resolve_article_accounting_account_id, validate_article_accounting_account
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
+from ..article_delete_guards import assert_article_deletable
 from ..auth_deps import get_current_user
 from ..currency import organisation_currency
 from ..db_errors import commit_or_raise
@@ -345,6 +346,7 @@ def delete_article(
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
+    assert_article_deletable(db, article.id)
     db.delete(article)
     commit_or_raise(db)
     return None

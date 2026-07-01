@@ -1,4 +1,11 @@
 {
+  "errors": {
+    "cannot_delete_article_in_use": "Article cannot be deleted: {reasons}.",
+    "article_delete_reason_addition": "linked as an addition on other articles",
+    "article_delete_reason_layout": "used on app layouts",
+    "article_delete_reason_station": "assigned to stations",
+    "article_delete_reason_stats": "used in sales/statistics"
+  },
   "pdf": {
     "common": {
       "page": "Page {page}",
