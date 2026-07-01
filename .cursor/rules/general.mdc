@@ -9,3 +9,5 @@ Always create a feature branch from main for every code change you make.
 Always write tests before changing or writing code.
 
 Always run all tests after changes.
+
+Always run lint before committing: `./scripts/lint.sh` (full) or `./scripts/lint.sh --staged` (staged files only). Install the git pre-commit hook once with `./scripts/install-git-hooks.sh`.

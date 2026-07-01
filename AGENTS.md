@@ -65,6 +65,19 @@ cd cloud/frontend && npm run typecheck
 
 CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes under `cloud/frontend/**` or `pi/frontend/**`. Cloud PRs also run `npm run typecheck`. Backend schema changes trigger `.github/workflows/openapi-sync.yml`.
 
+### Lint (Ruff + ESLint)
+
+CI runs Ruff and ESLint via `.github/workflows/lint.yml`. Run the same checks locally before committing:
+
+```bash
+./scripts/install-git-hooks.sh   # once per clone: enables pre-commit lint on staged files
+./scripts/lint.sh                # full lint (cloud + pi backends and frontends)
+./scripts/lint.sh --staged       # lint only areas touched by staged files (what pre-commit runs)
+npm run lint                     # same as ./scripts/lint.sh
+```
+
+Requires `python3 -m pip install ruff`, `npm ci` at repo root, and `npm ci` in `cloud/frontend` and `pi/frontend` before ESLint runs.
+
 ### Cloud frontend TypeScript and OpenAPI
 
 The cloud frontend uses **strict TypeScript**, **openapi-fetch** (`src/api/client.ts`), and generated types from `cloud/frontend/openapi.json`.
