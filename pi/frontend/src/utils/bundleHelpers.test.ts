@@ -8,11 +8,14 @@ import {
   fixedAmountVouchersForCell,
   getDefaultLayout,
   hasAdditions,
+  hasIngredients,
   isArticleSellable,
   lineAdditionLabels,
   lineIdentityKey,
   lineIdentityKeyFromItem,
   maxAddQty,
+  maxOrderableForArticle,
+  maxOrderableFromIngredients,
   normalizeLineAdditions,
   printerHostConfigured,
   positionCommentPresets,
@@ -90,6 +93,25 @@ describe('cartIngredientUsage', () => {
     )
     expect(usage[1]).toBe(3)
   })
+
+  it('ignores invalid ingredient ids and non-recipe articles', () => {
+    const articles = {
+      10: {
+        id: 10,
+        ingredients: [{ ingredient_id: 0, amount: 1 }],
+      },
+      20: { id: 20, name: 'Plain' },
+    } as unknown as Record<string, EdgeBundleArticle>
+    expect(
+      cartIngredientUsage(
+        [
+          { article_id: 10, qty: 1 },
+          { article_id: 20, qty: 2, additions: [{ article_id: 99, qty: 1 }] },
+        ],
+        articles,
+      ),
+    ).toEqual({})
+  })
 })
 
 describe('isArticleSellable', () => {
@@ -97,6 +119,120 @@ describe('isArticleSellable', () => {
     expect(isArticleSellable({ is_addition: true } as unknown as EdgeBundleArticle)).toBe(false)
     expect(isArticleSellable({ sellable: false } as unknown as EdgeBundleArticle)).toBe(false)
     expect(isArticleSellable({ name: 'Bier' } as unknown as EdgeBundleArticle)).toBe(true)
+  })
+
+  it('allows sellable recipe articles and rejects unsellable ones', () => {
+    expect(
+      isArticleSellable({
+        ingredients: [{ ingredient_id: 1, amount: 1 }],
+        sellable: true,
+      } as unknown as EdgeBundleArticle),
+    ).toBe(true)
+    expect(
+      isArticleSellable({
+        ingredients: [{ ingredient_id: 1, amount: 1 }],
+        sellable: false,
+      } as unknown as EdgeBundleArticle),
+    ).toBe(false)
+  })
+})
+
+describe('hasIngredients', () => {
+  it('detects non-empty ingredient recipes', () => {
+    expect(
+      hasIngredients({ ingredients: [{ ingredient_id: 1, amount: 1 }] } as unknown as EdgeBundleArticle),
+    ).toBe(true)
+    expect(hasIngredients({ ingredients: [] } as unknown as EdgeBundleArticle)).toBe(false)
+    expect(hasIngredients(null)).toBe(false)
+  })
+})
+
+describe('maxOrderableFromIngredients', () => {
+  const recipeArticle = {
+    ingredients: [
+      { ingredient_id: 1, amount: 1, name: 'Brötchen' },
+      { ingredient_id: 2, amount: 0.5, name: 'Salami' },
+    ],
+  } as unknown as EdgeBundleArticle
+
+  it('returns null when no monitored ingredients apply', () => {
+    const result = maxOrderableFromIngredients(
+      recipeArticle,
+      { 1: { monitor_stock: false, in_stock: 10 } },
+      {},
+    )
+    expect(result.max).toBeNull()
+    expect(result.limitingName).toBeNull()
+  })
+
+  it('returns 0 when monitored ingredient stock is exhausted', () => {
+    const result = maxOrderableFromIngredients(
+      recipeArticle,
+      { 1: { monitor_stock: true, in_stock: 0, name: 'Brötchen' } },
+      {},
+    )
+    expect(result.max).toBe(0)
+    expect(result.limitingName).toBe('Brötchen')
+  })
+
+  it('limits by scarcest ingredient and subtracts cart usage', () => {
+    const ingredients = {
+      1: { monitor_stock: true, in_stock: 10, name: 'Brötchen' },
+      2: { monitor_stock: true, in_stock: 3, name: 'Salami' },
+    }
+    expect(maxOrderableFromIngredients(recipeArticle, ingredients, {}).max).toBe(6)
+    expect(maxOrderableFromIngredients(recipeArticle, ingredients, { 2: 2 }).max).toBe(2)
+  })
+})
+
+describe('maxOrderableForArticle', () => {
+  const event = {
+    ingredients: {
+      1: { monitor_stock: true, in_stock: 5, name: 'Teig' },
+    },
+    articles: {
+      10: {
+        id: 10,
+        ingredients: [{ ingredient_id: 1, amount: 2 }],
+      },
+      20: {
+        id: 20,
+        monitor_stock: true,
+        in_stock: 4,
+      },
+    },
+  } as unknown as EdgeBundleEvent
+
+  it('returns ingredient-based max for recipe articles', () => {
+    expect(maxOrderableForArticle(event.articles![10], event, [])).toBe(2)
+    expect(
+      maxOrderableForArticle(event.articles![10], event, [{ article_id: 10, qty: 1, lineId: 'L-1' }]),
+    ).toBe(1)
+  })
+
+  it('excludes the edited line from stock calculation', () => {
+    expect(
+      maxOrderableForArticle(
+        event.articles![10],
+        event,
+        [{ article_id: 10, qty: 2, lineId: 'L-1' }],
+        'L-1',
+      ),
+    ).toBe(2)
+  })
+
+  it('returns remaining article stock for monitored non-recipe articles', () => {
+    expect(
+      maxOrderableForArticle(
+        event.articles![20],
+        event,
+        [
+          { article_id: 20, qty: 1, lineId: 'L-1' },
+          { article_id: 20, qty: 1, lineId: 'L-2' },
+        ],
+        'L-1',
+      ),
+    ).toBe(3)
   })
 })
 
@@ -262,6 +398,11 @@ describe('printerHostConfigured', () => {
     expect(printerHostConfigured(event, 'reg-1')).toBe(true)
     expect(printerHostConfigured(event, 'reg-empty')).toBe(false)
     expect(printerHostConfigured(event, 'missing')).toBe(false)
+  })
+
+  it('rejects unsupported host value types', () => {
+    const odd = { printer_hosts: { bad: 123 } } as unknown as EdgeBundleEvent
+    expect(printerHostConfigured(odd, 'bad')).toBe(false)
   })
 })
 
