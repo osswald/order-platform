@@ -913,6 +913,8 @@
       "paymentStatusOpen": "Offen",
       "paymentStatusPaid": "Bezahlt",
       "noCollectiveBills": "Noch keine Sammelrechnungen synchronisiert.",
+      "downloadCollectiveBillPdf": "PDF herunterladen",
+      "downloadCollectiveBillPdfFailed": "PDF konnte nicht heruntergeladen werden.",
       "orderCountMeta": "{count} Bestellung(en) · {total}",
       "openAmount": "offen {amount}",
       "totalAmount": "Gesamtbetrag",

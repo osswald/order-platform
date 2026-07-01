@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { bundleWithRegisters, defaultBundle } from '@tests/fixtures/bundle'
 import type { EdgeBundleEvent } from '@/types/api'
@@ -60,5 +59,27 @@ describe('useAdminOperations', () => {
     bundleRef.value = bundleWithRegisters()
     const { showRegisterSelect } = useAdminOperations()
     expect(showRegisterSelect.value).toBe(false)
+  })
+
+  it('shows register select when multiple cash registers are available', () => {
+    const base = bundleWithRegisters()
+    const ev = base.events![0]
+    ev.configuration = {
+      ...ev.configuration,
+      cash_registers: [
+        { uuid: 'register-1', name: 'Kasse 1' },
+        { uuid: 'register-2', name: 'Kasse 2' },
+      ],
+    }
+    bundleRef.value = base
+    const { showRegisterSelect } = useAdminOperations()
+    expect(showRegisterSelect.value).toBe(true)
+  })
+
+  it('exposes single register name when only one cash register exists', () => {
+    bundleRef.value = bundleWithRegisters()
+    const { singleRegisterName, hasCashRegisters } = useAdminOperations()
+    expect(hasCashRegisters.value).toBe(true)
+    expect(singleRegisterName.value).toBe('Kasse 1')
   })
 })

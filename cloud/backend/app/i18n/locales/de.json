@@ -156,5 +156,31 @@
     "accounting_account_in_use": "Buchhaltungskonto wird verwendet und kann nicht gelöscht werden.",
     "accounting_account_number_exists": "Kontonummer ist in dieser Organisation bereits vergeben.",
     "organisation_required": "Organisation ist erforderlich."
+  },
+  "pdf": {
+    "common": {
+      "page": "Seite {page}",
+      "generated_at": "Erstellt am {time}"
+    },
+    "collective_bill": {
+      "title": "Sammelrechnung",
+      "for_recipient": "Für: {name}",
+      "event": "Veranstaltung: {name}",
+      "summary_heading": "Positionen (zusammengefasst)",
+      "orders_heading": "Bestellungen im Detail",
+      "order_heading": "Bestellung #{number}",
+      "order_heading_unknown": "Bestellung",
+      "payments_heading": "Zahlungen",
+      "totals_line": "Gesamt: {total} · Bezahlt: {paid} · Offen: {open_amount}",
+      "payment_line": "{method}: {amount} ({time})",
+      "no_positions": "Keine Positionen.",
+      "no_payments": "Keine Zahlungen erfasst.",
+      "article": "Artikel",
+      "note": "Bemerkung",
+      "qty": "Menge",
+      "unit_price": "Einzelpreis",
+      "amount": "Betrag",
+      "no_note": "—"
+    }
   }
 }

@@ -696,6 +696,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{event_id}/collective-bills/{bill_uuid}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Event Collective Bill Pdf */
+        get: operations["read_event_collective_bill_pdf_events__event_id__collective_bills__bill_uuid__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{event_id}/transactions": {
         parameters: {
             query?: never;
@@ -6324,6 +6341,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventCollectiveBillsListRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_event_collective_bill_pdf_events__event_id__collective_bills__bill_uuid__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+                "accept-language"?: string | null;
+            };
+            path: {
+                event_id: number;
+                bill_uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
