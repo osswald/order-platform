@@ -4,7 +4,7 @@ from fastapi import status
 from sqlalchemy.orm import Session, joinedload
 
 from ..appliance_naming import appliance_display_name
-from ..currency import event_currency
+from ..currency import event_country_code, event_currency
 from ..event_config_validation import event_printer_candidates
 from ..i18n.errors import api_error
 from ..instant_collective_bill import instant_collective_bill_fields
@@ -43,6 +43,7 @@ def event_response(event: Event) -> dict:
         "organisation_id": event.organisation_id,
         "organisation_name": event.organisation.name if event.organisation else "",
         "organisation_currency": event_currency(event, "EUR"),
+        "organisation_country_code": event_country_code(event, "CH"),
         "payment_mode": getattr(event, "payment_mode", None) or "pay_later",
         "payment_types": payment_types_from_event(event),
         "has_twint_qr": has_twint_qr(event),

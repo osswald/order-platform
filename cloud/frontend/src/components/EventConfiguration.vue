@@ -111,7 +111,11 @@
         </template>
 
         <template v-if="showBookkeepingTab" #buchhaltung>
-          <EventBookkeepingTab :event-id="eventId" :currency="organisationCurrency" />
+          <EventBookkeepingTab
+            :event-id="eventId"
+            :currency="organisationCurrency"
+            :country-code="organisationCountryCode"
+          />
         </template>
       </SectionNavLayout>
 
@@ -201,6 +205,7 @@ const props = withDefaults(
     eventId: number
     organisationId?: number | null
     organisationCurrency?: string
+    organisationCountryCode?: string
     eventStatus?: string
     cashRegistersEnabled?: boolean
     vouchersEnabled?: boolean
@@ -212,6 +217,7 @@ const props = withDefaults(
   {
     organisationId: null,
     organisationCurrency: 'EUR',
+    organisationCountryCode: 'CH',
     eventStatus: 'config',
     cashRegistersEnabled: false,
     vouchersEnabled: false,

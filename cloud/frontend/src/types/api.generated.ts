@@ -2164,6 +2164,11 @@ export interface components {
         DashboardSalesRead: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             totals: components["schemas"]["DashboardSalesTotalsRead"];
             /** By Event */
             by_event: components["schemas"]["DashboardSalesEventRowRead"][];
@@ -2378,6 +2383,11 @@ export interface components {
         EventCashSessionsPageRead: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             /** Total */
             total: number;
             /** Page */
@@ -2391,6 +2401,11 @@ export interface components {
         EventCollectiveBillsListRead: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             /** Collective Bills */
             collective_bills: components["schemas"]["CollectiveBillRead"][];
         };
@@ -2500,6 +2515,11 @@ export interface components {
         EventPaymentBatchesV3Read: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             /** Payment Batches */
             payment_batches: components["schemas"]["PaymentBatchV3Read"][];
         };
@@ -2571,6 +2591,16 @@ export interface components {
             id: number;
             /** Organisation Name */
             organisation_name: string;
+            /**
+             * Organisation Currency
+             * @default EUR
+             */
+            organisation_currency: string;
+            /**
+             * Organisation Country Code
+             * @default CH
+             */
+            organisation_country_code: string;
         };
         /** EventReceiptPrintingConfig */
         EventReceiptPrintingConfig: {
@@ -2607,6 +2637,11 @@ export interface components {
         EventSalesReportV3Read: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             totals: components["schemas"]["V3SalesTotalsRead"];
             /** By Waiter */
             by_waiter: components["schemas"]["V3SalesByWaiterRead"][];
@@ -2621,6 +2656,11 @@ export interface components {
         EventStatsRead: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             /** From */
             from: string;
             /** To */
@@ -2681,6 +2721,11 @@ export interface components {
         EventTransactionsPageRead: {
             /** Currency */
             currency: string;
+            /**
+             * Country Code
+             * @default CH
+             */
+            country_code: string;
             /** Total */
             total: number;
             /** Page */
@@ -6356,7 +6401,9 @@ export interface operations {
     };
     read_event_collective_bill_pdf_events__event_id__collective_bills__bill_uuid__pdf_get: {
         parameters: {
-            query?: never;
+            query?: {
+                include_order_detail?: boolean;
+            };
             header?: {
                 "X-Hire-Company-Id"?: string | null;
                 "accept-language"?: string | null;
@@ -6510,6 +6557,7 @@ export interface operations {
                 bucket_count?: number;
             };
             header?: {
+                "accept-language"?: string | null;
                 "X-Hire-Company-Id"?: string | null;
             };
             path: {

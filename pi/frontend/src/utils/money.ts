@@ -25,13 +25,13 @@ export function formatAmount(cents: number | null | undefined): string {
   return amountFormatter.format((cents || 0) / 100)
 }
 
-export function formatMoney(cents: number | null | undefined, _currency?: string): string {
-  return formatAmount(cents)
+export function formatMoney(cents: number | null | undefined, currency = 'CHF'): string {
+  return `${currency} ${formatAmount(cents)}`
 }
 
-/** Major currency units (e.g. article.price) without currency symbol. */
-export function formatPrice(amount: number | string | null | undefined): string {
-  return amountFormatter.format(Number(amount) || 0)
+/** Major currency units (e.g. article.price) with ISO code prefix. */
+export function formatPrice(amount: number | string | null | undefined, currency = 'CHF'): string {
+  return `${currency} ${amountFormatter.format(Number(amount) || 0)}`
 }
 
 function articleEntry(

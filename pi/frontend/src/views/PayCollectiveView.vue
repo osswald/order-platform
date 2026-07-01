@@ -39,6 +39,7 @@
               :key="v.key"
               :label="v.label"
               :amount-cents="v.appliedCents"
+              :currency="currency"
               @remove="removeVoucherLine(vi)"
             />
           </ul>
@@ -63,9 +64,9 @@
             :disabled="paying || !rawBasketCents"
             @click="onPay"
           >
-            Teilbetrag {{ formatAmount(basketCents) }}
+            Teilbetrag {{ formatMoney(basketCents, currency) }}
             <template v-if="voucherCreditCents">
-              <span class="bar-sub">(−{{ formatAmount(voucherCreditCents) }} Gutschein)</span>
+              <span class="bar-sub">(−{{ formatMoney(voucherCreditCents, currency) }} Gutschein)</span>
             </template>
             <span class="check" aria-hidden="true">✓</span>
           </button>
@@ -103,7 +104,7 @@
         >
           {{ remainingItemCount }} ↑
         </button>
-        <span class="bar-main">Rest {{ formatAmount(restCents) }} / {{ formatAmount(totalCents) }}</span>
+        <span class="bar-main">Rest {{ formatMoney(restCents, currency) }} / {{ formatMoney(totalCents, currency) }}</span>
         <button
           type="button"
           class="bar-side cancel"
@@ -152,7 +153,7 @@ import { useEventContext } from '@/composables/useEventContext'
 import { api } from '@/api'
 import type { AccountSummaryResponse, LineGroupEntry, TablePartialSettleResponse } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 import { useSplitPay, type SplitPaySummary, type VoucherRedemptionSelection } from '@/composables/useSplitPay'
 import SplitPayHeader from '@/components/SplitPayHeader.vue'
 import SplitPayLineRow from '@/components/SplitPayLineRow.vue'
@@ -170,7 +171,7 @@ const actionsOpen = ref(false)
 const voucherSheetOpen = ref(false)
 const voucherRedemptions = ref<VoucherRedemptionSelection[]>([])
 const billId = computed(() => parseInt(String(route.query.id), 10))
-const { event, showToast } = useEventContext()
+const { event, currency, showToast } = useEventContext()
 const paymentMode = computed(() => (event.value?.payment_mode || 'pay_later').toLowerCase())
 const eventId = computed(() => event.value?.id ?? 0)
 

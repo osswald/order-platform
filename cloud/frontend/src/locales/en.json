@@ -40,7 +40,9 @@
     },
     "tabs": {
       "downloadCollectiveBillPdf": "Download PDF",
-      "downloadCollectiveBillPdfFailed": "Could not download PDF."
+      "downloadCollectiveBillPdfFailed": "Could not download PDF.",
+      "collectiveBillPdfSettingsTitle": "PDF settings",
+      "collectiveBillPdfIncludeOrderDetail": "Include individual orders in PDF"
     }
   },
   "common": {

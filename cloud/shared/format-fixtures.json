@@ -1,0 +1,42 @@
+{
+  "money": [
+    {
+      "ui_locale": "de",
+      "country_code": "CH",
+      "currency": "CHF",
+      "cents": 1250,
+      "expected_amount": "12.50",
+      "expected_money": "CHF 12.50"
+    },
+    {
+      "ui_locale": "en",
+      "country_code": "CH",
+      "currency": "CHF",
+      "cents": 1250,
+      "expected_amount": "12.50",
+      "expected_money": "CHF 12.50"
+    },
+    {
+      "ui_locale": "de",
+      "country_code": "DE",
+      "currency": "EUR",
+      "cents": 1250,
+      "expected_amount": "12,50",
+      "expected_money": "EUR 12,50"
+    },
+    {
+      "ui_locale": "de",
+      "country_code": "CH",
+      "currency": "CHF",
+      "cents": 123456,
+      "expected_amount_suffix": "234.56",
+      "expected_money_prefix": "CHF "
+    }
+  ],
+  "format_locale": [
+    { "ui_locale": "de", "country_code": "CH", "babel_locale": "de_CH", "intl_locale": "de-CH" },
+    { "ui_locale": "en", "country_code": "CH", "babel_locale": "en_CH", "intl_locale": "en-CH" },
+    { "ui_locale": "de", "country_code": "DE", "babel_locale": "de_DE", "intl_locale": "de-DE" },
+    { "ui_locale": "en", "country_code": null, "babel_locale": "en_CH", "intl_locale": "en-CH" }
+  ]
+}

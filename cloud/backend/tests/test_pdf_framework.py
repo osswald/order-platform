@@ -4,10 +4,11 @@ import base64
 from io import BytesIO
 
 import pytest
+from app.locale_format import format_money
 from app.models import Event, HireCompany, Organisation
 from app.pdf.assets import VENDIQO_LOGO, asset_bytes
 from app.pdf.base import VqPdf
-from app.pdf.formatting import format_money, organisation_issuer_lines, safe_filename
+from app.pdf.formatting import organisation_issuer_lines, safe_filename
 from app.pdf.logo import resolve_logo_for_event
 from app.pdf.response import pdf_download_response
 from app.pdf.tables import TableColumn, TableSpec, write_table_header, write_table_row
@@ -61,6 +62,11 @@ def test_table_row_columns_not_split_across_pages():
             assert "10.00 CHF" in page_text
 
 
+def test_content_bottom_reserves_footer_space():
+    pdf = VqPdf(locale="de", title="Footer reserve")
+    assert pdf.content_bottom == pdf.h - pdf.BODY_BOTTOM_MARGIN_MM - pdf.FOOTER_HEIGHT_MM
+
+
 def test_vqpdf_renders_unicode_pdf():
     pdf = VqPdf(locale="de", title="Test")
     pdf.write_text("Grüsse aus Zürich — Umlaut test")
@@ -80,8 +86,9 @@ def test_write_logo_header_block_smoke():
 
 
 def test_format_money_locale():
-    assert "CHF" in format_money(1250, locale="de", currency="CHF")
-    assert format_money(1250, locale="en", currency="CHF").endswith("CHF")
+    assert format_money(1250, locale="de", currency="CHF") == "CHF 12.50"
+    assert format_money(1250, locale="en", currency="CHF") == "CHF 12.50"
+    assert format_money(1250, locale="de", currency="CHF").startswith("CHF ")
 
 
 def test_safe_filename():

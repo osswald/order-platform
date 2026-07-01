@@ -109,6 +109,8 @@ class EventRead(EventBase):
 
     id: int
     organisation_name: str
+    organisation_currency: str = "EUR"
+    organisation_country_code: str = "CH"
 
 
 class PrinterOptionRead(BaseModel):
@@ -384,6 +386,7 @@ class CollectiveBillRead(BaseModel):
 
 class EventCollectiveBillsListRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     collective_bills: list[CollectiveBillRead]
 class TransactionRead(BaseModel):
     id: int
@@ -405,6 +408,7 @@ class TransactionRead(BaseModel):
 
 class EventTransactionsPageRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     total: int
     page: int
     items_per_page: int
@@ -431,6 +435,7 @@ class CashSessionRead(BaseModel):
 
 class EventCashSessionsPageRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     total: int
     page: int
     items_per_page: int
@@ -469,6 +474,7 @@ class V3SalesByPaymentTypeRead(BaseModel):
 
 class EventSalesReportV3Read(BaseModel):
     currency: str
+    country_code: str = "CH"
     totals: V3SalesTotalsRead
     by_waiter: list[V3SalesByWaiterRead]
     by_station: list[V3SalesByStationRead]
@@ -570,6 +576,7 @@ class StatsByPaymentTypeRead(BaseModel):
 
 class EventStatsRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     from_: str = Field(alias="from")
     to: str
     bucket_count: int
@@ -597,4 +604,5 @@ class PaymentBatchV3Read(BaseModel):
 
 class EventPaymentBatchesV3Read(BaseModel):
     currency: str
+    country_code: str = "CH"
     payment_batches: list[PaymentBatchV3Read]

@@ -28,8 +28,10 @@ vi.mock('../composables/useEventContext', () => ({
   useEventContext: () => ({
     event: ref({
       id: 1,
+      currency: 'CHF',
       articles: { 10: { id: 10, name: 'Bier', price: 5 } },
     }),
+    currency: ref('CHF'),
     showToast: vi.fn(),
   }),
 }))
@@ -77,7 +79,7 @@ describe('PayOrderView', () => {
 
     expect(api).toHaveBeenCalledWith('/v1/tables/5?event_id=1')
     expect(wrapper.text()).toContain('Zu zahlen:')
-    expect(wrapper.text()).toContain('5.00')
+    expect(wrapper.text()).toContain('CHF 5.00')
     expect(wrapper.find('[data-testid="keypad"]').exists()).toBe(true)
   })
 })

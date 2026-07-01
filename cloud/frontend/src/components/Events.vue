@@ -27,6 +27,7 @@
         :event-id="activeId"
         :organisation-id="activeOrganisationId"
         :organisation-currency="organisationCurrency"
+        :organisation-country-code="organisationCountryCode"
         :event-status="form.status"
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
@@ -134,8 +135,8 @@
             {{ statusLabel(item.status) }}
           </v-chip>
         </template>
-        <template #item.start="{ item }">{{ formatDateTime(item.start) }}</template>
-        <template #item.end="{ item }">{{ formatDateTime(item.end) }}</template>
+        <template #item.start="{ item }">{{ formatEventDateTime(item.start, item.organisation_country_code) }}</template>
+        <template #item.end="{ item }">{{ formatEventDateTime(item.end, item.organisation_country_code) }}</template>
         <template #item.actions="{ item }">
           <div class="row-actions">
             <v-btn
@@ -182,6 +183,8 @@ import { statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
 import VqDataTable from './VqDataTable.vue'
+import { formatDateTime as formatDateTimeLocale } from '../utils/localeFormat'
+import { currentLocale } from '../i18n'
 import type { EventRead, EventCreate, EventUpdate } from '@/types/api'
 import type { EventStammdatenForm } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
@@ -241,6 +244,7 @@ const paymentTypeOptions = computed(() =>
 )
 
 const organisationCurrency = ref('EUR')
+const organisationCountryCode = ref('CH')
 
 const emptyForm = (): EventStammdatenForm => ({
   name: '',
@@ -326,12 +330,9 @@ const tableHeaders = computed((): DataTableHeader[] => {
   return headers
 })
 
-function formatDateTime(value: string | null | undefined): string {
+function formatEventDateTime(value: string | null | undefined, countryCode?: string | null): string {
   if (!value) return t('common.emDash')
-  return new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+  return formatDateTimeLocale(value, currentLocale(), countryCode)
 }
 
 function parseDate(value: string | null | undefined): Date | null {
@@ -486,6 +487,7 @@ async function applyEventToForm(event: EventRead) {
   }
   originalStatus.value = event.status || 'config'
   organisationCurrency.value = event.organisation_currency || 'EUR'
+  organisationCountryCode.value = event.organisation_country_code || 'CH'
   stammdatenBaseline.value = stammdatenSnapshot()
   message.value = ''
   if (hasTwintQr.value) void loadTwintQrPreview()

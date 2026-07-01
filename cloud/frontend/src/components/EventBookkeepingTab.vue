@@ -56,6 +56,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
+import { formatMoney as formatMoneyWithCurrency } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 import { getErrorMessage } from '@/types/api'
 import type {
@@ -72,9 +73,11 @@ const props = withDefaults(
   defineProps<{
     eventId: number
     currency?: string
+    countryCode?: string
   }>(),
   {
     currency: 'CHF',
+    countryCode: 'CH',
   },
 )
 
@@ -103,11 +106,7 @@ const detailHeaders = computed((): DataTableHeader[] => [
 ])
 
 function formatMoney(cents: number | null | undefined): string {
-  const value = (Number(cents) || 0) / 100
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: props.currency || 'CHF',
-  }).format(value)
+  return formatMoneyWithCurrency(cents, props.currency || 'CHF', props.countryCode)
 }
 
 function accountLabel(account: BookkeepingAccountRef | null | undefined): string {

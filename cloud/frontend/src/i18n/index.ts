@@ -1,6 +1,7 @@
 import { createI18n } from 'vue-i18n'
 import de from '../locales/de.json'
 import en from '../locales/en.json'
+import { datetimeFormats, numberFormats } from './formats'
 
 export const DEFAULT_LOCALE = 'de'
 export const SUPPORTED_LOCALES = ['de', 'en']
@@ -10,6 +11,8 @@ export const i18n = createI18n({
   locale: DEFAULT_LOCALE,
   fallbackLocale: DEFAULT_LOCALE,
   messages: { de, en },
+  numberFormats,
+  datetimeFormats,
 })
 
 export function currentLocale() {

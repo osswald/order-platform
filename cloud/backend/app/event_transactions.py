@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .currency import event_currency
+from .currency import event_country_code, event_currency
 from .event_sales import (
     _additions_signature,
     _build_articles_pricing_map,
@@ -320,6 +320,7 @@ def build_event_transactions_page(
 
     return {
         "currency": currency,
+        "country_code": event_country_code(event, "CH"),
         "total": total,
         "page": page,
         "items_per_page": items_per_page,

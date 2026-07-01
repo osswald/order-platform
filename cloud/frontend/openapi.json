@@ -4190,6 +4190,16 @@
             }
           },
           {
+            "name": "include_order_detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Order Detail"
+            }
+          },
+          {
             "name": "X-Hire-Company-Id",
             "in": "header",
             "required": false,
@@ -4641,6 +4651,22 @@
               "minimum": 12,
               "default": 24,
               "title": "Bucket Count"
+            }
+          },
+          {
+            "name": "accept-language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept-Language"
             }
           },
           {
@@ -10711,6 +10737,11 @@
             "type": "string",
             "title": "Currency"
           },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
           "totals": {
             "$ref": "#/components/schemas/DashboardSalesTotalsRead"
           },
@@ -11199,6 +11230,11 @@
             "type": "string",
             "title": "Currency"
           },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
           "total": {
             "type": "integer",
             "title": "Total"
@@ -11234,6 +11270,11 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
           },
           "collective_bills": {
             "items": {
@@ -11495,6 +11536,11 @@
             "type": "string",
             "title": "Currency"
           },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
           "payment_batches": {
             "items": {
               "$ref": "#/components/schemas/PaymentBatchV3Read"
@@ -11611,6 +11657,16 @@
           "organisation_name": {
             "type": "string",
             "title": "Organisation Name"
+          },
+          "organisation_currency": {
+            "type": "string",
+            "title": "Organisation Currency",
+            "default": "EUR"
+          },
+          "organisation_country_code": {
+            "type": "string",
+            "title": "Organisation Country Code",
+            "default": "CH"
           }
         },
         "type": "object",
@@ -11720,6 +11776,11 @@
             "type": "string",
             "title": "Currency"
           },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
           "totals": {
             "$ref": "#/components/schemas/V3SalesTotalsRead"
           },
@@ -11768,6 +11829,11 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
           },
           "from": {
             "type": "string",
@@ -11950,6 +12016,11 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
           },
           "total": {
             "type": "integer",

@@ -25,7 +25,7 @@
           <span class="meta muted">
             <template v-if="b.order_count === 0">Noch keine Posten</template>
             <template v-else>{{ b.order_count }} Bestellung(en)</template>
-            · {{ formatAmount(b.total_cents) }}
+            · {{ formatMoney(b.total_cents, currency) }}
           </span>
         </button>
       </li>
@@ -48,13 +48,13 @@ import type {
   OpenCollectiveBillsResponse,
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 
 const router = useRouter()
 const loading = ref(true)
 const creating = ref(false)
 const bills = ref<CollectiveBillListItem[]>([])
-const { event, showToast } = useEventContext()
+const { event, currency, showToast } = useEventContext()
 
 const isInstantMode = computed(
   () => (event.value?.payment_mode || 'pay_later').toLowerCase() === 'instant',

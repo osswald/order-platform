@@ -34,7 +34,7 @@
           <li v-for="b in bills" :key="b.id">
             <button type="button" class="bill-row" @click="assignToBill(b)">
               <span class="name">{{ b.name }}</span>
-              <span class="meta muted">{{ formatAmount(b.total_cents) }}</span>
+              <span class="meta muted">{{ formatMoney(b.total_cents, currency) }}</span>
             </button>
           </li>
         </ul>
@@ -72,10 +72,10 @@ import type {
   OpenCollectiveBillsResponse,
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 import TableKeypad from './TableKeypad.vue'
 
-const { showToast, event } = useEventContext()
+const { showToast, event, currency } = useEventContext()
 
 const isInstantMode = computed(
   () => (event.value?.payment_mode || 'pay_later').toLowerCase() === 'instant',

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from .currency import event_currency
+from .currency import event_country_code, event_currency
 from .event_sales import (
     _build_articles_pricing_map,
     _collect_article_ids_from_orders,
@@ -208,7 +208,7 @@ def build_event_collective_bills_list(db: Session, event: Event) -> dict:
             }
         )
 
-    return {"currency": currency, "collective_bills": bills}
+    return {"currency": currency, "country_code": event_country_code(event, "CH"), "collective_bills": bills}
 
 
 def build_single_collective_bill(db: Session, event: Event, bill_uuid: str) -> dict | None:

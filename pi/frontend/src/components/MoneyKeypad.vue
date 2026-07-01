@@ -13,13 +13,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 
 const props = withDefaults(
   defineProps<{
     modelValue?: number
+    currency?: string
   }>(),
-  { modelValue: 0 },
+  { modelValue: 0, currency: 'CHF' },
 )
 
 const emit = defineEmits<{
@@ -28,7 +29,7 @@ const emit = defineEmits<{
 
 const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0']
 
-const display = computed(() => formatAmount(props.modelValue))
+const display = computed(() => formatMoney(props.modelValue, props.currency))
 
 function press(d: string) {
   let v = props.modelValue

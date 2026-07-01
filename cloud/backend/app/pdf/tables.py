@@ -30,7 +30,7 @@ class TableSpec:
 
 
 def _page_bottom(pdf: VqPdf) -> float:
-    return pdf.h - pdf.b_margin
+    return pdf.content_bottom
 
 
 def _line_count(pdf: VqPdf, width_mm: float, text: str, row_height: float, align: Align) -> int:
@@ -86,7 +86,7 @@ def write_table_header(pdf: VqPdf, spec: TableSpec) -> None:
             pdf.cell(col.width_mm, HEADER_ROW_HEIGHT_MM, col.header, border=1, align=col.align, fill=True)
             x0 += col.width_mm
     finally:
-        pdf.set_auto_page_break(auto_pb, margin=pdf.b_margin)
+        pdf.set_auto_page_break(auto_pb, margin=pdf.page_break_margin)
 
     pdf.set_xy(pdf.l_margin, y0 + HEADER_ROW_HEIGHT_MM)
     pdf.set_fill_color(255, 255, 255)
@@ -122,7 +122,7 @@ def _draw_row(
             pdf.multi_cell(inner_w, row_height, text, border=0, align=col.align)
             x0 += col.width_mm
     finally:
-        pdf.set_auto_page_break(auto_pb, margin=pdf.b_margin)
+        pdf.set_auto_page_break(auto_pb, margin=pdf.page_break_margin)
 
     pdf.set_xy(pdf.l_margin, y0 + max_h)
 
@@ -178,6 +178,6 @@ def write_table_total_row(
         pdf.set_xy(x0 + label_width + ROW_PADDING_MM, y0 + ROW_PADDING_MM)
         pdf.cell(amount_col.width_mm - ROW_PADDING_MM * 2, row_height, amount, align=amount_col.align)
     finally:
-        pdf.set_auto_page_break(auto_pb, margin=pdf.b_margin)
+        pdf.set_auto_page_break(auto_pb, margin=pdf.page_break_margin)
 
     pdf.set_xy(pdf.l_margin, y0 + max_h)

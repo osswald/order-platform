@@ -12,12 +12,16 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 
-const props = defineProps<{
-  label: string
-  amountCents: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    label: string
+    amountCents: number
+    currency?: string
+  }>(),
+  { currency: 'CHF' },
+)
 
 defineEmits<{
   remove: []
@@ -25,6 +29,6 @@ defineEmits<{
 
 const amountLabel = computed(() => {
   const c = Math.max(0, Number(props.amountCents) || 0)
-  return `−${formatAmount(c)}`
+  return `−${formatMoney(c, props.currency)}`
 })
 </script>

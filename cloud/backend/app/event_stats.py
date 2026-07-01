@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .currency import event_currency
+from .currency import event_country_code, event_currency
 from .edge_reporting import _distinct_order_key, _load_event_for_reporting
 from .event_sales import (
     _build_name_maps,
@@ -17,6 +17,7 @@ from .event_sales import (
     _station_bucket_key,
     payment_type_label,
 )
+from .locale_format import format_bucket_label
 from .models import Article, ArticleCategory, EdgeOrderItem
 
 ARTICLE_TIMELINE_BUCKET_COUNT = 24
@@ -133,6 +134,8 @@ def _build_time_buckets(
     to_dt: datetime,
     *,
     count: int = ARTICLE_TIMELINE_BUCKET_COUNT,
+    locale: str = "de",
+    country_code: str | None = None,
 ) -> list[dict[str, Any]]:
     duration_seconds = (to_dt - from_dt).total_seconds()
     if duration_seconds <= 0:
@@ -148,10 +151,12 @@ def _build_time_buckets(
             end = to_dt
         else:
             end = from_dt + timedelta(seconds=bucket_width * (i + 1))
-        if use_date_in_label:
-            label = start.strftime("%d.%m. %H:%M")
-        else:
-            label = start.strftime("%H:%M")
+        label = format_bucket_label(
+            start,
+            include_date=use_date_in_label,
+            locale=locale,
+            country_code=country_code,
+        )
         buckets.append(
             {
                 "start": start.isoformat(),
@@ -183,8 +188,16 @@ def _build_qty_timeline(
     key_for_row: Any,
     id_field: str,
     bucket_count: int = ARTICLE_TIMELINE_BUCKET_COUNT,
+    locale: str = "de",
+    country_code: str | None = None,
 ) -> dict[str, Any]:
-    buckets = _build_time_buckets(from_dt, to_dt, count=bucket_count)
+    buckets = _build_time_buckets(
+        from_dt,
+        to_dt,
+        count=bucket_count,
+        locale=locale,
+        country_code=country_code,
+    )
     if not keys:
         return {
             "bucket_count": bucket_count,
@@ -242,6 +255,8 @@ def _build_article_timeline(
     article_ids: list[int],
     article_names: dict[int, str],
     bucket_count: int = ARTICLE_TIMELINE_BUCKET_COUNT,
+    locale: str = "de",
+    country_code: str | None = None,
 ) -> dict[str, Any]:
     return _build_qty_timeline(
         rows,
@@ -252,6 +267,8 @@ def _build_article_timeline(
         key_for_row=lambda row: int(row.article_id) if row.article_id is not None else None,
         id_field="article_id",
         bucket_count=bucket_count,
+        locale=locale,
+        country_code=country_code,
     )
 
 
@@ -264,6 +281,8 @@ def _build_category_timeline(
     category_names: dict[int, str],
     article_category_by_id: dict[int, int],
     bucket_count: int = ARTICLE_TIMELINE_BUCKET_COUNT,
+    locale: str = "de",
+    country_code: str | None = None,
 ) -> dict[str, Any]:
     def category_for_row(row: EdgeOrderItem) -> int | None:
         if row.article_id is None:
@@ -279,6 +298,8 @@ def _build_category_timeline(
         key_for_row=category_for_row,
         id_field="category_id",
         bucket_count=bucket_count,
+        locale=locale,
+        country_code=country_code,
     )
 
 
@@ -288,8 +309,16 @@ def _build_revenue_timeline(
     from_dt: datetime,
     to_dt: datetime,
     bucket_count: int,
+    locale: str = "de",
+    country_code: str | None = None,
 ) -> dict[str, Any]:
-    buckets = _build_time_buckets(from_dt, to_dt, count=bucket_count)
+    buckets = _build_time_buckets(
+        from_dt,
+        to_dt,
+        count=bucket_count,
+        locale=locale,
+        country_code=country_code,
+    )
     line_cents = [0] * bucket_count
     for row in rows:
         ts = effective_ordered_at(row)
@@ -359,6 +388,7 @@ def build_event_stats(
     article_ids: list[int] | None = None,
     category_ids: list[int] | None = None,
     bucket_count: int = ARTICLE_TIMELINE_BUCKET_COUNT,
+    locale: str = "de",
 ) -> dict[str, Any]:
     if bucket_count not in ALLOWED_BUCKET_COUNTS:
         raise ValueError("invalid_bucket_count")
@@ -392,6 +422,7 @@ def build_event_stats(
             "global_waiter": {},
         }
     currency = event_currency(event, "CHF")
+    country_code = event_country_code(event, "CH")
     article_station_uuid = maps["article_station_uuid"]
 
     all_rows = (
@@ -504,6 +535,7 @@ def build_event_stats(
 
     return {
         "currency": currency,
+        "country_code": country_code,
         "from": start.isoformat(),
         "to": end.isoformat(),
         "bucket_count": bucket_count,
@@ -519,6 +551,8 @@ def build_event_stats(
             from_dt=start,
             to_dt=end,
             bucket_count=bucket_count,
+            locale=locale,
+            country_code=country_code,
         ),
         "top_articles": _build_top_articles(range_rows, article_names=article_names),
         "by_order_source": _build_by_order_source(range_rows),
@@ -529,6 +563,8 @@ def build_event_stats(
             article_ids=selected_ids,
             article_names=article_names,
             bucket_count=bucket_count,
+            locale=locale,
+            country_code=country_code,
         ),
         "category_timeline": _build_category_timeline(
             timeline_rows,
@@ -538,6 +574,8 @@ def build_event_stats(
             category_names=category_names,
             article_category_by_id=article_category_by_id,
             bucket_count=bucket_count,
+            locale=locale,
+            country_code=country_code,
         ),
         "by_payment_type": sorted(by_payment_type.values(), key=lambda x: x["amount_cents"], reverse=True),
         "by_waiter": sorted(by_waiter.values(), key=lambda x: x["line_cents"], reverse=True),

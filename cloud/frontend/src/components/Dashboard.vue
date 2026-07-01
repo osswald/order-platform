@@ -148,15 +148,15 @@
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ $t('dashboard.salesLineItems') }}</span>
-            <span class="summary-value">{{ formatAmount(summary.sales.totals.line_cents) }} {{ summary.sales.currency }}</span>
+            <span class="summary-value">{{ formatMoney(summary.sales.totals.line_cents, summary.sales.currency, summary.sales.country_code) }}</span>
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ $t('dashboard.salesPaid') }}</span>
-            <span class="summary-value">{{ formatAmount(summary.sales.totals.paid_cents) }} {{ summary.sales.currency }}</span>
+            <span class="summary-value">{{ formatMoney(summary.sales.totals.paid_cents, summary.sales.currency, summary.sales.country_code) }}</span>
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ $t('dashboard.salesOpen') }}</span>
-            <span class="summary-value">{{ formatAmount(summary.sales.totals.open_cents) }} {{ summary.sales.currency }}</span>
+            <span class="summary-value">{{ formatMoney(summary.sales.totals.open_cents, summary.sales.currency, summary.sales.country_code) }}</span>
           </div>
         </div>
 
@@ -172,8 +172,8 @@
         >
           <template #item.period="{ item }">{{ formatEventDateRange(item.start, item.end) }}</template>
           <template #item.distinct_orders_count="{ item }">{{ item.distinct_orders_count }}</template>
-          <template #item.line_cents="{ item }">{{ formatAmount(item.line_cents) }}</template>
-          <template #item.open_cents="{ item }">{{ formatAmount(item.open_cents) }}</template>
+          <template #item.line_cents="{ item }">{{ formatMoney(item.line_cents, summary.sales.currency, summary.sales.country_code) }}</template>
+          <template #item.open_cents="{ item }">{{ formatMoney(item.open_cents, summary.sales.currency, summary.sales.country_code) }}</template>
         </VqDataTable>
       </div>
     </template>
@@ -187,7 +187,7 @@ import { RouterLink } from 'vue-router'
 import { useDashboardSummary } from '../composables/useDashboardSummary'
 import { attentionMessage, eventsStatDetail, formatEventDateRange, statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
-import { formatAmount } from '../utils/money'
+import { formatMoney } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 import DashboardOnboardingCard from './DashboardOnboardingCard.vue'
 

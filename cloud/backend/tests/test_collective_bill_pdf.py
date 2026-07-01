@@ -17,6 +17,7 @@ from app.models import (
     User,
 )
 from app.pdf.documents.collective_bill import build_collective_bill_pdf
+from app.pdf.settings import CollectiveBillPdfSettings
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
@@ -113,7 +114,7 @@ def test_build_collective_bill_pdf_content(db_session):
         organisation=org,
         bill=bill,
         currency="CHF",
-        locale="de",
+        settings=CollectiveBillPdfSettings(locale="de", include_order_detail=True),
     )
     assert pdf_bytes.startswith(b"%PDF")
     text = _pdf_text(pdf_bytes)
@@ -121,12 +122,12 @@ def test_build_collective_bill_pdf_content(db_session):
     assert "PDF Org" in text
     assert "Personal" in text
     assert "PDF Fest" in text
-    assert "5.00 CHF" in text or "5.00" in text
-    assert "10.00 CHF" in text or "10.00" in text
+    assert "CHF 5.00" in text or "5.00" in text
+    assert "CHF 10.00" in text or "10.00" in text
     assert "Ohne Eis" in text
     assert "Bemerkung" not in text
     assert text.count("Total") >= 2
-    assert "10.00 CHF" in text or "10.00" in text
+    assert "CHF 10.00" in text or "10.00" in text
 
 
 def test_build_collective_bill_pdf_section_totals_multi_order(db_session):
@@ -163,13 +164,13 @@ def test_build_collective_bill_pdf_section_totals_multi_order(db_session):
         organisation=org,
         bill=bill,
         currency="CHF",
-        locale="de",
+        settings=CollectiveBillPdfSettings(locale="de", include_order_detail=True),
     )
     text = _pdf_text(pdf_bytes)
     assert text.count("Total") >= 3
-    assert "8.00 CHF" in text or "8.00" in text
-    assert "5.00 CHF" in text or "5.00" in text
-    assert "3.00 CHF" in text or "3.00" in text
+    assert "CHF 8.00" in text or "8.00" in text
+    assert "CHF 5.00" in text or "5.00" in text
+    assert "CHF 3.00" in text or "3.00" in text
 
 
 def test_build_collective_bill_pdf_paid_without_payment_details(db_session):
@@ -197,7 +198,7 @@ def test_build_collective_bill_pdf_paid_without_payment_details(db_session):
         organisation=org,
         bill=bill,
         currency="CHF",
-        locale="de",
+        settings=CollectiveBillPdfSettings(locale="de", include_order_detail=True),
     )
     text = _pdf_text(pdf_bytes)
     assert "Keine Zahlungen erfasst" not in text
@@ -238,7 +239,7 @@ def test_build_collective_bill_pdf_note_with_addition(db_session):
         organisation=org,
         bill=bill,
         currency="CHF",
-        locale="de",
+        settings=CollectiveBillPdfSettings(locale="de", include_order_detail=True),
     )
     text = _pdf_text(pdf_bytes)
     assert "Gross" in text
@@ -255,7 +256,7 @@ def test_build_collective_bill_pdf_locale_en(db_session):
         organisation=org,
         bill=bill,
         currency="CHF",
-        locale="en",
+        settings=CollectiveBillPdfSettings(locale="en", include_order_detail=True),
     )
     text = _pdf_text(pdf_bytes)
     assert "Collective bill" in text
@@ -357,6 +358,61 @@ def test_collective_bill_pdf_route():
     assert r.headers["content-type"].startswith("application/pdf")
     assert r.content.startswith(b"%PDF")
     assert "Sammelrechnung" in r.headers.get("content-disposition", "")
+
+
+def test_build_collective_bill_pdf_summary_only_by_default(db_session):
+    db, event, org = db_session
+    _seed_collective_bill(db, event)
+    bill = build_single_collective_bill(db, event, "cb-pdf-1")
+    pdf_bytes = build_collective_bill_pdf(
+        event=event,
+        organisation=org,
+        bill=bill,
+        currency="CHF",
+    )
+    text = _pdf_text(pdf_bytes)
+    assert "Bestellungen im Detail" not in text
+    assert "Bestellung #42" not in text
+    assert text.count("Total") == 1
+    assert "Ohne Eis" in text
+
+
+def test_build_collective_bill_pdf_includes_order_detail_when_enabled(db_session):
+    db, event, org = db_session
+    _seed_collective_bill(db, event)
+    bill = build_single_collective_bill(db, event, "cb-pdf-1")
+    pdf_bytes = build_collective_bill_pdf(
+        event=event,
+        organisation=org,
+        bill=bill,
+        currency="CHF",
+        settings=CollectiveBillPdfSettings(locale="de", include_order_detail=True),
+    )
+    text = _pdf_text(pdf_bytes)
+    assert "Bestellungen im Detail" in text
+    assert "Bestellung #42" in text
+    assert text.count("Total") >= 2
+
+
+def test_collective_bill_pdf_route_include_order_detail_query():
+    email, event_id, bill_uuid = _pdf_route_fixture()
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    r = client.get(
+        f"/events/{event_id}/collective-bills/{bill_uuid}/pdf?include_order_detail=true",
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    text = _pdf_text(r.content)
+    assert "Bestellungen im Detail" in text
+
+
+def test_collective_bill_pdf_route_summary_only_by_default():
+    email, event_id, bill_uuid = _pdf_route_fixture()
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    r = client.get(f"/events/{event_id}/collective-bills/{bill_uuid}/pdf", headers=headers)
+    assert r.status_code == 200, r.text
+    text = _pdf_text(r.content)
+    assert "Bestellungen im Detail" not in text
 
 
 def test_collective_bill_pdf_route_not_found():

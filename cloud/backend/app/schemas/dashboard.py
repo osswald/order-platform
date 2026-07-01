@@ -60,6 +60,7 @@ class DashboardSalesEventRowRead(BaseModel):
 
 class DashboardSalesRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     totals: DashboardSalesTotalsRead
     by_event: list[DashboardSalesEventRowRead]
 

@@ -371,6 +371,8 @@ import { filterApplianceList } from '../utils/applianceListFilters'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
+import { formatDate, formatDateTime } from '../utils/localeFormat'
+import { currentLocale } from '../i18n'
 import type {
   ApplianceRead,
   AppliancePairingSessionRead,
@@ -537,16 +539,14 @@ function lendingHistoryStatusLabel(row: { returned_at?: string | null; segment?:
 
 function formatDeDate(iso: string | null | undefined) {
   if (!iso) return t('common.emDash')
-  const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Date(y, m - 1, d).toLocaleDateString('de-DE')
+  const formatted = formatDate(iso, currentLocale())
+  return formatted === '—' ? iso : formatted
 }
 
 function formatDeDateTime(iso: string | null | undefined) {
   if (!iso) return t('common.emDash')
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('de-DE')
+  const formatted = formatDateTime(iso, currentLocale())
+  return formatted === '—' ? iso : formatted
 }
 
 const filteredAppliances = computed(() =>

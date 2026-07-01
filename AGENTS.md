@@ -88,6 +88,21 @@ When changing Pydantic schemas, routes, or response models under `cloud/backend/
 2. Run `cd cloud/frontend && npm run generate:api-types`
 3. Commit updated `cloud/frontend/openapi.json` and `cloud/frontend/src/types/api.generated.ts` in the same PR
 
+### Locale formatting (cloud only)
+
+Numbers and dates in the cloud admin UI and PDFs use a shared resolution rule: **UI locale** (`de` / `en` from vue-i18n message keys) plus **organisation country code** (`CH`, `DE`, …) → format locale tag (`de-CH`, `de-DE`, …).
+
+| Layer | Entry points | Library |
+|-------|----------------|---------|
+| Cloud backend | `cloud/backend/app/locale_format.py` | Python **Babel** (`format_decimal`, `format_datetime`) |
+| Cloud frontend | `cloud/frontend/src/utils/money.ts`, `localeFormat.ts`, `formatLocale.ts` | **vue-i18n** `n()` / `d()` with `numberFormats` / `datetimeFormats` in `src/i18n/formats.ts` |
+
+Money is always shown as **`{ISO currency} {amount}`** (e.g. `CHF 12.50`), not CLDR symbol placement. Pass `organisation_country_code` / `country_code` from API payloads into `formatMoney(..., currency, countryCode)`.
+
+Contract tests in `cloud/shared/format-fixtures.json` are asserted by both `cloud/backend/tests/test_locale_format.py` and `cloud/frontend/src/utils/localeFormat.fixtures.test.ts`.
+
+Pi backend/frontend formatting is **out of scope** for this stack; do not route Pi changes through Babel/vue-i18n formatters unless explicitly requested.
+
 ### Building frontends
 
 - `cd cloud/frontend && npm run build`

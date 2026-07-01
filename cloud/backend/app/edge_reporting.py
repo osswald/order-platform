@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
 
-from .currency import event_currency
+from .currency import event_country_code, event_currency
 from .event_sales import (
     _build_name_maps,
     _resolve_attribution_bucket,
@@ -156,6 +156,7 @@ def build_sales_report_v3(db: Session, *, organisation_id: int, event_id: int) -
 
     return {
         "currency": currency,
+        "country_code": event_country_code(event, "CH"),
         "totals": {
             "distinct_orders_count": len(order_keys),
             "line_cents": total_line,
@@ -183,6 +184,7 @@ def build_payment_batches_report_v3(db: Session, *, organisation_id: int, event_
     )
     return {
         "currency": currency,
+        "country_code": event_country_code(event, "CH"),
         "payment_batches": [
             {
                 "uuid": r.batch_uuid,

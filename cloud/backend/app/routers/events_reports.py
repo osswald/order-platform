@@ -20,6 +20,7 @@ from ..models import Organisation, User
 from ..pdf.documents.collective_bill import build_collective_bill_pdf
 from ..pdf.formatting import safe_filename
 from ..pdf.response import pdf_download_response
+from ..pdf.settings import CollectiveBillPdfSettings
 from ..schemas.events import (
     EventCashSessionsPageRead,
     EventCollectiveBillsListRead,
@@ -61,6 +62,7 @@ def read_event_collective_bills(
 def read_event_collective_bill_pdf(
     event_id: int,
     bill_uuid: str,
+    include_order_detail: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
@@ -72,7 +74,10 @@ def read_event_collective_bill_pdf(
         raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
     organisation = (
         db.query(Organisation)
-        .options(joinedload(Organisation.hire_company))
+        .options(
+            joinedload(Organisation.hire_company),
+            joinedload(Organisation.country),
+        )
         .filter(Organisation.id == event.organisation_id)
         .first()
     )
@@ -85,7 +90,7 @@ def read_event_collective_bill_pdf(
         organisation=organisation,
         bill=bill,
         currency=currency,
-        locale=locale,
+        settings=CollectiveBillPdfSettings(locale=locale, include_order_detail=include_order_detail),
     )
     filename = f"Sammelrechnung-{safe_filename(bill.get('name') or 'bill')}.pdf"
     return pdf_download_response(pdf_bytes, filename)
@@ -158,6 +163,7 @@ def read_event_stats(
     article_ids: list[int] | None = Query(None),
     category_ids: list[int] | None = Query(None),
     bucket_count: int = Query(24, ge=12, le=48),
+    locale: str = Depends(get_locale),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
@@ -173,6 +179,7 @@ def read_event_stats(
             article_ids=article_ids,
             category_ids=category_ids,
             bucket_count=bucket_count,
+            locale=locale,
         )
     except ValueError as exc:
         code = str(exc)

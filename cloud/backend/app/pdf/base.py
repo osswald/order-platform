@@ -17,6 +17,8 @@ class VqPdf(FPDF):
     MAX_LOGO_HEIGHT_MM = 18.0
     MAX_LOGO_WIDTH_MM = 35.0
     LOGO_GAP_MM = 4.0
+    FOOTER_HEIGHT_MM = 14.0
+    BODY_BOTTOM_MARGIN_MM = 20.0
 
     def __init__(self, *, locale: str = "de", title: str = "") -> None:
         super().__init__(orientation="P", unit="mm", format="A4")
@@ -24,7 +26,7 @@ class VqPdf(FPDF):
         self._doc_title = title
         self.body_font = "VqBody"
         self.set_margins(left=18, top=18, right=18)
-        self.set_auto_page_break(auto=True, margin=20)
+        self.set_auto_page_break(auto=True, margin=self.BODY_BOTTOM_MARGIN_MM + self.FOOTER_HEIGHT_MM)
         self.alias_nb_pages()
         font_file = asset_path(DEJAVU_SANS)
         self.add_font(self.body_font, "", str(font_file))
@@ -33,6 +35,15 @@ class VqPdf(FPDF):
     @property
     def content_width(self) -> float:
         return self.w - self.l_margin - self.r_margin
+
+    @property
+    def content_bottom(self) -> float:
+        """Lowest y for body content; keeps space for the page footer."""
+        return self.h - self.BODY_BOTTOM_MARGIN_MM - self.FOOTER_HEIGHT_MM
+
+    @property
+    def page_break_margin(self) -> float:
+        return self.BODY_BOTTOM_MARGIN_MM + self.FOOTER_HEIGHT_MM
 
     def write_heading(self, text: str, *, size: int = 14) -> None:
         self.set_x(self.l_margin)
@@ -53,7 +64,7 @@ class VqPdf(FPDF):
         self.ln(height_mm)
 
     def ensure_vertical_space(self, needed_mm: float) -> None:
-        if self.get_y() + needed_mm > self.h - self.b_margin:
+        if self.get_y() + needed_mm > self.content_bottom:
             self.add_page()
 
     def _scaled_logo_mm(self, raw: bytes) -> tuple[bytes, float, float]:

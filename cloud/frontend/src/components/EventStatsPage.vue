@@ -230,7 +230,7 @@ import {
 } from 'chart.js'
 import { Bar, Line, Pie } from 'vue-chartjs'
 import { apiJson } from '../api'
-import { formatAmount } from '../utils/money'
+import { formatMoney as formatMoneyWithCurrency } from '../utils/money'
 import { buildEventStatsPath, clampStatsRange, timelineBucketTooltipTitle } from '../utils/eventStats'
 import type { ArticleRead, EventConfigurationRead, EventRead, EventStatsRead } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
@@ -406,7 +406,7 @@ const breakdownBarOptions = computed(() => ({
           if (context.dataset.xAxisID === 'x-qty') {
             return `${label}: ${value}`
           }
-          return `${label}: ${formatAmount(Math.round(value * 100))}`
+          return `${label}: ${formatMoneyWithCurrency(Math.round(value * 100), statsCurrency.value, statsCountryCode.value)}`
         },
       },
     },
@@ -512,7 +512,7 @@ const topArticlesChartOptions = computed(() => ({
           if (topArticlesMetric.value === 'qty') {
             return `${t('events.stats.qty')}: ${row.qty}`
           }
-          return `${t('events.tabs.lineValue')}: ${formatAmount(Math.round((context.parsed.x ?? 0) * 100))}`
+          return `${t('events.tabs.lineValue')}: ${formatMoneyWithCurrency(Math.round((context.parsed.x ?? 0) * 100), statsCurrency.value, statsCountryCode.value)}`
         },
       },
     },
@@ -617,8 +617,15 @@ function parseLocalDatetime(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
+const statsCurrency = computed(
+  () => stats.value?.currency || event.value?.organisation_currency || 'CHF',
+)
+const statsCountryCode = computed(
+  () => stats.value?.country_code || event.value?.organisation_country_code || 'CH',
+)
+
 function formatMoney(cents: number): string {
-  return formatAmount(cents)
+  return formatMoneyWithCurrency(cents, statsCurrency.value, statsCountryCode.value)
 }
 
 function orderSourceLabel(source: string, fallback: string): string {

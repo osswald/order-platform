@@ -9,7 +9,7 @@
     <section v-else-if="payload.state === 'twint' || payload.show_twint" class="twint-panel">
       <div class="twint-info">
         <h2>TWINT</h2>
-        <p class="twint-amount">{{ formatAmount(payload.total_cents || 0) }}</p>
+        <p class="twint-amount">{{ formatMoney(payload.total_cents || 0, currency) }}</p>
         <p v-if="!payload.twint_qr_data_url" class="muted">Bitte mit TWINT bezahlen.</p>
       </div>
       <div v-if="payload.twint_qr_data_url" class="twint-qr">
@@ -38,13 +38,13 @@
           </li>
           <li v-for="v in voucherLines" :key="v.key" class="voucher-line">
             <span>{{ v.label }}</span>
-            <span>−{{ formatAmount(v.applied_cents ?? v.appliedCents ?? 0) }}</span>
+            <span>−{{ formatMoney(v.applied_cents ?? v.appliedCents ?? 0, currency) }}</span>
           </li>
         </ul>
       </div>
       <footer class="order-total">
         <span>Total</span>
-        <strong>{{ formatAmount(payload.total_cents || 0) }}</strong>
+        <strong>{{ formatMoney(payload.total_cents || 0, currency) }}</strong>
       </footer>
     </section>
 
@@ -61,7 +61,7 @@ import type { RegisterDisplayPayload } from '@/types/api'
 import type { CartLine } from '@/types/cart'
 import { api } from '@/api'
 import { useEventContext } from '@/composables/useEventContext'
-import { formatAmount, lineTotalCents, type MoneyLine } from '@/utils/money'
+import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
 import { cartLineLabelForEvent, lineAdditionLabels } from '@/utils/bundleHelpers'
 
 interface VoucherDisplayLine {
@@ -86,7 +86,7 @@ const orderBodyScrolled = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let lastCartSignature = ''
 
-const { event } = useEventContext()
+const { event, currency } = useEventContext()
 const registerUuid = computed(() => String(route.params.registerUuid || ''))
 const lines = computed(() => payload.value.lines || [])
 const voucherLines = computed(() => payload.value.voucher_lines || [])
@@ -114,7 +114,7 @@ function toMoneyLine(line: CartLine & { display_label?: string }): MoneyLine {
 }
 
 function lineTotal(line: CartLine & { display_label?: string }) {
-  return formatAmount(lineTotalCents(toMoneyLine(line), articles.value, event.value))
+  return formatMoney(lineTotalCents(toMoneyLine(line), articles.value, event.value), currency.value)
 }
 
 function additionLabelsFor(line: CartLine & { display_label?: string }) {

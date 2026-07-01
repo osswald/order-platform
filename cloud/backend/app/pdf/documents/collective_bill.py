@@ -5,12 +5,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from ...currency import organisation_country_code
 from ...event_sales import payment_type_label
 from ...i18n import t
+from ...locale_format import format_money
 from ...models import Event, Organisation
 from ..base import VqPdf
-from ..formatting import format_datetime, format_event_range, format_money, organisation_issuer_lines
+from ..formatting import format_datetime, format_event_range, organisation_issuer_lines
 from ..logo import resolve_logo_for_event
+from ..settings import CollectiveBillPdfSettings
 from ..tables import TableColumn, TableSpec, write_table_header, write_table_row, write_table_total_row
 
 
@@ -41,7 +44,13 @@ def _article_cell(name: str, additions: list[dict] | None, note: str | None = No
     return "\n".join(lines)
 
 
-def _line_group_row(group: dict, *, locale: str, currency: str) -> list[str]:
+def _line_group_row(
+    group: dict,
+    *,
+    locale: str,
+    currency: str,
+    country_code: str | None,
+) -> list[str]:
     qty = max(1, int(group.get("total_qty") or group.get("qty") or 1))
     unit_cents = group.get("unit_cents")
     if unit_cents is None:
@@ -51,8 +60,8 @@ def _line_group_row(group: dict, *, locale: str, currency: str) -> list[str]:
     return [
         _article_cell(str(group.get("name") or "—"), group.get("additions"), group.get("note")),
         str(qty),
-        format_money(int(unit_cents), locale=locale, currency=currency),
-        format_money(line_total, locale=locale, currency=currency),
+        format_money(int(unit_cents), locale=locale, currency=currency, country_code=country_code),
+        format_money(line_total, locale=locale, currency=currency, country_code=country_code),
     ]
 
 
@@ -76,14 +85,69 @@ def _collect_payments(orders: list[dict]) -> list[dict[str, Any]]:
     return payments
 
 
+def _write_order_appendix(
+    pdf: VqPdf,
+    table: TableSpec,
+    orders: list[dict],
+    *,
+    locale: str,
+    currency: str,
+    country_code: str | None,
+) -> None:
+    pdf.write_spacer(4)
+    pdf.write_text(t("pdf.collective_bill.orders_heading", locale), size=11)
+    pdf.write_spacer(1)
+    for order in orders:
+        order_no = order.get("order_number")
+        order_label = (
+            t("pdf.collective_bill.order_heading", locale, number=order_no)
+            if order_no is not None
+            else t("pdf.collective_bill.order_heading_unknown", locale)
+        )
+        order_time = format_datetime(
+            order.get("ordered_at") or order.get("created_at"),
+            locale,
+            country_code,
+        )
+        pdf.ensure_vertical_space(22)
+        pdf.write_text(f"{order_label} · {order_time}", size=10)
+        write_table_header(pdf, table)
+        for line in order.get("lines") or []:
+            qty = max(1, int(line.get("qty") or 1))
+            line_cents = int(line.get("line_cents") or 0)
+            pseudo_group = {
+                "name": line.get("name"),
+                "note": line.get("note"),
+                "additions": line.get("additions"),
+                "total_qty": qty,
+                "unit_cents": line_cents // qty if qty else line_cents,
+                "line_total_cents": line_cents,
+            }
+            write_table_row(
+                pdf,
+                table,
+                    _line_group_row(pseudo_group, locale=locale, currency=currency, country_code=country_code),
+            )
+        write_table_total_row(
+            pdf,
+            table,
+            t("pdf.collective_bill.section_total", locale),
+            format_money(order.get("line_cents"), locale=locale, currency=currency, country_code=country_code),
+        )
+        pdf.write_spacer(2)
+
+
 def build_collective_bill_pdf(
     *,
     event: Event,
     organisation: Organisation,
     bill: dict[str, Any],
     currency: str,
-    locale: str = "de",
+    settings: CollectiveBillPdfSettings | None = None,
 ) -> bytes:
+    settings = settings or CollectiveBillPdfSettings()
+    locale = settings.locale
+    country_code = organisation_country_code(organisation)
     mime, logo_bytes = resolve_logo_for_event(event)
     _ = mime
 
@@ -99,6 +163,7 @@ def build_collective_bill_pdf(
             event.start.isoformat() if event.start else None,
             event.end.isoformat() if event.end else None,
             locale,
+            country_code,
         )
     )
     pdf.write_spacer(3)
@@ -112,63 +177,60 @@ def build_collective_bill_pdf(
         pdf.write_muted(t("pdf.collective_bill.no_positions", locale))
     else:
         for group in line_groups:
-            write_table_row(pdf, table, _line_group_row(group, locale=locale, currency=currency))
+            write_table_row(
+                pdf,
+                table,
+                _line_group_row(group, locale=locale, currency=currency, country_code=country_code),
+            )
         write_table_total_row(
             pdf,
             table,
             t("pdf.collective_bill.section_total", locale),
-            format_money(bill.get("line_cents"), locale=locale, currency=currency),
+            format_money(
+                bill.get("line_cents"),
+                locale=locale,
+                currency=currency,
+                country_code=country_code,
+            ),
         )
 
     orders = bill.get("orders") or []
-    if orders:
-        pdf.write_spacer(4)
-        pdf.write_text(t("pdf.collective_bill.orders_heading", locale), size=11)
-        pdf.write_spacer(1)
-        for order in orders:
-            order_no = order.get("order_number")
-            order_label = (
-                t("pdf.collective_bill.order_heading", locale, number=order_no)
-                if order_no is not None
-                else t("pdf.collective_bill.order_heading_unknown", locale)
-            )
-            order_time = format_datetime(order.get("ordered_at") or order.get("created_at"), locale)
-            pdf.ensure_vertical_space(22)
-            pdf.write_text(f"{order_label} · {order_time}", size=10)
-            write_table_header(pdf, table)
-            for line in order.get("lines") or []:
-                qty = max(1, int(line.get("qty") or 1))
-                line_cents = int(line.get("line_cents") or 0)
-                pseudo_group = {
-                    "name": line.get("name"),
-                    "note": line.get("note"),
-                    "additions": line.get("additions"),
-                    "total_qty": qty,
-                    "unit_cents": line_cents // qty if qty else line_cents,
-                    "line_total_cents": line_cents,
-                }
-                write_table_row(
-                    pdf,
-                    table,
-                    _line_group_row(pseudo_group, locale=locale, currency=currency),
-                )
-            write_table_total_row(
-                pdf,
-                table,
-                t("pdf.collective_bill.section_total", locale),
-                format_money(order.get("line_cents"), locale=locale, currency=currency),
-            )
-            pdf.write_spacer(2)
+    if settings.include_order_detail and orders:
+        pdf.ensure_vertical_space(35)
+        _write_order_appendix(
+            pdf,
+            table,
+            orders,
+            locale=locale,
+            currency=currency,
+            country_code=country_code,
+        )
 
+    pdf.ensure_vertical_space(25)
     pdf.write_spacer(3)
     pdf.write_text(t("pdf.collective_bill.payments_heading", locale), size=11)
     pdf.write_text(
         t(
             "pdf.collective_bill.totals_line",
             locale,
-            total=format_money(bill.get("line_cents"), locale=locale, currency=currency),
-            paid=format_money(bill.get("paid_cents"), locale=locale, currency=currency),
-            open_amount=format_money(bill.get("open_cents"), locale=locale, currency=currency),
+            total=format_money(
+                bill.get("line_cents"),
+                locale=locale,
+                currency=currency,
+                country_code=country_code,
+            ),
+            paid=format_money(
+                bill.get("paid_cents"),
+                locale=locale,
+                currency=currency,
+                country_code=country_code,
+            ),
+            open_amount=format_money(
+                bill.get("open_cents"),
+                locale=locale,
+                currency=currency,
+                country_code=country_code,
+            ),
         )
     )
     payments = _collect_payments(orders)
@@ -179,8 +241,13 @@ def build_collective_bill_pdf(
                     "pdf.collective_bill.payment_line",
                     locale,
                     method=payment_type_label(str(payment.get("type") or "other")),
-                    amount=format_money(payment.get("amount_cents"), locale=locale, currency=currency),
-                    time=format_datetime(payment.get("at"), locale),
+                    amount=format_money(
+                        payment.get("amount_cents"),
+                        locale=locale,
+                        currency=currency,
+                        country_code=country_code,
+                    ),
+                    time=format_datetime(payment.get("at"), locale, country_code),
                 ),
                 size=9,
             )
@@ -194,7 +261,7 @@ def build_collective_bill_pdf(
         t(
             "pdf.common.generated_at",
             locale,
-            time=format_datetime(datetime.now(UTC).isoformat(), locale),
+            time=format_datetime(datetime.now(UTC).isoformat(), locale, country_code),
         )
     )
     return pdf.output_bytes()

@@ -368,6 +368,7 @@ export interface DashboardSummary {
   onboarding: DashboardOnboarding
   sales: {
     currency: string
+    country_code: string
     totals: {
       distinct_orders_count: number
       line_cents: number

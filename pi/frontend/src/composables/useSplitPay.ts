@@ -3,7 +3,7 @@ import { additionsSignature, articleName, showToast } from '@/store'
 import { api } from '@/api'
 import type { DiscountIn, EdgeBundleEvent, LineAdditionIn, PaymentIn } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 import { lineAdditionLabels } from '@/utils/bundleHelpers'
 import { buildPayment } from '@/utils/paymentTypes'
 import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
@@ -213,7 +213,7 @@ export function useSplitPay({
         onFullySettled?.()
         return res
       }
-      showToast(`Teilbetrag bezahlt. Rest: ${formatAmount(res.remaining_cents)}`, 'ok')
+      showToast(`Teilbetrag bezahlt. Rest: ${formatMoney(res.remaining_cents, event.value?.currency || 'CHF')}`, 'ok')
       await reload()
       return res
     } finally {
