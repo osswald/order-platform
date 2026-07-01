@@ -11,7 +11,7 @@ from ...models import Event, Organisation
 from ..base import VqPdf
 from ..formatting import format_datetime, format_event_range, format_money, organisation_issuer_lines
 from ..logo import resolve_logo_for_event
-from ..tables import TableColumn, TableSpec, write_table_header, write_table_row
+from ..tables import TableColumn, TableSpec, write_table_header, write_table_row, write_table_total_row
 
 
 def _positions_table_spec(pdf: VqPdf, locale: str) -> TableSpec:
@@ -113,6 +113,12 @@ def build_collective_bill_pdf(
     else:
         for group in line_groups:
             write_table_row(pdf, table, _line_group_row(group, locale=locale, currency=currency))
+        write_table_total_row(
+            pdf,
+            table,
+            t("pdf.collective_bill.section_total", locale),
+            format_money(bill.get("line_cents"), locale=locale, currency=currency),
+        )
 
     orders = bill.get("orders") or []
     if orders:
@@ -146,6 +152,12 @@ def build_collective_bill_pdf(
                     table,
                     _line_group_row(pseudo_group, locale=locale, currency=currency),
                 )
+            write_table_total_row(
+                pdf,
+                table,
+                t("pdf.collective_bill.section_total", locale),
+                format_money(order.get("line_cents"), locale=locale, currency=currency),
+            )
             pdf.write_spacer(2)
 
     pdf.write_spacer(3)

@@ -23,7 +23,8 @@
       "qty": "Qty",
       "unit_price": "Unit price",
       "amount": "Amount",
-      "no_note": "—"
+      "no_note": "—",
+      "section_total": "Total"
     }
   }
 }

@@ -125,6 +125,51 @@ def test_build_collective_bill_pdf_content(db_session):
     assert "10.00 CHF" in text or "10.00" in text
     assert "Ohne Eis" in text
     assert "Bemerkung" not in text
+    assert text.count("Total") >= 2
+    assert "10.00 CHF" in text or "10.00" in text
+
+
+def test_build_collective_bill_pdf_section_totals_multi_order(db_session):
+    db, event, org = db_session
+    for idx, (client_id, order_no, cents) in enumerate(
+        (
+            ("order-a", 1, 500),
+            ("order-b", 2, 300),
+        ),
+        start=1,
+    ):
+        payload = {
+            "collective_bill_uuid": "cb-pdf-multi",
+            "collective_bill_name": "Tisch",
+            "payment_status": "open",
+            "order_number": order_no,
+            "client_order_id": client_id,
+            "lines": [{"article_id": idx, "qty": 1, "unit_cents": cents, "additions": []}],
+        }
+        upsert_collective_bill_from_payload(db, event_id=event.id, appliance_id=1, payload=payload)
+        db.add(
+            EdgeSubmittedOrder(
+                client_order_id=client_id,
+                appliance_id=1,
+                organisation_id=event.organisation_id,
+                event_id=event.id,
+                payload=payload,
+            )
+        )
+    db.commit()
+    bill = build_single_collective_bill(db, event, "cb-pdf-multi")
+    pdf_bytes = build_collective_bill_pdf(
+        event=event,
+        organisation=org,
+        bill=bill,
+        currency="CHF",
+        locale="de",
+    )
+    text = _pdf_text(pdf_bytes)
+    assert text.count("Total") >= 3
+    assert "8.00 CHF" in text or "8.00" in text
+    assert "5.00 CHF" in text or "5.00" in text
+    assert "3.00 CHF" in text or "3.00" in text
 
 
 def test_build_collective_bill_pdf_paid_without_payment_details(db_session):

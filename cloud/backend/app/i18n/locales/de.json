@@ -181,7 +181,8 @@
       "qty": "Menge",
       "unit_price": "Einzelpreis",
       "amount": "Betrag",
-      "no_note": "—"
+      "no_note": "—",
+      "section_total": "Total"
     }
   }
 }

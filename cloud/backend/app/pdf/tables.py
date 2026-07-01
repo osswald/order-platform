@@ -145,3 +145,39 @@ def write_table_row(
             pdf.set_text_color(90, 90, 90)
         else:
             pdf.set_text_color(0, 0, 0)
+
+
+def write_table_total_row(
+    pdf: VqPdf,
+    spec: TableSpec,
+    label: str,
+    amount: str,
+    *,
+    row_height: float = 5.5,
+) -> None:
+    leading_cols = len(spec.columns) - 1
+    label_width = sum(col.width_mm for col in spec.columns[:leading_cols])
+    amount_col = spec.columns[-1]
+    max_h = row_height
+    _ensure_table_space(pdf, spec, max_h)
+
+    x0 = pdf.l_margin
+    y0 = pdf.get_y()
+    auto_pb = pdf.auto_page_break
+    pdf.set_auto_page_break(auto=False)
+    try:
+        pdf.set_fill_color(245, 245, 245)
+        pdf.rect(x0, y0, label_width, max_h, style="FD")
+        pdf.rect(x0 + label_width, y0, amount_col.width_mm, max_h, style="FD")
+        pdf.set_fill_color(255, 255, 255)
+
+        pdf.set_xy(x0 + ROW_PADDING_MM, y0 + ROW_PADDING_MM)
+        pdf.set_font(pdf.body_font, size=9)
+        pdf.cell(label_width - ROW_PADDING_MM * 2, row_height, label, align="R")
+
+        pdf.set_xy(x0 + label_width + ROW_PADDING_MM, y0 + ROW_PADDING_MM)
+        pdf.cell(amount_col.width_mm - ROW_PADDING_MM * 2, row_height, amount, align=amount_col.align)
+    finally:
+        pdf.set_auto_page_break(auto_pb, margin=pdf.b_margin)
+
+    pdf.set_xy(pdf.l_margin, y0 + max_h)
