@@ -11,10 +11,18 @@ from app.event_status import (
 )
 from app.models import (
     Appliance,
+    EdgeCashSession,
+    EdgeKitchenTicketSnapshot,
+    EdgeOrderItem,
+    EdgeOrderSession,
+    EdgeOrderSnapshot,
+    EdgePayment,
+    EdgePaymentBatch,
     EdgeSubmittedOrder,
     Event,
     EventArticleStock,
     EventCollectiveBill,
+    EventVoucherRedemption,
     HireCompany,
     Organisation,
 )
@@ -68,6 +76,94 @@ def db():
         )
     )
     session.add(EventCollectiveBill(uuid="cb1", event_id=1, name="Team", appliance_id=1))
+    session.add(
+        EdgeOrderSession(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            session_id=100,
+            table_number=1,
+            order_source="waiter",
+        )
+    )
+    session.add(
+        EdgeOrderItem(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            session_id=100,
+            submission_id=1,
+            article_id=10,
+            article_name="Bier",
+            quantity=1,
+            unit_price_cents=500,
+            line_total_cents=500,
+            payment_status="paid",
+            method="cash",
+            payload={},
+        )
+    )
+    session.add(
+        EdgePaymentBatch(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            batch_uuid="batch-1",
+            name="Team",
+            status="open",
+            total_cents=500,
+        )
+    )
+    session.add(
+        EdgePayment(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            submission_id=1,
+            payment_batch_uuid="batch-1",
+            method="cash",
+            amount_cents=500,
+            payload={"type": "cash", "amount_cents": 500},
+        )
+    )
+    session.add(
+        EdgeOrderSnapshot(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            logical_client_order_id="o1",
+            payload={"lines": []},
+        )
+    )
+    session.add(
+        EdgeKitchenTicketSnapshot(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            logical_client_order_id="o1",
+            payload={"tickets": []},
+        )
+    )
+    session.add(
+        EdgeCashSession(
+            organisation_id=1,
+            appliance_id=1,
+            event_id=1,
+            cash_session_id=1,
+            subject_name="Anna",
+            status="OPEN",
+            payload={},
+        )
+    )
+    session.add(
+        EventVoucherRedemption(
+            event_id=1,
+            voucher_definition_uuid="voucher-uuid-1",
+            payment_client_order_id="o1",
+            kind="fixed_amount",
+            applied_cents=100,
+        )
+    )
     session.commit()
     yield session
     session.close()
@@ -99,8 +195,16 @@ def test_purge_event_operational_data(db):
     purge_event_operational_data(db, event)
     db.commit()
 
-    assert db.query(EdgeSubmittedOrder).count() == 0
-    assert db.query(EventCollectiveBill).count() == 0
+    assert db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == 1).count() == 0
+    assert db.query(EdgeOrderSnapshot).filter(EdgeOrderSnapshot.event_id == 1).count() == 0
+    assert db.query(EdgeKitchenTicketSnapshot).filter(EdgeKitchenTicketSnapshot.event_id == 1).count() == 0
+    assert db.query(EdgeCashSession).filter(EdgeCashSession.event_id == 1).count() == 0
+    assert db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == 1).count() == 0
+    assert db.query(EdgeOrderSession).filter(EdgeOrderSession.event_id == 1).count() == 0
+    assert db.query(EdgeOrderItem).filter(EdgeOrderItem.event_id == 1).count() == 0
+    assert db.query(EdgePaymentBatch).filter(EdgePaymentBatch.event_id == 1).count() == 0
+    assert db.query(EdgePayment).filter(EdgePayment.event_id == 1).count() == 0
+    assert db.query(EventVoucherRedemption).filter(EventVoucherRedemption.event_id == 1).count() == 0
     stock = db.query(EventArticleStock).filter(EventArticleStock.event_id == 1).first()
     assert stock.in_stock == 20
 

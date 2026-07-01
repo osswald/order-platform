@@ -9,10 +9,15 @@ from .i18n.errors import api_error
 from .models import (
     EdgeCashSession,
     EdgeKitchenTicketSnapshot,
+    EdgeOrderItem,
+    EdgeOrderSession,
     EdgeOrderSnapshot,
+    EdgePayment,
+    EdgePaymentBatch,
     EdgeSubmittedOrder,
     Event,
     EventCollectiveBill,
+    EventVoucherRedemption,
 )
 from .stock import reset_event_stock_to_baseline
 
@@ -65,19 +70,35 @@ def validate_status_transition(old: str, new: str) -> None:
 
 def purge_event_operational_data(db: Session, event: Event) -> None:
     """Remove test orders/stats and reset stock when entering production."""
-    db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event.id).delete(
+    event_id = event.id
+    db.query(EdgeOrderItem).filter(EdgeOrderItem.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EdgeOrderSnapshot).filter(EdgeOrderSnapshot.event_id == event.id).delete(
+    db.query(EdgePayment).filter(EdgePayment.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EdgeKitchenTicketSnapshot).filter(EdgeKitchenTicketSnapshot.event_id == event.id).delete(
+    db.query(EdgePaymentBatch).filter(EdgePaymentBatch.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EdgeCashSession).filter(EdgeCashSession.event_id == event.id).delete(
+    db.query(EdgeOrderSession).filter(EdgeOrderSession.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event.id).delete(
+    db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeOrderSnapshot).filter(EdgeOrderSnapshot.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeKitchenTicketSnapshot).filter(EdgeKitchenTicketSnapshot.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeCashSession).filter(EdgeCashSession.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EventVoucherRedemption).filter(EventVoucherRedemption.event_id == event_id).delete(
         synchronize_session=False
     )
     reset_event_stock_to_baseline(db, event)

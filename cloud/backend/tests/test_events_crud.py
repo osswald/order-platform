@@ -4,7 +4,17 @@ from datetime import UTC, datetime, timedelta
 
 from app.database import SessionLocal
 from app.main import app
-from app.models import Event, HireCompany, Organisation, User
+from app.models import (
+    Appliance,
+    EdgeOrderItem,
+    EdgePayment,
+    EdgeSubmittedOrder,
+    Event,
+    EventCollectiveBill,
+    HireCompany,
+    Organisation,
+    User,
+)
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
@@ -47,6 +57,101 @@ def _token(email: str = "events-a@test.local") -> str:
     r = client.post("/auth/token", data={"username": email, "password": "secret"})
     assert r.status_code == 200, r.text
     return r.json()["access_token"]
+
+
+def _seed_event_operational_data(db, *, event_id: int, organisation_id: int, appliance_id: int) -> None:
+    db.add(
+        Appliance(
+            id=appliance_id,
+            hire_company_id=db.query(Organisation).filter(Organisation.id == organisation_id).first().hire_company_id,
+            type="pi",
+            name="Pi",
+        )
+    )
+    db.add(
+        EdgeSubmittedOrder(
+            client_order_id=f"order-{event_id}",
+            appliance_id=appliance_id,
+            organisation_id=organisation_id,
+            event_id=event_id,
+            payload={"lines": [{"article_id": 1, "qty": 1}]},
+        )
+    )
+    db.add(
+        EdgeOrderItem(
+            organisation_id=organisation_id,
+            appliance_id=appliance_id,
+            event_id=event_id,
+            session_id=1,
+            submission_id=1,
+            article_id=1,
+            article_name="Test",
+            quantity=1,
+            unit_price_cents=100,
+            line_total_cents=100,
+            payment_status="paid",
+            method="cash",
+            payload={},
+        )
+    )
+    db.add(
+        EdgePayment(
+            organisation_id=organisation_id,
+            appliance_id=appliance_id,
+            event_id=event_id,
+            submission_id=1,
+            method="cash",
+            amount_cents=100,
+            payload={"type": "cash", "amount_cents": 100},
+        )
+    )
+    db.add(EventCollectiveBill(uuid=f"cb-{event_id}", event_id=event_id, name="Team", appliance_id=appliance_id))
+    db.commit()
+
+
+def test_status_test_to_prod_purges_all_operational_data():
+    org_a_id, _ = _setup_two_tenants()
+    headers = {"Authorization": f"Bearer {_token()}"}
+    now = _utc_now()
+    created = client.post(
+        "/events/",
+        headers=headers,
+        json={
+            "name": "Purge Fest",
+            "status": "config",
+            "start": (now + timedelta(days=1)).isoformat(),
+            "end": (now + timedelta(days=2)).isoformat(),
+            "organisation_id": org_a_id,
+            "payment_mode": "pay_later",
+            "payment_types": ["cash"],
+        },
+    )
+    assert created.status_code == 200, created.text
+    event_id = created.json()["id"]
+
+    to_test = client.put(f"/events/{event_id}", headers=headers, json={"status": "test"})
+    assert to_test.status_code == 200, to_test.text
+
+    db = SessionLocal()
+    try:
+        _seed_event_operational_data(db, event_id=event_id, organisation_id=org_a_id, appliance_id=9001)
+        assert db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event_id).count() == 1
+        assert db.query(EdgeOrderItem).filter(EdgeOrderItem.event_id == event_id).count() == 1
+    finally:
+        db.close()
+
+    to_prod = client.put(f"/events/{event_id}", headers=headers, json={"status": "prod"})
+    assert to_prod.status_code == 200, to_prod.text
+    assert to_prod.json()["status"] == "prod"
+
+    db = SessionLocal()
+    try:
+        assert db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event_id).count() == 0
+        assert db.query(EdgeOrderItem).filter(EdgeOrderItem.event_id == event_id).count() == 0
+        assert db.query(EdgePayment).filter(EdgePayment.event_id == event_id).count() == 0
+        assert db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event_id).count() == 0
+    finally:
+        db.close()
 
 
 def test_create_event_and_status_transition():
