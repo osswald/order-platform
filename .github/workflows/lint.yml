@@ -8,9 +8,12 @@ on:
       - "cloud/frontend/**"
       - "pi/backend/**"
       - "pi/frontend/**"
+      - "packages/vendiqo_shared/**"
       - "packages/frontend-shared/**"
+      - "cloud/shared/**"
       - "ruff.toml"
       - "eslint.config.js"
+      - ".github/filters.yaml"
       - ".github/workflows/lint.yml"
   pull_request:
     paths:
@@ -18,18 +21,38 @@ on:
       - "cloud/frontend/**"
       - "pi/backend/**"
       - "pi/frontend/**"
+      - "packages/vendiqo_shared/**"
       - "packages/frontend-shared/**"
+      - "cloud/shared/**"
       - "ruff.toml"
       - "eslint.config.js"
+      - ".github/filters.yaml"
       - ".github/workflows/lint.yml"
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  ruff:
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        backend: [cloud, pi]
+    outputs:
+      ruff-cloud: ${{ steps.filter.outputs.cloud-backend == 'true' || steps.filter.outputs.shared-python == 'true' || steps.filter.outputs.cloud-shared == 'true' || steps.filter.outputs.ruff-config == 'true' }}
+      ruff-pi: ${{ steps.filter.outputs.pi-backend == 'true' || steps.filter.outputs.shared-python == 'true' || steps.filter.outputs.ruff-config == 'true' }}
+      eslint-cloud: ${{ steps.filter.outputs.cloud-frontend == 'true' || steps.filter.outputs.shared-frontend == 'true' || steps.filter.outputs.cloud-shared == 'true' || steps.filter.outputs.eslint-config == 'true' }}
+      eslint-pi: ${{ steps.filter.outputs.pi-frontend == 'true' || steps.filter.outputs.shared-frontend == 'true' || steps.filter.outputs.eslint-config == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: .github/filters.yaml
+
+  ruff-cloud:
+    needs: changes
+    if: needs.changes.outputs.ruff-cloud == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -41,15 +64,31 @@ jobs:
       - name: Install Ruff
         run: python -m pip install ruff
 
-      - name: Ruff check (${{ matrix.backend }})
-        run: ruff check ${{ matrix.backend }}/backend/app ${{ matrix.backend }}/backend/tests
+      - name: Ruff check (cloud)
+        run: ruff check cloud/backend/app cloud/backend/tests
 
-  eslint:
+  ruff-pi:
+    needs: changes
+    if: needs.changes.outputs.ruff-pi == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        frontend: [cloud/frontend, pi/frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install ruff
+
+      - name: Ruff check (pi)
+        run: ruff check pi/backend/app pi/backend/tests
+
+  eslint-cloud:
+    needs: changes
+    if: needs.changes.outputs.eslint-cloud == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -61,9 +100,31 @@ jobs:
       - name: Install ESLint
         run: npm ci
 
-      - name: Install frontend dependencies (${{ matrix.frontend }})
-        working-directory: ${{ matrix.frontend }}
+      - name: Install frontend dependencies (cloud/frontend)
+        working-directory: cloud/frontend
         run: npm ci
 
-      - name: ESLint (${{ matrix.frontend }})
-        run: npx eslint --config eslint.config.js "${{ matrix.frontend }}/src" packages/frontend-shared/src
+      - name: ESLint (cloud/frontend)
+        run: npx eslint --config eslint.config.js "cloud/frontend/src" packages/frontend-shared/src
+
+  eslint-pi:
+    needs: changes
+    if: needs.changes.outputs.eslint-pi == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install ESLint
+        run: npm ci
+
+      - name: Install frontend dependencies (pi/frontend)
+        working-directory: pi/frontend
+        run: npm ci
+
+      - name: ESLint (pi/frontend)
+        run: npx eslint --config eslint.config.js "pi/frontend/src" packages/frontend-shared/src

@@ -10,6 +10,9 @@ on:
       - "pi/backend/**"
       - "pi/frontend/openapi.json"
       - "pi/frontend/src/types/api.generated.ts"
+      - "packages/vendiqo_shared/**"
+      - "cloud/shared/**"
+      - ".github/filters.yaml"
       - ".github/workflows/openapi-sync.yml"
   pull_request:
     paths:
@@ -19,15 +22,33 @@ on:
       - "pi/backend/**"
       - "pi/frontend/openapi.json"
       - "pi/frontend/src/types/api.generated.ts"
+      - "packages/vendiqo_shared/**"
+      - "cloud/shared/**"
+      - ".github/filters.yaml"
       - ".github/workflows/openapi-sync.yml"
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  openapi-drift:
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        stack: [cloud, pi]
+    outputs:
+      cloud: ${{ steps.filter.outputs.cloud-backend == 'true' || steps.filter.outputs.shared-python == 'true' || steps.filter.outputs.cloud-shared == 'true' || steps.filter.outputs.cloud-openapi == 'true' }}
+      pi: ${{ steps.filter.outputs.pi-backend == 'true' || steps.filter.outputs.shared-python == 'true' || steps.filter.outputs.pi-openapi == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: .github/filters.yaml
+
+  openapi-drift-cloud:
+    needs: changes
+    if: needs.changes.outputs.cloud == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -39,31 +60,75 @@ jobs:
       - name: Install shared package
         run: pip install -e packages/vendiqo_shared
 
-      - name: Install backend dependencies (${{ matrix.stack }})
-        working-directory: ${{ matrix.stack }}/backend
+      - name: Install backend dependencies (cloud)
+        working-directory: cloud/backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Export OpenAPI schema (${{ matrix.stack }})
-        working-directory: ${{ matrix.stack }}/backend
+      - name: Export OpenAPI schema (cloud)
+        working-directory: cloud/backend
         run: python scripts/export_openapi.py
 
-      - name: Verify openapi.json matches committed snapshot (${{ matrix.stack }})
-        run: git diff --exit-code ${{ matrix.stack }}/frontend/openapi.json
+      - name: Verify openapi.json matches committed snapshot (cloud)
+        run: git diff --exit-code cloud/frontend/openapi.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: ${{ matrix.stack }}/frontend/package-lock.json
+          cache-dependency-path: cloud/frontend/package-lock.json
 
-      - name: Regenerate TypeScript API types (${{ matrix.stack }})
-        working-directory: ${{ matrix.stack }}/frontend
+      - name: Regenerate TypeScript API types (cloud)
+        working-directory: cloud/frontend
         run: |
           npm ci
           npm run generate:api-types
 
-      - name: Verify api.generated.ts matches committed snapshot (${{ matrix.stack }})
-        run: git diff --exit-code ${{ matrix.stack }}/frontend/src/types/api.generated.ts
+      - name: Verify api.generated.ts matches committed snapshot (cloud)
+        run: git diff --exit-code cloud/frontend/src/types/api.generated.ts
+
+  openapi-drift-pi:
+    needs: changes
+    if: needs.changes.outputs.pi == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install shared package
+        run: pip install -e packages/vendiqo_shared
+
+      - name: Install backend dependencies (pi)
+        working-directory: pi/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Export OpenAPI schema (pi)
+        working-directory: pi/backend
+        run: python scripts/export_openapi.py
+
+      - name: Verify openapi.json matches committed snapshot (pi)
+        run: git diff --exit-code pi/frontend/openapi.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: pi/frontend/package-lock.json
+
+      - name: Regenerate TypeScript API types (pi)
+        working-directory: pi/frontend
+        run: |
+          npm ci
+          npm run generate:api-types
+
+      - name: Verify api.generated.ts matches committed snapshot (pi)
+        run: git diff --exit-code pi/frontend/src/types/api.generated.ts
