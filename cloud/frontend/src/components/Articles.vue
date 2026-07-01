@@ -299,7 +299,7 @@ import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
 import type { ArticleRead, ArticleCategoryRead, ArticleAdditionsRead } from '@/types/api'
-import { isApiError } from '@/types/api'
+import { isApiError, getErrorMessage } from '@/types/api'
 import type { AccessibleOrganisation, AdditionLinkLocal, ArticleForm, SessionContext } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
@@ -794,8 +794,8 @@ async function deleteArticle(id: number | string) {
     if (Number(routeEntityId.value) === Number(id)) {
       await goToList()
     }
-  } catch {
-    message.value = t('articles.deleteError')
+  } catch (error: unknown) {
+    message.value = getErrorMessage(error, t('articles.deleteError'))
     messageType.value = 'error'
   }
 }
