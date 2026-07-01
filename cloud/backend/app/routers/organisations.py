@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session, joinedload
 from ..appliance_naming import appliance_display_name
 from ..auth_deps import get_current_user
 from ..dashboard_summary import build_organisation_dashboard_summary
-from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import ApplianceLending, Event, HireCompany, Organisation, User, UserOrganisationOnboardingDismissal
+from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..reference_countries import country_response, get_country_or_404
 from ..schemas.dashboard import DashboardSummaryRead
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country

@@ -17,7 +17,7 @@ from .event_sales import (
     _station_bucket_key,
     payment_type_label,
 )
-from .models import Article, ArticleCategory, EdgeOrderItem, Event, EventStation
+from .models import Article, ArticleCategory, EdgeOrderItem
 
 ARTICLE_TIMELINE_BUCKET_COUNT = 24
 ALLOWED_BUCKET_COUNTS = (12, 24, 48)

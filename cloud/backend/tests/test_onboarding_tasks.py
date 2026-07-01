@@ -31,7 +31,6 @@ from app.onboarding_tasks import (
     build_onboarding_tasks,
     complete_onboarding_task,
     dismiss_onboarding_task,
-    is_onboarding_dismissed,
 )
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

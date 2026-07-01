@@ -170,7 +170,6 @@ def test_kitchen_partial_print_multi_line(client_session):
     ticket_body = orders.json()["orders"][0]
     ticket_id = ticket_body["id"]
     burger_line = next(row for row in ticket_body["lines"] if row["line"]["article_id"] == 10)
-    beer_line = next(row for row in ticket_body["lines"] if row["line"]["article_id"] == 20)
 
     partial = c.post(
         f"/v1/kitchen/tickets/{ticket_id}/print-partial",
