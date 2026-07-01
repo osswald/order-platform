@@ -17,6 +17,7 @@
       "payment_line": "{method}: {amount} ({time})",
       "no_positions": "No positions.",
       "no_payments": "No payments recorded.",
+      "payments_not_itemized": "Paid (individual payments not synced).",
       "article": "Article",
       "note": "Note",
       "qty": "Qty",
