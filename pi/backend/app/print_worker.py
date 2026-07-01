@@ -108,6 +108,16 @@ def _event_title_for_print(ev: dict | None, event_name: str) -> str:
     return label or event_name
 
 
+def _event_is_test(event: dict | None) -> bool:
+    return str((event or {}).get("status") or "").lower() == "test"
+
+
+def _write_test_mode_banner(printer: Dummy, event: dict | None) -> None:
+    if not _event_is_test(event):
+        return
+    write_centered_block(printer, "TESTBETRIEB")
+
+
 def _escpos_line_width() -> int:
     return escpos_env_line_width()
 
@@ -395,6 +405,7 @@ def build_payment_receipt_text(
             logo_enabled=bool(profile.get("logo_enabled", True)),
             max_width=logo_width,
         )
+        _write_test_mode_banner(printer, event)
         write_sized_line(printer, "Beleg", line_size)
         if reprint:
             write_sized_line(printer, "Kopie / Nachdruck", line_size)
@@ -505,6 +516,7 @@ def build_shift_close_receipt_text(
             logo_enabled=bool(profile.get("logo_enabled", True)),
             max_width=logo_width,
         )
+        _write_test_mode_banner(printer, event)
         write_sized_line(printer, "Schichtabrechnung", line_size)
         if profile.get("show_event_title", True) and title:
             write_two_column(printer, title, "", width, left_bold=True)
@@ -649,6 +661,7 @@ def _render_receipt_slip(
     show_prices = False if is_station_kitchen else bool(profile.get("show_price", False))
 
     write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+    _write_test_mode_banner(printer, event)
     if test_charset_banner:
         printer.set(align="center")
         write_line(printer, "Testdruck")
