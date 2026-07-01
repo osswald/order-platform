@@ -15,6 +15,9 @@ run_ruff_pi=false
 run_eslint_cloud=false
 run_eslint_pi=false
 
+# shellcheck source=scripts/lint-staged-targets.sh
+source "$ROOT/scripts/lint-staged-targets.sh"
+
 if $STAGED_ONLY; then
   staged="$(git diff --cached --name-only --diff-filter=ACM)"
   if [[ -z "$staged" ]]; then
@@ -22,20 +25,7 @@ if $STAGED_ONLY; then
   fi
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
-    case "$f" in
-      cloud/backend/* | ruff.toml)
-        run_ruff_cloud=true
-        ;;
-      pi/backend/* | ruff.toml)
-        run_ruff_pi=true
-        ;;
-      cloud/frontend/* | packages/frontend-shared/* | eslint.config.js | package.json | package-lock.json)
-        run_eslint_cloud=true
-        ;;
-      pi/frontend/* | packages/frontend-shared/* | eslint.config.js | package.json | package-lock.json)
-        run_eslint_pi=true
-        ;;
-    esac
+    mark_lint_targets_for_staged_path "$f"
   done <<< "$staged"
 else
   run_ruff_cloud=true
