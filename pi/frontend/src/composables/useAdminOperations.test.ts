@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { bundleWithRegisters, defaultBundle } from '@tests/fixtures/bundle'
 import type { EdgeBundleEvent } from '@/types/api'
