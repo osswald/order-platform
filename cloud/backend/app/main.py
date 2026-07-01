@@ -21,6 +21,7 @@ from .routers import (
     article_categories,
     articles,
     auth,
+    color_palette,
     countries,
     edge,
     events,
@@ -151,6 +152,7 @@ app.include_router(countries.router, prefix="/countries", tags=["countries"])
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(receipt_printing.router, tags=["receipt-printing"])
 app.include_router(position_comments.router, tags=["position-comments"])
+app.include_router(color_palette.router, tags=["color-palette"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])
 app.include_router(users.router, prefix="/users", tags=["users"])

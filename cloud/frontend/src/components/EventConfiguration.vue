@@ -69,6 +69,7 @@
             v-model="layoutsLocal"
             v-model:cell-dialog-open="cellDialogOpen"
             :event-id="eventId"
+            :organisation-id="organisationId"
             :vouchers-enabled="vouchersEnabled"
             :voucher-definitions="vouchersLocal"
             @layout-removed="onLayoutRemoved"

@@ -30,7 +30,11 @@ Optional: Gutscheinarten und Limits für das Event definieren.
 
 ## App-Layouts
 
-Legen Sie fest, welche Artikel auf welchen Kellner-Layouts erscheinen.
+Legen Sie fest, welche Artikel auf welchen Kellner-Layouts erscheinen. Pro Zelle können Sie Bezeichnung, **Farbe**, Artikel und optional Gutscheine setzen.
+
+Wenn die Organisation eine **Farbpalette (App Layout)** pflegt, stehen diese Farben beim Bearbeiten einer Zelle als beschriftete Schnellauswahl zur Verfügung. Andernfalls wählen Sie die Farbe frei per Farbwähler oder Hex-Eingabe.
+
+Details zur Pflege der Palette: Hilfeartikel **Organisation einrichten** → Abschnitt Farbpalette.
 
 ## Belege
 

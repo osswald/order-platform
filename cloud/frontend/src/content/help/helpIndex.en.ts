@@ -18,7 +18,7 @@ export const helpCategories = [
       {
         slug: 'event-setup',
         title: 'Set up an event',
-        summary: 'Master data, stations, waiters, registers, and further configuration.',
+        summary: 'Master data, stations, waiters, app layouts with color palette, and further configuration.',
         relatedRoutes: ['events', 'events-detail', 'events-new'],
       },
       {
@@ -90,7 +90,7 @@ export const helpCategories = [
       {
         slug: 'organisation-setup',
         title: 'Set up an organisation',
-        summary: 'Master data, accounting, appliance lending, and Stripe for an organisation.',
+        summary: 'Master data, accounting, color palette, appliance lending, and Stripe for an organisation.',
         relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
       },
       {

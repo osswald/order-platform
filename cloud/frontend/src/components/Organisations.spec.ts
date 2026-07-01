@@ -95,17 +95,18 @@ describe('Organisations', () => {
     expect(wrapper.find('[data-testid="stammdaten-fields"]').exists()).toBe(true)
   })
 
-  it('renders SectionNavLayout with six tabs on edit route', async () => {
+  it('renders SectionNavLayout with seven tabs on edit route', async () => {
     const wrapper = await mountOrganisations('/organisations/1')
     const layout = wrapper.findComponent(SectionNavLayout)
 
     expect(layout.exists()).toBe(true)
-    expect(layout.props('sections')).toHaveLength(6)
+    expect(layout.props('sections')).toHaveLength(7)
     expect(layout.props('sections')!.map((section: { title: string }) => section.title)).toEqual([
       'Stammdaten',
       'Geräte/Ausleihen',
       'Kartenzahlung (Stripe)',
       'Belegvorlagen',
+      'Farbpalette (App Layout)',
       'Positionen',
       'Buchhaltung',
     ])

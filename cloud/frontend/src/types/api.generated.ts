@@ -242,6 +242,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organisations/{organisation_id}/color-palette": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Color Palette */
+        get: operations["get_color_palette_organisations__organisation_id__color_palette_get"];
+        /** Put Color Palette */
+        put: operations["put_color_palette_organisations__organisation_id__color_palette_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organisations/": {
         parameters: {
             query?: never;
@@ -2064,6 +2082,23 @@ export interface components {
              * @default []
              */
             orders: components["schemas"]["CollectiveBillOrderRead"][];
+        };
+        /** ColorPaletteEntry */
+        ColorPaletteEntry: {
+            /** Label */
+            label: string;
+            /** Color */
+            color: string;
+        };
+        /** ColorPaletteRead */
+        ColorPaletteRead: {
+            /** Colors */
+            colors?: components["schemas"]["ColorPaletteEntry"][];
+        };
+        /** ColorPaletteUpdate */
+        ColorPaletteUpdate: {
+            /** Colors */
+            colors?: components["schemas"]["ColorPaletteEntry"][];
         };
         /** CountryCreate */
         CountryCreate: {
@@ -5113,6 +5148,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_color_palette_organisations__organisation_id__color_palette_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ColorPaletteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_color_palette_organisations__organisation_id__color_palette_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColorPaletteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ColorPaletteRead"];
+                };
             };
             /** @description Validation Error */
             422: {

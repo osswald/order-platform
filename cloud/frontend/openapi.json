@@ -1688,6 +1688,140 @@
         }
       }
     },
+    "/organisations/{organisation_id}/color-palette": {
+      "get": {
+        "tags": [
+          "color-palette"
+        ],
+        "summary": "Get Color Palette",
+        "operationId": "get_color_palette_organisations__organisation_id__color_palette_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColorPaletteRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "color-palette"
+        ],
+        "summary": "Put Color Palette",
+        "operationId": "put_color_palette_organisations__organisation_id__color_palette_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColorPaletteUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColorPaletteRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organisations/": {
       "get": {
         "tags": [
@@ -10473,6 +10607,53 @@
           "paid_cents"
         ],
         "title": "CollectiveBillRead"
+      },
+      "ColorPaletteEntry": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "color"
+        ],
+        "title": "ColorPaletteEntry"
+      },
+      "ColorPaletteRead": {
+        "properties": {
+          "colors": {
+            "items": {
+              "$ref": "#/components/schemas/ColorPaletteEntry"
+            },
+            "type": "array",
+            "title": "Colors"
+          }
+        },
+        "type": "object",
+        "title": "ColorPaletteRead"
+      },
+      "ColorPaletteUpdate": {
+        "properties": {
+          "colors": {
+            "items": {
+              "$ref": "#/components/schemas/ColorPaletteEntry"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Colors"
+          }
+        },
+        "type": "object",
+        "title": "ColorPaletteUpdate"
       },
       "CountryCreate": {
         "properties": {

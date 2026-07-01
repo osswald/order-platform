@@ -18,7 +18,7 @@ export const helpCategories = [
       {
         slug: 'event-setup',
         title: 'Event einrichten',
-        summary: 'Stammdaten, Stationen, Kellner, Kassen und weitere Konfiguration.',
+        summary: 'Stammdaten, Stationen, Kellner, App-Layouts mit Farbpalette und weitere Konfiguration.',
         relatedRoutes: ['events', 'events-detail', 'events-new'],
       },
       {
@@ -90,7 +90,7 @@ export const helpCategories = [
       {
         slug: 'organisation-setup',
         title: 'Organisation einrichten',
-        summary: 'Stammdaten, Buchhaltung, Geräteausleihen und Stripe für eine Organisation.',
+        summary: 'Stammdaten, Buchhaltung, Farbpalette, Geräteausleihen und Stripe für eine Organisation.',
         relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
       },
       {

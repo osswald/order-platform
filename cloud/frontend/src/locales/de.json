@@ -481,6 +481,7 @@
       "sectionGeraete": "Geräte/Ausleihen",
       "sectionStripe": "Kartenzahlung (Stripe)",
       "sectionBelegvorlagen": "Belegvorlagen",
+      "sectionColorPalette": "Farbpalette (App Layout)",
       "sectionPositionen": "Positionen",
       "sectionBuchhaltung": "Buchhaltung"
     },
@@ -503,6 +504,21 @@
       "presetDeleted": "Kommentar gelöscht.",
       "deleteConfirm": "Kommentar wirklich löschen?",
       "deleteError": "Kommentar konnte nicht gelöscht werden."
+    },
+    "colorPalette": {
+      "sectionTitle": "Farbpalette",
+      "sectionHint": "Definierte Farben stehen bei App-Layout-Buttons in der Event-Konfiguration zur Auswahl.",
+      "addColor": "Farbe hinzufügen",
+      "editColor": "Farbe bearbeiten",
+      "colorLabel": "Bezeichnung",
+      "colorValue": "Farbe",
+      "noColors": "Noch keine Farben definiert.",
+      "loading": "Farbpalette wird geladen…",
+      "loadError": "Farbpalette konnte nicht geladen werden.",
+      "saved": "Farbpalette gespeichert.",
+      "saveError": "Farbpalette konnte nicht gespeichert werden.",
+      "deleteConfirm": "Farbe wirklich löschen?",
+      "confirmDraft": "Übernehmen"
     },
     "vat": {
       "sectionTitle": "Mehrwert-/Umsatzsteuer",
@@ -830,6 +846,7 @@
       "editCell": "Zelle bearbeiten",
       "label": "Bezeichnung",
       "color": "Farbe",
+      "orgColorPalette": "Organisationsfarben",
       "fixedAmountVouchers": "Betrags-Gutscheine (Layout-Zelle)",
       "selectVouchers": "Gutscheine wählen",
       "stationArticlesOnly": "Artikel (nur Stationen-Artikel)",

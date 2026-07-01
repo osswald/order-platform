@@ -90,6 +90,22 @@
           </div>
           <div class="form-field">
             <label>{{ $t('events.config.color') }}</label>
+            <div v-if="paletteColors.length" class="org-palette-colors">
+              <p class="muted small">{{ $t('events.config.orgColorPalette') }}</p>
+              <div class="org-palette-swatches">
+                <button
+                  v-for="entry in paletteColors"
+                  :key="entry.label + entry.color"
+                  type="button"
+                  class="org-palette-swatch"
+                  :class="{ selected: cellEdit.color.toUpperCase() === entry.color.toUpperCase() }"
+                  @click="cellEdit.color = entry.color"
+                >
+                  <span class="org-palette-swatch-color" :style="{ background: entry.color }" />
+                  <span class="org-palette-swatch-label">{{ entry.label }}</span>
+                </button>
+              </div>
+            </div>
             <v-color-picker v-model="cellEdit.color" mode="hex" hide-inputs />
             <v-text-field
               v-model="cellEdit.color"
@@ -155,7 +171,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
-import type { EventConfigurationRead } from '@/types/api'
+import type { ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
 import type {
   EventCellEditState,
   EventLayoutCellLocal,
@@ -169,10 +185,12 @@ import type {
 const props = withDefaults(
   defineProps<{
     eventId: number
+    organisationId?: number | null
     vouchersEnabled?: boolean
     voucherDefinitions?: EventVoucherDefinitionLocal[]
   }>(),
   {
+    organisationId: null,
     vouchersEnabled: false,
     voucherDefinitions: () => [],
   },
@@ -189,6 +207,7 @@ const { t } = useI18n()
 const layoutCellsLoaded = ref(false)
 const layoutCellsLoading = ref(false)
 const layoutCellsError = ref('')
+const paletteColors = ref<ColorPaletteEntry[]>([])
 
 const cellEditLayoutIndex = ref(0)
 const cellEditRow = ref(0)
@@ -550,12 +569,32 @@ function resetLayoutCellsState() {
   layoutCellsError.value = ''
 }
 
+async function loadPaletteColors() {
+  paletteColors.value = []
+  const orgId = props.organisationId
+  if (!orgId) return
+  try {
+    const data = await apiJson<{ colors?: ColorPaletteEntry[] }>(`/organisations/${orgId}/color-palette`)
+    paletteColors.value = data.colors ?? []
+  } catch {
+    paletteColors.value = []
+  }
+}
+
 watch(
   () => props.eventId,
   () => {
     resetLayoutCellsState()
     void loadLayoutCells()
   },
+)
+
+watch(
+  () => props.organisationId,
+  () => {
+    void loadPaletteColors()
+  },
+  { immediate: true },
 )
 
 onMounted(() => {
@@ -619,6 +658,49 @@ defineExpose({
   font-size: 0.65rem;
   opacity: 0.65;
   line-height: 1.1;
+}
+
+.org-palette-colors {
+  margin-bottom: 0.75rem;
+}
+
+.org-palette-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.org-palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.35rem;
+  min-width: 4.5rem;
+}
+
+.org-palette-swatch.selected {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
+}
+
+.org-palette-swatch-color {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.org-palette-swatch-label {
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.1;
+  max-width: 5rem;
+  word-break: break-word;
 }
 
 .color-hex-input {

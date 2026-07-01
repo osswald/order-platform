@@ -48,6 +48,26 @@
   "common": {
     "cancel": "Cancel"
   },
+  "organisations": {
+    "config": {
+      "sectionColorPalette": "Color palette (app layout)"
+    },
+    "colorPalette": {
+      "sectionTitle": "Color palette",
+      "sectionHint": "Defined colors are available when configuring app layout buttons in event settings.",
+      "addColor": "Add color",
+      "editColor": "Edit color",
+      "colorLabel": "Label",
+      "colorValue": "Color",
+      "noColors": "No colors defined yet.",
+      "loading": "Loading color palette…",
+      "loadError": "Could not load color palette.",
+      "saved": "Color palette saved.",
+      "saveError": "Could not save color palette.",
+      "deleteConfirm": "Delete this color?",
+      "confirmDraft": "Apply"
+    }
+  },
   "articles": {
     "isActive": "Active",
     "filterStatus": "Status",
