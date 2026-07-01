@@ -165,3 +165,44 @@ def test_copy_event_clones_config_not_sales(db):
     assert db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == new_event.id).count() == 0
 
     assert db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == 1).count() == 1
+
+
+def test_copy_event_with_composite_articles_and_ingredients(db):
+    from app.ingredients import replace_ingredient_links
+    from app.models import EventIngredientStock, Ingredient
+
+    org = db.query(Organisation).filter(Organisation.id == 1).first()
+    org.ingredients_enabled = True
+    db.add(Ingredient(id=1, name="Teig", organisation_id=1, unit="kg"))
+    base = db.query(Article).filter(Article.id == 10).first()
+    db.flush()
+    replace_ingredient_links(db, base, [{"ingredient_id": 1, "amount": 1}])
+    db.add(
+        EventIngredientStock(
+            event_id=1,
+            ingredient_id=1,
+            monitor_stock=True,
+            in_stock=5,
+            baseline_in_stock=5,
+        )
+    )
+    db.commit()
+
+    source = db.query(Event).filter(Event.id == 1).first()
+    new_event = copy_event(db, source, name="Source Fest (Kopie)")
+    db.commit()
+
+    assert new_event.id != source.id
+    assert (
+        db.query(EventArticleStock)
+        .filter(EventArticleStock.event_id == new_event.id, EventArticleStock.article_id == 10)
+        .count()
+        == 0
+    )
+    ing_stock = (
+        db.query(EventIngredientStock)
+        .filter(EventIngredientStock.event_id == new_event.id, EventIngredientStock.ingredient_id == 1)
+        .first()
+    )
+    assert ing_stock is not None
+    assert float(ing_stock.in_stock) == 5.0

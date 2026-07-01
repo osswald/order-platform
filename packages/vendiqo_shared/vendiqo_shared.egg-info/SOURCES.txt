@@ -1,7 +1,9 @@
 pyproject.toml
+tests/test_ingredient_stock.py
 vendiqo_shared/__init__.py
 vendiqo_shared/bundle_contract.py
 vendiqo_shared/fiscal_vat.py
+vendiqo_shared/ingredient_stock.py
 vendiqo_shared/stock_aggregate.py
 vendiqo_shared.egg-info/PKG-INFO
 vendiqo_shared.egg-info/SOURCES.txt

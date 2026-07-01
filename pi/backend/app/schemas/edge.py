@@ -32,6 +32,21 @@ class VoucherRedemptionIn(BaseModel):
     additions: list[LineAdditionIn] = Field(default_factory=list)
 
 
+class StockValidateLineIn(BaseModel):
+    article_id: int
+    qty: int = Field(..., ge=1)
+    additions: list[LineAdditionIn] = Field(default_factory=list)
+
+
+class StockValidateOrderIn(BaseModel):
+    event_id: int
+    lines: list[StockValidateLineIn] = Field(default_factory=list)
+
+
+class StockValidateOrderResponse(BaseModel):
+    ok: bool = True
+
+
 class LocalOrderCreate(BaseModel):
     client_order_id: str = Field(..., min_length=8, max_length=64)
     event_id: int
@@ -179,6 +194,7 @@ class LocalOrderCreatedResponse(BaseModel):
     pickup_status: str | None = None
     payment_mode: str
     articles: dict[str, ArticleStockPatch] = Field(default_factory=dict)
+    ingredients: dict[str, ArticleStockPatch] = Field(default_factory=dict)
 
 
 class KitchenStationItem(BaseModel):

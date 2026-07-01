@@ -112,6 +112,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             "article_id": ln.get("article_id"),
             "qty": ln.get("qty"),
             "note": ln.get("note") or "",
+            "additions": ln.get("additions") or [],
         }
         for ln in lines
         if isinstance(ln, dict) and ln.get("article_id") is not None and not is_voucher_sale_line(ln)
@@ -365,7 +366,12 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         voucher_records=voucher_records if voucher_records and payment_status != "paid" else None,
     )
 
-    articles_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    validate_stock(ev, line_dicts)
+    stock_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts, strict=True)
     save_bundle(db, bundle)
 
     payment_receipt_id = None
@@ -391,7 +397,8 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         pickup_code=pickup_code,
         pickup_status=payload.get("pickup_status") if order_source == "cash_register" else None,
         payment_mode=(ev.get("payment_mode") or "pay_later").lower(),
-        articles=articles_patch,
+        articles=stock_patch.get("articles") or {},
+        ingredients=stock_patch.get("ingredients") or {},
     )
 
 

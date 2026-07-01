@@ -23,3 +23,15 @@ export function organisationAccountsEnabled(
   const org = organisations.find((row) => Number(row.id) === Number(organisationId))
   return Boolean(org?.accounts_enabled)
 }
+
+/**
+ * Whether ingredient stock should be shown for the active organisation.
+ */
+export function organisationIngredientsEnabled(
+  organisations: Pick<AccessibleOrganisation, 'id' | 'ingredients_enabled'>[],
+  organisationId: number | null | undefined,
+): boolean {
+  if (organisationId == null) return false
+  const org = organisations.find((row) => Number(row.id) === Number(organisationId))
+  return Boolean(org?.ingredients_enabled)
+}

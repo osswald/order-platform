@@ -122,6 +122,10 @@
           <template #positionen>
             <OrganisationPositionCommentsSection :organisation-id="activeId" />
           </template>
+
+          <template #zutaten>
+            <OrganisationIngredientsSection :organisation-id="activeId" />
+          </template>
         </SectionNavLayout>
 
         <OrganisationLendingDialog
@@ -232,6 +236,7 @@ import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import OrganisationPositionCommentsSection from './OrganisationPositionCommentsSection.vue'
+import OrganisationIngredientsSection from './OrganisationIngredientsSection.vue'
 import OrganisationColorPaletteSection from './OrganisationColorPaletteSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiJson } from '../api'
@@ -304,6 +309,7 @@ const configSections = computed((): SectionNavSection[] => {
     { id: 'belegvorlagen', title: t('organisations.config.sectionBelegvorlagen') },
     { id: 'farbpalette', title: t('organisations.config.sectionColorPalette') },
     { id: 'positionen', title: t('organisations.config.sectionPositionen') },
+    { id: 'zutaten', title: t('organisations.config.sectionZutaten') },
     { id: 'buchhaltung', title: t('organisations.config.sectionBuchhaltung') },
   ]
 })

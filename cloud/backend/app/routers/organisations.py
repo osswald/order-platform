@@ -68,6 +68,7 @@ class OrganisationUpdate(BaseModel):
     default_tax_code_id: int | None = None
     accounts_enabled: bool | None = None
     position_comments_enabled: bool | None = None
+    ingredients_enabled: bool | None = None
 
 
 class TaxCodeSummaryRead(BaseModel):
@@ -87,6 +88,7 @@ class OrganisationRead(OrganisationBase):
     default_tax_code: TaxCodeSummaryRead | None = None
     accounts_enabled: bool = False
     position_comments_enabled: bool = False
+    ingredients_enabled: bool = False
 
 
 class OrgApplianceLendingItem(BaseModel):
@@ -124,6 +126,7 @@ def organisation_response(org: Organisation) -> dict:
         "default_tax_code": default_tax_code,
         "accounts_enabled": bool(org.accounts_enabled),
         "position_comments_enabled": bool(org.position_comments_enabled),
+        "ingredients_enabled": bool(org.ingredients_enabled),
     }
 
 
@@ -402,6 +405,8 @@ def update_organisation(
         org.accounts_enabled = bool(org_in.accounts_enabled)
     if "position_comments_enabled" in update_fields:
         org.position_comments_enabled = bool(org_in.position_comments_enabled)
+    if "ingredients_enabled" in update_fields:
+        org.ingredients_enabled = bool(org_in.ingredients_enabled)
     commit_or_raise(db)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)

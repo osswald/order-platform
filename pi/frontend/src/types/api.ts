@@ -6,6 +6,7 @@ export type EdgeBundleResponse = components['schemas']['EdgeBundleContract']
 export type EdgeBundleEvent = components['schemas']['EdgeBundleEvent']
 export type EdgeBundleArticle = components['schemas']['EdgeBundleArticle']
 export type EdgeBundleArticleAddition = components['schemas']['EdgeBundleArticleAddition']
+export type ArticleStockPatch = components['schemas']['ArticleStockPatch']
 export type EdgeEventConfiguration = components['schemas']['EdgeEventConfiguration']
 export type EdgeStationConfig = components['schemas']['EdgeStationConfig']
 

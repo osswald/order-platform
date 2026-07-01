@@ -193,7 +193,9 @@ import type {
   OrderLineIn,
   RegisterDisplayPayload,
 } from '@/types/api'
-import { getErrorMessage } from '@/types/api'
+import { getErrorMessage, isApiError } from '@/types/api'
+import { stockInsufficientMessage } from '@/utils/stockError'
+import { validateCartStockBeforeSubmit } from '@/utils/validateCartStock'
 import type { CartLine } from '@/types/cart'
 import type { SheetOptionItem } from '@/components/SheetOptionList.vue'
 import { type VoucherRedemptionSelection } from '@/composables/useSplitPay'
@@ -266,10 +268,11 @@ const {
   updateCartLine,
   decrementCartLine,
   availableQty,
+  lineQtyModalMax,
   getArticle,
   clearCart,
 } = useCart()
-const { waiter, showToast, patchEventArticles } = useEventContext()
+const { waiter, showToast, patchEventStock, refreshBundle } = useEventContext()
 
 const articles = computed(() => event.value?.articles || {})
 const layout = computed(() => {
@@ -335,8 +338,7 @@ const qtyModalMax = computed(() => {
   const articleId = line.article_id
   if (articleId == null) return 999
   const avail = availableQty(articleId, line.lineId)
-  if (avail === null) return 999
-  return line.qty + avail
+  return lineQtyModalMax(avail)
 })
 
 function orderingPayload(extra: Partial<RegisterDisplayPayload> = {}): RegisterDisplayPayload {
@@ -463,9 +465,9 @@ function onQtyConfirm(n: number) {
     const articleId = line.article_id
     if (articleId == null) return
     const avail = availableQty(articleId, line.lineId)
-    if (avail !== null && qty > line.qty + avail) {
+    if (avail !== null && qty > avail) {
       showToast(`Nur noch ${avail} verfügbar`, 'err')
-      qty = line.qty + avail
+      qty = avail
     }
   }
   if (qty <= 0) removeCartLine(line.lineId)
@@ -582,6 +584,51 @@ function removeVoucherLine(index: number) {
 
 async function submitOrder() {
   if (!cartCount.value || !event.value || !register.value) return
+
+  const payloadLines: OrderLineIn[] = lines.value.map((l) => {
+    if (l.kind === 'voucher_sale') {
+      return {
+        kind: 'voucher_sale',
+        voucher_definition_uuid: l.voucher_definition_uuid,
+        qty: l.qty,
+        unit_cents: l.unit_cents,
+        note: '',
+        additions: [],
+      }
+    }
+    const row: OrderLineIn = {
+      article_id: l.article_id,
+      qty: l.qty,
+      station_uuid: l.station_uuid,
+      note: positionCommentsEnabled.value ? String(l.note || '').trim() : '',
+      additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
+    }
+    if (discountsEnabled.value && l.discount) row.discount = l.discount
+    return row
+  })
+  const stockLines = payloadLines
+    .filter((l) => l.article_id != null && l.kind !== 'voucher_sale')
+    .map((l) => ({
+      article_id: l.article_id!,
+      qty: l.qty,
+      additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
+    }))
+
+  submitting.value = true
+  try {
+    await refreshBundle()
+    await validateCartStockBeforeSubmit(event.value.id, stockLines)
+  } catch (e: unknown) {
+    if (isApiError(e) && e.status === 409) {
+      await refreshBundle()
+      showToast(stockInsufficientMessage(e, getErrorMessage(e, 'Bestand nicht ausreichend.')), 'err')
+    } else {
+      showToast(getErrorMessage(e, 'Fehler'), 'err')
+    }
+    submitting.value = false
+    return
+  }
+
   const client_order_id = `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   let payments
   try {
@@ -604,31 +651,10 @@ async function submitOrder() {
     if (e instanceof Error && e.message !== 'cancelled') {
       showToast(getErrorMessage(e, 'Zahlung abgebrochen.'), 'err')
     }
+    submitting.value = false
     return
   }
-  submitting.value = true
   try {
-    const payloadLines: OrderLineIn[] = lines.value.map((l) => {
-      if (l.kind === 'voucher_sale') {
-        return {
-          kind: 'voucher_sale',
-          voucher_definition_uuid: l.voucher_definition_uuid,
-          qty: l.qty,
-          unit_cents: l.unit_cents,
-          note: '',
-          additions: [],
-        }
-      }
-      const row: OrderLineIn = {
-        article_id: l.article_id,
-        qty: l.qty,
-        station_uuid: l.station_uuid,
-        note: positionCommentsEnabled.value ? String(l.note || '').trim() : '',
-        additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
-      }
-      if (discountsEnabled.value && l.discount) row.discount = l.discount
-      return row
-    })
     const body: LocalOrderCreate = {
       client_order_id,
       event_id: event.value.id,
@@ -656,7 +682,12 @@ async function submitOrder() {
       method: 'POST',
       body: JSON.stringify(body),
     })
-    if (res.articles) patchEventArticles(event.value.id, res.articles)
+    if (res.articles || res.ingredients) {
+      patchEventStock(event.value.id, {
+        articles: res.articles,
+        ingredients: res.ingredients,
+      })
+    }
     scheduleIdleAfterPickup(10000)
     await pushDisplayPayload({
       state: 'submitted',
@@ -681,7 +712,12 @@ async function submitOrder() {
     }
     await router.push(hubRoute())
   } catch (e: unknown) {
-    showToast(getErrorMessage(e, 'Fehler'), 'err')
+    if (isApiError(e) && e.status === 409) {
+      await refreshBundle()
+      showToast(stockInsufficientMessage(e, getErrorMessage(e, 'Bestand nicht ausreichend.')), 'err')
+    } else {
+      showToast(getErrorMessage(e, 'Fehler'), 'err')
+    }
   } finally {
     submitting.value = false
   }

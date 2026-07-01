@@ -52,6 +52,167 @@ describe('addCartLine', () => {
     expect(store.cartQtyForAddition(20)).toBe(2)
     expect(store.availableAdditionQty(20)).toBe(0)
   })
+
+  it('limits composite addition qty from ingredient stock', () => {
+    const b = bundleWithStock()
+    const ev = b.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Käse', monitor_stock: true, in_stock: 2 },
+    }
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Extra Käse',
+      price: 1.0,
+      is_addition: true,
+      ingredients: [{ ingredient_id: 1, amount: 1 }],
+      sellable: true,
+    }
+    store.bundle.value = b
+    expect(store.availableAdditionQty(20)).toBe(2)
+    store.addCartLine({
+      article_id: 11,
+      qty: 1,
+      additions: [{ article_id: 20, qty: 1 }],
+    })
+    expect(store.availableAdditionQty(20)).toBe(1)
+  })
+
+  it('excludes the edited line when computing addition availability', () => {
+    const b = bundleWithStock()
+    const ev = b.events![0]!
+    ev.articles!['20']!.in_stock = 2
+    store.bundle.value = b
+    store.addCartLine({
+      article_id: 11,
+      qty: 1,
+      additions: [{ article_id: 20, qty: 2 }],
+    })
+    const lineId = store.cartLines.value[0].lineId
+    expect(store.availableAdditionQty(20, lineId)).toBe(2)
+  })
+})
+
+describe('lineQtyModalMax and availableQty for line edit', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+    const ev = store.bundle.value!.events![0]!
+    ev.articles!['40'] = {
+      id: 40,
+      name: 'Cervelat',
+      price: 5.0,
+      monitor_stock: true,
+      in_stock: 17,
+    }
+  })
+
+  it('modal max equals stock when editing line with qty 1', () => {
+    store.addCartLine({ article_id: 40, qty: 1 })
+    const lineId = store.cartLines.value[0].lineId
+    const avail = store.availableQty(40, lineId)
+    expect(avail).toBe(17)
+    expect(store.lineQtyModalMax(avail)).toBe(17)
+    expect(store.lineQtyModalMax(avail)).not.toBe(18)
+  })
+
+  it('returns ingredient-based availability for recipe articles', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Teig', monitor_stock: true, in_stock: 6 },
+    }
+    ev.articles!['50'] = {
+      id: 50,
+      name: 'Pizza',
+      price: 12,
+      ingredients: [{ ingredient_id: 1, amount: 2 }],
+    }
+    store.addCartLine({ article_id: 50, qty: 1 })
+    expect(store.availableQty(50)).toBe(2)
+    store.cartLines.value.push({
+      lineId: 'V-1',
+      kind: 'voucher_sale',
+      voucher_definition_uuid: 'v-1',
+      qty: 1,
+      unit_cents: 1000,
+    })
+    expect(store.availableQty(50)).toBe(2)
+  })
+})
+
+describe('isAdditionSellable', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+  })
+
+  it('returns false when direct article stock is zero', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Zitrone',
+      price: 1.0,
+      is_addition: true,
+      monitor_stock: true,
+      in_stock: 0,
+      sellable: false,
+    }
+    expect(store.isAdditionSellable(20)).toBe(false)
+  })
+
+  it('returns false when ingredient stock is exhausted', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Kartoffelsalat', monitor_stock: true, in_stock: 0 },
+    }
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'mit Kartoffelsalat',
+      price: 1.0,
+      is_addition: true,
+      ingredients: [{ ingredient_id: 1, amount: 0.5 }],
+      sellable: false,
+    }
+    expect(store.isAdditionSellable(20)).toBe(false)
+  })
+
+  it('uses fallback metadata when addition is not in the article map', () => {
+    expect(
+      store.isAdditionSellable(99, null, {
+        article_id: 99,
+        name: 'Extra',
+        sellable: true,
+        monitor_stock: false,
+      }),
+    ).toBe(true)
+    expect(
+      store.isAdditionSellable(99, null, {
+        article_id: 99,
+        sellable: false,
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects cart line with sold-out addition', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Zitrone',
+      price: 1.0,
+      is_addition: true,
+      monitor_stock: true,
+      in_stock: 0,
+      sellable: false,
+    }
+    expect(
+      store.addCartLine({
+        article_id: 11,
+        qty: 1,
+        additions: [{ article_id: 20, qty: 1 }],
+      }),
+    ).toBe(false)
+  })
 })
 
 describe('session validation', () => {
@@ -279,6 +440,60 @@ describe('addCartLine edge cases', () => {
     ).toBe(true)
     expect(store.cartLines.value).toHaveLength(1)
     expect(store.cartLines.value[0].qty).toBe(2)
+  })
+
+  it('shows ingredient name when recipe article is sold out', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Teig', monitor_stock: true, in_stock: 0 },
+    }
+    ev.articles!['50'] = {
+      id: 50,
+      name: 'Pizza',
+      price: 12,
+      ingredients: [{ ingredient_id: 1, amount: 1 }],
+    }
+    expect(store.addCartLine({ article_id: 50, qty: 1 })).toBe(false)
+    expect(store.toast.value?.message).toBe('Teig ausverkauft')
+  })
+
+  it('caps recipe article qty and names limiting ingredient', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Teig', monitor_stock: true, in_stock: 3 },
+    }
+    ev.articles!['50'] = {
+      id: 50,
+      name: 'Pizza',
+      price: 12,
+      ingredients: [{ ingredient_id: 1, amount: 1 }],
+    }
+    expect(store.addCartLine({ article_id: 50, qty: 5 })).toBe(true)
+    expect(store.cartLines.value[0].qty).toBe(3)
+    expect(store.toast.value?.message).toContain('Engpass: Teig')
+  })
+
+  it('rejects ingredient-based additions when stock is insufficient', () => {
+    const ev = store.bundle.value!.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Käse', monitor_stock: true, in_stock: 1 },
+    }
+    ev.articles!['20'] = {
+      id: 20,
+      name: 'Extra Käse',
+      price: 1,
+      is_addition: true,
+      ingredients: [{ ingredient_id: 1, amount: 1 }],
+      sellable: true,
+    }
+    expect(
+      store.addCartLine({
+        article_id: 11,
+        qty: 2,
+        additions: [{ article_id: 20, qty: 1 }],
+      }),
+    ).toBe(false)
+    expect(store.toast.value?.message).toContain('Engpass: Käse')
   })
 })
 

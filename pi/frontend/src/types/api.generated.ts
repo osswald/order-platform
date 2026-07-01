@@ -447,6 +447,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/stock/validate-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Order Stock */
+        post: operations["validate_order_stock_v1_stock_validate_order_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kitchen/printers": {
         parameters: {
             query?: never;
@@ -1050,6 +1067,8 @@ export interface components {
             price: number;
             /** Additions */
             additions?: components["schemas"]["EdgeBundleArticleAddition"][];
+            /** Ingredients */
+            ingredients?: components["schemas"]["EdgeBundleArticleIngredient"][];
             /** Label */
             label?: string | null;
             /** In Stock */
@@ -1082,6 +1101,21 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** EdgeBundleArticleIngredient */
+        EdgeBundleArticleIngredient: {
+            /** Ingredient Id */
+            ingredient_id: number;
+            /** Name */
+            name?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Amount */
+            amount?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * EdgeBundleContract
          * @description Validated shape for synced organisation bundles.
@@ -1098,6 +1132,11 @@ export interface components {
             position_comments_enabled: boolean;
             /** Position Comment Presets */
             position_comment_presets?: components["schemas"]["PositionCommentPreset"][];
+            /**
+             * Ingredients Enabled
+             * @default false
+             */
+            ingredients_enabled: boolean;
             /** Admin Pin Hashes */
             admin_pin_hashes?: string[];
         } & {
@@ -1125,6 +1164,10 @@ export interface components {
             articles?: {
                 [key: string]: components["schemas"]["EdgeBundleArticle"];
             };
+            /** Ingredients */
+            ingredients?: {
+                [key: string]: components["schemas"]["EdgeBundleIngredient"];
+            };
             configuration?: components["schemas"]["EdgeEventConfiguration"];
             /** Kitchen Monitors Enabled */
             kitchen_monitors_enabled?: boolean | null;
@@ -1136,6 +1179,23 @@ export interface components {
             discounts_enabled?: boolean | null;
             /** Twint Qr Data Url */
             twint_qr_data_url?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** EdgeBundleIngredient */
+        EdgeBundleIngredient: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+            /** In Stock */
+            in_stock?: number | null;
+            /** Sellable */
+            sellable?: boolean | null;
+            /** Monitor Stock */
+            monitor_stock?: boolean | null;
         } & {
             [key: string]: unknown;
         };
@@ -1427,6 +1487,10 @@ export interface components {
             payment_mode: string;
             /** Articles */
             articles?: {
+                [key: string]: components["schemas"]["ArticleStockPatch"];
+            };
+            /** Ingredients */
+            ingredients?: {
                 [key: string]: components["schemas"]["ArticleStockPatch"];
             };
         };
@@ -1909,6 +1973,30 @@ export interface components {
             ok: boolean;
             /** Error */
             error?: string | null;
+        };
+        /** StockValidateLineIn */
+        StockValidateLineIn: {
+            /** Article Id */
+            article_id: number;
+            /** Qty */
+            qty: number;
+            /** Additions */
+            additions?: components["schemas"]["LineAdditionIn"][];
+        };
+        /** StockValidateOrderIn */
+        StockValidateOrderIn: {
+            /** Event Id */
+            event_id: number;
+            /** Lines */
+            lines?: components["schemas"]["StockValidateLineIn"][];
+        };
+        /** StockValidateOrderResponse */
+        StockValidateOrderResponse: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
         };
         /** SyncMetaResponse */
         SyncMetaResponse: {
@@ -2916,6 +3004,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CollectiveSettleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_order_stock_v1_stock_validate_order_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockValidateOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockValidateOrderResponse"];
                 };
             };
             /** @description Validation Error */

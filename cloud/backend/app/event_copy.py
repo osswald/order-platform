@@ -231,8 +231,15 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
     )
 
     from .additions import event_stock_article_ids
+    from .ingredients import (
+        event_stock_article_ids_with_additions,
+        organisation_ingredients_enabled,
+    )
 
-    allowed = event_stock_article_ids(db, new_event)
+    if organisation_ingredients_enabled(db, new_event.organisation_id):
+        allowed = event_stock_article_ids_with_additions(db, new_event)
+    else:
+        allowed = event_stock_article_ids(db, new_event)
     stock_items = []
     for aid in sorted(allowed):
         row = stock_by_article.get(aid)
@@ -243,10 +250,39 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
                 "article_id": aid,
                 "monitor_stock": row.monitor_stock,
                 "in_stock": row.in_stock,
+                "initial_in_stock": row.baseline_in_stock,
             }
         )
     if stock_items:
         upsert_stock_rows(db, new_event, stock_items)
+
+    from .ingredient_stock import upsert_ingredient_stock_rows
+    from .ingredients import ingredient_ids_for_event, organisation_ingredients_enabled
+    from .models import EventIngredientStock
+
+    if organisation_ingredients_enabled(db, new_event.organisation_id):
+        source_ing_stock = (
+            db.query(EventIngredientStock).filter(EventIngredientStock.event_id == source.id).all()
+        )
+        stock_by_ingredient = {r.ingredient_id: r for r in source_ing_stock}
+        allowed_ing = ingredient_ids_for_event(db, new_event)
+        ing_items = []
+        for iid in sorted(allowed_ing):
+            row = stock_by_ingredient.get(iid)
+            if not row:
+                continue
+            ing_items.append(
+                {
+                    "ingredient_id": iid,
+                    "monitor_stock": row.monitor_stock,
+                    "in_stock": float(row.in_stock) if row.in_stock is not None else None,
+                    "initial_in_stock": float(row.baseline_in_stock)
+                    if row.baseline_in_stock is not None
+                    else None,
+                }
+            )
+        if ing_items:
+            upsert_ingredient_stock_rows(db, new_event, ing_items)
 
     db.flush()
     return new_event

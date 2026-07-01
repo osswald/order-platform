@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { api } from '@/api'
-import type { EdgeBundleArticle, EdgeBundleEvent, EdgeBundleResponse } from '@/types/api'
+import type { EdgeBundleArticle, EdgeBundleEvent, EdgeBundleResponse, ArticleStockPatch } from '@/types/api'
 import { selectedEventId } from './sessions'
 
 export const bundle = ref<EdgeBundleResponse | null>(null)
@@ -32,29 +32,52 @@ export function patchEventArticles(
   eventId: number,
   articlesMap: Record<string, Partial<EdgeBundleArticle>>,
 ): void {
+  patchEventStock(eventId, { articles: articlesMap })
+}
+
+export function patchEventStock(
+  eventId: number,
+  patch: {
+    articles?: Record<string, Partial<EdgeBundleArticle>>
+    ingredients?: Record<string, ArticleStockPatch>
+  },
+): void {
   const b = bundle.value
-  if (!b?.events || !articlesMap) return
+  if (!b?.events) return
   const eid = Number(eventId)
   for (const ev of b.events) {
     if (Number(ev.id) !== eid) continue
-    const arts = { ...(ev.articles || {}) }
-    for (const [key, patch] of Object.entries(articlesMap)) {
-      const k = String(key)
-      const existing = arts[k]
-      if (existing) arts[k] = { ...existing, ...patch }
-      else arts[k] = patch as EdgeBundleArticle
-    }
-    for (const base of Object.values(arts)) {
-      if (!base?.additions) continue
-      for (const add of base.additions) {
-        const src = arts[String(add.article_id)]
-        if (!src) continue
-        if ('in_stock' in src) add.in_stock = src.in_stock
-        if ('sellable' in src) add.sellable = src.sellable
-        if ('monitor_stock' in src) add.monitor_stock = src.monitor_stock
+    if (patch.articles) {
+      const arts = { ...(ev.articles || {}) }
+      for (const [key, artPatch] of Object.entries(patch.articles)) {
+        const k = String(key)
+        const existing = arts[k]
+        if (existing) arts[k] = { ...existing, ...artPatch }
+        else arts[k] = artPatch as EdgeBundleArticle
       }
+      for (const base of Object.values(arts)) {
+        if (!base?.additions) continue
+        for (const add of base.additions) {
+          const src = arts[String(add.article_id)]
+          if (!src) continue
+          if ('in_stock' in src) add.in_stock = src.in_stock
+          if ('sellable' in src) add.sellable = src.sellable
+          if ('monitor_stock' in src) add.monitor_stock = src.monitor_stock
+          if (Array.isArray(src.ingredients) && src.ingredients.length) add.ingredients = src.ingredients
+        }
+      }
+      ev.articles = arts
     }
-    ev.articles = arts
+    if (patch.ingredients) {
+      const ings = { ...((ev as { ingredients?: Record<string, unknown> }).ingredients || {}) }
+      for (const [key, ingPatch] of Object.entries(patch.ingredients)) {
+        const k = String(key)
+        const existing = ings[k]
+        if (existing && typeof existing === 'object') ings[k] = { ...existing, ...ingPatch }
+        else ings[k] = ingPatch
+      }
+      ;(ev as { ingredients?: Record<string, unknown> }).ingredients = ings
+    }
     break
   }
 }

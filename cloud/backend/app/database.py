@@ -329,11 +329,18 @@ def apply_schema_patches() -> None:
     )
     _add_column_if_missing(
         "organisations",
+        "ingredients_enabled",
+        "ALTER TABLE organisations ADD COLUMN ingredients_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ingredients_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "organisations",
         "color_palette",
         "ALTER TABLE organisations ADD COLUMN color_palette TEXT",
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS color_palette JSON",
     )
     _ensure_organisation_position_comments_table()
+    _ensure_ingredients_tables()
     _ensure_user_organisation_onboarding_dismissals_table()
     _ensure_user_organisation_onboarding_task_states_table()
 
@@ -496,6 +503,22 @@ def _ensure_organisation_position_comments_table() -> None:
     from .models import OrganisationPositionComment
 
     OrganisationPositionComment.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_ingredients_tables() -> None:
+    try:
+        inspector = inspect(engine)
+        names = set(inspector.get_table_names())
+    except Exception:
+        return
+    from .models import ArticleIngredientLink, EventIngredientStock, Ingredient
+
+    if "ingredients" not in names:
+        Ingredient.__table__.create(bind=engine, checkfirst=True)
+    if "article_ingredient_links" not in names:
+        ArticleIngredientLink.__table__.create(bind=engine, checkfirst=True)
+    if "event_ingredient_stock" not in names:
+        EventIngredientStock.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_accounting_tax_code_defaults_table() -> None:
