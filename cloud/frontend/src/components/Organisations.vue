@@ -108,6 +108,10 @@
             />
           </template>
 
+          <template #farbpalette>
+            <OrganisationColorPaletteSection :organisation-id="activeId" />
+          </template>
+
           <template #buchhaltung>
             <OrganisationAccountingSection
               :organisation-id="activeId"
@@ -228,6 +232,7 @@ import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import OrganisationPositionCommentsSection from './OrganisationPositionCommentsSection.vue'
+import OrganisationColorPaletteSection from './OrganisationColorPaletteSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
@@ -297,6 +302,7 @@ const configSections = computed((): SectionNavSection[] => {
     { id: 'geraete', title: t('organisations.config.sectionGeraete') },
     { id: 'stripe', title: t('organisations.config.sectionStripe') },
     { id: 'belegvorlagen', title: t('organisations.config.sectionBelegvorlagen') },
+    { id: 'farbpalette', title: t('organisations.config.sectionColorPalette') },
     { id: 'positionen', title: t('organisations.config.sectionPositionen') },
     { id: 'buchhaltung', title: t('organisations.config.sectionBuchhaltung') },
   ]

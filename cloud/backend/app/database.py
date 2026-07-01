@@ -327,6 +327,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN position_comments_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS position_comments_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _add_column_if_missing(
+        "organisations",
+        "color_palette",
+        "ALTER TABLE organisations ADD COLUMN color_palette TEXT",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS color_palette JSON",
+    )
     _ensure_organisation_position_comments_table()
     _ensure_user_organisation_onboarding_dismissals_table()
     _ensure_user_organisation_onboarding_task_states_table()

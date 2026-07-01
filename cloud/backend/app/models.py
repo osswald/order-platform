@@ -136,6 +136,7 @@ class Organisation(Base):
     default_tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     accounts_enabled = Column(Boolean, nullable=False, default=False)
     position_comments_enabled = Column(Boolean, nullable=False, default=False)
+    color_palette = Column(JSON, nullable=True)
     hire_company = relationship("HireCompany", back_populates="organisations")
     country = relationship("Country", back_populates="organisations")
     default_tax_code = relationship("TaxCode", foreign_keys=[default_tax_code_id])

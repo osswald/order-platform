@@ -36,6 +36,18 @@ Stripe Connect wird pro Organisation eingerichtet. Auszahlungen gehen an die Org
 
 Siehe Hilfeartikel **Stripe Connect** für Onboarding, Event-Aktivierung und Fehlerbehebung.
 
+## Farbpalette (App Layout)
+
+Im Tab **Farbpalette (App Layout)** definieren Sie wiederverwendbare Farben für Buttons in den Kellner-App-Layouts:
+
+- Jede Farbe hat eine **Bezeichnung** (z. B. «Bar», «Food», «VIP») und einen **Farbwert** (Hex)
+- Farben hinzufügen, bearbeiten oder entfernen und mit **Speichern** übernehmen
+- Bis zu 32 Farben pro Organisation; doppelte Farbwerte sind nicht erlaubt
+
+In der **Event-Konfiguration** unter **App-Layouts** erscheinen diese Farben beim Bearbeiten einer Layout-Zelle als Schnellauswahl — zusätzlich zum freien Farbwähler. Ist keine Farbpalette definiert, bleibt nur der manuelle Farbwähler sichtbar.
+
+Die Zelle speichert weiterhin den Hex-Farbwert; die Palette dient nur der einheitlichen Auswahl in der Cloud.
+
 ## Wer darf was?
 
 - **Verleiher-Admin** — Organisationen anlegen, löschen und vollständig verwalten
