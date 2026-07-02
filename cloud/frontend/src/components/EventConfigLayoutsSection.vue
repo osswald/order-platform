@@ -157,6 +157,16 @@
           </div>
         </v-card-text>
         <v-card-actions class="dialog-actions">
+          <v-btn
+            v-if="cellDialogHadContent"
+            data-testid="delete-layout-cell-btn"
+            color="error"
+            variant="text"
+            type="button"
+            @click="deleteCellDialog"
+          >
+            {{ $t('events.config.deleteCell') }}
+          </v-btn>
           <v-spacer />
           <v-btn variant="outlined" type="button" @click="cellDialogVisible = false">{{ $t('common.cancel') }}</v-btn>
           <v-btn color="primary" type="button" @click="applyCellDialog">{{ $t('events.config.apply') }}</v-btn>
@@ -171,6 +181,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
+import { layoutCellHasContent } from '../utils/eventConfigLayoutsPayload'
 import type { ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
 import type {
   EventCellEditState,
@@ -223,6 +234,7 @@ const cellTreeNodesRaw = ref<StationArticleTreeNode[]>([])
 const cellTreeSelection = ref<string[]>([])
 const cellTreeFilter = ref('')
 const treeLoading = ref(false)
+const cellDialogHadContent = ref(false)
 
 interface TreeViewNode {
   key: string
@@ -411,6 +423,23 @@ function ensureCell(lo: EventLayoutLocal, row: number, col: number): EventLayout
   return c
 }
 
+function removeCellAt(lo: EventLayoutLocal, row: number, col: number) {
+  lo.cells = lo.cells.filter((c) => !(c.row === row && c.col === col))
+}
+
+function buildCellFromDialog(row: number, col: number): EventLayoutCellLocal {
+  const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
+  return {
+    row,
+    col,
+    label: cellEdit.value.label || '',
+    color: cellEdit.value.color || '#eeeeee',
+    voucher_definition_uuids: vUuids,
+    voucher_definition_uuid: vUuids[0] || null,
+    article_ids: treeSelectionToArticleIds(cellTreeSelection.value),
+  }
+}
+
 function articleIdsToTreeSelection(ids: number[]): string[] {
   return (ids || []).map((id) => `art-${id}`)
 }
@@ -527,6 +556,7 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
   cellTreeFilter.value = ''
   const lo = layouts.value[layoutIndex]
   const c = displayCell(lo, row, col)
+  cellDialogHadContent.value = layoutCellHasContent(c)
   const vUuids = cellVoucherUuids(c)
   cellEdit.value = {
     label: c.label || '',
@@ -553,13 +583,28 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
 
 function applyCellDialog() {
   const lo = layouts.value[cellEditLayoutIndex.value]
-  const c = ensureCell(lo, cellEditRow.value, cellEditCol.value)
-  c.label = cellEdit.value.label || ''
-  c.color = cellEdit.value.color || '#eeeeee'
-  const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
-  c.voucher_definition_uuids = vUuids
-  c.voucher_definition_uuid = vUuids[0] || null
-  c.article_ids = treeSelectionToArticleIds(cellTreeSelection.value)
+  const row = cellEditRow.value
+  const col = cellEditCol.value
+  const updated = buildCellFromDialog(row, col)
+  if (!layoutCellHasContent(updated)) {
+    removeCellAt(lo, row, col)
+  } else {
+    const c = ensureCell(lo, row, col)
+    c.label = updated.label
+    c.color = updated.color
+    c.voucher_definition_uuids = updated.voucher_definition_uuids
+    c.voucher_definition_uuid = updated.voucher_definition_uuid
+    c.article_ids = updated.article_ids
+  }
+  cellDialogHadContent.value = false
+  cellDialogVisible.value = false
+}
+
+function deleteCellDialog() {
+  if (!confirm(t('events.config.deleteCellConfirm'))) return
+  const lo = layouts.value[cellEditLayoutIndex.value]
+  removeCellAt(lo, cellEditRow.value, cellEditCol.value)
+  cellDialogHadContent.value = false
   cellDialogVisible.value = false
 }
 

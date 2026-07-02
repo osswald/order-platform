@@ -117,6 +117,10 @@
       "initialStock": "Initial stock",
       "currentStock": "Current stock",
       "stock": "Stock"
+    },
+    "config": {
+      "deleteCell": "Delete button",
+      "deleteCellConfirm": "Delete this layout button?"
     }
   },
   "common": {

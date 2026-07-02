@@ -30,6 +30,13 @@ export function cellVoucherUuidsForPayload(cell: LayoutCellLike): string[] {
   return []
 }
 
+/** Matches backend layout_cell_requires_content: articles and/or vouchers required. */
+export function layoutCellHasContent(cell: LayoutCellLike): boolean {
+  const articleIds = Array.isArray(cell.article_ids) ? cell.article_ids : []
+  if (articleIds.length > 0) return true
+  return cellVoucherUuidsForPayload(cell).length > 0
+}
+
 export function isLayoutCellInGrid(
   cell: { row: number; col: number },
   width: number,
@@ -47,6 +54,7 @@ export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
     grid_height: layout.grid_height,
     cells: (layout.cells || [])
       .filter((cell) => isLayoutCellInGrid(cell, layout.grid_width, layout.grid_height))
+      .filter((cell) => layoutCellHasContent(cell))
       .map((cell) => {
         const voucherUuids = cellVoucherUuidsForPayload(cell)
         return {
