@@ -2,6 +2,12 @@
 
 ## Cursor Cloud specific instructions
 
+### Git workflow and releases
+
+- Branch from `main`; land changes via pull request only.
+- Do **not** bump [`VERSION`](VERSION) in feature PRs — add a `release:patch|minor|major` label instead.
+- See [`docs/RELEASE.md`](docs/RELEASE.md) for branch protection, labels, and Pi image tags.
+
 ### Architecture overview
 
 This is the **Vendiqo Order Platform** monorepo — a multi-tenant event/venue POS system with:

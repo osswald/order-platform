@@ -1,0 +1,82 @@
+name: Release prepare
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main, master]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-prepare
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release bump type
+        id: release
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+
+          labels = json.loads(os.environ["LABELS"])
+          release_labels = [l for l in labels if l in ("release:patch", "release:minor", "release:major")]
+          if len(release_labels) == 0:
+              print("No release label; skipping VERSION bump.")
+              sys.exit(0)
+          if len(release_labels) > 1:
+              print(f"Expected exactly one release label, found: {release_labels}", file=sys.stderr)
+              sys.exit(1)
+
+          bump = release_labels[0].removeprefix("release:")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"bump={bump}\n")
+          PY
+
+      - name: Checkout PR branch
+        if: steps.release.outputs.bump != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Bump VERSION on PR branch
+        if: steps.release.outputs.bump != ''
+        id: bump
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          base_version="$(git show "origin/${{ github.event.pull_request.base.ref }}:VERSION" | tr -d '[:space:]')"
+          bump="${{ steps.release.outputs.bump }}"
+          next="$("./scripts/bump-version.sh" "$bump" --from "$base_version" --print-only)"
+          current="$(tr -d '[:space:]' < VERSION || true)"
+
+          if [[ "$current" == "$next" ]]; then
+            echo "VERSION already at $next; skipping commit."
+            echo "version=$next" >> "$GITHUB_OUTPUT"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          "./scripts/bump-version.sh" "$bump" --from "$base_version"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push VERSION bump
+        if: steps.release.outputs.bump != '' && steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "Release v${{ steps.bump.outputs.version }}"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"

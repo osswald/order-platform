@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main, master]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release bump type
+        id: release
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+
+          labels = json.loads(os.environ["LABELS"])
+          release_labels = [l for l in labels if l in ("release:patch", "release:minor", "release:major")]
+          if len(release_labels) == 0:
+              print("No release label; skipping release.")
+              sys.exit(0)
+          if len(release_labels) > 1:
+              print(f"Expected exactly one release label, found: {release_labels}", file=sys.stderr)
+              sys.exit(1)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("has_release=true\n")
+          PY
+
+      - name: Checkout merge commit
+        if: steps.release.outputs.has_release == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Read VERSION
+        if: steps.release.outputs.has_release == 'true'
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid VERSION on merge commit: $version" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag and GitHub Release
+        if: steps.release.outputs.has_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; skipping."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          notes_file="$(mktemp)"
+          {
+            printf '%s\n\n' "$PR_TITLE"
+            printf '%s\n' "$PR_BODY"
+          } > "$notes_file"
+          gh release create "$TAG" --title "Release $TAG" --notes-file "$notes_file"

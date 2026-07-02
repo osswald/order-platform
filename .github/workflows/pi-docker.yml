@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master]
+    tags: ["v*"]
     paths:
       - "pi/backend/**"
       - "pi/frontend/**"
@@ -32,6 +33,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Resolve app version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+            echo "tag_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -45,6 +58,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image tags
+        id: image_tags
+        env:
+          SHA: ${{ github.sha }}
+          TAG_RELEASE: ${{ steps.version.outputs.tag_release }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          repo="${{ env.REGISTRY }}/${{ github.repository }}"
+          backend_tags="${repo}:pi-backend-latest"$'\n'"${repo}:pi-backend-amd64-latest"$'\n'"${repo}:pi-backend-${SHA}"
+          frontend_tags="${repo}:pi-frontend-latest"$'\n'"${repo}:pi-frontend-amd64-latest"$'\n'"${repo}:pi-frontend-${SHA}"
+          if [[ "$TAG_RELEASE" == "true" ]]; then
+            backend_tags+=$'\n'"${repo}:pi-backend-${VERSION}"$'\n'"${repo}:pi-backend-amd64-${VERSION}"
+            frontend_tags+=$'\n'"${repo}:pi-frontend-${VERSION}"$'\n'"${repo}:pi-frontend-amd64-${VERSION}"
+          fi
+          {
+            echo "backend<<EOF"
+            printf '%s\n' "$backend_tags"
+            echo "EOF"
+            echo "frontend<<EOF"
+            printf '%s\n' "$frontend_tags"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push backend
         uses: docker/build-push-action@v7
         with:
@@ -53,15 +89,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-latest
-            ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-amd64-latest
-            ${{ env.REGISTRY }}/${{ github.repository }}:pi-backend-${{ github.sha }}
-
-      - name: Read app version
-        id: version
-        run: |
-          echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
-          echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
+            ${{ steps.image_tags.outputs.backend }}
 
       - name: Build and push frontend
         uses: docker/build-push-action@v7
@@ -74,6 +102,4 @@ jobs:
             VITE_APP_VERSION=${{ steps.version.outputs.value }}
             VITE_BUILD_TIME=${{ steps.version.outputs.build_time }}
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-latest
-            ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-amd64-latest
-            ${{ env.REGISTRY }}/${{ github.repository }}:pi-frontend-${{ github.sha }}
+            ${{ steps.image_tags.outputs.frontend }}
