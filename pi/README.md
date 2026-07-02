@@ -149,7 +149,13 @@ ghcr.io/osswald/order-platform:pi-backend-latest
 ghcr.io/osswald/order-platform:pi-frontend-latest
 ghcr.io/osswald/order-platform:pi-backend-<sha>
 ghcr.io/osswald/order-platform:pi-frontend-<sha>
+ghcr.io/osswald/order-platform:pi-backend-<version>      # on v* release tags
+ghcr.io/osswald/order-platform:pi-frontend-<version>
+ghcr.io/osswald/order-platform:pi-backend-amd64-<version>
+ghcr.io/osswald/order-platform:pi-frontend-amd64-<version>
 ```
+
+See [`docs/RELEASE.md`](../docs/RELEASE.md) for label-gated releases and pinning a Pi to a semver image.
 
 On an already-flashed Pi that still points at the wrong registry, copy the updated compose file and run:
 
