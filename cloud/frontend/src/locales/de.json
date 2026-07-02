@@ -963,6 +963,8 @@
       "stationArticlesOnly": "Artikel (nur Stationen-Artikel)",
       "filterArticles": "Artikel filtern…",
       "apply": "Übernehmen",
+      "deleteCell": "Button löschen",
+      "deleteCellConfirm": "Layout-Button wirklich löschen?",
       "importWaiter": "Kellner übernehmen",
       "selectWaiters": "Kellner wählen",
       "waiter": "Kellner",
