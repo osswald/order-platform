@@ -229,12 +229,16 @@ export function useAuthSession() {
       return
     }
     if (route.meta.organisationManagerOnly && !canAccessOrganisationSettings.value) {
-      router.replace({
-        name: 'no-access',
-        params: { section },
-        query: route.query,
-      })
-      return
+      const platformAdminBypass =
+        route.meta.platformAdminAllowed === true && isPlatformAdmin.value
+      if (!platformAdminBypass) {
+        router.replace({
+          name: 'no-access',
+          params: { section },
+          query: route.query,
+        })
+        return
+      }
     }
     if (route.meta.usersOnly && !canAccessUsers.value) {
       router.replace({

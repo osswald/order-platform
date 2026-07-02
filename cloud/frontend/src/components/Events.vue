@@ -7,6 +7,16 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <v-btn
+        v-if="canImportOrderjutsu && !showDetail"
+        variant="outlined"
+        type="button"
+        @click="router.push({ name: 'events-import-orderjutsu' })"
+      >
+        {{ t('events.importOrderjutsu') }}
+      </v-btn>
+    </template>
     <template #detail>
       <EventStatusStepper
         v-model="form.status"
@@ -195,10 +205,14 @@ const router = useRouter()
 const props = withDefaults(
   defineProps<{
     isAdmin?: boolean
+    isTenantAdmin?: boolean
+    isOrganisationAdmin?: boolean
     activeOrganisationId?: number | null
   }>(),
   {
     isAdmin: false,
+    isTenantAdmin: false,
+    isOrganisationAdmin: false,
     activeOrganisationId: null,
   },
 )
@@ -305,6 +319,11 @@ const showTwintQrSection = computed(() =>
 )
 
 const canCreateEvents = computed(() => props.activeOrganisationId != null)
+const canImportOrderjutsu = computed(
+  () =>
+    props.activeOrganisationId != null &&
+    (props.isAdmin || props.isTenantAdmin || props.isOrganisationAdmin),
+)
 
 const selectableStatusOptions = computed(() => {
   if (!editMode.value) {

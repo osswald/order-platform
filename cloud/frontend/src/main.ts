@@ -2,6 +2,7 @@ import { createApp, watch } from 'vue'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+import { de as vuetifyDe, en as vuetifyEn } from 'vuetify/locale'
 import { VDateInput } from 'vuetify/labs/VDateInput'
 import DateFnsAdapter from '@date-io/date-fns'
 import { de as dateFnsDe } from 'date-fns/locale/de'
@@ -19,6 +20,7 @@ const vuetify = createVuetify({
   locale: {
     locale: 'de',
     fallback: 'en',
+    messages: { de: vuetifyDe, en: vuetifyEn },
   },
   date: {
     adapter: DateFnsAdapter,
