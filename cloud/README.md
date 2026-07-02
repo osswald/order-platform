@@ -1,8 +1,68 @@
-# Cloud production deployment
+# Vendiqo Cloud
+
+The cloud stack is the central admin and API for Vendiqo: multi-tenant back office for **Verleiher** (hire companies) who rent POS hardware to event customers. It configures organisations and events, serves reports, and exposes the edge API that on-venue Pis sync against.
+
+**Stack:** FastAPI + PostgreSQL (backend), Vue 3 / Vite / TypeScript (admin UI).
+
+## What Vendiqo Cloud does
+
+### Multi-tenancy and roles
+
+Each **Verleiher** (`hire_companies`) owns customer organisations, appliances, and lendings.
+
+| Role | Scope |
+|------|-------|
+| `platform_admin` | Manage Verleiher; operational UI requires an active Verleiher + header `X-Hire-Company-Id` |
+| `tenant_admin` | Full admin within one Verleiher (organisations, appliances, users, lendings) |
+| `organisation_admin` | Manage assigned organisation(s) |
+| `member` | Event customer users within assigned organisations |
+
+On startup, `apply_schema_patches()` creates a default Verleiher named **Vendiqo** (override with `DEFAULT_HIRE_COMPANY_NAME`). Platform admins pick **Aktiver Verleiher** in the sidebar; route `/verleiher` manages Verleiher (platform admin only).
+
+### Event management
+
+- Lifecycle: config → test → prod → archive
+- Payment modes: `instant`, `pay_now`, `pay_later`
+- Payment types: cash, TWINT, SumUp, Stripe Terminal
+- Per-event configuration: stations, printer rules, app layouts, waiters (PINs), cash registers, vouchers, kitchen monitor printers, receipt printing (logos, fonts, footers)
+
+### Master data
+
+Articles, categories, ingredients, waiters, organisations, tax codes, countries, payment types. Orderjutsu import wizard at `/events/import/orderjutsu`.
+
+### Hardware
+
+Appliance types: server, printer, mobile, tablet, router, ap. Server appliances get Pi pairing codes; printer appliances store IPv4 and ESC/POS feed lines. **Lendings** date-bound appliance rentals — required for edge sync.
+
+### Reporting and exports
+
+Sales reports, event stats, transactions, cash sessions, payment batches, bookkeeping export, collective bill PDF download.
+
+### Payments (Stripe)
+
+Stripe Connect onboarding per organisation (`/settings/stripe/*`). Stripe Terminal edge API for card payments on Android devices. Stripe keys are optional for local dev — core POS works without them.
+
+See [docs/stripe-connect-terminal.md](../docs/stripe-connect-terminal.md).
+
+### Edge API
+
+Authenticated bundle and operational sync for paired Pis (`X-Edge-Client-Id` / `X-Edge-Secret`): pairing, bundle pull, operational snapshot/chunk sync.
+
+### Hosted Cloud-Pi
+
+Temporary browser Pis for events in **config** status (see [Hosted Cloud-Pi](#hosted-cloud-pi-config-events) below).
+
+### Locales
+
+Admin UI in German and English. Money and dates formatted per UI locale and organisation country code (Babel backend, vue-i18n frontend).
+
+---
+
+## Production deployment
 
 Production stack: **Caddy** (HTTPS) → **nginx** (admin SPA) + **FastAPI/gunicorn** (API) → **PostgreSQL**.
 
-Local development still uses `docker compose up` with the dev Dockerfiles (Vite dev server + uvicorn).
+Local development uses `docker compose up` with the dev Dockerfiles (Vite dev server + uvicorn).
 
 ## Local development
 
@@ -49,20 +109,6 @@ Do **not** run `docker compose down -v` on production.
 | `.env.example` | Template for production secrets and settings |
 | `frontend/Dockerfile.prod` | Multi-stage build → nginx static SPA |
 | `backend/Dockerfile.prod` | gunicorn + uvicorn workers |
-
-## Multi-tenant Verleiher and roles
-
-The cloud API is multi-tenant: each **Verleiher** (`hire_companies`) owns appliances, customer organisations, and lendings.
-
-| Role | Who | Cloud access |
-|------|-----|----------------|
-| **Plattform-Admin** (`platform_admin`, `is_superuser`) | Vendiqo operators | CRUD Verleiher; operational UI requires **Aktiver Verleiher** + header `X-Hire-Company-Id` |
-| **Organisations-Admin** (`tenant_admin`) | Staff of one Verleiher | Full admin within their Verleiher (organisations, appliances, users, lendings) |
-| **Mitglied** (`member`) | Event customer users | Assigned organisations only (events, catalog) |
-
-**Migration:** On startup, `apply_schema_patches()` creates a default Verleiher named **Vendiqo** (override with `DEFAULT_HIRE_COMPANY_NAME`) and assigns existing organisations and appliances to it. Existing superusers become `platform_admin`.
-
-**Frontend:** Platform admins pick **Aktiver Verleiher** in the sidebar; the UI sends `X-Hire-Company-Id` on API calls. Route `/verleiher` manages Verleiher (platform admin only).
 
 ## VPS prerequisites
 
