@@ -127,6 +127,18 @@ Printer selection is stored only on the device.
 
 After a payment, the app asks whether to print a **Zahlungsbeleg**. If a Bluetooth printer is paired, printing uses the phone; **station printers are only offered when no Bluetooth printer is selected**. Pair a printer under Kellner hub → **Bluetooth Drucker** before service.
 
+## Stripe Tap to Pay
+
+The app exposes `window.AndroidTerminal` as a JavaScript bridge ([`MainActivity.kt`](app/src/main/java/ch/vendiqo/app/MainActivity.kt)). When an event has the `stripe_terminal` payment type and the organisation is Stripe Connect–onboarded, the Pi PWA uses this bridge for card payments on the device.
+
+The Pi backend proxies Stripe Terminal API calls to the cloud edge API. See [docs/stripe-connect-terminal.md](../docs/stripe-connect-terminal.md) for the full Connect + Terminal setup and test flow.
+
+Requirements:
+
+- Android 12+ (same as the app)
+- Stripe Connect onboarding completed in cloud admin for the organisation
+- `stripe_terminal` enabled in the event's payment types
+
 ## Frontend-only rebuild
 
 To iterate on UI without a full Gradle cycle:
@@ -144,6 +156,7 @@ Then run `./gradlew assembleDebug` again (copies `dist/` into assets).
 |------|---------|
 | `app/src/main/java/ch/vendiqo/app/MainActivity.kt` | WebView shell, insets, load URL |
 | `app/src/main/java/ch/vendiqo/app/BluetoothPrinterBridge.kt` | JS bridge for ESC/POS |
+| `app/src/main/java/ch/vendiqo/app/StripeTerminalBridge.kt` | JS bridge for Stripe Tap to Pay (`AndroidTerminal`) |
 | `app/src/main/assets/public/` | Bundled frontend (generated, gitignored) |
 | `app/src/main/res/mipmap-*/` | Launcher icons |
 | `keystore.properties` | Release signing secrets (gitignored) |

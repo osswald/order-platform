@@ -1,6 +1,6 @@
-# Raspberry Pi edge server
+# Vendiqo Pi edge server
 
-The Raspberry Pi stack is the on-prem venue server:
+The Raspberry Pi stack is the on-prem venue server for Vendiqo:
 
 - **FastAPI** backend
 - **SQLite** local data store
@@ -8,6 +8,17 @@ The Raspberry Pi stack is the on-prem venue server:
 - automatic cloud sync through the cloud edge API
 
 The Pi is designed to keep selling while the internet is unavailable. It serves the local PWA and stores orders in SQLite, then pushes them to cloud when connectivity returns.
+
+## Features
+
+- Waiter ordering, open tables, split-pay
+- Collective bills (Sammelrechnung)
+- Cash registers, customer display, shift sessions
+- Kitchen monitor, pickup screen
+- Payments: cash, TWINT, SumUp; card via Stripe Terminal on Android ([`androidTerminal.ts`](frontend/src/utils/androidTerminal.ts))
+- Vouchers, stock tracking, receipt history
+- ESC/POS network printing (python-escpos) and Android Bluetooth receipts
+- Offline-first SQLite with background cloud sync
 
 ## Production network and first boot
 
@@ -322,14 +333,55 @@ The emulator image is AGPL-3.0; use only for local development, not production a
 
 The Vue PWA under `pi/frontend/` talks only to the Pi backend. There is no browser-side offline order queue; offline behavior is handled by the Pi server and SQLite.
 
-Roles:
+### Screens
+
+| Screen | Route | Purpose |
+|--------|-------|---------|
+| Setup | `/setup` | Cloud pairing |
+| Events | `/events` | Select active event |
+| Waiter hub | `/hub` | Ordering entry point |
+| Order | `/order` | New order |
+| Open tables | `/tables/open` | View open tables |
+| Collective bills | `/collective/open` | Open Sammelrechnungen |
+| Pay table / collective | `/pay/table`, `/pay/collective` | Split-pay and settlement |
+| Cash registers | `/registers`, `/register/:uuid/*` | Register POS and customer display |
+| Kitchen monitor | `/kitchen/:printerSlug` | Kitchen display |
+| Pickup screen | `/pickup` | Pickup display |
+| Stock | `/stock` | Stock levels |
+| Receipts | `/receipts` | Receipt history and reprints |
+| Android printer | `/android/printer` | Bluetooth printer setup (Android app) |
+| Admin | `/admin/*` | Sync, test print, unpair, ops displays |
+
+### Roles
 
 | Role | Access | Features |
 |------|--------|----------|
-| Kellner | Event wählen -> Kellner/PIN -> Hub | New orders, table settlement, open tables, stock. |
-| Admin | Events -> Admin | Entkoppeln (mit Confirm + Werksschlüssel), manual sync, auto-sync status, **Testdruck** (probe slip per station). |
+| Kellner | Event → waiter/PIN → hub | New orders, table settlement, open tables, stock, receipts. |
+| Kasse | Event → register select | Register ordering, checkout, customer display. |
+| Admin | Events → Admin | Unpair (with confirm + factory secret), manual sync, auto-sync status, **Testdruck** (probe slip per station), kitchen/pickup/display ops views. |
 
 The **Pi Admin-Code** is configured in cloud under user/organisation assignment. Hashed admin PINs sync in the bundle as `admin_pin_hashes`; the Pi verifies them locally.
+
+## Payments
+
+Payment types are configured per event in cloud admin. The Pi PWA offers only the types enabled for the event.
+
+| Type | Where executed |
+|------|----------------|
+| Cash | Pi PWA |
+| TWINT | Pi PWA (QR from synced event assets) |
+| SumUp | Pi PWA |
+| Stripe Terminal | Android app (Tap to Pay via `window.AndroidTerminal`; Pi proxies API calls to cloud) |
+
+### Payment mode
+
+| Cloud mode | Pi behavior |
+|------------|-------------|
+| `pay_later` | Order remains open; settle later at the table. |
+| `pay_now` | Order remains open; Pi opens split-pay after order. |
+| `instant` | Order is immediately paid. |
+
+Vouchers can be applied during payment flows when enabled for the event.
 
 ## Ordering behavior
 
@@ -348,14 +400,6 @@ Cloud manages event stock under Veranstaltung -> Lagerartikel. The Pi uses event
 ### Additions
 
 Cloud articles can be marked as additions (`is_addition`) and linked to base articles. The Pi addition picker enforces the configured additions and applies price adjustments locally.
-
-### Payment mode
-
-| Cloud mode | Pi behavior |
-|------------|-------------|
-| `pay_later` | Order remains open; settle later at the table. |
-| `pay_now` | Order remains open; Pi opens split-pay after order. |
-| `instant` | Order is immediately paid. |
 
 `POST /v1/orders` payload:
 
