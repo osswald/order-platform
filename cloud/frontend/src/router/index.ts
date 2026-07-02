@@ -7,6 +7,7 @@ import { listDetailRoutes } from '../composables/useListDetailRouting'
 import Dashboard from '../components/Dashboard.vue'
 import Events from '../components/Events.vue'
 import EventStatsPage from '../components/EventStatsPage.vue'
+import OrderjutsuImportWizard from '../components/OrderjutsuImportWizard.vue'
 import Waiters from '../components/Waiters.vue'
 import Articles from '../components/Articles.vue'
 import ArticleCategories from '../components/ArticleCategories.vue'
@@ -51,6 +52,12 @@ const routes = [
     meta: orgScoped,
   },
   ...listDetailRoutes({ path: '/events', listName: 'events', component: Events, meta: orgScoped }),
+  {
+    path: '/events/import/orderjutsu',
+    name: 'events-import-orderjutsu',
+    component: OrderjutsuImportWizard,
+    meta: { ...organisationManagerOnly, platformAdminAllowed: true },
+  },
   {
     path: '/events/:id(\\d+)/stats',
     name: 'events-stats',

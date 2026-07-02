@@ -574,6 +574,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/import/orderjutsu/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Orderjutsu Import */
+        post: operations["preview_orderjutsu_import_events_import_orderjutsu_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/import/orderjutsu/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit Orderjutsu Import Endpoint */
+        post: operations["commit_orderjutsu_import_endpoint_events_import_orderjutsu_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/": {
         parameters: {
             query?: never;
@@ -3228,6 +3262,365 @@ export interface components {
             } | null;
             /** Target Event Id */
             target_event_id?: number | null;
+        };
+        /** OrderjutsuImportCommit */
+        OrderjutsuImportCommit: {
+            /** Organisation Id */
+            organisation_id: number;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            event: components["schemas"]["OrderjutsuImportCommitEvent"];
+            /** Articles */
+            articles?: components["schemas"]["OrderjutsuImportCommitArticle"][];
+            /** Ingredients */
+            ingredients?: components["schemas"]["OrderjutsuImportCommitIngredient"][];
+            /** Cashiers */
+            cashiers?: components["schemas"]["OrderjutsuImportCommitCashier"][];
+            /** Default Article Category Id */
+            default_article_category_id: number;
+            /**
+             * Enable Ingredients
+             * @default false
+             */
+            enable_ingredients: boolean;
+            /** Stations */
+            stations?: components["schemas"]["OrderjutsuImportCommitStation"][];
+            /**
+             * Import Stock
+             * @default true
+             */
+            import_stock: boolean;
+            /** Stock Articles */
+            stock_articles?: components["schemas"]["OrderjutsuImportCommitStockArticle"][];
+            /** Stock Ingredients */
+            stock_ingredients?: components["schemas"]["OrderjutsuImportCommitStockIngredient"][];
+            /**
+             * Import Vouchers
+             * @default true
+             */
+            import_vouchers: boolean;
+        };
+        /** OrderjutsuImportCommitArticle */
+        OrderjutsuImportCommitArticle: {
+            /** Ref */
+            ref: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "link_existing" | "create_new" | "skip";
+            /** Article Id */
+            article_id?: number | null;
+        };
+        /** OrderjutsuImportCommitCashier */
+        OrderjutsuImportCommitCashier: {
+            /** Index */
+            index: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "link_existing" | "create_org_waiter" | "event_only" | "skip";
+            /** Waiter Id */
+            waiter_id?: number | null;
+        };
+        /** OrderjutsuImportCommitEvent */
+        OrderjutsuImportCommitEvent: {
+            /** Name */
+            name: string;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Cash Registers Enabled */
+            cash_registers_enabled?: boolean | null;
+            /** Vouchers Enabled */
+            vouchers_enabled?: boolean | null;
+        };
+        /** OrderjutsuImportCommitIngredient */
+        OrderjutsuImportCommitIngredient: {
+            /** Ref */
+            ref: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "link_existing" | "create_new";
+            /** Ingredient Id */
+            ingredient_id?: number | null;
+        };
+        /** OrderjutsuImportCommitResult */
+        OrderjutsuImportCommitResult: {
+            /** Event Id */
+            event_id: number;
+            event: components["schemas"]["EventRead"];
+            configuration: components["schemas"]["EventConfigurationRead"];
+        };
+        /** OrderjutsuImportCommitStation */
+        OrderjutsuImportCommitStation: {
+            /** Index */
+            index: number;
+            /** Printer Appliance Id */
+            printer_appliance_id?: number | null;
+        };
+        /** OrderjutsuImportCommitStockArticle */
+        OrderjutsuImportCommitStockArticle: {
+            /** Ref */
+            ref: number;
+            /** Monitor Stock */
+            monitor_stock?: boolean | null;
+            /** Initial In Stock */
+            initial_in_stock?: number | null;
+            /** In Stock */
+            in_stock?: number | null;
+        };
+        /** OrderjutsuImportCommitStockIngredient */
+        OrderjutsuImportCommitStockIngredient: {
+            /** Ref */
+            ref: number;
+            /** Monitor Stock */
+            monitor_stock?: boolean | null;
+            /** Initial In Stock */
+            initial_in_stock?: number | null;
+            /** In Stock */
+            in_stock?: number | null;
+        };
+        /** OrderjutsuImportPreview */
+        OrderjutsuImportPreview: {
+            event: components["schemas"]["OrderjutsuImportPreviewEvent"];
+            /** Products */
+            products: components["schemas"]["OrderjutsuImportPreviewProduct"][];
+            /** Cashiers */
+            cashiers: components["schemas"]["OrderjutsuImportPreviewCashier"][];
+            /** Stations */
+            stations: components["schemas"]["OrderjutsuImportPreviewStation"][];
+            /** Layouts */
+            layouts: components["schemas"]["OrderjutsuImportPreviewLayoutSummary"][];
+            /** Product Extras */
+            product_extras: components["schemas"]["OrderjutsuImportPreviewExtra"][];
+            /** Stock Candidates */
+            stock_candidates: components["schemas"]["OrderjutsuImportPreviewStockCandidate"][];
+            /** Vouchers */
+            vouchers: components["schemas"]["OrderjutsuImportPreviewVoucher"][];
+            /** Has Ingredients */
+            has_ingredients: boolean;
+            /** Ingredients Enabled */
+            ingredients_enabled: boolean;
+            /** Will Enable Ingredients */
+            will_enable_ingredients: boolean;
+            /** Ingredient Matches */
+            ingredient_matches: components["schemas"]["OrderjutsuImportPreviewIngredient"][];
+            /** Recipe Rows */
+            recipe_rows: components["schemas"]["OrderjutsuImportPreviewRecipeRow"][];
+            /** Has Vouchers */
+            has_vouchers: boolean;
+            /** Has Cash Registers */
+            has_cash_registers: boolean;
+            /** Warnings */
+            warnings?: components["schemas"]["OrderjutsuImportPreviewWarning"][];
+        };
+        /** OrderjutsuImportPreviewCashier */
+        OrderjutsuImportPreviewCashier: {
+            /** Index */
+            index: number;
+            /** Label */
+            label: string;
+            /** Pin */
+            pin: string;
+            /** Is Extra */
+            is_extra: boolean;
+            /** Table Prefix */
+            table_prefix?: string | null;
+            /**
+             * Has Custom Layout
+             * @default false
+             */
+            has_custom_layout: boolean;
+            /**
+             * Auto Table
+             * @default false
+             */
+            auto_table: boolean;
+            /**
+             * Match Kind
+             * @enum {string}
+             */
+            match_kind: "exact" | "none";
+            /** Matched Waiter Id */
+            matched_waiter_id?: number | null;
+            /** Matched Waiter Name */
+            matched_waiter_name?: string | null;
+        };
+        /** OrderjutsuImportPreviewEvent */
+        OrderjutsuImportPreviewEvent: {
+            /** Name */
+            name: string;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Currency */
+            currency: string;
+            /** Currency Matches Org */
+            currency_matches_org: boolean;
+        };
+        /** OrderjutsuImportPreviewExtra */
+        OrderjutsuImportPreviewExtra: {
+            /** Product Ref */
+            product_ref: number;
+            /** Extra Ref */
+            extra_ref: number;
+        };
+        /** OrderjutsuImportPreviewIngredient */
+        OrderjutsuImportPreviewIngredient: {
+            /** Ref */
+            ref: number;
+            /** Bon Text */
+            bon_text: string;
+            /**
+             * Match Kind
+             * @enum {string}
+             */
+            match_kind: "exact" | "none";
+            /** Matched Ingredient Id */
+            matched_ingredient_id?: number | null;
+            /** Matched Ingredient Name */
+            matched_ingredient_name?: string | null;
+        };
+        /** OrderjutsuImportPreviewLayoutSummary */
+        OrderjutsuImportPreviewLayoutSummary: {
+            /** Name */
+            name: string;
+            /** Grid Width */
+            grid_width: number;
+            /** Grid Height */
+            grid_height: number;
+            /** Cell Count */
+            cell_count: number;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+            /** Source Cashier Index */
+            source_cashier_index?: number | null;
+        };
+        /** OrderjutsuImportPreviewProduct */
+        OrderjutsuImportPreviewProduct: {
+            /** Ref */
+            ref: number;
+            /** Label */
+            label: string;
+            /** Bon Text */
+            bon_text: string;
+            /** Price */
+            price: number;
+            /** Is Addition */
+            is_addition: boolean;
+            /** Monitor Stock */
+            monitor_stock: boolean;
+            /** Stock */
+            stock: number;
+            /** Is Voucher */
+            is_voucher: boolean;
+            /** Ingredient Only */
+            ingredient_only: boolean;
+            /** Is Composite */
+            is_composite: boolean;
+            /**
+             * Match Kind
+             * @enum {string}
+             */
+            match_kind: "import_number" | "exact" | "ambiguous" | "none";
+            /** Matched Article Id */
+            matched_article_id?: number | null;
+            /** Matched Article Name */
+            matched_article_name?: string | null;
+            /** Matched Article Price */
+            matched_article_price?: number | null;
+            /** Ambiguous Article Ids */
+            ambiguous_article_ids?: number[];
+        };
+        /** OrderjutsuImportPreviewRecipeRow */
+        OrderjutsuImportPreviewRecipeRow: {
+            /** Product Ref */
+            product_ref: number;
+            /** Product Bon Text */
+            product_bon_text: string;
+            /** Ingredient Ref */
+            ingredient_ref: number;
+            /** Ingredient Bon Text */
+            ingredient_bon_text: string;
+            /** Amount */
+            amount: number;
+        };
+        /** OrderjutsuImportPreviewRequest */
+        OrderjutsuImportPreviewRequest: {
+            /** Organisation Id */
+            organisation_id: number;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        /** OrderjutsuImportPreviewStation */
+        OrderjutsuImportPreviewStation: {
+            /** Index */
+            index: number;
+            /** Label */
+            label: string;
+            /** Product Refs */
+            product_refs?: number[];
+            /** Printer Loc */
+            printer_loc?: string | null;
+            /** Printer Type */
+            printer_type?: string | null;
+        };
+        /** OrderjutsuImportPreviewStockCandidate */
+        OrderjutsuImportPreviewStockCandidate: {
+            /** Ref */
+            ref: number;
+            /** Bon Text */
+            bon_text: string;
+            /** Monitor Stock */
+            monitor_stock: boolean;
+            /** Stock */
+            stock: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "article" | "ingredient";
+        };
+        /** OrderjutsuImportPreviewVoucher */
+        OrderjutsuImportPreviewVoucher: {
+            /** Ref */
+            ref: number;
+            /** Label */
+            label: string;
+            /** Price */
+            price: number;
+        };
+        /** OrderjutsuImportPreviewWarning */
+        OrderjutsuImportPreviewWarning: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
         };
         /** OrgApplianceLendingItem */
         OrgApplianceLendingItem: {
@@ -6264,6 +6657,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_orderjutsu_import_events_import_orderjutsu_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderjutsuImportPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderjutsuImportPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commit_orderjutsu_import_endpoint_events_import_orderjutsu_commit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderjutsuImportCommit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderjutsuImportCommitResult"];
+                };
             };
             /** @description Validation Error */
             422: {
