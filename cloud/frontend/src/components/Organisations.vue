@@ -241,6 +241,7 @@ import OrganisationColorPaletteSection from './OrganisationColorPaletteSection.v
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
+import { useSectionQuerySync } from '../composables/useSectionQuerySync'
 import { validateForm } from '../utils/formRules.js'
 import {
   cancelPlannedLending,
@@ -324,19 +325,9 @@ watch(
   { immediate: true },
 )
 
-function applySectionFromQuery() {
-  const section = typeof route.query.section === 'string' ? route.query.section : ''
-  if (!section || !editMode.value) return
-  if (configSections.value.some((sectionItem) => sectionItem.id === section)) {
-    activeConfigTab.value = section
-  }
-}
-
-watch(
-  () => [route.query.section, editMode.value, activeId.value],
-  applySectionFromQuery,
-  { immediate: true },
-)
+useSectionQuerySync(activeConfigTab, configSections, {
+  enabled: () => editMode.value && !!activeId.value,
+})
 
 const userFilterOptions = computed(() => [
   { value: '', label: t('common.all') },
