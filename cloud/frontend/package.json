@@ -43,6 +43,9 @@
     "vue-tsc": "^3.3.6"
   },
   "overrides": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

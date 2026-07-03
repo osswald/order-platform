@@ -24,7 +24,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.9",
     "@vue/test-utils": "^2.4.11",
-    "@vue/tsconfig": "^0.7.0",
+    "@vue/tsconfig": "^0.9.1",
     "happy-dom": "^20.10.6",
     "openapi-typescript": "^7.8.0",
     "typescript": "^6.0.3",
@@ -33,6 +33,9 @@
     "vue-tsc": "^2.2.10"
   },
   "overrides": {
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^4.2.0",
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

@@ -138,7 +138,7 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editEvent(item)"
+        @click:row="onEventRowClick"
       >
         <template #item.status="{ item }">
           <v-chip :color="eventStatusColor(item.status)" size="small" variant="tonal">
@@ -548,6 +548,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onEventRowClick(_event: Event, { item }: { item: EventRead }) {
+  void editEvent(item)
 }
 
 async function editEvent(event: EventRead) {

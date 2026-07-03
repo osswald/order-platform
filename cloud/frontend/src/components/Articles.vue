@@ -321,7 +321,7 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editArticle(item)"
+        @click:row="onArticleRowClick"
       >
         <template #item.is_addition="{ item }">
           <v-chip :color="item.is_addition ? 'warning' : undefined" size="small" variant="tonal">
@@ -786,6 +786,10 @@ async function loadAdditions(articleId: number | string) {
   } catch {
     additionsLocal.value = []
   }
+}
+
+function onArticleRowClick(_event: Event, { item }: { item: ArticleRead }) {
+  void editArticle(item)
 }
 
 async function editArticle(article: ArticleRead) {
