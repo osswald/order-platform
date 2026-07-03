@@ -12,6 +12,8 @@ shared-frontend:
   - packages/frontend-shared/**
 cloud-shared:
   - cloud/shared/**
+hosted-pi-manager:
+  - cloud/hosted-pi-manager/**
 cloud-openapi:
   - cloud/frontend/openapi.json
   - cloud/frontend/src/types/api.generated.ts

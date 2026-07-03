@@ -182,6 +182,7 @@ import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
 import { layoutCellHasContent } from '../utils/eventConfigLayoutsPayload'
+import { newUuid } from '@/utils/newUuid'
 import type { ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
 import type {
   EventCellEditState,
@@ -282,11 +283,6 @@ function filterTreeNodes(nodes: TreeViewNode[], query: string): TreeViewNode[] {
     }
   }
   return out
-}
-
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function cellVoucherUuids(c: EventLayoutCellLocal | null | undefined): string[] {

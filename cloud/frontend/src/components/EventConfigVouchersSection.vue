@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
+import { newUuid } from '@/utils/newUuid'
 import type { ArticleSelectOption, EventVoucherDefinitionLocal, SelectOption } from '@/types/ui'
 
 withDefaults(
@@ -96,11 +97,6 @@ const emit = defineEmits<{
   'voucher-removed': [uuid: string]
 }>()
 const vouchers = defineModel<EventVoucherDefinitionLocal[]>({ required: true })
-
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
 
 function addVoucher() {
   vouchers.value.push({

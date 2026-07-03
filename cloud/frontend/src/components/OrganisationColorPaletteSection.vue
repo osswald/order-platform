@@ -92,6 +92,7 @@ import { apiJson } from '../api'
 import type { ColorPaletteEntry, ColorPaletteRead } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import type { DataTableHeader } from '@/types/vuetify'
+import { newUuid } from '@/utils/newUuid'
 import VqDataTable from './VqDataTable.vue'
 import HelpLink from './HelpLink.vue'
 
@@ -122,7 +123,7 @@ const colorHeaders = computed((): DataTableHeader[] => [
 ])
 
 function nextKey(): string {
-  return `color-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return `color-${newUuid()}`
 }
 
 function mapRows(entries: ColorPaletteEntry[]): PaletteRow[] {

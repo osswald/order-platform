@@ -170,6 +170,7 @@ import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
 import { resolveAppLayoutsForPut } from '../utils/eventConfigLayoutsPayload'
+import { newUuid } from '@/utils/newUuid'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import type {
   ArticleRead,
@@ -414,11 +415,6 @@ function onLayoutRemoved({ removedUuid, fallbackUuid }: LayoutRemovedPayload) {
   cashRegistersLocal.value.forEach((reg) => {
     if (reg.layout_uuid === removedUuid) reg.layout_uuid = fallbackUuid
   })
-}
-
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function normalizePickupPrefix(value: string | null | undefined): string {
