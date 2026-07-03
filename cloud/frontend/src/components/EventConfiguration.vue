@@ -145,10 +145,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } from 'vue'
-import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useSectionQuerySync } from '../composables/useSectionQuerySync'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { useEventConfigurationAutosave } from '../composables/useEventConfigurationAutosave'
 import { loadOrgCatalog } from '../composables/useOrgCatalog'
@@ -231,7 +231,6 @@ const props = withDefaults(
 )
 
 const slots = useSlots()
-const route = useRoute()
 const { t } = useI18n()
 const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
@@ -296,15 +295,7 @@ watch(
   { immediate: true },
 )
 
-function applySectionFromQuery() {
-  const section = typeof route.query.section === 'string' ? route.query.section : ''
-  if (!section) return
-  if (configSections.value.some((sectionItem) => sectionItem.id === section)) {
-    activeConfigTab.value = section
-  }
-}
-
-watch(() => [route.query.section, configSections.value], applySectionFromQuery, { immediate: true })
+useSectionQuerySync(activeConfigTab, configSections)
 
 const loading = ref(true)
 const loadError = ref('')
