@@ -160,7 +160,7 @@ ghcr.io/osswald/order-platform:pi-backend-latest
 ghcr.io/osswald/order-platform:pi-frontend-latest
 ghcr.io/osswald/order-platform:pi-backend-<sha>
 ghcr.io/osswald/order-platform:pi-frontend-<sha>
-ghcr.io/osswald/order-platform:pi-backend-<version>      # on v* release tags
+ghcr.io/osswald/order-platform:pi-backend-<version>      # from VERSION on main
 ghcr.io/osswald/order-platform:pi-frontend-<version>
 ghcr.io/osswald/order-platform:pi-backend-amd64-<version>
 ghcr.io/osswald/order-platform:pi-frontend-amd64-<version>
