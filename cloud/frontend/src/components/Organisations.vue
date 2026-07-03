@@ -204,7 +204,7 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editOrganisation(item)"
+        @click:row="onOrganisationRowClick"
       >
         <template #item.location="{ item }">
           {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
@@ -523,6 +523,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onOrganisationRowClick(_event: Event, { item }: { item: OrganisationRead }) {
+  editOrganisation(item)
 }
 
 function editOrganisation(org: OrganisationRead) {

@@ -74,7 +74,7 @@
         hover
         :no-data-text="$t('articleCategories.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => editCategory(item)"
+        @click:row="onCategoryRowClick"
       >
         <template #item.actions="{ item }">
           <v-btn
@@ -259,6 +259,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onCategoryRowClick(_event: Event, { item }: { item: ArticleCategoryRead }) {
+  editCategory(item)
 }
 
 function editCategory(category: ArticleCategoryRead) {

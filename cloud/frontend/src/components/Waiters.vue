@@ -75,7 +75,7 @@
         hover
         :no-data-text="$t('waiters.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => editWaiter(item)"
+        @click:row="onWaiterRowClick"
       >
         <template #item.actions="{ item }">
           <v-btn color="error" variant="text" @click.stop="deleteWaiter(item.id)">{{ $t('common.delete') }}</v-btn>
@@ -232,6 +232,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onWaiterRowClick(_event: Event, { item }: { item: WaiterRead }) {
+  editWaiter(item)
 }
 
 function editWaiter(waiter: WaiterRead) {

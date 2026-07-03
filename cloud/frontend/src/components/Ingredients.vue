@@ -75,7 +75,7 @@
         hover
         :no-data-text="$t('ingredients.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => editIngredient(item)"
+        @click:row="onIngredientRowClick"
       >
         <template #item.is_active="{ item }">
           {{ item.is_active ? $t('common.yes') : $t('common.no') }}
@@ -262,6 +262,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onIngredientRowClick(_event: Event, { item }: { item: IngredientRead }) {
+  editIngredient(item)
 }
 
 function editIngredient(ingredient: IngredientRead) {

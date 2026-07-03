@@ -78,7 +78,7 @@
         hide-default-footer
         :no-data-text="$t('hireCompanies.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => editCompany(item)"
+        @click:row="onCompanyRowClick"
       >
         <template #item.standort="{ item }">
           {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
@@ -223,6 +223,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onCompanyRowClick(_event: Event, { item }: { item: HireCompanyRead }) {
+  editCompany(item)
 }
 
 function editCompany(row: HireCompanyRead) {

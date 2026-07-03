@@ -138,7 +138,7 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editUser(item)"
+        @click:row="onUserRowClick"
       >
         <template #item.role="{ item }">{{ roleLabel(item.role) }}</template>
         <template #item.has_event_admin_pin="{ item }">
@@ -399,6 +399,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onUserRowClick(_event: Event, { item }: { item: UserRead }) {
+  editUser(item)
 }
 
 function editUser(u: UserRead) {
