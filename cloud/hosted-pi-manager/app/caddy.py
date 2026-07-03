@@ -6,12 +6,14 @@ import logging
 import subprocess
 
 from .config import CADDY_CONTAINER, CADDY_SNIPPETS_DIR, HOSTED_PI_BASE_DOMAIN
+from .slug import safe_path_under, validate_slug
 
 log = logging.getLogger(__name__)
 
 
 def snippet_path(slug: str):
-    return CADDY_SNIPPETS_DIR / f"{slug}.caddy"
+    validate_slug(slug)
+    return safe_path_under(CADDY_SNIPPETS_DIR, f"{slug}.caddy")
 
 
 def write_snippet(slug: str, frontend_container: str) -> None:

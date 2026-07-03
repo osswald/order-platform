@@ -16,6 +16,7 @@ from .config import (
     PI_BACKEND_IMAGE,
     PI_FRONTEND_IMAGE,
 )
+from .slug import safe_path_under, validate_slug
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ def _project_name(slug: str) -> str:
 
 
 def _instance_dir(slug: str) -> Path:
-    return INSTANCES_DIR / slug
+    validate_slug(slug)
+    return safe_path_under(INSTANCES_DIR, slug)
 
 
 def _frontend_container(slug: str) -> str:
@@ -148,6 +150,8 @@ def provision(slug: str, *, cloud_base_url: str, edge_client_id: str, edge_secre
     directory = _instance_dir(slug)
     directory.mkdir(parents=True, exist_ok=True)
     compose_file = directory / "docker-compose.yml"
+    # codeql[py/clear-text-storage-sensitive-data]
+    # Intentional: instance compose file is manager-internal; edge secret is required for Pi sync.
     compose_file.write_text(
         _compose_yaml(slug, cloud_base_url=cloud_base_url, edge_client_id=edge_client_id, edge_secret=edge_secret),
         encoding="utf-8",

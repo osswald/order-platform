@@ -5,6 +5,7 @@ on:
     branches: [main, master]
     paths:
       - "cloud/backend/**"
+      - "cloud/hosted-pi-manager/**"
       - "pi/backend/**"
       - "packages/vendiqo_shared/**"
       - "cloud/shared/**"
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - "cloud/backend/**"
+      - "cloud/hosted-pi-manager/**"
       - "pi/backend/**"
       - "packages/vendiqo_shared/**"
       - "cloud/shared/**"
@@ -29,6 +31,7 @@ jobs:
     outputs:
       cloud: ${{ steps.filter.outputs.cloud-backend == 'true' || steps.filter.outputs.shared-python == 'true' || steps.filter.outputs.cloud-shared == 'true' }}
       pi: ${{ steps.filter.outputs.pi-backend == 'true' || steps.filter.outputs.shared-python == 'true' }}
+      hosted-pi-manager: ${{ steps.filter.outputs.hosted-pi-manager == 'true' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -102,3 +105,27 @@ jobs:
         with:
           name: coverage-pi
           path: pi/backend/coverage.xml
+
+  test-hosted-pi-manager:
+    needs: changes
+    if: needs.changes.outputs.hosted-pi-manager == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (hosted-pi-manager)
+        working-directory: cloud/hosted-pi-manager
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests (hosted-pi-manager)
+        working-directory: cloud/hosted-pi-manager
+        env:
+          PYTHONPATH: ${{ github.workspace }}/cloud/hosted-pi-manager
+        run: python -m pytest tests/ -v

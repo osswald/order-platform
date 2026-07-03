@@ -55,6 +55,8 @@ def write_edge_config(*, cloud_base_url: str, edge_client_id: str, edge_secret: 
             "",
         ],
     )
+    # codeql[py/clear-text-storage-sensitive-data]
+    # Intentional: edge credentials must persist locally for Pi sync; file is chmod 0o600.
     EDGE_CONFIG_FILE.write_text(body, encoding="utf-8")
     try:
         EDGE_CONFIG_FILE.chmod(0o600)
