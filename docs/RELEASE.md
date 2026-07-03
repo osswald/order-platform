@@ -41,7 +41,7 @@ PRs **without** a release label merge normally. Pi `*-latest` images still updat
 2. release-prepare.yml bumps VERSION on the PR branch (may dismiss stale approval)
 3. Reviewer re-approves; you merge
 4. release.yml tags vX.Y.Z and creates a GitHub Release
-5. pi-docker.yml builds versioned images on the tag push
+5. pi-docker.yml builds and publishes Pi images on the `main` push
 ```
 
 ### Workflows
@@ -51,7 +51,7 @@ PRs **without** a release label merge normally. Pi `*-latest` images still updat
 | [`pr-gate.yml`](../.github/workflows/pr-gate.yml) | Every PR | Always-on check for branch protection |
 | [`release-prepare.yml`](../.github/workflows/release-prepare.yml) | PR labeled / updated | Bump `VERSION` on the PR branch |
 | [`release.yml`](../.github/workflows/release.yml) | PR merged | Tag + GitHub Release |
-| [`pi-docker.yml`](../.github/workflows/pi-docker.yml) | Push to `main` or `v*` tag | Build Pi Docker images |
+| [`pi-docker.yml`](../.github/workflows/pi-docker.yml) | Push to `main` | Build and publish Pi Docker images |
 
 ## Pi Docker image tags
 
@@ -60,18 +60,17 @@ On every relevant push to `main`:
 ```text
 ghcr.io/<owner>/<repo>:pi-backend-latest
 ghcr.io/<owner>/<repo>:pi-frontend-latest
+ghcr.io/<owner>/<repo>:pi-backend-amd64-latest
+ghcr.io/<owner>/<repo>:pi-frontend-amd64-latest
 ghcr.io/<owner>/<repo>:pi-backend-<sha>
 ghcr.io/<owner>/<repo>:pi-frontend-<sha>
+ghcr.io/<owner>/<repo>:pi-backend-<version>      # from VERSION on main
+ghcr.io/<owner>/<repo>:pi-frontend-<version>
+ghcr.io/<owner>/<repo>:pi-backend-amd64-<version>
+ghcr.io/<owner>/<repo>:pi-frontend-amd64-<version>
 ```
 
-On release tag push (`v1.2.3`):
-
-```text
-ghcr.io/<owner>/<repo>:pi-backend-1.2.3
-ghcr.io/<owner>/<repo>:pi-frontend-1.2.3
-ghcr.io/<owner>/<repo>:pi-backend-amd64-1.2.3
-ghcr.io/<owner>/<repo>:pi-frontend-amd64-1.2.3
-```
+Git tags (`v1.2.3`) are for GitHub Releases only — Docker images are not rebuilt on tag push.
 
 ### Pin a Pi to a release
 

@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master]
-    tags: ["v*"]
     paths:
       - "pi/backend/**"
       - "pi/frontend/**"
@@ -36,17 +35,16 @@ jobs:
       - name: Resolve app version
         id: version
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-            echo "tag_release=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
-            echo "tag_release=false" >> "$GITHUB_OUTPUT"
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid VERSION: $version" >&2
+            exit 1
           fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -62,13 +60,13 @@ jobs:
         id: image_tags
         env:
           SHA: ${{ github.sha }}
-          TAG_RELEASE: ${{ steps.version.outputs.tag_release }}
           VERSION: ${{ steps.version.outputs.value }}
+          PUBLISH: ${{ github.event_name != 'pull_request' }}
         run: |
           repo="${{ env.REGISTRY }}/${{ github.repository }}"
           backend_tags="${repo}:pi-backend-latest"$'\n'"${repo}:pi-backend-amd64-latest"$'\n'"${repo}:pi-backend-${SHA}"
           frontend_tags="${repo}:pi-frontend-latest"$'\n'"${repo}:pi-frontend-amd64-latest"$'\n'"${repo}:pi-frontend-${SHA}"
-          if [[ "$TAG_RELEASE" == "true" ]]; then
+          if [[ "$PUBLISH" == "true" ]]; then
             backend_tags+=$'\n'"${repo}:pi-backend-${VERSION}"$'\n'"${repo}:pi-backend-amd64-${VERSION}"
             frontend_tags+=$'\n'"${repo}:pi-frontend-${VERSION}"$'\n'"${repo}:pi-frontend-amd64-${VERSION}"
           fi
