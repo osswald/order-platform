@@ -38,6 +38,47 @@ def test_transfer_lines_between_tables(client):
     assert dst["total_cents"] == 500
 
 
+def test_transfer_to_new_table_outbox_carries_event_mode(client_session):
+    client, Session = client_session
+    import json
+
+    from app.models import OutboxEntry, SyncedBundle
+    from tests.fixtures_bundles import bundle_copy, default_bundle
+
+    bundle = bundle_copy(default_bundle())
+    bundle["events"][0]["status"] = "test"
+    db = Session()
+    try:
+        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
+        row.json_body = json.dumps(bundle)
+        db.commit()
+    finally:
+        db.close()
+
+    _add_table_order(client, 5, qty=2)
+    transferred = client.post(
+        "/v1/tables/5/transfer-lines",
+        json={
+            "event_id": 1,
+            "target_table_number": 8,
+            "selections": [{"article_id": 10, "note": "", "qty": 1, "additions": []}],
+        },
+    )
+    assert transferred.status_code == 200, transferred.text
+
+    db = Session()
+    try:
+        xfer_entries = [
+            json.loads(row.payload_json)
+            for row in db.query(OutboxEntry).filter(OutboxEntry.event_id == 1).all()
+            if "xfer-" in str(json.loads(row.payload_json).get("client_order_id", ""))
+        ]
+        assert xfer_entries, "expected transfer outbox payload"
+        assert xfer_entries[0].get("mode") == "test"
+    finally:
+        db.close()
+
+
 def test_assign_to_collective_twice(client):
     _add_table_order(client, 3, qty=2)
     r1 = client.post(

@@ -69,6 +69,12 @@ def validate_status_transition(old: str, new: str) -> None:
         raise api_error("cannot_transition_status", status.HTTP_422_UNPROCESSABLE_CONTENT, old_status=old_n, new_status=new_n)
 
 
+def payload_is_stale_test(event: Event, payload: dict) -> bool:
+    """True when a Pi-synced test-mode order arrives after the event entered production."""
+    mode = str(payload.get("mode") or "").lower()
+    return mode == "test" and normalize_status(event.status) in {"prod", "archive"}
+
+
 def purge_event_operational_data(db: Session, event: Event) -> None:
     """Remove test orders/stats and reset stock when entering production."""
     event_id = event.id

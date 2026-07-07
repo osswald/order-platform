@@ -469,6 +469,7 @@ def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
         payload,
         local_order_id=order.id,
         session_id=int(order.session_id),
+        mode=str(payload.get("mode") or "") or None,
     )
     cid = order.client_order_id
     for out in (

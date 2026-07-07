@@ -10,14 +10,28 @@ from sqlalchemy.orm import Session
 from ..models import OutboxEntry
 
 
+def event_mode_label(status: str | None) -> str:
+    return str(status or "config").lower()
+
+
+def stamp_operational_mode(payload: dict, mode: str | None) -> dict:
+    """Attach immutable event mode (test/prod) when the payload does not already have one."""
+    out = dict(payload)
+    if "mode" not in out and mode:
+        out["mode"] = event_mode_label(mode)
+    return out
+
+
 def enrich_payload_for_cloud_sync(
     payload: dict,
     *,
     local_order_id: int,
     session_id: int,
+    mode: str | None = None,
 ) -> dict:
     """Cloud mirror uses local_order_id / session_id for per-order counts in Umsatz."""
-    out = dict(payload)
+    effective_mode = mode or payload.get("mode")
+    out = stamp_operational_mode(payload, str(effective_mode) if effective_mode else None)
     out["local_order_id"] = int(local_order_id)
     out["session_id"] = int(session_id)
     return out

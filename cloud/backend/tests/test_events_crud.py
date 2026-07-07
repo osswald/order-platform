@@ -153,6 +153,24 @@ def test_status_test_to_prod_purges_all_operational_data():
     finally:
         db.close()
 
+    now = _utc_now()
+    stats = client.get(
+        f"/events/{event_id}/stats",
+        headers=headers,
+        params={
+            "from": (now - timedelta(hours=1)).isoformat(),
+            "to": (now + timedelta(hours=1)).isoformat(),
+        },
+    )
+    assert stats.status_code == 200, stats.text
+    assert stats.json()["totals"]["distinct_orders_count"] == 0
+    assert stats.json()["totals"]["line_cents"] == 0
+
+    transactions = client.get(f"/events/{event_id}/transactions", headers=headers)
+    assert transactions.status_code == 200, transactions.text
+    assert transactions.json()["items"] == []
+    assert transactions.json()["total"] == 0
+
 
 def test_create_event_and_status_transition():
     org_a_id, _ = _setup_two_tenants()
