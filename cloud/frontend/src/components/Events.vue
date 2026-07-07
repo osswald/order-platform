@@ -188,6 +188,7 @@ import { apiFetch, apiJson } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { eventListHeaders } from '../utils/orgScopedListTableHeaders'
 import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
@@ -336,18 +337,7 @@ const selectableStatusOptions = computed(() => {
   return statusOptions.value.filter((o) => allowed.has(o.value))
 })
 
-const tableHeaders = computed((): DataTableHeader[] => {
-  const headers: DataTableHeader[] = [
-    { title: t('events.table.id'), key: 'id' },
-    { title: t('events.table.name'), key: 'name' },
-    { title: t('events.table.status'), key: 'status', sortable: false },
-    { title: t('events.table.organisation'), key: 'organisation_name' },
-    { title: t('events.table.start'), key: 'start', sortable: false },
-    { title: t('events.table.end'), key: 'end', sortable: false },
-    { title: t('events.table.actions'), key: 'actions', sortable: false, align: 'end', width: '8rem' },
-  ]
-  return headers
-})
+const tableHeaders = computed((): DataTableHeader[] => eventListHeaders(t))
 
 function formatEventDateTime(value: string | null | undefined, countryCode?: string | null): string {
   if (!value) return t('common.emDash')

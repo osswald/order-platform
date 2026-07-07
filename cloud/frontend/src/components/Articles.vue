@@ -354,6 +354,7 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation, organisationAccountsEnabled, organisationIngredientsEnabled } from '../utils/orgScope'
 import { filterArticleList } from '../utils/articleListFilters'
+import { articleListHeaders } from '../utils/orgScopedListTableHeaders'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
@@ -411,19 +412,7 @@ const ingredientPickIds = ref<number[]>([])
 const ingredientsMessage = ref('')
 const ingredientsMessageType = ref('')
 
-const tableHeaders = computed((): DataTableHeader[] => [
-  { title: t('common.id'), key: 'id' },
-  { title: t('common.type'), key: 'is_addition', sortable: false },
-  { title: t('articles.isActive'), key: 'is_active', sortable: false },
-  { title: t('common.name'), key: 'name' },
-  { title: t('articles.importNumberShort'), key: 'import_article_number' },
-  { title: t('common.label'), key: 'label' },
-  { title: t('common.unit'), key: 'unit' },
-  { title: t('common.price'), key: 'price', sortable: false },
-  { title: t('common.category'), key: 'article_category_name' },
-  { title: t('common.organisation'), key: 'organisation_name' },
-  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
-])
+const tableHeaders = computed((): DataTableHeader[] => articleListHeaders(t))
 
 const additionsHeaders = computed((): DataTableHeader[] => [
   { title: t('articles.additionColumn'), key: 'name' },

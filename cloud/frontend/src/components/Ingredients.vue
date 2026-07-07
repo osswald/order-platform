@@ -109,6 +109,7 @@ import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { ingredientListHeaders } from '../utils/orgScopedListTableHeaders'
 import VqDataTable from './VqDataTable.vue'
 import type { IngredientRead } from '@/types/api'
 import type { IngredientForm } from '@/types/ui'
@@ -136,15 +137,7 @@ const {
   goToDetail,
 } = useListDetailRouting('ingredients')
 
-const tableHeaders = computed((): DataTableHeader[] => [
-  { title: t('common.id'), key: 'id' },
-  { title: t('common.name'), key: 'name' },
-  { title: t('common.unit'), key: 'unit' },
-  { title: t('ingredients.isActive'), key: 'is_active', sortable: false },
-  { title: t('common.organisation'), key: 'organisation_name' },
-  { title: t('ingredients.usageCount'), key: 'usage_count' },
-  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
-])
+const tableHeaders = computed((): DataTableHeader[] => ingredientListHeaders(t))
 
 const ingredients = ref<IngredientRead[]>([])
 const message = ref('')
