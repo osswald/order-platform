@@ -119,7 +119,12 @@ def append_lines_to_table(
             db,
             event_id=event_id,
             client_order_id=cid,
-            payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+            payload=enrich_payload_for_cloud_sync(
+                payload,
+                local_order_id=order.id,
+                session_id=session_id,
+                mode=str(payload.get("mode") or "") or None,
+            ),
         )
 
 
@@ -193,5 +198,10 @@ def append_lines_to_collective(
             db,
             event_id=event_id,
             client_order_id=cid,
-            payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+            payload=enrich_payload_for_cloud_sync(
+                payload,
+                local_order_id=order.id,
+                session_id=session_id,
+                mode=str(payload.get("mode") or "") or None,
+            ),
         )

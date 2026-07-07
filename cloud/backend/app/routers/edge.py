@@ -22,7 +22,7 @@ from ..edge_operational_mirror import (
 from ..edge_operational_snapshot import build_operational_snapshot_for_events
 from ..event_cash_sessions import upsert_edge_cash_session
 from ..event_stats import resolve_sync_ordered_at
-from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status
+from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status, payload_is_stale_test
 from ..i18n.errors import api_error
 from ..models import (
     Appliance,
@@ -564,6 +564,9 @@ def submit_edge_order(
         raise api_error("event_status_does_not_accept_orders", status.HTTP_403_FORBIDDEN, status=ev_status)
 
     payload = body.payload or {}
+    if payload_is_stale_test(event, payload):
+        return EdgeOrderAck(server_order_id=0, duplicate=False)
+
     row = EdgeSubmittedOrder(
         client_order_id=body.client_order_id,
         appliance_id=ctx.appliance.id,
@@ -632,6 +635,9 @@ def submit_operational_chunk(
         raise api_error("event_not_found_for_organisation", status.HTTP_404_NOT_FOUND)
 
     payload = body.payload or {}
+    if payload_is_stale_test(event, payload):
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=0)
+
     entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()
 
     row = EdgeSubmittedOrder(

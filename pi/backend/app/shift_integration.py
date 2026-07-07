@@ -14,12 +14,17 @@ from .domain.cash_sessions import (
     session_to_sync_payload,
     shift_settlement_enabled,
 )
-from .domain.sync_enqueue import enqueue_cash_session_sync
+from .domain.sync_enqueue import enqueue_cash_session_sync, event_mode_label, stamp_operational_mode
 from .vouchers import voucher_definition_by_uuid
 
 
 def sync_cash_session(db: Session, session) -> None:
-    payload = session_to_sync_payload(db, session)
+    from .bundle_cache import event_from_bundle, get_bundle_dict_raw
+
+    bundle = get_bundle_dict_raw(db)
+    ev = event_from_bundle(bundle, int(session.event_id)) if bundle else None
+    mode = event_mode_label(str(ev.get("status")) if ev else None)
+    payload = stamp_operational_mode(session_to_sync_payload(db, session), mode)
     enqueue_cash_session_sync(db, event_id=int(session.event_id), payload=payload)
 
 
