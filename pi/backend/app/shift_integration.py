@@ -23,7 +23,7 @@ def sync_cash_session(db: Session, session) -> None:
 
     bundle = get_bundle_dict_raw(db)
     ev = event_from_bundle(bundle, int(session.event_id)) if bundle else None
-    mode = event_mode_label(str(ev.get("status")) if ev else None)
+    mode = event_mode_label(ev.get("status") if ev else None)
     payload = stamp_operational_mode(session_to_sync_payload(db, session), mode)
     enqueue_cash_session_sync(db, event_id=int(session.event_id), payload=payload)
 

@@ -188,7 +188,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         "payments": payments,
         "payment_status": payment_status,
         "order_source": order_source,
-        "mode": event_mode_label(str(ev.get("status"))),
+        "mode": event_mode_label(ev.get("status")),
     }
     if voucher_records:
         payload["voucher_redemptions"] = voucher_records
@@ -354,7 +354,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             payload,
             local_order_id=order.id,
             session_id=session_id,
-            mode=event_mode_label(str(ev.get("status"))),
+            mode=event_mode_label(ev.get("status")),
         ),
     )
 
@@ -680,7 +680,7 @@ def settle_table_partial(
             "partial_settlement": True,
             "voucher_redemptions": voucher_records,
             "voucher_credit_cents": voucher_credit,
-            "mode": event_mode_label(str(ev.get("status"))),
+            "mode": event_mode_label(ev.get("status")),
         }
         if len(order_discounts_collected) == 1:
             paid_payload["order_discount"] = order_discounts_collected[0]
@@ -718,7 +718,7 @@ def settle_table_partial(
             paid_payload,
             local_order_id=paid_order.id,
             session_id=sess_id,
-            mode=event_mode_label(str(ev.get("status"))),
+            mode=event_mode_label(ev.get("status")),
         )
         paid_order.payload_json = json.dumps(paid_payload)
         enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
@@ -1223,7 +1223,7 @@ def _settle_orders_partial(
             "partial_settlement": True,
             "voucher_redemptions": voucher_records,
             "voucher_credit_cents": voucher_credit,
-            "mode": event_mode_label(str(ev.get("status"))),
+            "mode": event_mode_label(ev.get("status")),
             **settlement_meta,
         }
         if len(order_discounts_collected) == 1:
@@ -1264,7 +1264,7 @@ def _settle_orders_partial(
             paid_payload,
             local_order_id=paid_order.id,
             session_id=sess_id,
-            mode=event_mode_label(str(ev.get("status"))),
+            mode=event_mode_label(ev.get("status")),
         )
         paid_order.payload_json = json.dumps(paid_payload)
         enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
