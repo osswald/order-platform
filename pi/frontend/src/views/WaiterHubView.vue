@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h1>Kellner</h1>
+    <h1>
+      Kellner
+      <span v-if="isTest" class="test-pill">TESTBETRIEB</span>
+    </h1>
     <p class="muted">{{ event?.name }} · {{ waiter?.name }}</p>
 
     <div v-if="failedCount > 0" class="card print-fail-banner">
@@ -66,6 +69,7 @@ const router = useRouter()
 const { event, waiter, setWaiter, selectedEventId } = useEventContext()
 const { failedCount, loadFailedJobs } = useStationPrintFailures()
 const androidApp = computed(() => isAndroidApp())
+const isTest = computed(() => String(event.value?.status ?? '').toLowerCase() === 'test')
 
 onMounted(() => {
   const eventId = selectedEventId.value
@@ -92,6 +96,23 @@ async function switchWaiter() {
 </script>
 
 <style scoped>
+h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.test-pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #1c1917;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
 .print-fail-banner {
   margin-top: 1rem;
   padding: 1rem;
