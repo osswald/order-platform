@@ -226,6 +226,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_cash_registers ADD COLUMN pin VARCHAR NOT NULL DEFAULT '0000'",
         "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS pin VARCHAR NOT NULL DEFAULT '0000'",
     )
+    _add_column_if_missing(
+        "event_cash_registers",
+        "cash_drawer_command",
+        "ALTER TABLE event_cash_registers ADD COLUMN cash_drawer_command VARCHAR(32) NOT NULL DEFAULT 'none'",
+        "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS cash_drawer_command VARCHAR(32) NOT NULL DEFAULT 'none'",
+    )
     _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")

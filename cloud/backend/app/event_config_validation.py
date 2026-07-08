@@ -141,6 +141,9 @@ def assert_cash_registers_valid(db: Session, event: Event, registers_payload: li
         if layout_uuid not in layout_uuids:
             raise api_error("cash_register_layout_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT)
         assert_printer_eligible(db, event, getattr(reg, "receipt_printer_appliance_id", None))
+        drawer_cmd = str(getattr(reg, "cash_drawer_command", None) or "none").strip().lower()
+        if drawer_cmd not in ("", "none") and not getattr(reg, "receipt_printer_appliance_id", None):
+            raise api_error("cash_drawer_requires_receipt_printer", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
 def assert_layout_cells_within_grid(layouts_payload: list) -> None:
@@ -407,6 +410,7 @@ def replace_event_configuration(
         reg.pin = str(getattr(reg_in, "pin", None) or "0000").strip() or "0000"
         reg.layout_uuid = str(reg_in.layout_uuid or "").strip()
         reg.receipt_printer_appliance_id = getattr(reg_in, "receipt_printer_appliance_id", None)
+        reg.cash_drawer_command = str(getattr(reg_in, "cash_drawer_command", None) or "none").strip().lower() or "none"
         reg.subsidiary_code = (getattr(reg_in, "subsidiary_code", None) or "").strip() or None
         kept_register_uuids.add(reg.uuid)
 

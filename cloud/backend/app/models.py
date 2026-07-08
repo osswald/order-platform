@@ -589,6 +589,7 @@ class EventCashRegister(Base):
     subsidiary_code = Column(String(32), nullable=True)
     layout_uuid = Column(String(36), nullable=False)
     receipt_printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
+    cash_drawer_command = Column(String(32), nullable=False, default="none", server_default="none")
     event = relationship("Event", back_populates="cash_registers")
     receipt_printer_appliance = relationship("Appliance", foreign_keys=[receipt_printer_appliance_id])
 

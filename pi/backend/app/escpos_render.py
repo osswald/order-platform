@@ -80,6 +80,25 @@ def escpos_init_preamble() -> bytes:
     return b"\x1b\x40" + bytes([0x1B, 0x74, escpos_codepage() & 0xFF])
 
 
+CASH_DRAWER_COMMANDS: dict[str, bytes] = {
+    "escp_pin2": bytes.fromhex("1b70003232"),
+    "escp_pin5": bytes.fromhex("1b70013232"),
+    "escp_pin2_long": bytes.fromhex("1b700019fa"),
+    "escp_pin5_long": bytes.fromhex("1b700119fa"),
+}
+
+
+def build_cash_drawer_kick(command: str) -> bytes:
+    """Build raw ESC/POS bytes to pulse the cash drawer (network printers)."""
+    key = str(command or "").strip().lower()
+    if not key or key == "none":
+        return b""
+    kick = CASH_DRAWER_COMMANDS.get(key)
+    if kick is None:
+        raise ValueError(f"unknown cash drawer command: {command}")
+    return escpos_init_preamble() + kick
+
+
 def encode_escpos_text(text: str) -> bytes:
     return str(text).encode(escpos_encoding(), errors="replace")
 

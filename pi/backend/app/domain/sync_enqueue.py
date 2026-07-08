@@ -68,6 +68,21 @@ def enqueue_cash_session_sync(db: Session, *, event_id: int, payload: dict) -> N
     )
 
 
+def enqueue_cash_drawer_sync(db: Session, *, event_id: int, payload: dict) -> None:
+    chunk_id = str(uuid.uuid4())
+    db.add(
+        OutboxEntry(
+            chunk_id=chunk_id,
+            entity_type="cash_drawer",
+            entity_ids_json=json.dumps([payload.get("payment_id")]),
+            event_id=event_id,
+            payload_json=json.dumps(payload),
+            payload_version=1,
+            status="pending",
+        )
+    )
+
+
 def enqueue_payload_sync(db: Session, *, event_id: int, client_order_id: str, payload: dict) -> None:
     """Legacy-shaped enqueue keyed by client_order_id in payload."""
     chunk_id = str(uuid.uuid4())

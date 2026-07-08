@@ -528,6 +528,7 @@ function applyConfigurationFromResponse(
     pin: reg.pin || '0000',
     layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
     receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+    cash_drawer_command: reg.cash_drawer_command || 'none',
     subsidiary_code: reg.subsidiary_code || '',
   }))
 }
@@ -685,6 +686,7 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
         pin: reg.pin || '0000',
         layout_uuid: reg.layout_uuid,
         receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+        cash_drawer_command: (reg.cash_drawer_command || 'none') as CashRegisterIn['cash_drawer_command'],
         subsidiary_code: (reg.subsidiary_code || '').trim() || null,
       }
       if (reg.uuid != null) row.uuid = reg.uuid

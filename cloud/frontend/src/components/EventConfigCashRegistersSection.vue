@@ -66,6 +66,20 @@
             clearable
             density="compact"
             hide-details
+            @update:model-value="onReceiptPrinterChange(reg, $event)"
+          />
+        </div>
+      </div>
+      <div v-if="reg.receipt_printer_appliance_id" class="field-row">
+        <div class="form-field">
+          <label>{{ $t('events.config.cashDrawer') }}</label>
+          <v-select
+            v-model="reg.cash_drawer_command"
+            :items="cashDrawerOptions"
+            item-title="label"
+            item-value="value"
+            density="compact"
+            hide-details
           />
         </div>
       </div>
@@ -75,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
@@ -100,6 +115,21 @@ const cashRegisters = defineModel<EventCashRegisterLocal[]>({ required: true })
 
 const { t } = useI18n()
 
+const cashDrawerOptions = computed(() => [
+  { value: 'none', label: t('events.config.cashDrawerNone') },
+  { value: 'escp_pin2', label: t('events.config.cashDrawerEscpPin2') },
+  { value: 'escp_pin5', label: t('events.config.cashDrawerEscpPin5') },
+  { value: 'escp_pin2_long', label: t('events.config.cashDrawerEscpPin2Long') },
+  { value: 'escp_pin5_long', label: t('events.config.cashDrawerEscpPin5Long') },
+])
+
+function onReceiptPrinterChange(reg: EventCashRegisterLocal, value: number | null) {
+  reg.receipt_printer_appliance_id = value
+  if (!value) {
+    reg.cash_drawer_command = 'none'
+  }
+}
+
 function normalizePickupPrefix(value: string | null | undefined): string {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
 }
@@ -111,6 +141,7 @@ function addCashRegister() {
     pin: '0000',
     layout_uuid: props.defaultLayoutUuid || '',
     receipt_printer_appliance_id: null,
+    cash_drawer_command: 'none',
     subsidiary_code: '',
   })
 }

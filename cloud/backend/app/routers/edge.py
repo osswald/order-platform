@@ -672,6 +672,10 @@ def submit_operational_chunk(
         commit_or_raise(db)
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
 
+    if entity_type == "cash_drawer":
+        commit_or_raise(db)
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
+
     if entity_type == "kitchen_tickets":
         upsert_edge_kitchen_ticket_snapshot(
             db,

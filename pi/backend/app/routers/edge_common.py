@@ -10,7 +10,14 @@ from datetime import UTC, datetime
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync
+from ..domain.sync_enqueue import (
+    enqueue_cash_drawer_sync,
+    enqueue_payload_sync,
+    enrich_payload_for_cloud_sync,
+    event_mode_label,
+    stamp_operational_mode,
+)
+from ..escpos_render import build_cash_drawer_kick
 from ..models import (
     CollectiveBill,
     EventPickupCounter,
@@ -246,6 +253,105 @@ def _cash_register_from_event(ev: dict, cash_register_uuid: str | None) -> dict 
         if str(reg.get("uuid")) == str(cash_register_uuid):
             return reg
     return None
+
+
+def _payment_includes_cash(payments: list | None) -> bool:
+    for payment in payments or []:
+        if not isinstance(payment, dict):
+            continue
+        if str(payment.get("type") or "").lower() != "cash":
+            continue
+        if int(payment.get("amount_cents") or 0) > 0:
+            return True
+    return False
+
+
+def _cash_drawer_command_for_register(ev: dict, cash_register_uuid: str | None) -> str | None:
+    reg = _cash_register_from_event(ev, cash_register_uuid)
+    if not reg:
+        return None
+    cmd = str(reg.get("cash_drawer_command") or "none").strip().lower()
+    if not cmd or cmd == "none":
+        return None
+    return cmd
+
+
+def _cash_payments(payments: list | None) -> list[dict]:
+    out: list[dict] = []
+    for payment in payments or []:
+        if not isinstance(payment, dict):
+            continue
+        if str(payment.get("type") or "").lower() != "cash":
+            continue
+        amount = int(payment.get("amount_cents") or 0)
+        if amount > 0:
+            out.append({"type": "cash", "amount_cents": amount})
+    return out
+
+
+def maybe_open_cash_drawer(
+    db: Session,
+    ev: dict,
+    payload: dict,
+    *,
+    payment_id: int | None,
+) -> int | None:
+    if str(payload.get("order_source") or "").lower() != "cash_register":
+        return None
+    cash_register_uuid = str(payload.get("cash_register_uuid") or "").strip()
+    if not cash_register_uuid:
+        return None
+    payments = payload.get("payments") or []
+    if not _payment_includes_cash(payments):
+        return None
+    command = _cash_drawer_command_for_register(ev, cash_register_uuid)
+    if not command:
+        return None
+    if not _printer_host_configured(ev, cash_register_uuid):
+        return None
+
+    reg = _cash_register_from_event(ev, cash_register_uuid) or {}
+    register_name = str(reg.get("name") or cash_register_uuid)
+    cash_only = _cash_payments(payments)
+    opened_at = datetime.now(UTC).isoformat()
+    sync_payload = stamp_operational_mode(
+        {
+            "entity_type": "cash_drawer",
+            "opened_at": opened_at,
+            "cash_register_uuid": cash_register_uuid,
+            "cash_register_name": register_name,
+            "cash_drawer_command": command,
+            "payment_id": payment_id,
+            "client_order_id": payload.get("client_order_id"),
+            "waiter_uuid": payload.get("waiter_uuid"),
+            "waiter_name": payload.get("waiter_name"),
+            "payments": cash_only,
+        },
+        event_mode_label(ev.get("status")),
+    )
+    enqueue_cash_drawer_sync(db, event_id=int(payload.get("event_id") or ev.get("id") or 0), payload=sync_payload)
+
+    host, port, _feed_lines = resolve_printer_endpoint(ev, cash_register_uuid)
+    esc = build_cash_drawer_kick(command)
+    local_order_id = 0
+    source_id = payload.get("local_order_id")
+    if source_id is not None:
+        try:
+            local_order_id = int(source_id)
+        except (TypeError, ValueError):
+            local_order_id = 0
+    pj = PrintJob(
+        local_order_id=local_order_id,
+        station_uuid=cash_register_uuid,
+        job_kind="cash_drawer",
+        printer_host=host,
+        printer_port=port,
+        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        status="queued",
+    )
+    db.add(pj)
+    db.flush()
+    return pj.id
 
 
 def _receipt_register_uuid(ev: dict, cash_register_uuid: str | None) -> str | None:
@@ -535,6 +641,7 @@ def _create_payment_receipt(
     )
     db.add(receipt)
     db.flush()
+    maybe_open_cash_drawer(db, ev, receipt_payload, payment_id=receipt.id)
     return receipt
 
 

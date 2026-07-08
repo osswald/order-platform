@@ -77,6 +77,7 @@ export interface EventCashRegisterLocal {
   pin: string
   layout_uuid: string
   receipt_printer_appliance_id: number | null
+  cash_drawer_command?: string
   subsidiary_code?: string
 }
 

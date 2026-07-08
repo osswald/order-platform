@@ -183,6 +183,7 @@ const kindOptions = computed((): SelectOption<string>[] => [
   { value: 'bestellung', label: t('events.tabs.kindOrder') },
   { value: 'teilzahlung', label: t('events.tabs.kindPartialPayment') },
   { value: 'zahlung', label: t('events.tabs.kindPayment') },
+  { value: 'kassenschublade', label: t('events.tabs.kindCashDrawer') },
 ])
 
 const loading = ref(false)
@@ -221,12 +222,14 @@ function kindLabel(k: string): string {
     bestellung: t('events.tabs.kindOrder'),
     teilzahlung: t('events.tabs.kindPartialPayment'),
     zahlung: t('events.tabs.kindPayment'),
+    kassenschublade: t('events.tabs.kindCashDrawer'),
   }
   return map[k] || k
 }
 
 function kindChipColor(k: string): string | undefined {
   if (k === 'zahlung') return 'success'
+  if (k === 'kassenschublade') return 'warning'
   if (k === 'teilzahlung') return 'info'
   return 'default'
 }
