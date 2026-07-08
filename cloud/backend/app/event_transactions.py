@@ -34,6 +34,8 @@ def _has_order_lines(payload: dict) -> bool:
 
 
 def _transaction_kind(payload: dict) -> str:
+    if str(payload.get("entity_type") or "").lower() == "cash_drawer":
+        return "kassenschublade"
     if payload.get("partial_settlement"):
         return "teilzahlung"
     status = str(payload.get("payment_status") or "open").lower()
@@ -149,6 +151,31 @@ def _moved_lines_for_order(
     return _infer_moved_lines_from_snapshots(order, prior, arts)
 
 
+def _cash_drawer_payment_methods(payload: dict) -> str:
+    register_name = str(payload.get("cash_register_name") or "").strip()
+    command = str(payload.get("cash_drawer_command") or "").strip()
+    payment_id = payload.get("payment_id")
+    parts = ["Kassenschublade"]
+    if register_name:
+        parts.append(register_name)
+    if command:
+        parts.append(command)
+    if payment_id is not None:
+        parts.append(f"Beleg #{payment_id}")
+    return " · ".join(parts)
+
+
+def _cash_drawer_paid_cents(payload: dict) -> int:
+    total = 0
+    for payment in payload.get("payments") or []:
+        if not isinstance(payment, dict):
+            continue
+        if str(payment.get("type") or "").lower() != "cash":
+            continue
+        total += int(payment.get("amount_cents") or 0)
+    return total
+
+
 def _transaction_row(
     order: EdgeSubmittedOrder,
     *,
@@ -158,6 +185,25 @@ def _transaction_row(
 ) -> dict[str, Any]:
     payload = _payload_dict(order)
     kind = _transaction_kind(payload)
+    if kind == "kassenschublade":
+        register_name = str(payload.get("cash_register_name") or "").strip()
+        return {
+            "id": order.id,
+            "created_at": payload.get("opened_at") or (order.created_at.isoformat() if order.created_at else None),
+            "kind": kind,
+            "client_order_id": str(payload.get("client_order_id") or order.client_order_id),
+            "table_number": None,
+            "collective_bill_name": None,
+            "waiter_name": register_name or "—",
+            "payment_status": "paid",
+            "line_cents": 0,
+            "moved_line_cents": 0,
+            "paid_cents": _cash_drawer_paid_cents(payload),
+            "payment_methods": _cash_drawer_payment_methods(payload),
+            "line_count": 0,
+            "lines": [],
+            "moved_lines": [],
+        }
     raw_lines = payload.get("lines") or []
     line_count = sum(
         1
@@ -274,7 +320,7 @@ def build_event_transactions_page(
     base = _apply_payment_status_filter(base, payment_status)
 
     kind_norm = (kind or "").strip().lower() or None
-    if kind_norm and kind_norm not in ("bestellung", "teilzahlung", "zahlung"):
+    if kind_norm and kind_norm not in ("bestellung", "teilzahlung", "zahlung", "kassenschublade"):
         kind_norm = None
 
     sort_key = (sort_by or "created_at").strip()

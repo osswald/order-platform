@@ -2058,6 +2058,12 @@ export interface components {
             layout_uuid: string;
             /** Receipt Printer Appliance Id */
             receipt_printer_appliance_id?: number | null;
+            /**
+             * Cash Drawer Command
+             * @default none
+             * @enum {string}
+             */
+            cash_drawer_command: "none" | "escp_pin2" | "escp_pin5" | "escp_pin2_long" | "escp_pin5_long";
             /** Subsidiary Code */
             subsidiary_code?: string | null;
         };
@@ -2077,6 +2083,12 @@ export interface components {
             layout_uuid: string;
             /** Receipt Printer Appliance Id */
             receipt_printer_appliance_id: number | null;
+            /**
+             * Cash Drawer Command
+             * @default none
+             * @enum {string}
+             */
+            cash_drawer_command: "none" | "escp_pin2" | "escp_pin5" | "escp_pin2_long" | "escp_pin5_long";
             /** Subsidiary Code */
             subsidiary_code?: string | null;
         };

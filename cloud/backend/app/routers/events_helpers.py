@@ -170,6 +170,7 @@ def serialize_event_configuration(
             pin=getattr(reg, "pin", None) or "0000",
             layout_uuid=reg.layout_uuid,
             receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
+            cash_drawer_command=getattr(reg, "cash_drawer_command", None) or "none",
             subsidiary_code=getattr(reg, "subsidiary_code", None),
         )
         for reg in sorted(event.cash_registers, key=lambda r: (r.sort_order, r.id))

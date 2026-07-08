@@ -43,6 +43,7 @@
     "source_waiter_wrong_organisation": "source_waiter_id muss einen Kellner derselben Organisation wie die Veranstaltung referenzieren.",
     "exactly_one_default_layout": "Genau ein App-Layout muss is_default=true haben.",
     "pickup_prefix_invalid": "Abhol-Präfix der Kasse muss 1–3 Buchstaben A–Z enthalten.",
+    "cash_drawer_requires_receipt_printer": "Kassenschublade erfordert einen konfigurierten Kundendrucker.",
     "cash_register_layout_invalid": "Kasse muss ein App-Layout dieser Veranstaltung referenzieren.",
     "cell_out_of_bounds": "Zelle ({row},{col}) liegt ausserhalb des Rasters {width}x{height}.",
     "duplicate_cell_position": "Doppelte Zellenposition ({row},{col}) in einem Layout.",

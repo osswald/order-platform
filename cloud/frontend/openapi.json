@@ -10894,6 +10894,18 @@
             ],
             "title": "Receipt Printer Appliance Id"
           },
+          "cash_drawer_command": {
+            "type": "string",
+            "enum": [
+              "none",
+              "escp_pin2",
+              "escp_pin5",
+              "escp_pin2_long",
+              "escp_pin5_long"
+            ],
+            "title": "Cash Drawer Command",
+            "default": "none"
+          },
           "subsidiary_code": {
             "anyOf": [
               {
@@ -10951,6 +10963,18 @@
               }
             ],
             "title": "Receipt Printer Appliance Id"
+          },
+          "cash_drawer_command": {
+            "type": "string",
+            "enum": [
+              "none",
+              "escp_pin2",
+              "escp_pin5",
+              "escp_pin2_long",
+              "escp_pin5_long"
+            ],
+            "title": "Cash Drawer Command",
+            "default": "none"
           },
           "subsidiary_code": {
             "anyOf": [

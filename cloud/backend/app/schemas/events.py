@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,6 +11,7 @@ from ..event_status import ALLOWED_STATUSES
 from ..payment_types_config import normalize_payment_types
 
 PAYMENT_MODES = {"instant", "pay_now", "pay_later"}
+CASH_DRAWER_COMMANDS = Literal["none", "escp_pin2", "escp_pin5", "escp_pin2_long", "escp_pin5_long"]
 
 class EventBase(BaseModel):
     name: str = Field(..., min_length=1)
@@ -188,6 +189,7 @@ class CashRegisterRead(BaseModel):
     pin: str
     layout_uuid: str
     receipt_printer_appliance_id: int | None
+    cash_drawer_command: CASH_DRAWER_COMMANDS = "none"
     subsidiary_code: str | None = None
 
 
@@ -267,6 +269,7 @@ class CashRegisterIn(BaseModel):
     pin: str = Field("0000", min_length=1, max_length=32)
     layout_uuid: str = Field(..., min_length=1)
     receipt_printer_appliance_id: int | None = None
+    cash_drawer_command: CASH_DRAWER_COMMANDS = "none"
     subsidiary_code: str | None = Field(None, max_length=32)
 
 
