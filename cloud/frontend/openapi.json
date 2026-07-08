@@ -10435,6 +10435,21 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "article_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Category Id"
+          },
+          "article_category_name": {
+            "type": "string",
+            "title": "Article Category Name"
           }
         },
         "type": "object",
@@ -10444,7 +10459,9 @@
           "label",
           "organisation_id",
           "is_addition",
-          "is_active"
+          "is_active",
+          "article_category_id",
+          "article_category_name"
         ],
         "title": "ArticleMinimalRead"
       },

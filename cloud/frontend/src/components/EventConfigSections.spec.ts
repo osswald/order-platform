@@ -16,6 +16,11 @@ const globalMount = {
         props: ['items', 'headers', 'itemValue'],
       },
       'v-select': { template: '<select />', props: ['modelValue', 'items'] },
+      StationArticleTransferPicker: {
+        template:
+          '<div data-testid="article-transfer-picker"><button data-testid="add-article" type="button" @click="$emit(\'update:modelValue\', [42])">add</button></div>',
+        props: ['modelValue', 'articles', 'loading', 'disabled'],
+      },
       'v-btn': {
         template: '<button type="button" @click="$emit(\'click\')"><slot /></button>',
         props: ['icon', 'variant', 'color', 'disabled'],
@@ -32,7 +37,7 @@ describe('EventConfigStationsSection', () => {
         catalogLoading: true,
         catalogError: '',
         printerOptions: [],
-        articleOptions: [],
+        articles: [],
         alternativePrintersEnabled: false,
       },
       ...globalMount,
@@ -51,7 +56,7 @@ describe('EventConfigStationsSection', () => {
         catalogLoading: false,
         catalogError: '',
         printerOptions: [],
-        articleOptions: [],
+        articles: [],
         alternativePrintersEnabled: false,
       },
       ...globalMount,
@@ -59,6 +64,33 @@ describe('EventConfigStationsSection', () => {
     await wrapper.find('.section-toolbar button').trigger('click')
     expect(stations).toHaveLength(1)
     expect(stations[0].article_ids).toEqual([])
+  })
+
+  it('binds article transfer picker to station article_ids', async () => {
+    const stations: EventStationLocal[] = [
+      {
+        name: 'Bar',
+        printer_appliance_id: null,
+        printer_rules: [],
+        article_ids: [],
+      },
+    ]
+    const wrapper = mount(EventConfigStationsSection, {
+      props: {
+        modelValue: stations,
+        'onUpdate:modelValue': (v: EventStationLocal[]) => {
+          stations.splice(0, stations.length, ...v)
+        },
+        catalogLoading: false,
+        catalogError: '',
+        printerOptions: [],
+        articles: [],
+        alternativePrintersEnabled: false,
+      },
+      ...globalMount,
+    })
+    await wrapper.find('[data-testid="add-article"]').trigger('click')
+    expect(stations[0].article_ids).toEqual([42])
   })
 })
 

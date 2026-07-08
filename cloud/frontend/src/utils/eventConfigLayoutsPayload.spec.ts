@@ -152,6 +152,44 @@ describe('resolveAppLayoutsForPut', () => {
     expect(payload[0].uuid).toBe('layout-1')
     expect(payload[0].cells).toEqual([])
   })
+
+  it('prunes layout cell articles that are no longer on any station', () => {
+    const payload = resolveAppLayoutsForPut({
+      layoutsLocal: localLayouts,
+      layoutCellsLoaded: false,
+      serverLayouts,
+      stations: [{ article_ids: [] }],
+    })
+
+    expect(payload[0].cells).toEqual([])
+  })
+
+  it('keeps only layout cell articles still assigned to a station', () => {
+    const payload = resolveAppLayoutsForPut({
+      layoutsLocal: localLayouts,
+      layoutCellsLoaded: false,
+      serverLayouts: [
+        {
+          uuid: 'layout-1',
+          cells: [
+            {
+              row: 0,
+              col: 0,
+              label: 'Mix',
+              color: '#ffcc00',
+              article_ids: [10, 11],
+              voucher_definition_uuid: null,
+              voucher_definition_uuids: [],
+            },
+          ],
+        },
+      ],
+      stations: [{ article_ids: [10] }],
+    })
+
+    expect(payload[0].cells).toHaveLength(1)
+    expect(payload[0].cells?.[0].article_ids).toEqual([10])
+  })
 })
 
 describe('layoutCellHasContent', () => {

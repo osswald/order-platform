@@ -19,7 +19,7 @@
             :catalog-loading="catalogLoading"
             :catalog-error="catalogError"
             :printer-options="printerOptions"
-            :article-options="articleOptions"
+            :articles="stationArticleCatalog"
             :alternative-printers-enabled="alternativePrintersEnabled"
             :printer-rule-type-options="printerRuleTypeOptions"
           />
@@ -346,18 +346,20 @@ const pickedWaiterIds = ref<number[]>([])
 let waiterKey = 0
 
 const articleOptions = computed((): ArticleSelectOption[] => {
+  return stationArticleCatalog.value.map((a) => ({
+    name: a.name,
+    value: a.id,
+  }))
+})
+
+const stationArticleCatalog = computed((): ArticleRead[] => {
   const oid = props.organisationId
-  return articlesRaw.value
-    .filter(
-      (a) =>
-        !a.is_addition &&
-        a.is_active &&
-        (oid == null || Number(a.organisation_id) === Number(oid)),
-    )
-    .map((a) => ({
-      name: a.name,
-      value: a.id,
-    }))
+  return articlesRaw.value.filter(
+    (a) =>
+      !a.is_addition &&
+      a.is_active &&
+      (oid == null || Number(a.organisation_id) === Number(oid)),
+  )
 })
 
 const kitchenMonitorPrinterOptions = computed((): PrinterOptionRead[] => {
@@ -665,6 +667,7 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
       layoutsLocal: layoutsLocal.value,
       layoutCellsLoaded: layoutCellsLoaded(),
       serverLayouts,
+      stations: stationsLocal.value,
     }),
     voucher_definitions: vouchersLocal.value.map((vd) => {
       const row: VoucherDefinitionIn = {

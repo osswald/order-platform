@@ -181,6 +181,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
+import { filterTreeNodes, mapTreeNodes } from '../utils/articleCategoryTree'
 import { layoutCellHasContent } from '../utils/eventConfigLayoutsPayload'
 import { newUuid } from '@/utils/newUuid'
 import type { ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
@@ -237,12 +238,6 @@ const cellTreeFilter = ref('')
 const treeLoading = ref(false)
 const cellDialogHadContent = ref(false)
 
-interface TreeViewNode {
-  key: string
-  title: string
-  children?: TreeViewNode[]
-}
-
 const fixedAmountVoucherOptions = computed(() =>
   props.voucherDefinitions
     .filter((vd) => vd.kind === 'fixed_amount' && vd.uuid)
@@ -259,31 +254,6 @@ const filteredCellTreeItems = computed(() => {
   if (!q) return cellTreeItems.value
   return filterTreeNodes(cellTreeItems.value, q)
 })
-
-function mapTreeNodes(nodes: StationArticleTreeNode[]): TreeViewNode[] {
-  return (nodes || []).map((n) => ({
-    key: n.key,
-    title: n.label,
-    children: n.children?.length ? mapTreeNodes(n.children) : undefined,
-  }))
-}
-
-function filterTreeNodes(nodes: TreeViewNode[], query: string): TreeViewNode[] {
-  const out: TreeViewNode[] = []
-  for (const node of nodes) {
-    if (node.children?.length) {
-      const filteredChildren = filterTreeNodes(node.children, query)
-      if (filteredChildren.length) {
-        out.push({ ...node, children: filteredChildren })
-      } else if (node.title.toLowerCase().includes(query)) {
-        out.push({ ...node })
-      }
-    } else if (node.title.toLowerCase().includes(query)) {
-      out.push({ ...node })
-    }
-  }
-  return out
-}
 
 function cellVoucherUuids(c: EventLayoutCellLocal | null | undefined): string[] {
   const list = c?.voucher_definition_uuids

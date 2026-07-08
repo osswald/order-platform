@@ -121,8 +121,8 @@ cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && pyth
 Frontend (Vitest):
 
 ```bash
-cd cloud/frontend && npm ci && npm test
-cd pi/frontend && npm ci && npm test
+cd cloud/frontend && ../../scripts/npm.sh ci && npm test
+cd pi/frontend && ../../scripts/npm.sh ci && npm test
 ```
 
 See [AGENTS.md](AGENTS.md) for coverage commands and CI details.

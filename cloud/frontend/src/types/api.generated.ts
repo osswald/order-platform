@@ -1924,6 +1924,10 @@ export interface components {
             is_addition: boolean;
             /** Is Active */
             is_active: boolean;
+            /** Article Category Id */
+            article_category_id: number | null;
+            /** Article Category Name */
+            article_category_name: string;
         };
         /** ArticleRead */
         ArticleRead: {
