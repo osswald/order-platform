@@ -120,7 +120,15 @@
     },
     "config": {
       "deleteCell": "Delete button",
-      "deleteCellConfirm": "Delete this layout button?"
+      "deleteCellConfirm": "Delete this layout button?",
+      "availableArticles": "Available articles",
+      "selectedArticles": "Selected articles",
+      "noAvailableArticles": "All articles are already assigned.",
+      "noSelectedArticles": "No articles selected yet.",
+      "noSelectedArticlesMatch": "No selected articles match the filter.",
+      "filterArticles": "Filter articles…",
+      "addArticleToStation": "Add {article} to station",
+      "removeArticleFromStation": "Remove {article} from station"
     }
   },
   "common": {

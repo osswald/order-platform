@@ -57,15 +57,15 @@ cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && pyte
 
 CI runs both suites via `.github/workflows/backend-tests.yml` on changes under `cloud/backend/**` or `pi/backend/**`.
 
-**Pi frontend**: `cd pi/frontend && npm ci && npm test` (Vitest; no Docker required)
+**Pi frontend**: `cd pi/frontend && ../../scripts/npm.sh ci && npm test` (Vitest; no Docker required)
 
-**Cloud frontend**: `cd cloud/frontend && npm ci && npm test` (TypeScript; run `npm run typecheck` before build)
+**Cloud frontend**: `cd cloud/frontend && ../../scripts/npm.sh ci && npm test` (TypeScript; run `npm run typecheck` before build)
 
 With coverage report:
 
 ```bash
-cd pi/frontend && npm ci && npm run test:coverage
-cd cloud/frontend && npm ci && npm run test:coverage
+cd pi/frontend && ../../scripts/npm.sh ci && npm run test:coverage
+cd cloud/frontend && ../../scripts/npm.sh ci && npm run test:coverage
 cd cloud/frontend && npm run typecheck
 ```
 
@@ -82,7 +82,7 @@ CI runs Ruff and ESLint via `.github/workflows/lint.yml`. Run the same checks lo
 npm run lint                     # same as ./scripts/lint.sh
 ```
 
-Requires `python3 -m pip install ruff`, `npm ci` at repo root, and `npm ci` in `cloud/frontend` and `pi/frontend` before ESLint runs.
+Requires `python3 -m pip install ruff`, `./scripts/npm.sh ci` at repo root, and `./scripts/npm.sh ci` in `cloud/frontend` and `pi/frontend` before ESLint runs. Use `./scripts/npm.sh` instead of `npm` when installing dependencies to avoid the deprecated `devdir` config warning in some environments.
 
 ### Cloud frontend TypeScript and OpenAPI
 

@@ -44,6 +44,10 @@
   },
   "overrides": {
     "esbuild": "^0.28.1",
+    "@intlify/vue-i18n-extensions": "9.0.0",
+    "js-beautify": {
+      "glob": "^13.0.6"
+    },
     "openapi-typescript": {
       "typescript": "$typescript"
     }

@@ -76,6 +76,8 @@ class ArticleMinimalRead(BaseModel):
     organisation_id: int | None
     is_addition: bool
     is_active: bool
+    article_category_id: int
+    article_category_name: str
 
 
 class ArticleAdditionLinkIn(BaseModel):
@@ -116,6 +118,8 @@ def article_minimal_response(article: Article) -> ArticleMinimalRead:
         organisation_id=organisation.id if organisation else None,
         is_addition=bool(article.is_addition),
         is_active=bool(article.is_active),
+        article_category_id=article.article_category_id,
+        article_category_name=category.name if category else "",
     )
 
 

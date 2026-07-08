@@ -167,9 +167,20 @@ def test_articles_crud_and_addition_links():
     minimal = client.get(f"/articles/?organisation_id={org_id}&minimal=true", headers=headers)
     assert minimal.status_code == 200, minimal.text
     cola = next(a for a in minimal.json() if a["id"] == base_id)
-    assert set(cola.keys()) == {"id", "name", "label", "organisation_id", "is_addition", "is_active"}
+    assert set(cola.keys()) == {
+        "id",
+        "name",
+        "label",
+        "organisation_id",
+        "is_addition",
+        "is_active",
+        "article_category_id",
+        "article_category_name",
+    }
     assert cola["name"] == "Cola"
     assert cola["organisation_id"] == org_id
+    assert cola["article_category_id"] == cat_id
+    assert cola["article_category_name"]
 
 
 def test_article_addition_links_round_trip_preselected():

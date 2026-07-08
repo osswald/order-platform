@@ -45,6 +45,29 @@ export function isLayoutCellInGrid(
   return cell.row >= 0 && cell.col >= 0 && cell.row < height && cell.col < width
 }
 
+export function stationArticleUnion(stations: Array<{ article_ids?: number[] | null }>): Set<number> {
+  const out = new Set<number>()
+  for (const station of stations) {
+    for (const id of station.article_ids || []) {
+      out.add(Number(id))
+    }
+  }
+  return out
+}
+
+export function pruneLayoutCellArticlesToStationUnion(
+  layouts: LayoutLike[],
+  allowedArticleIds: Set<number>,
+): LayoutLike[] {
+  return layouts.map((layout) => ({
+    ...layout,
+    cells: (layout.cells || []).map((cell) => ({
+      ...cell,
+      article_ids: (cell.article_ids || []).filter((id) => allowedArticleIds.has(Number(id))),
+    })),
+  }))
+}
+
 export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
   return layouts.map((layout) => ({
     uuid: layout.uuid ?? undefined,
@@ -99,13 +122,19 @@ export function resolveAppLayoutsForPut(options: {
   layoutsLocal: EventLayoutLocal[]
   layoutCellsLoaded: boolean
   serverLayouts?: readonly ServerLayoutCellsSource[] | null
+  stations?: Array<{ article_ids?: number[] | null }> | null
 }): AppLayoutIn[] {
-  const { layoutsLocal, layoutCellsLoaded, serverLayouts } = options
+  const { layoutsLocal, layoutCellsLoaded, serverLayouts, stations } = options
+  let layouts: LayoutLike[]
   if (layoutCellsLoaded) {
-    return mapLayoutsToPutPayload(layoutsLocal)
+    layouts = layoutsLocal
+  } else if (!serverLayouts?.length) {
+    layouts = layoutsLocal
+  } else {
+    layouts = mergeLayoutsWithServerCells(layoutsLocal, serverLayouts)
   }
-  if (!serverLayouts?.length) {
-    return mapLayoutsToPutPayload(layoutsLocal)
+  if (stations != null) {
+    layouts = pruneLayoutCellArticlesToStationUnion(layouts, stationArticleUnion(stations))
   }
-  return mapLayoutsToPutPayload(mergeLayoutsWithServerCells(layoutsLocal, serverLayouts))
+  return mapLayoutsToPutPayload(layouts)
 }

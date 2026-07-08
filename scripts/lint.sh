@@ -51,7 +51,7 @@ ruff_cmd() {
 
 ensure_root_node_modules() {
   if [[ ! -d node_modules ]]; then
-    echo "error: run 'npm ci' at the repo root before linting frontends." >&2
+    echo "error: run './scripts/npm.sh ci' at the repo root before linting frontends." >&2
     exit 1
   fi
 }
@@ -59,7 +59,7 @@ ensure_root_node_modules() {
 ensure_frontend_node_modules() {
   local frontend="$1"
   if [[ ! -d "$frontend/node_modules" ]]; then
-    echo "error: run 'npm ci' in $frontend before linting." >&2
+    echo "error: run './scripts/npm.sh ci' in $frontend before linting." >&2
     exit 1
   fi
 }
