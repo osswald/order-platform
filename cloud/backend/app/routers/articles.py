@@ -76,7 +76,9 @@ class ArticleMinimalRead(BaseModel):
     organisation_id: int | None
     is_addition: bool
     is_active: bool
-    article_category_id: int
+    # DB FK is non-null; still optional here because category relation may be missing
+    # (orphaned FK / defensive path) and callers should not get a validation error.
+    article_category_id: int | None
     article_category_name: str
 
 
@@ -111,6 +113,7 @@ class ArticleIngredientsRead(BaseModel):
 def article_minimal_response(article: Article) -> ArticleMinimalRead:
     category = article.article_category
     organisation = category.organisation if category else None
+    category_id = category.id if category is not None else article.article_category_id
     return ArticleMinimalRead(
         id=article.id,
         name=article.name,
@@ -118,7 +121,7 @@ def article_minimal_response(article: Article) -> ArticleMinimalRead:
         organisation_id=organisation.id if organisation else None,
         is_addition=bool(article.is_addition),
         is_active=bool(article.is_active),
-        article_category_id=article.article_category_id,
+        article_category_id=category_id,
         article_category_name=category.name if category else "",
     )
 

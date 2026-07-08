@@ -65,6 +65,21 @@ describe('buildArticleCategoryTree', () => {
   it('returns empty array for no articles', () => {
     expect(buildArticleCategoryTree([])).toEqual([])
   })
+
+  it('groups articles with null category id under key cat-0', () => {
+    const tree = buildArticleCategoryTree([
+      article({
+        id: 99,
+        name: 'Orphan',
+        label: 'ORPH',
+        article_category_id: null as unknown as number,
+        article_category_name: '',
+      }),
+    ])
+    expect(tree).toHaveLength(1)
+    expect(tree[0].key).toBe('cat-0')
+    expect(tree[0].children?.map((c) => c.key)).toEqual(['art-99'])
+  })
 })
 
 describe('mapTreeNodes and filterTreeNodes', () => {

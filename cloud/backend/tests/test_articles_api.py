@@ -1,6 +1,7 @@
 """Articles API CRUD and addition links."""
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from app.database import SessionLocal
 from app.main import app
@@ -18,12 +19,47 @@ from app.models import (
     User,
 )
 from app.roles import ROLE_TENANT_ADMIN
+from app.routers.articles import article_minimal_response
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
 
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)
+
+
+def test_article_minimal_response_allows_missing_category():
+    """Minimal responses must not fail when the category relation is absent."""
+    orphan = SimpleNamespace(
+        id=99,
+        name="Orphan",
+        label="ORPH",
+        is_addition=False,
+        is_active=True,
+        article_category=None,
+        article_category_id=None,
+    )
+    row = article_minimal_response(orphan)
+    assert row.id == 99
+    assert row.article_category_id is None
+    assert row.article_category_name == ""
+    assert row.organisation_id is None
+
+
+def test_article_minimal_response_keeps_category_id_when_relation_missing():
+    """If the FK is present but the related row is gone, keep the id."""
+    dangling = SimpleNamespace(
+        id=100,
+        name="Dangling",
+        label="DANG",
+        is_addition=False,
+        is_active=True,
+        article_category=None,
+        article_category_id=7,
+    )
+    row = article_minimal_response(dangling)
+    assert row.article_category_id == 7
+    assert row.article_category_name == ""
 
 
 def _seed_org_admin():

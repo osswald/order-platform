@@ -13,10 +13,20 @@ export interface SelectedArticleGroup {
   articles: ArticleRead[]
 }
 
+/** Stable group key when category is missing from a minimal/orphaned article payload. */
+const UNCATEGORIZED_CATEGORY_ID = 0
+
+function categoryIdForArticle(art: ArticleRead): number {
+  if (art.article_category_id == null || Number.isNaN(Number(art.article_category_id))) {
+    return UNCATEGORIZED_CATEGORY_ID
+  }
+  return Number(art.article_category_id)
+}
+
 export function buildArticleCategoryTree(articles: ArticleRead[]): StationArticleTreeNode[] {
   const byCategory = new Map<number, { name: string; articles: ArticleRead[] }>()
   for (const art of articles) {
-    const catId = Number(art.article_category_id)
+    const catId = categoryIdForArticle(art)
     const existing = byCategory.get(catId)
     if (existing) {
       existing.articles.push(art)
@@ -101,7 +111,7 @@ export function buildSelectedArticleGroups(
   const byCategory = new Map<number, { name: string; articles: ArticleRead[] }>()
   for (const art of articles) {
     if (!selectedSet.has(Number(art.id))) continue
-    const catId = Number(art.article_category_id)
+    const catId = categoryIdForArticle(art)
     const existing = byCategory.get(catId)
     if (existing) {
       existing.articles.push(art)

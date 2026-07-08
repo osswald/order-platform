@@ -10437,7 +10437,14 @@
             "title": "Is Active"
           },
           "article_category_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Article Category Id"
           },
           "article_category_name": {
