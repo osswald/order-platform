@@ -60,3 +60,9 @@ def test_write_logo_bytes_embeds_raster():
     raw = render_slip(render)
     assert b"After logo" in raw
     assert len(raw) > 40
+    pre = escpos_init_preamble()
+    body = raw[len(pre) :]
+    idx = body.find(b"After logo")
+    assert idx >= 3
+    assert body[idx - 3 : idx - 1] == b"\x1b\x74"
+    assert body[idx - 1] == 19

@@ -398,7 +398,11 @@ def test_payment_receipt_currency_only_on_total():
 
 def test_payment_receipt_payment_line_right_aligned():
     def strip_esc(s: str) -> str:
-        cleaned = re.sub(r"\x1b[@-Z\\-_]|\x1b\[[0-?]*[ -/]*[@-~]", "", s)
+        cleaned = re.sub(
+            r"\x1b[@-Z\\-_]|\x1b\[[0-?]*[ -/]*[@-~]|\x1bt.",
+            "",
+            s,
+        )
         return "".join(c for c in cleaned if c.isprintable() or c in " \t\n\r")
 
     raw = _payment_receipt_sample()

@@ -6,9 +6,17 @@ from app.escpos_render import (
     escpos_init_preamble,
     render_slip,
     resolve_escpos_charset,
+    transliterate_receipt_text,
     write_line,
 )
 from app.print_worker import build_escpos_station_test_slip, build_payment_receipt_text
+
+
+def _assert_esc_t_before(body: bytes, needle: bytes, *, codepage: int) -> None:
+    idx = body.find(needle)
+    assert idx >= 3, f"{needle!r} not found in slip body"
+    assert body[idx - 3 : idx - 1] == b"\x1b\x74"
+    assert body[idx - 1] == codepage
 
 
 def test_escpos_text_uses_cp858_single_byte():
@@ -29,12 +37,41 @@ def test_resolve_receipt_charset_presets():
     assert resolve_escpos_charset("pc858") == ("cp858", 19)
     assert resolve_escpos_charset("pc850") == ("cp850", 2)
     assert resolve_escpos_charset("cp1252") == ("cp1252", 16)
-    assert set(RECEIPT_CHARSET_PRESETS) == {"pc858", "pc850", "cp1252"}
+    assert resolve_escpos_charset("ascii") == ("ascii", 0)
+    assert set(RECEIPT_CHARSET_PRESETS) == {"pc858", "pc850", "cp1252", "ascii"}
 
 
 def test_encode_escpos_text_honors_charset_preset():
     assert encode_escpos_text("ä", charset="pc850") == "ä".encode("cp850")
     assert encode_escpos_text("ä", charset="cp1252") == "ä".encode("cp1252")
+
+
+def test_write_escpos_text_prepends_esc_t_codepage():
+    raw = render_slip(lambda p: write_line(p, "Hello"))
+    pre = escpos_init_preamble()
+    body = raw[len(pre) :]
+    _assert_esc_t_before(body, b"Hello", codepage=19)
+
+
+def test_render_slip_esc_t_before_each_text_line():
+    def render(p):
+        write_line(p, "Line one")
+        write_line(p, "Line two")
+
+    raw = render_slip(render, charset="pc850")
+    pre = escpos_init_preamble(charset="pc850")
+    body = raw[len(pre) :]
+    _assert_esc_t_before(body, b"Line one", codepage=2)
+    _assert_esc_t_before(body, b"Line two", codepage=2)
+
+
+def test_render_slip_text_only_has_esc_t_before_text():
+    """Regression: text-only slips must still select code page before each line."""
+    raw = render_slip(lambda p: (write_line(p, "Testdruck"), write_line(p, "Danke")))
+    pre = escpos_init_preamble()
+    body = raw[len(pre) :]
+    _assert_esc_t_before(body, b"Testdruck", codepage=19)
+    _assert_esc_t_before(body, b"Danke", codepage=19)
 
 
 def test_render_slip_body_avoids_esc_t_pc437_reset():
@@ -114,6 +151,27 @@ def test_payment_receipt_test_charset_banner():
     )
     text = slip.decode("cp858", errors="replace")
     assert "Ää Öö Üü ß  Éé Èè Îî Çç" in text
+
+
+def test_transliterate_receipt_text_german():
+    assert transliterate_receipt_text("Größe") == "Groesse"
+    assert transliterate_receipt_text("Zürich") == "Zuerich"
+    assert transliterate_receipt_text("Äpfel") == "Aepfel"
+    assert transliterate_receipt_text("Straße") == "Strasse"
+    assert transliterate_receipt_text("Crème brûlée") == "Creme brulee"
+
+
+def test_encode_escpos_text_ascii_transliterates():
+    assert encode_escpos_text("Größe", charset="ascii") == b"Groesse"
+    assert encode_escpos_text("Zürich", charset="ascii") == b"Zuerich"
+
+
+def test_render_slip_ascii_charset_transliterates():
+    raw = render_slip(lambda p: write_line(p, "Zürich"), charset="ascii")
+    pre = escpos_init_preamble(charset="ascii")
+    body = raw[len(pre) :]
+    assert b"Zuerich" in body
+    _assert_esc_t_before(body, b"Zuerich", codepage=0)
 
 
 def test_payment_receipt_charset_pc850():

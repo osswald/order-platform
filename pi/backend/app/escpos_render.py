@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import unicodedata
 from collections.abc import Callable
 from contextvars import ContextVar
 from io import BytesIO
@@ -18,12 +19,13 @@ from PIL import Image, ImageOps
 
 log = logging.getLogger(__name__)
 
-ReceiptCharset = Literal["pc858", "pc850", "cp1252"]
+ReceiptCharset = Literal["pc858", "pc850", "cp1252", "ascii"]
 
 RECEIPT_CHARSET_PRESETS: dict[str, tuple[str, int]] = {
     "pc858": ("cp858", 19),
     "pc850": ("cp850", 2),
     "cp1252": ("cp1252", 16),
+    "ascii": ("ascii", 0),
 }
 
 _slip_charset: ContextVar[str | None] = ContextVar("slip_charset", default=None)
@@ -119,13 +121,40 @@ def build_cash_drawer_kick(command: str) -> bytes:
     return escpos_init_preamble() + kick
 
 
+def transliterate_receipt_text(text: str) -> str:
+    """Fold umlauts and accents to ASCII for printers that ignore code pages."""
+    replacements = {
+        "ä": "ae",
+        "ö": "oe",
+        "ü": "ue",
+        "Ä": "Ae",
+        "Ö": "Oe",
+        "Ü": "Ue",
+        "ß": "ss",
+    }
+    out: list[str] = []
+    for ch in str(text):
+        if ch in replacements:
+            out.append(replacements[ch])
+            continue
+        decomposed = unicodedata.normalize("NFD", ch)
+        base = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+        out.append(base)
+    return "".join(out)
+
+
 def encode_escpos_text(text: str, *, charset: str | None = None) -> bytes:
     encoding, _ = resolve_escpos_charset(charset)
-    return str(text).encode(encoding, errors="replace")
+    payload = transliterate_receipt_text(text) if encoding == "ascii" else str(text)
+    return payload.encode(encoding, errors="replace")
 
 
-def write_escpos_text(printer: Dummy, text: str, *, newline: bool = True) -> None:
-    printer._raw(encode_escpos_text(text + ("\n" if newline else "")))
+def write_escpos_text(printer: Dummy, text: str, *, newline: bool = True, charset: str | None = None) -> None:
+    _, codepage = resolve_escpos_charset(charset)
+    body = str(text) + ("\n" if newline else "")
+    printer._raw(
+        bytes([0x1B, 0x74, codepage & 0xFF]) + encode_escpos_text(body, charset=charset)
+    )
 
 
 def finish_slip(printer: Dummy, *, feed_lines: int = 1, charset: str | None = None) -> bytes:
