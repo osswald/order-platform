@@ -219,7 +219,7 @@ def collect_sellable_refs(parsed: OjParsedPayload, bom: OjBomResult | None = Non
 
 def _article_label(name: str) -> str:
     text = (name or "").strip()
-    return text[:22] if len(text) > 22 else text
+    return text[:21] if len(text) > 21 else text
 
 
 def _import_number(ref: int) -> str:
@@ -233,7 +233,7 @@ def _normalize_match_texts(*values: str) -> list[str]:
         text = (value or "").strip().lower()
         if not text:
             continue
-        for variant in (text, text[:22] if len(text) > 22 else None):
+        for variant in (text, text[:21] if len(text) > 21 else None):
             if variant and variant not in seen:
                 seen.add(variant)
                 out.append(variant)

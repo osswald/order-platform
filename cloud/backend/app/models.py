@@ -418,7 +418,7 @@ class Article(Base):
     __tablename__ = "articles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    label = Column(String(22), nullable=False)
+    label = Column(String(21), nullable=False)
     price = Column(Float, nullable=False)
     import_article_number = Column(String, nullable=True)
     description = Column(Text, nullable=True)

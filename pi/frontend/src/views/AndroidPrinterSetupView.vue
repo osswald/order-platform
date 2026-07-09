@@ -111,6 +111,7 @@ import {
   getReceiptCharset,
   RECEIPT_CHARSET_OPTIONS,
   setReceiptCharset,
+  type ReceiptCharset,
 } from '@/utils/receiptCharset'
 import {
   getReceiptPaperWidth,
@@ -141,7 +142,7 @@ const messageType = ref<'ok' | 'err'>('ok')
 const paperWidthOptions = RECEIPT_PAPER_WIDTH_OPTIONS
 const paperWidth = ref(getReceiptPaperWidth())
 const charsetOptions = RECEIPT_CHARSET_OPTIONS
-const receiptCharset = ref(getReceiptCharset())
+const receiptCharset = ref<ReceiptCharset>(getReceiptCharset())
 
 const permissionLabel = computed(() => {
   if (!permission.value) return 'unbekannt'
@@ -179,7 +180,7 @@ function loadPrinters() {
   refreshSelected()
 }
 
-function onCharsetChange(value: string) {
+function onCharsetChange(value: ReceiptCharset) {
   setReceiptCharset(value)
   receiptCharset.value = value
   show('Zeichensatz gespeichert.', 'ok')

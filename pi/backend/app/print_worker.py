@@ -628,7 +628,7 @@ def _write_station_order_lines_formatted(
     show_discount_hints: bool = True,
 ) -> tuple[int, int]:
     from .discounts import discount_hint
-    from .pricing import line_gross_cents, line_total_cents
+    from .pricing import line_gross_cents, line_total_cents, station_line_display_name
 
     total_qty = 0
     total_cents = 0
@@ -640,7 +640,7 @@ def _write_station_order_lines_formatted(
             continue
         qty = max(1, int(line.get("qty") or 1))
         art = arts.get(str(aid)) or arts.get(int(aid)) or {} if aid is not None else {}
-        name = line.get("article_name") or art.get("name") or (f"#{aid}" if aid is not None else "—")
+        name = station_line_display_name(line, art if art else None, aid)
         if aid is not None:
             gross_cents = line_gross_cents(line, arts)
             line_cents = line_total_cents(line, arts)

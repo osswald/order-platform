@@ -8,19 +8,19 @@ import {
 
 describe('receiptCharset', () => {
   beforeEach(() => {
+    const store: Record<string, string> = {}
     vi.stubGlobal('localStorage', {
-      store: {} as Record<string, string>,
       getItem(key: string) {
-        return this.store[key] ?? null
+        return store[key] ?? null
       },
       setItem(key: string, value: string) {
-        this.store[key] = value
+        store[key] = value
       },
       removeItem(key: string) {
-        delete this.store[key]
+        delete store[key]
       },
       clear() {
-        this.store = {}
+        for (const key of Object.keys(store)) delete store[key]
       },
     })
   })

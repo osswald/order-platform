@@ -618,3 +618,30 @@ def test_delete_article_blocked_lists_multiple_reasons():
         "auf Stationen",
         "Statistiken",
     )
+
+
+def test_article_label_max_length_21():
+    headers, _, cat_id, _ = _article_setup()
+    ok = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Long catalog name",
+            "label": "1" * 21,
+            "price": 1.0,
+            "article_category_id": cat_id,
+        },
+    )
+    assert ok.status_code == 200, ok.text
+
+    too_long = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Another",
+            "label": "2" * 22,
+            "price": 1.0,
+            "article_category_id": cat_id,
+        },
+    )
+    assert too_long.status_code == 422, too_long.text

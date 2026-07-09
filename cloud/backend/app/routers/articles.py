@@ -26,7 +26,7 @@ router = APIRouter()
 
 class ArticleBase(BaseModel):
     name: str = Field(..., min_length=1)
-    label: str = Field(..., min_length=1, max_length=22)
+    label: str = Field(..., min_length=1, max_length=21)
     price: float
     import_article_number: str | None = None
     description: str | None = None
@@ -44,7 +44,7 @@ class ArticleCreate(ArticleBase):
 
 class ArticleUpdate(BaseModel):
     name: str | None = Field(None, min_length=1)
-    label: str | None = Field(None, min_length=1, max_length=22)
+    label: str | None = Field(None, min_length=1, max_length=21)
     price: float | None = None
     import_article_number: str | None = None
     description: str | None = None

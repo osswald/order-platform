@@ -43,6 +43,23 @@ def _event_with_printing(**profile_overrides):
     }
 
 
+def test_station_receipt_uses_label_not_name():
+    ev = _event_with_printing()
+    raw = build_escpos_receipt_text(
+        {
+            "table_number": 5,
+            "lines": [{"article_id": 1, "qty": 1}],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Brauerei Hell 0.5l", "label": "Hell 0.5", "price": 4.5}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Hell 0.5" in text
+    assert "Brauerei Hell" not in text
+
+
 def test_station_receipt_never_shows_prices_when_profile_enabled():
     ev = _event_with_printing(
         station_receipt={"show_price": True},

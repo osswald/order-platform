@@ -10256,7 +10256,7 @@
           },
           "label": {
             "type": "string",
-            "maxLength": 22,
+            "maxLength": 21,
             "minLength": 1,
             "title": "Label"
           },
@@ -10474,7 +10474,7 @@
           },
           "label": {
             "type": "string",
-            "maxLength": 22,
+            "maxLength": 21,
             "minLength": 1,
             "title": "Label"
           },
@@ -10637,7 +10637,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 22,
+                "maxLength": 21,
                 "minLength": 1
               },
               {
