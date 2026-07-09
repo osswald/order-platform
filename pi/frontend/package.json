@@ -27,10 +27,10 @@
     "@vue/tsconfig": "^0.9.1",
     "happy-dom": "^20.10.6",
     "openapi-typescript": "^7.8.0",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vite": "^8.1.4",
     "vitest": "^4.1.10",
-    "vue-tsc": "^2.2.10"
+    "vue-tsc": "^3.3.7"
   },
   "overrides": {
     "js-yaml": "^4.2.0",

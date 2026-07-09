@@ -16,7 +16,7 @@ export default defineConfig({
       runtimeOnly: true,
       strictMessage: false,
     }),
-    vuetify({ autoImport: { labs: true } }),
+    vuetify(),
   ],
   resolve: {
     alias: {

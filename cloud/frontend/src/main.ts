@@ -3,7 +3,6 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { de as vuetifyDe, en as vuetifyEn } from 'vuetify/locale'
-import { VDateInput } from 'vuetify/labs/VDateInput'
 import DateFnsAdapter from '@date-io/date-fns'
 import { de as dateFnsDe } from 'date-fns/locale/de'
 import { enUS as dateFnsEnUS } from 'date-fns/locale/en-US'
@@ -15,7 +14,7 @@ import { i18n } from './i18n'
 import { resolveInitialTheme } from './utils/themePreference'
 
 const vuetify = createVuetify({
-  components: { ...components, VDateInput },
+  components: { ...components },
   directives,
   locale: {
     locale: 'de',

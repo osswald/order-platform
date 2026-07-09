@@ -68,16 +68,15 @@ const filteredItems = computed(() => {
 })
 
 function isLeaf(item: TreeSlotItem): boolean {
-  const children = item.children ?? item.raw?.children
+  const children = item.children
   return !children?.length
 }
 
-type TreeSlotItem = TreeViewNode & { raw?: TreeViewNode }
+type TreeSlotItem = TreeViewNode
 
 function nodeTitle(item: TreeSlotItem, title?: string | number | boolean): string {
   if (typeof title === 'string' && title) return title
-  if (item.title) return item.title
-  return item.raw?.title || ''
+  return item.title || ''
 }
 
 function leafAriaLabel(item: TreeSlotItem, title?: string | number | boolean): string {
@@ -89,7 +88,7 @@ function leafAriaLabel(item: TreeSlotItem, title?: string | number | boolean): s
 function onTitleClick(item: TreeSlotItem, event: Event) {
   if (!isLeaf(item)) return
   event.preventDefault()
-  const articleId = articleTreeKeyToId(item.key || item.raw?.key || '')
+  const articleId = articleTreeKeyToId(item.key || '')
   if (articleId != null) emit('pick-article', articleId)
 }
 </script>
