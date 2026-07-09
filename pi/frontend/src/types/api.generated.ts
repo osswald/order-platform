@@ -1663,6 +1663,8 @@ export interface components {
             reprint: boolean;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252") | null;
         };
         /** PaymentReceiptEscposResponse */
         PaymentReceiptEscposResponse: {
@@ -1815,6 +1817,8 @@ export interface components {
             event_id?: number | null;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252") | null;
         };
         /** PrinterTestStationPrintsBody */
         PrinterTestStationPrintsBody: {
@@ -1891,6 +1895,8 @@ export interface components {
             station_uuid?: string | null;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252") | null;
         };
         /** ShiftSessionEscposResponse */
         ShiftSessionEscposResponse: {
@@ -1958,6 +1964,8 @@ export interface components {
             counted_cash_cents?: number | null;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252") | null;
         };
         /** StationTestPrintResult */
         StationTestPrintResult: {

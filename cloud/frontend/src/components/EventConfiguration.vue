@@ -55,8 +55,9 @@
         <template v-if="vouchersEnabled" #gutscheine>
           <EventConfigVouchersSection
             v-model="vouchersLocal"
-            :article-options="articleOptions"
+            :articles="eventArticleCatalog"
             :catalog-loading="catalogLoading"
+            :catalog-error="catalogError"
             :currency-label="currencyLabel"
             :voucher-kind-options="voucherKindOptions"
             @voucher-removed="onVoucherRemoved"
@@ -169,7 +170,7 @@ import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
-import { resolveAppLayoutsForPut } from '../utils/eventConfigLayoutsPayload'
+import { resolveAppLayoutsForPut, stationArticleUnion } from '../utils/eventConfigLayoutsPayload'
 import { newUuid } from '@/utils/newUuid'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import type {
@@ -185,7 +186,6 @@ import type {
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import type {
-  ArticleSelectOption,
   EventCashRegisterLocal,
   EventKitchenMonitorLocal,
   EventLayoutCellLocal,
@@ -345,13 +345,6 @@ const pickedWaiterIds = ref<number[]>([])
 
 let waiterKey = 0
 
-const articleOptions = computed((): ArticleSelectOption[] => {
-  return stationArticleCatalog.value.map((a) => ({
-    name: a.name,
-    value: a.id,
-  }))
-})
-
 const stationArticleCatalog = computed((): ArticleRead[] => {
   const oid = props.organisationId
   return articlesRaw.value.filter(
@@ -360,6 +353,11 @@ const stationArticleCatalog = computed((): ArticleRead[] => {
       a.is_active &&
       (oid == null || Number(a.organisation_id) === Number(oid)),
   )
+})
+
+const eventArticleCatalog = computed((): ArticleRead[] => {
+  const allowed = stationArticleUnion(stationsLocal.value)
+  return stationArticleCatalog.value.filter((a) => allowed.has(a.id))
 })
 
 const kitchenMonitorPrinterOptions = computed((): PrinterOptionRead[] => {
@@ -632,6 +630,7 @@ function layoutCellsLoading(): boolean {
 
 function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']): EventConfigurationIn {
   layoutsSectionRef.value?.ensureDefaultLayout()
+  const eventArticleIds = stationArticleUnion(stationsLocal.value)
   return {
     stations: stationsLocal.value.map((s) => {
       const row: StationConfigIn = {
@@ -673,7 +672,9 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
       const row: VoucherDefinitionIn = {
         name: vd.name,
         kind: vd.kind,
-        allowed_article_ids: Array.isArray(vd.allowed_article_ids) ? vd.allowed_article_ids : [],
+        allowed_article_ids: (Array.isArray(vd.allowed_article_ids) ? vd.allowed_article_ids : []).filter(
+          (id) => eventArticleIds.has(Number(id)),
+        ),
         include_additions: !!vd.include_additions,
       }
       if (vd.uuid) row.uuid = vd.uuid

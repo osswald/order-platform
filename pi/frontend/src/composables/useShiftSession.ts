@@ -3,6 +3,7 @@ import { api, isAndroidApp } from '@/api'
 import type { EdgeBundleEvent, ShiftSessionRead } from '@/types/api'
 import { isApiError } from '@/types/api'
 import { isBluetoothPrinterConfigured, printEscposBase64 } from '@/utils/androidPrinter'
+import { getReceiptCharset } from '@/utils/receiptCharset'
 import { getReceiptPaperWidth } from '@/utils/receiptPaperWidth'
 
 export const shiftOpenDialogOpen = ref(false)
@@ -141,6 +142,7 @@ async function printShiftReceipt(sessionId: number, countedCents: number): Promi
   const body = {
     counted_cash_cents: countedCents,
     paper_width: getReceiptPaperWidth(),
+    charset: getReceiptCharset(),
   }
   if (isAndroidApp() && isBluetoothPrinterConfigured()) {
     const data = await api<{ escpos_payload: string }>(`/v1/shift-session/${sessionId}/receipt`, {

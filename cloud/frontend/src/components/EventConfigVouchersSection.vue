@@ -1,5 +1,7 @@
 <template>
   <div class="event-config-vouchers-section">
+    <p v-if="catalogLoading" class="muted catalog-loading-hint">{{ $t('events.config.catalogLoading') }}</p>
+    <p v-else-if="catalogError" class="error">{{ catalogError }}</p>
     <div class="section-toolbar">
       <v-btn color="primary" type="button" @click="addVoucher">{{ $t('events.config.addVoucher') }}</v-btn>
     </div>
@@ -46,19 +48,11 @@
       <template v-else>
         <div class="form-field">
           <label>{{ $t('events.config.eligibleArticles') }}</label>
-          <v-select
+          <StationArticleTransferPicker
             v-model="vd.allowed_article_ids"
-            :items="articleOptions"
-            item-title="name"
-            item-value="value"
-            :placeholder="$t('events.config.selectArticles')"
+            :articles="articles"
             :loading="catalogLoading"
-            :disabled="catalogLoading"
-            multiple
-            chips
-            closable-chips
-            density="compact"
-            hide-details
+            :disabled="catalogLoading || !!catalogError"
           />
         </div>
         <v-checkbox
@@ -74,20 +68,24 @@
 
 <script setup lang="ts">
 import FormLabel from './FormLabel.vue'
+import StationArticleTransferPicker from './StationArticleTransferPicker.vue'
 import { rules } from '../utils/formRules.js'
 import { newUuid } from '@/utils/newUuid'
-import type { ArticleSelectOption, EventVoucherDefinitionLocal, SelectOption } from '@/types/ui'
+import type { ArticleRead } from '@/types/api'
+import type { EventVoucherDefinitionLocal, SelectOption } from '@/types/ui'
 
 withDefaults(
   defineProps<{
-    articleOptions?: ArticleSelectOption[]
+    articles?: ArticleRead[]
     catalogLoading?: boolean
+    catalogError?: string
     currencyLabel?: string
     voucherKindOptions?: SelectOption<string>[]
   }>(),
   {
-    articleOptions: () => [],
+    articles: () => [],
     catalogLoading: false,
+    catalogError: '',
     currencyLabel: 'EUR',
     voucherKindOptions: () => [],
   },

@@ -19,6 +19,7 @@ from .order_models import (
 )
 
 ReceiptPaperWidth = Literal["80mm", "58mm", "53mm"]
+ReceiptCharset = Literal["pc858", "pc850", "cp1252"]
 
 
 # --- Request bodies ---
@@ -110,6 +111,7 @@ class CollectiveBillCreateBody(BaseModel):
 class PaymentReceiptBody(BaseModel):
     reprint: bool = False
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class PaymentReceiptPrintBody(BaseModel):
@@ -119,6 +121,7 @@ class PaymentReceiptPrintBody(BaseModel):
 class PrinterTestReceiptBody(BaseModel):
     event_id: int | None = None
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class PrinterTestStationPrintsBody(BaseModel):
@@ -449,11 +452,13 @@ class ShiftSessionCloseBody(BaseModel):
     counted_cash_cents: int = Field(..., ge=0)
     station_uuid: str | None = None
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class ShiftSessionReceiptBody(BaseModel):
     counted_cash_cents: int | None = Field(None, ge=0)
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class ShiftSessionRead(BaseModel):

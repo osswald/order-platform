@@ -63,6 +63,8 @@ def printer_test_receipt(
         generated_at=payload["paid_at"],
         event=ev,
         paper_width=body.paper_width if body else None,
+        charset=body.charset if body else None,
+        test_charset_banner=True,
     )
     return EscposPayloadResponse(escpos_payload=base64.b64encode(esc).decode("ascii"))
 

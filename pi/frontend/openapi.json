@@ -4626,6 +4626,22 @@
               }
             ],
             "title": "Paper Width"
+          },
+          "charset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pc858",
+                  "pc850",
+                  "cp1252"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charset"
           }
         },
         "type": "object",
@@ -5091,6 +5107,22 @@
               }
             ],
             "title": "Paper Width"
+          },
+          "charset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pc858",
+                  "pc850",
+                  "cp1252"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charset"
           }
         },
         "type": "object",
@@ -5306,6 +5338,22 @@
               }
             ],
             "title": "Paper Width"
+          },
+          "charset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pc858",
+                  "pc850",
+                  "cp1252"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charset"
           }
         },
         "type": "object",
@@ -5511,6 +5559,22 @@
               }
             ],
             "title": "Paper Width"
+          },
+          "charset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pc858",
+                  "pc850",
+                  "cp1252"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charset"
           }
         },
         "type": "object",
