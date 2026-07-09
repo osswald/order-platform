@@ -19,7 +19,7 @@ from .order_models import (
 )
 
 ReceiptPaperWidth = Literal["80mm", "58mm", "53mm"]
-ReceiptCharset = Literal["pc858", "pc850", "cp1252"]
+ReceiptCharset = Literal["pc858", "pc850", "cp1252", "ascii"]
 
 
 # --- Request bodies ---

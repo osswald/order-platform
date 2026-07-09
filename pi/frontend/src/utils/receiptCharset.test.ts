@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  CHARSET_ASCII,
   CHARSET_PC850,
   CHARSET_PC858,
   getReceiptCharset,
@@ -32,6 +33,8 @@ describe('receiptCharset', () => {
   it('persists valid charset', () => {
     setReceiptCharset(CHARSET_PC850)
     expect(getReceiptCharset()).toBe(CHARSET_PC850)
+    setReceiptCharset(CHARSET_ASCII)
+    expect(getReceiptCharset()).toBe(CHARSET_ASCII)
   })
 
   it('falls back to pc858 for invalid values', () => {
