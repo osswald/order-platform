@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -90,12 +91,37 @@ val frontendDistDir = frontendDir.resolve("dist")
 val assetOutputDir = projectDir.resolve("src/main/assets/public")
 val frontendLockFile = frontendDir.resolve("package-lock.json")
 val frontendModulesDir = frontendDir.resolve("node_modules")
+val resolveNpmScript = rootProject.projectDir.resolve("scripts/resolve-npm.sh")
+
+/** Absolute npm path — Android Studio's Gradle daemon often lacks Homebrew on PATH. */
+fun resolveNpmExecutable(): String {
+    val process = ProcessBuilder(resolveNpmScript.absolutePath)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+    val stdout = process.inputStream.bufferedReader().readText().trim()
+    val stderr = process.errorStream.bufferedReader().readText().trim()
+    val code = process.waitFor()
+    if (code != 0 || stdout.isEmpty()) {
+        error(stderr.ifEmpty { "Failed to resolve npm (exit $code). See android/scripts/resolve-npm.sh" })
+    }
+    return stdout
+}
+
+fun Exec.configureNpmExec(vararg args: String) {
+    val npm = resolveNpmExecutable()
+    val npmDir = File(npm).parent
+    val path = System.getenv("PATH").orEmpty()
+    environment(
+        "PATH" to listOfNotNull(npmDir).plus(path).joinToString(File.pathSeparator),
+    )
+    commandLine(npm, *args)
+}
 
 tasks.register<Exec>("installPiFrontend") {
     workingDir = frontendDir
     inputs.file(frontendLockFile)
     outputs.dir(frontendModulesDir)
-    commandLine("npm", "ci")
+    configureNpmExec("ci")
 }
 
 tasks.register<Exec>("buildPiFrontend") {
@@ -110,7 +136,7 @@ tasks.register<Exec>("buildPiFrontend") {
     if (apiBase.isNotEmpty()) {
         environment("VITE_API_BASE" to apiBase)
     }
-    commandLine("npm", "run", "build", "--", "--mode", "android")
+    configureNpmExec("run", "build", "--", "--mode", "android")
 }
 
 tasks.register<Copy>("copyPiFrontendAssets") {

@@ -18,7 +18,7 @@ Native Android WebView wrapper for [`pi/frontend`](../pi/frontend).
 
 Set `ANDROID_HOME` if building from the command line outside Android Studio.
 
-Ensure `npm` is on the PATH used by Android Studio/Gradle (or launch Studio from a terminal where `npm` works).
+Gradle resolves `npm` via [`scripts/resolve-npm.sh`](scripts/resolve-npm.sh) (PATH plus common Homebrew/nvm locations), so Android Studio builds work even when the IDE’s PATH omits Node. If resolution fails, install Node.js or open Studio from a terminal where `npm` works (`open -a "Android Studio"`).
 
 ## Build
 
