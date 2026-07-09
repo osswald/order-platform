@@ -14,6 +14,7 @@ from .pricing import (
     _article_entry,
     addition_display_name,
     apply_discount_cents,
+    article_station_display_name,
     line_unit_cents,
 )
 
@@ -116,8 +117,10 @@ def snapshot_line(
         if k not in ("unit_cents", "article_name")
     }
     snap: dict[str, Any] = dict(raw)
-    if base and base.get("name"):
-        snap["article_name"] = base["name"]
+    if base:
+        display = article_station_display_name(base)
+        if display:
+            snap["article_name"] = display
     snap["unit_cents"] = line_unit_cents(raw, articles)
     snap["additions"] = _snapshot_additions(line.get("additions"), articles, base)
     if order_number is not None:

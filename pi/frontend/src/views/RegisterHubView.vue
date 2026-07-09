@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h1>{{ register?.name || 'Kasse' }}</h1>
+    <h1>
+      {{ register?.name || 'Kasse' }}
+      <TestBetriebPill v-if="isTest" />
+    </h1>
     <p class="muted">{{ event?.name }}</p>
     <p v-if="register?.pickup_code_prefix" class="muted small">Pickup {{ register.pickup_code_prefix }}</p>
 
@@ -22,18 +25,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import TestBetriebPill from '@/components/TestBetriebPill.vue'
 import { useCart } from '@/composables/useCart'
 import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
 import { useRegisterSession } from '@/composables/useRegisterSession'
 import { ensureShiftForSubject, maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
+import { isEventTest } from '@/utils/eventStatus'
 
 const router = useRouter()
 const route = useRoute()
 const { clearCart } = useCart()
 const { register, event, setDisplayIdle, clearPickupHold, orderRoute } = useRegisterDisplay()
 const { setRegisterSession } = useRegisterSession()
+const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
 
 function refreshHubDisplay() {
   if (route.name !== 'register-hub' || !register.value) return
@@ -90,6 +96,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
 .hub-actions {
   display: flex;
   flex-direction: column;

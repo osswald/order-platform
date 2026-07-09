@@ -5,7 +5,14 @@ import uuid
 
 import pytest
 from app.models import LocalOrder
+from app.order_fiscal import snapshot_line
 from tests.fixtures_bundles import bundle_copy, order_fiscal_bundle
+
+
+def test_snapshot_line_uses_label_for_article_name():
+    arts = {"10": {"id": 10, "name": "Brauerei Hell 0.5l", "label": "Hell 0.5", "price": 5.0}}
+    snap = snapshot_line({"article_id": 10, "qty": 1, "note": "", "additions": []}, arts)
+    assert snap["article_name"] == "Hell 0.5"
 
 
 @pytest.fixture

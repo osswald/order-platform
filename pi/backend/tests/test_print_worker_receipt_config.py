@@ -43,6 +43,23 @@ def _event_with_printing(**profile_overrides):
     }
 
 
+def test_station_receipt_uses_label_not_name():
+    ev = _event_with_printing()
+    raw = build_escpos_receipt_text(
+        {
+            "table_number": 5,
+            "lines": [{"article_id": 1, "qty": 1}],
+        },
+        "Event",
+        articles={"1": {"id": 1, "name": "Brauerei Hell 0.5l", "label": "Hell 0.5", "price": 4.5}},
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "Hell 0.5" in text
+    assert "Brauerei Hell" not in text
+
+
 def test_station_receipt_never_shows_prices_when_profile_enabled():
     ev = _event_with_printing(
         station_receipt={"show_price": True},
@@ -79,6 +96,90 @@ def test_customer_pickup_shows_prices_and_total_when_enabled():
     text = raw.decode("cp858", errors="replace")
     assert "9.00" in text
     assert "CHF" in text
+
+
+def _schnitzel_ketchup_arts():
+    return {
+        "10": {
+            "id": 10,
+            "name": "Schnitzel",
+            "price": 9.5,
+            "additions": [{"article_id": 30, "name": "Ketchup", "price": 0.5}],
+        },
+        "30": {"id": 30, "name": "Ketchup", "price": 0.5},
+    }
+
+
+def test_customer_pickup_shows_addition_prices_when_enabled():
+    ev = _event_with_printing(customer_receipt={"show_price": True})
+    raw = build_customer_pickup_text(
+        {
+            "pickup_code": "C9",
+            "lines": [
+                {
+                    "article_id": 10,
+                    "qty": 1,
+                    "additions": [{"article_id": 30, "qty": 1, "unit_cents": 50}],
+                }
+            ],
+        },
+        "Event",
+        articles=_schnitzel_ketchup_arts(),
+        currency="CHF",
+        event=ev,
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "+ Ketchup" in text
+    assert "9.50" in text
+    assert "0.50" in text
+    assert "10.00" not in text.split("+ Ketchup")[0]
+
+
+def test_payment_receipt_shows_base_and_addition_without_double_count():
+    raw = build_payment_receipt_text(
+        {
+            "lines": [
+                {
+                    "article_id": 10,
+                    "qty": 1,
+                    "additions": [{"article_id": 30, "qty": 1, "unit_cents": 50}],
+                }
+            ],
+            "payments": [{"type": "cash", "amount_cents": 1000}],
+        },
+        "Event",
+        articles=_schnitzel_ketchup_arts(),
+        currency="CHF",
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "+ Ketchup" in text
+    assert "9.50" in text
+    assert "0.50" in text
+    schnitzel_row = text.split("+ Ketchup")[0]
+    assert "10.00" not in schnitzel_row
+
+
+def test_payment_receipt_discounted_line_shows_combined_price_only():
+    raw = build_payment_receipt_text(
+        {
+            "lines": [
+                {
+                    "article_id": 10,
+                    "qty": 1,
+                    "discount": {"kind": "percent", "value": 10},
+                    "additions": [{"article_id": 30, "qty": 1, "unit_cents": 50}],
+                }
+            ],
+            "payments": [{"type": "cash", "amount_cents": 900}],
+        },
+        "Event",
+        articles=_schnitzel_ketchup_arts(),
+        currency="CHF",
+    )
+    text = raw.decode("cp858", errors="replace")
+    assert "+ Ketchup" in text
+    assert "9.00" in text
+    assert "0.50" not in text
 
 
 def test_station_receipt_custom_title_no_footer():

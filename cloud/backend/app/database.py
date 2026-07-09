@@ -34,6 +34,23 @@ def _add_column_if_missing(table: str, column: str, ddl_sqlite: str, ddl_other: 
         conn.execute(text(stmt))
 
 
+def _patch_article_label_length() -> None:
+    """Truncate article labels to 21 chars (station receipt bon text limit)."""
+    try:
+        inspector = inspect(engine)
+        if "articles" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    with engine.begin() as conn:
+        if engine.dialect.name == "sqlite":
+            conn.execute(text("UPDATE articles SET label = SUBSTR(label, 1, 21) WHERE LENGTH(label) > 21"))
+        else:
+            conn.execute(
+                text("UPDATE articles SET label = SUBSTRING(label FROM 1 FOR 21) WHERE char_length(label) > 21")
+            )
+
+
 def apply_schema_patches() -> None:
     """create_all() does not add columns to existing tables; patch known drift here."""
     _add_column_if_missing(
@@ -322,6 +339,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN tax_code_id INTEGER",
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS tax_code_id INTEGER",
     )
+    _patch_article_label_length()
     _patch_edge_order_item_fiscal_columns()
     _patch_edge_order_items_ordered_at()
     _patch_edge_operational_snapshot_tables()

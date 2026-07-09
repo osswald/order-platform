@@ -2,7 +2,7 @@
   <div>
     <h1>
       Kellner
-      <span v-if="isTest" class="test-pill">TESTBETRIEB</span>
+      <TestBetriebPill v-if="isTest" />
     </h1>
     <p class="muted">{{ event?.name }} · {{ waiter?.name }}</p>
 
@@ -61,15 +61,17 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { isAndroidApp } from '@/api'
+import TestBetriebPill from '@/components/TestBetriebPill.vue'
 import { useEventContext } from '@/composables/useEventContext'
 import { maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
 import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
+import { isEventTest } from '@/utils/eventStatus'
 
 const router = useRouter()
 const { event, waiter, setWaiter, selectedEventId } = useEventContext()
 const { failedCount, loadFailedJobs } = useStationPrintFailures()
 const androidApp = computed(() => isAndroidApp())
-const isTest = computed(() => String(event.value?.status ?? '').toLowerCase() === 'test')
+const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
 
 onMounted(() => {
   const eventId = selectedEventId.value
@@ -101,17 +103,6 @@ h1 {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-}
-.test-pill {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: #f59e0b;
-  color: #1c1917;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  vertical-align: middle;
 }
 .print-fail-banner {
   margin-top: 1rem;

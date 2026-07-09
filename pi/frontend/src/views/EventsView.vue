@@ -24,7 +24,10 @@
     <ul v-else class="event-list">
       <li v-for="e in events" :key="e.id">
         <button type="button" class="event-btn" @click="pick(e)">
-          <span class="event-name">{{ e.name }}</span>
+          <span class="event-name">
+            {{ e.name }}
+            <TestBetriebPill v-if="isEventTest(String(e.status ?? ''))" />
+          </span>
           <span class="muted">{{ e.currency }} · {{ paymentModeLabel(e.payment_mode) }} · {{ eventStatusLabel(String(e.status ?? '')) }}</span>
         </button>
       </li>
@@ -43,13 +46,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import TestBetriebPill from '@/components/TestBetriebPill.vue'
 import { useAdminSession } from '@/composables/useAdminSession'
 import { useBundle } from '@/composables/useBundle'
 import { useWaiterSession } from '@/composables/useWaiterSession'
 import { setRegisterSession } from '@/store'
 import type { EdgeBundleEvent } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { eventStatusLabel } from '@/utils/eventStatus'
+import { eventStatusLabel, isEventTest } from '@/utils/eventStatus'
 
 const router = useRouter()
 const loading = ref(false)
@@ -144,5 +148,9 @@ onMounted(() => {
 }
 .event-name {
   font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

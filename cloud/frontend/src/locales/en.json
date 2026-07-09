@@ -183,7 +183,9 @@
     "amountColumn": "Amount",
     "noIngredientsLinked": "No ingredients linked yet.",
     "saveIngredients": "Save ingredients",
-    "ingredientsSaved": "Ingredients saved."
+    "ingredientsSaved": "Ingredients saved.",
+    "labelCharCount": "{count}/21 characters",
+    "labelMaxLength": "Maximum 21 characters"
   },
   "ingredients": {
     "title": "Ingredients",

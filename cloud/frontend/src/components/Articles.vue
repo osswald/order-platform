@@ -20,6 +20,7 @@
           hide-details="auto"
           required
           :rules="[rules.required]"
+          @blur="onNameBlur"
         />
       </div>
 
@@ -27,7 +28,7 @@
         <v-text-field
           v-model="form.label"
           :label="$t('common.label')"
-          maxlength="22"
+          maxlength="21"
           :placeholder="$t('articles.labelPlaceholder')"
           hide-details="auto"
           required
@@ -354,6 +355,7 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation, organisationAccountsEnabled, organisationIngredientsEnabled } from '../utils/orgScope'
 import { filterArticleList } from '../utils/articleListFilters'
+import { labelFromNameIfEmpty } from '../utils/articleLabelFromName'
 import { articleListHeaders } from '../utils/orgScopedListTableHeaders'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
@@ -548,8 +550,12 @@ const formRef = ref(null)
 
 const labelRules = computed(() => [
   rules.required,
-  (v: string) => String(v || '').length <= 22 || t('articles.labelMaxLength'),
+  (v: string) => String(v || '').length <= 21 || t('articles.labelMaxLength'),
 ])
+
+function onNameBlur() {
+  form.value.label = labelFromNameIfEmpty(form.value.name, form.value.label)
+}
 
 const priceRules = computed(() => {
   const base = [rules.requiredNumber]

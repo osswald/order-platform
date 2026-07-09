@@ -83,6 +83,14 @@ def test_payment_receipt_escpos_accepts_paper_width(client):
     assert esc.json().get("escpos_payload")
 
 
+def test_payment_receipt_escpos_accepts_charset(client):
+    c, payment_id, _order_id = _pay_order(client)
+    esc = c.post(f"/v1/payments/{payment_id}/receipt", json={"reprint": True, "charset": "pc850"})
+    assert esc.status_code == 200, esc.text
+    raw = base64.b64decode(esc.json()["escpos_payload"])
+    assert raw[4] == 2
+
+
 def _pay_order(client):
     c, _ = client
     order = c.post(
