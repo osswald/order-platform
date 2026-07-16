@@ -74,7 +74,7 @@ jobs:
         run: git diff --exit-code cloud/frontend/openapi.json
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -118,7 +118,7 @@ jobs:
         run: git diff --exit-code pi/frontend/openapi.json
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
