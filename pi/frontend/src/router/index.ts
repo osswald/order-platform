@@ -163,6 +163,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, requiresRegister: true, fullscreen: true },
   },
   {
+    path: '/register/:registerUuid/pay/:orderId',
+    name: 'register-pay',
+    component: () => import('../views/RegisterPayView.vue'),
+    meta: { title: 'Kasse', requiresBundle: true, requiresEvent: true, requiresRegister: true, fullscreen: true },
+  },
+  {
     path: '/register/:registerUuid/display',
     name: 'register-display',
     component: () => import('../views/RegisterDisplayView.vue'),

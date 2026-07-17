@@ -130,6 +130,7 @@ import { useEventContext } from '@/composables/useEventContext'
 import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
 import { discountsEnabled as eventDiscountsEnabled, formatMoney } from '@/utils/money'
 import { getDefaultLayout, articlesForIds, hasAdditions, positionCommentPresets as bundlePositionCommentPresets, positionCommentsEnabled as bundlePositionCommentsEnabled, resolveStationUuidForArticle } from '@/utils/bundleHelpers'
+import { buildOrderPayloadLines, newClientOrderId, stockLinesFromPayloadLines } from '@/utils/orderSubmit'
 import OrderScreenHeader from '@/components/OrderScreenHeader.vue'
 import CartPanel from '@/components/CartPanel.vue'
 import EventLayoutGrid from '@/components/EventLayoutGrid.vue'
@@ -425,33 +426,12 @@ async function submitOrder() {
   if (!cartCount.value || !tableNumber.value || !event.value) return
   submitting.value = true
   try {
-    const client_order_id = `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-    const payloadLines: OrderLineIn[] = lines.value.map((l) => {
-      if (l.kind === 'voucher_sale') {
-        return {
-          kind: 'voucher_sale',
-          voucher_definition_uuid: l.voucher_definition_uuid,
-          qty: l.qty,
-          unit_cents: l.unit_cents,
-          note: '',
-          additions: [],
-        }
-      }
-      const row: OrderLineIn = {
-        article_id: l.article_id,
-        qty: l.qty,
-        station_uuid: l.station_uuid,
-        note: positionCommentsEnabled.value ? String(l.note || '').trim() : '',
-        additions: (l.additions || []).map((a) => ({
-          article_id: a.article_id,
-          qty: a.qty ?? 1,
-        })),
-      }
-      if (discountsEnabled.value && l.discount) row.discount = l.discount
-      return row
+    const payloadLines = buildOrderPayloadLines(lines.value, {
+      positionCommentsEnabled: positionCommentsEnabled.value,
+      discountsEnabled: discountsEnabled.value,
     })
     const body: LocalOrderCreate = {
-      client_order_id,
+      client_order_id: newClientOrderId(),
       event_id: event.value.id,
       table_number: tableNumber.value,
       waiter_uuid: waiter.value?.uuid ?? null,
@@ -462,13 +442,7 @@ async function submitOrder() {
     if (discountsEnabled.value && orderDiscount.value) {
       body.order_discount = orderDiscount.value
     }
-    const stockLines = payloadLines
-      .filter((l) => l.article_id != null && l.kind !== 'voucher_sale')
-      .map((l) => ({
-        article_id: l.article_id!,
-        qty: l.qty,
-        additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
-      }))
+    const stockLines = stockLinesFromPayloadLines(payloadLines)
     await refreshBundle()
     await validateCartStockBeforeSubmit(event.value.id, stockLines)
     const res = await api<LocalOrderCreatedResponse>('/v1/orders', {

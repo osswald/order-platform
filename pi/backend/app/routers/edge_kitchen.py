@@ -351,6 +351,11 @@ def print_kitchen_ticket_partial(
 
 def _pickup_order_response(order: LocalOrder) -> dict[str, Any]:
     payload = json.loads(order.payload_json)
+    # Prefer the item count snapshotted at creation: partial settlements move
+    # lines to paid orders, so the live line list can undercount.
+    item_count = payload.get("item_count")
+    if item_count is None:
+        item_count = sum(max(1, int(line.get("qty") or 1)) for line in payload.get("lines") or [] if isinstance(line, dict))
     return {
         "local_order_id": order.id,
         "client_order_id": order.client_order_id,
@@ -361,7 +366,7 @@ def _pickup_order_response(order: LocalOrder) -> dict[str, Any]:
         "order_number": payload.get("order_number"),
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "ready_at": order.ready_at.isoformat() if order.ready_at else payload.get("ready_at"),
-        "item_count": sum(max(1, int(line.get("qty") or 1)) for line in payload.get("lines") or [] if isinstance(line, dict)),
+        "item_count": int(item_count),
     }
 
 

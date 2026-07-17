@@ -361,6 +361,34 @@ class TablePartialSettleResponse(PartialSettleResponse):
     voucher_credit_cents: int = 0
 
 
+class OrderPartialSettleResponse(PartialSettleResponse):
+    remaining_cents: int
+    local_order_id: int
+    voucher_credit_cents: int = 0
+
+
+class OrderAssignCollectiveResponse(BaseModel):
+    collective_bill_id: int
+    collective_bill_uuid: str
+    name: str
+    local_order_id: int
+
+
+class RegisterOpenOrderRow(BaseModel):
+    local_order_id: int
+    client_order_id: str
+    pickup_code: str | None = None
+    total_cents: int
+    item_count: int
+    created_at: str | None = None
+
+
+class RegisterOpenOrdersResponse(BaseModel):
+    event_id: int
+    currency: str
+    orders: list[RegisterOpenOrderRow]
+
+
 class TransferLinesResponse(BaseModel):
     from_table: int
     target_table_number: int
