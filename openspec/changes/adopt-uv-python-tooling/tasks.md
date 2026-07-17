@@ -38,4 +38,4 @@
 
 - [x] 6.1 Update `AGENTS.md`, `README.md`, and `cloud/README.md`: install/test commands become `uv sync` / `uv run pytest`, lint prerequisites reference uv instead of `pip install ruff`; add one-line uv install instructions
 - [x] 6.2 Run `./scripts/lint.sh` and both backend test suites locally; confirm green
-- [ ] 6.3 Open PR and confirm all path-filtered CI jobs trigger and pass (backend tests, openapi-sync, pi-docker image build)
+- [x] 6.3 Open PR and confirm all path-filtered CI jobs trigger and pass (backend tests, openapi-sync, pi-docker image build)
