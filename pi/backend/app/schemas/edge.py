@@ -19,6 +19,7 @@ from .order_models import (
 )
 
 ReceiptPaperWidth = Literal["80mm", "58mm", "53mm"]
+ReceiptCharset = Literal["pc858", "pc850", "cp1252", "ascii"]
 
 
 # --- Request bodies ---
@@ -30,6 +31,21 @@ class VoucherRedemptionIn(BaseModel):
     note: str = ""
     qty: int = Field(1, ge=1)
     additions: list[LineAdditionIn] = Field(default_factory=list)
+
+
+class StockValidateLineIn(BaseModel):
+    article_id: int
+    qty: int = Field(..., ge=1)
+    additions: list[LineAdditionIn] = Field(default_factory=list)
+
+
+class StockValidateOrderIn(BaseModel):
+    event_id: int
+    lines: list[StockValidateLineIn] = Field(default_factory=list)
+
+
+class StockValidateOrderResponse(BaseModel):
+    ok: bool = True
 
 
 class LocalOrderCreate(BaseModel):
@@ -95,6 +111,7 @@ class CollectiveBillCreateBody(BaseModel):
 class PaymentReceiptBody(BaseModel):
     reprint: bool = False
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class PaymentReceiptPrintBody(BaseModel):
@@ -104,6 +121,7 @@ class PaymentReceiptPrintBody(BaseModel):
 class PrinterTestReceiptBody(BaseModel):
     event_id: int | None = None
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class PrinterTestStationPrintsBody(BaseModel):
@@ -179,6 +197,7 @@ class LocalOrderCreatedResponse(BaseModel):
     pickup_status: str | None = None
     payment_mode: str
     articles: dict[str, ArticleStockPatch] = Field(default_factory=dict)
+    ingredients: dict[str, ArticleStockPatch] = Field(default_factory=dict)
 
 
 class KitchenStationItem(BaseModel):
@@ -204,6 +223,15 @@ class KitchenStationsResponse(BaseModel):
 class KitchenTicketPrintResponse(BaseModel):
     print_job_id: int | None
     ticket_status: str
+
+
+class KitchenTicketPartialPrintLine(BaseModel):
+    line_id: int
+    qty: int = Field(..., ge=1)
+
+
+class KitchenTicketPartialPrintBody(BaseModel):
+    lines: list[KitchenTicketPartialPrintLine] = Field(..., min_length=1)
 
 
 class PickupOrderItem(BaseModel):
@@ -333,6 +361,34 @@ class TablePartialSettleResponse(PartialSettleResponse):
     voucher_credit_cents: int = 0
 
 
+class OrderPartialSettleResponse(PartialSettleResponse):
+    remaining_cents: int
+    local_order_id: int
+    voucher_credit_cents: int = 0
+
+
+class OrderAssignCollectiveResponse(BaseModel):
+    collective_bill_id: int
+    collective_bill_uuid: str
+    name: str
+    local_order_id: int
+
+
+class RegisterOpenOrderRow(BaseModel):
+    local_order_id: int
+    client_order_id: str
+    pickup_code: str | None = None
+    total_cents: int
+    item_count: int
+    created_at: str | None = None
+
+
+class RegisterOpenOrdersResponse(BaseModel):
+    event_id: int
+    currency: str
+    orders: list[RegisterOpenOrderRow]
+
+
 class TransferLinesResponse(BaseModel):
     from_table: int
     target_table_number: int
@@ -424,11 +480,13 @@ class ShiftSessionCloseBody(BaseModel):
     counted_cash_cents: int = Field(..., ge=0)
     station_uuid: str | None = None
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class ShiftSessionReceiptBody(BaseModel):
     counted_cash_cents: int | None = Field(None, ge=0)
     paper_width: ReceiptPaperWidth | None = None
+    charset: ReceiptCharset | None = None
 
 
 class ShiftSessionRead(BaseModel):

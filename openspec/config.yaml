@@ -1,0 +1,28 @@
+schema: spec-driven
+
+context: |
+  Vendiqo Order Platform — multi-tenant event/venue POS monorepo.
+  Tech stack: FastAPI + PostgreSQL (cloud backend), FastAPI + SQLite (pi backend),
+  Vue 3 / Vite / TypeScript (cloud frontend), Vue 3 PWA (pi frontend).
+  Conventions: branch from main, land via PR; write tests before code; run
+  ./scripts/lint.sh before committing; regenerate OpenAPI types when cloud
+  backend schemas change (see AGENTS.md).
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

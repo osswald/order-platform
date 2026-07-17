@@ -30,7 +30,11 @@ Optional: define voucher types and limits for the event.
 
 ## App layouts
 
-Choose which articles appear on which waiter layouts.
+Choose which articles appear on which waiter layouts. Per cell you can set label, **color**, articles, and optional vouchers.
+
+If the organisation maintains a **color palette (app layout)**, those colors appear as labeled quick picks when editing a cell. Otherwise pick a color freely with the color picker or hex field.
+
+How to manage the palette: help article **Set up organisation** → Color palette section.
 
 ## Receipts
 

@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 import { config } from '@vue/test-utils'
 import de from '../src/locales/de.json'
 import en from '../src/locales/en.json'
+import { datetimeFormats, numberFormats } from '../src/i18n/formats'
 
 function createStorage(): Storage {
   let data: Record<string, string> = {}
@@ -35,6 +36,8 @@ export const testI18n = createI18n({
   locale: 'de',
   fallbackLocale: 'de',
   messages: { de, en },
+  numberFormats,
+  datetimeFormats,
 })
 
 config.global.plugins = [testI18n]

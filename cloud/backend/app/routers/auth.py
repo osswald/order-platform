@@ -1,9 +1,10 @@
 import os
 from datetime import timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from ..auth_deps import get_current_user
@@ -37,6 +38,9 @@ from ..user_access import (
 
 router = APIRouter()
 
+ThemePreference = Literal["light", "dark", "system"]
+VALID_THEME_PREFERENCES = frozenset({"light", "dark", "system"})
+
 
 class HireCompanyBrief(BaseModel):
     id: int
@@ -64,6 +68,18 @@ class MeResponse(BaseModel):
     is_tenant_admin: bool = False
     is_organisation_admin: bool = False
     hire_companies: list[HireCompanyBrief] = []
+    theme_preference: ThemePreference = "system"
+
+
+class MeUpdate(BaseModel):
+    theme_preference: ThemePreference | None = None
+
+    @field_validator("theme_preference")
+    @classmethod
+    def validate_theme_preference(cls, value: str | None) -> str | None:
+        if value is not None and value not in VALID_THEME_PREFERENCES:
+            raise ValueError("invalid theme_preference")
+        return value
 
 
 def _token_for_user(user: User) -> dict:
@@ -75,6 +91,24 @@ def _token_for_user(user: User) -> dict:
         "is_tenant_admin": is_tenant_admin(user),
         "is_organisation_admin": is_organisation_admin(user),
     }
+
+
+def _theme_preference_for_user(user: User) -> ThemePreference:
+    pref = user.theme_preference or "system"
+    if pref not in VALID_THEME_PREFERENCES:
+        return "system"
+    return pref  # type: ignore[return-value]
+
+
+def _build_me_response(user: User, hire_companies: list[HireCompanyBrief]) -> MeResponse:
+    return MeResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        hire_companies=hire_companies,
+        theme_preference=_theme_preference_for_user(user),
+        **_token_for_user(user),
+    )
 
 
 def _refresh_cookie_params() -> dict:
@@ -153,18 +187,30 @@ def read_me(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MeResponse:
-    flags = _token_for_user(current_user)
     hire_companies: list[HireCompanyBrief] = []
     if is_platform_admin(current_user):
         rows = db.query(HireCompany).order_by(HireCompany.name).all()
         hire_companies = [HireCompanyBrief(id=c.id, name=c.name) for c in rows]
-    return MeResponse(
-        id=current_user.id,
-        email=current_user.email,
-        name=current_user.name,
-        hire_companies=hire_companies,
-        **flags,
-    )
+    return _build_me_response(current_user, hire_companies)
+
+
+@router.patch("/me", response_model=MeResponse)
+def update_me(
+    me_in: MeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MeResponse:
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise api_error("user_not_found", status.HTTP_404_NOT_FOUND)
+    if me_in.theme_preference is not None:
+        user.theme_preference = me_in.theme_preference
+        commit_or_raise(db)
+    hire_companies: list[HireCompanyBrief] = []
+    if is_platform_admin(user):
+        rows = db.query(HireCompany).order_by(HireCompany.name).all()
+        hire_companies = [HireCompanyBrief(id=c.id, name=c.name) for c in rows]
+    return _build_me_response(user, hire_companies)
 
 
 @router.post("/refresh", response_model=Token)

@@ -1,15 +1,65 @@
 """Articles API CRUD and addition links."""
 
+from datetime import UTC, datetime
+from types import SimpleNamespace
+
 from app.database import SessionLocal
 from app.main import app
-from app.models import ArticleCategory, HireCompany, Organisation, User
+from app.models import (
+    Appliance,
+    Article,
+    ArticleCategory,
+    EdgeOrderItem,
+    Event,
+    EventAppLayout,
+    EventAppLayoutCell,
+    EventStation,
+    HireCompany,
+    Organisation,
+    User,
+)
 from app.roles import ROLE_TENANT_ADMIN
+from app.routers.articles import article_minimal_response
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
 
 from tests.helpers import country_id_by_code
 
 client = TestClient(app)
+
+
+def test_article_minimal_response_allows_missing_category():
+    """Minimal responses must not fail when the category relation is absent."""
+    orphan = SimpleNamespace(
+        id=99,
+        name="Orphan",
+        label="ORPH",
+        is_addition=False,
+        is_active=True,
+        article_category=None,
+        article_category_id=None,
+    )
+    row = article_minimal_response(orphan)
+    assert row.id == 99
+    assert row.article_category_id is None
+    assert row.article_category_name == ""
+    assert row.organisation_id is None
+
+
+def test_article_minimal_response_keeps_category_id_when_relation_missing():
+    """If the FK is present but the related row is gone, keep the id."""
+    dangling = SimpleNamespace(
+        id=100,
+        name="Dangling",
+        label="DANG",
+        is_addition=False,
+        is_active=True,
+        article_category=None,
+        article_category_id=7,
+    )
+    row = article_minimal_response(dangling)
+    assert row.article_category_id == 7
+    assert row.article_category_name == ""
 
 
 def _seed_org_admin():
@@ -41,6 +91,48 @@ def _token() -> str:
     r = client.post("/auth/token", data={"username": "articles-admin@test.local", "password": "secret"})
     assert r.status_code == 200, r.text
     return r.json()["access_token"]
+
+
+def _article_setup():
+    org_id = _seed_org_admin()
+    token = _token()
+    headers = {"Authorization": f"Bearer {token}"}
+    db = SessionLocal()
+    try:
+        cat_id = db.query(ArticleCategory).filter(ArticleCategory.organisation_id == org_id).first().id
+        hc_id = db.query(Organisation).filter(Organisation.id == org_id).first().hire_company_id
+    finally:
+        db.close()
+    return headers, org_id, cat_id, hc_id
+
+
+def _create_article(headers, cat_id, *, name="Test", label="TST", is_addition=False):
+    created = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": name,
+            "label": label,
+            "price": 1.0,
+            "article_category_id": cat_id,
+            "is_addition": is_addition,
+        },
+    )
+    assert created.status_code == 200, created.text
+    return created.json()["id"]
+
+
+def _delete_article(headers, article_id):
+    return client.delete(f"/articles/{article_id}", headers=headers)
+
+
+def _assert_delete_blocked(resp, *fragments: str):
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert detail["code"] == "cannot_delete_article_in_use"
+    message = detail["message"]
+    for fragment in fragments:
+        assert fragment in message
 
 
 def test_articles_crud_and_addition_links():
@@ -111,9 +203,20 @@ def test_articles_crud_and_addition_links():
     minimal = client.get(f"/articles/?organisation_id={org_id}&minimal=true", headers=headers)
     assert minimal.status_code == 200, minimal.text
     cola = next(a for a in minimal.json() if a["id"] == base_id)
-    assert set(cola.keys()) == {"id", "name", "label", "organisation_id", "is_addition", "is_active"}
+    assert set(cola.keys()) == {
+        "id",
+        "name",
+        "label",
+        "organisation_id",
+        "is_addition",
+        "is_active",
+        "article_category_id",
+        "article_category_name",
+    }
     assert cola["name"] == "Cola"
     assert cola["organisation_id"] == org_id
+    assert cola["article_category_id"] == cat_id
+    assert cola["article_category_name"]
 
 
 def test_article_addition_links_round_trip_preselected():
@@ -315,3 +418,230 @@ def test_addition_links_preserve_inactive_zusatz():
     )
     assert relinked.status_code == 200
     assert relinked.json()["items"][0]["addition_article_id"] == add_id
+
+
+def test_delete_article_succeeds_when_unreferenced():
+    headers, _org_id, cat_id, _hc_id = _article_setup()
+    article_id = _create_article(headers, cat_id, name="Disposable", label="DIS")
+
+    resp = _delete_article(headers, article_id)
+    assert resp.status_code == 204, resp.text
+
+    listed = client.get("/articles/", headers=headers)
+    assert listed.status_code == 200
+    assert article_id not in {a["id"] for a in listed.json()}
+
+
+def test_delete_article_blocked_when_used_as_addition():
+    headers, _org_id, cat_id, _hc_id = _article_setup()
+    base_id = _create_article(headers, cat_id, name="Burger", label="BURG")
+    add_id = _create_article(headers, cat_id, name="Cheese", label="CHZ", is_addition=True)
+
+    links = client.put(
+        f"/articles/{base_id}/additions",
+        headers=headers,
+        json={"items": [{"addition_article_id": add_id, "sort_order": 0}]},
+    )
+    assert links.status_code == 200, links.text
+
+    _assert_delete_blocked(
+        _delete_article(headers, add_id),
+        "Zusatz an anderen Artikeln",
+    )
+
+
+def test_delete_article_blocked_when_on_station():
+    headers, org_id, cat_id, hc_id = _article_setup()
+    article_id = _create_article(headers, cat_id, name="Beer", label="BEER")
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(UTC)
+        event = Event(
+            name="Fest",
+            status="config",
+            start=now,
+            end=now,
+            organisation_id=org_id,
+            payment_mode="pay_later",
+            payment_types=["cash"],
+        )
+        db.add(event)
+        db.flush()
+        station = EventStation(event_id=event.id, name="Bar", sort_order=0)
+        article = db.query(Article).filter(Article.id == article_id).first()
+        station.articles.append(article)
+        db.add(station)
+        db.commit()
+    finally:
+        db.close()
+
+    _assert_delete_blocked(
+        _delete_article(headers, article_id),
+        "auf Stationen",
+    )
+
+
+def test_delete_article_blocked_when_on_layout_cell():
+    headers, org_id, cat_id, _hc_id = _article_setup()
+    article_id = _create_article(headers, cat_id, name="Cola", label="COLA")
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(UTC)
+        event = Event(
+            name="Fest",
+            status="config",
+            start=now,
+            end=now,
+            organisation_id=org_id,
+            payment_mode="pay_later",
+            payment_types=["cash"],
+        )
+        db.add(event)
+        db.flush()
+        layout = EventAppLayout(event_id=event.id, name="Main", is_default=True, grid_width=2, grid_height=2)
+        db.add(layout)
+        db.flush()
+        cell = EventAppLayoutCell(layout_id=layout.id, row=0, col=0, label="Cola", color="#fff")
+        article = db.query(Article).filter(Article.id == article_id).first()
+        cell.articles.append(article)
+        db.add(cell)
+        db.commit()
+    finally:
+        db.close()
+
+    _assert_delete_blocked(
+        _delete_article(headers, article_id),
+        "App-Layouts",
+    )
+
+
+def test_delete_article_blocked_when_in_stats():
+    headers, org_id, cat_id, hc_id = _article_setup()
+    article_id = _create_article(headers, cat_id, name="Wine", label="WINE")
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(UTC)
+        event = Event(
+            name="Fest",
+            status="prod",
+            start=now,
+            end=now,
+            organisation_id=org_id,
+            payment_mode="pay_later",
+            payment_types=["cash"],
+        )
+        db.add(event)
+        db.flush()
+        appliance = Appliance(hire_company_id=hc_id, type="pos", name="Pi")
+        db.add(appliance)
+        db.flush()
+        db.add(
+            EdgeOrderItem(
+                organisation_id=org_id,
+                appliance_id=appliance.id,
+                event_id=event.id,
+                session_id=1,
+                submission_id=1,
+                article_id=article_id,
+                article_name="Wine",
+                quantity=1,
+                unit_price_cents=500,
+                line_total_cents=500,
+                payment_status="paid",
+                method="cash",
+                ordered_at=now,
+                payload={},
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    _assert_delete_blocked(
+        _delete_article(headers, article_id),
+        "Statistiken",
+    )
+
+
+def test_delete_article_blocked_lists_multiple_reasons():
+    headers, org_id, cat_id, hc_id = _article_setup()
+    article_id = _create_article(headers, cat_id, name="Combo", label="COMBO")
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(UTC)
+        event = Event(
+            name="Fest",
+            status="prod",
+            start=now,
+            end=now,
+            organisation_id=org_id,
+            payment_mode="pay_later",
+            payment_types=["cash"],
+        )
+        db.add(event)
+        db.flush()
+        station = EventStation(event_id=event.id, name="Bar", sort_order=0)
+        article = db.query(Article).filter(Article.id == article_id).first()
+        station.articles.append(article)
+        db.add(station)
+        appliance = Appliance(hire_company_id=hc_id, type="pos", name="Pi")
+        db.add(appliance)
+        db.flush()
+        db.add(
+            EdgeOrderItem(
+                organisation_id=org_id,
+                appliance_id=appliance.id,
+                event_id=event.id,
+                session_id=1,
+                submission_id=1,
+                article_id=article_id,
+                article_name="Combo",
+                quantity=1,
+                unit_price_cents=500,
+                line_total_cents=500,
+                payment_status="paid",
+                method="cash",
+                ordered_at=now,
+                payload={},
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    _assert_delete_blocked(
+        _delete_article(headers, article_id),
+        "auf Stationen",
+        "Statistiken",
+    )
+
+
+def test_article_label_max_length_21():
+    headers, _, cat_id, _ = _article_setup()
+    ok = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Long catalog name",
+            "label": "1" * 21,
+            "price": 1.0,
+            "article_category_id": cat_id,
+        },
+    )
+    assert ok.status_code == 200, ok.text
+
+    too_long = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Another",
+            "label": "2" * 22,
+            "price": 1.0,
+            "article_category_id": cat_id,
+        },
+    )
+    assert too_long.status_code == 422, too_long.text

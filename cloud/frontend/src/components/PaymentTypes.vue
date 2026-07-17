@@ -66,7 +66,7 @@
         hover
         :no-data-text="$t('paymentTypes.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => openDetail(item)"
+        @click:row="onPaymentTypeRowClick"
       >
         <template #item.label="{ item }">
           {{ paymentTypeLabel(item.slug) }}
@@ -207,6 +207,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onPaymentTypeRowClick(_event: Event, { item }: { item: PaymentTypeRead }) {
+  openDetail(item)
 }
 
 function openDetail(item: PaymentTypeRead) {

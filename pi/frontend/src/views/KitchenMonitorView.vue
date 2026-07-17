@@ -1,93 +1,43 @@
 <template>
   <div class="kitchen-monitor">
-    <header class="kitchen-header">
-      <div>
-        <h1>Kitchen Monitor</h1>
-        <p class="muted">{{ event?.name || 'Event' }}</p>
-      </div>
-      <RouterLink class="btn small-btn" :to="{ name: waiter ? 'hub' : 'events' }">
-        Zurück
-      </RouterLink>
-    </header>
-
     <section v-if="!kitchenPrinters.length" class="card">
-      <p>Für dieses Event ist kein Kitchen Monitor aktiv.</p>
+      <p>Für dieses Event ist kein Küchenmonitor aktiv.</p>
       <button type="button" class="btn" @click="router.push({ name: 'events' })">Event wechseln</button>
     </section>
 
-    <template v-else>
-      <div v-if="kitchenPrinters.length > 1" class="station-tabs">
-        <button
-          v-for="printer in kitchenPrinters"
-          :key="printer.printer_appliance_id"
-          type="button"
-          class="station-tab"
-          :class="{ active: printer.printer_appliance_id === selectedPrinterId }"
-          @click="selectPrinter(printer.printer_appliance_id)"
-        >
-          {{ printer.label }}
-        </button>
-      </div>
+    <section v-else-if="unknownPrinterSlug" class="card">
+      <p>Unbekannte Küchenmonitor-Station.</p>
+      <p class="muted">URL-Segment: {{ printerSlug }}</p>
+    </section>
 
-      <div class="toolbar">
-        <div>
-          <strong>{{ selectedPrinter?.label }}</strong>
-          <span class="muted"> · {{ orders.length }} offen</span>
-        </div>
-        <button type="button" class="btn small-btn" :disabled="loading" @click="loadOrders">
-          Aktualisieren
-        </button>
-      </div>
+    <template v-else>
+      <KitchenMonitorHeader
+        :station-label="selectedPrinter?.label || 'Küchenmonitor'"
+        :event-name="event?.name || 'Event'"
+        :view-mode="viewMode"
+        :loading="loading"
+        :show-additions="showAdditions"
+        @set-view-mode="setViewMode"
+        @set-show-additions="setShowAdditions"
+        @refresh="loadOrders"
+      />
 
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="loading && !orders.length" class="muted">Laden…</p>
-      <p v-else-if="!orders.length" class="empty">Keine offenen Bestellungen.</p>
 
-      <div class="ticket-grid">
-        <article
-          v-for="ticket in orders"
-          :key="ticket.id"
-          class="ticket-card"
-          :class="{ busy: busyTicketId === ticket.id }"
-          @click="printTicket(ticket)"
-        >
-          <div class="ticket-top">
-            <div>
-              <div class="ticket-title">
-                Bestellung #{{ ticket.order_number || ticket.id }}
-              </div>
-              <div class="muted">
-                <template v-if="ticket.pickup_code">Pickup {{ ticket.pickup_code }}</template>
-                <template v-else>Tisch {{ ticket.table_number || '—' }}</template>
-                <span v-if="ticket.waiter_name"> · {{ ticket.waiter_name }}</span>
-              </div>
-            </div>
-            <span class="ticket-status">{{ ticket.status }}</span>
-          </div>
+      <div class="kitchen-body" :class="{ 'kitchen-body--products': viewMode === 'products' }">
+        <KitchenOrderColumns
+          v-if="viewMode === 'orders'"
+          :orders="orders"
+          :event="event"
+          :busy-ticket-id="busyTicketId"
+          :selected-qty="lineSelection.selectedQty"
+          @cycle-line="lineSelection.cycleLine"
+          @partial-print="onPartialPrint"
+          @complete-print="onCompletePrint"
+        />
 
-          <ul class="line-list">
-            <li v-for="line in ticket.lines" :key="line.id" class="line-row">
-              <div class="line-main">
-                <strong>{{ line.qty_remaining }}x {{ ticketLineName(line) }}</strong>
-                <span v-if="line.line.note" class="line-note">{{ line.line.note }}</span>
-                <span v-if="ticketAdditionText(line)" class="muted">{{ ticketAdditionText(line) }}</span>
-                <span v-if="line.qty_printed" class="muted">
-                  {{ line.qty_printed }}/{{ line.qty_total }} gedruckt
-                </span>
-              </div>
-              <button
-                type="button"
-                class="unit-btn"
-                :disabled="busyLineId === line.id || busyTicketId === ticket.id"
-                @click.stop="printLineUnit(ticket, line)"
-              >
-                1 fertig
-              </button>
-            </li>
-          </ul>
-
-          <p class="tap-hint">Antippen druckt alle übrigen Einheiten sofort.</p>
-        </article>
+        <KitchenProductList v-else :summary="productSummary" :show-additions="showAdditions" />
       </div>
     </template>
   </div>
@@ -95,331 +45,178 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { api } from '@/api'
+import { useRoute, useRouter } from 'vue-router'
+import KitchenMonitorHeader from '@/components/kitchen/KitchenMonitorHeader.vue'
+import KitchenOrderColumns from '@/components/kitchen/KitchenOrderColumns.vue'
+import KitchenProductList from '@/components/kitchen/KitchenProductList.vue'
 import { useEventContext } from '@/composables/useEventContext'
-import type {
-  KitchenOrderTicket,
-  KitchenOrdersResponse,
-  KitchenTicketLineEntry,
-  LineAdditionIn,
-  OrderLineIn,
-} from '@/types/api'
-import { getErrorMessage } from '@/types/api'
+import { useKitchenLineSelection } from '@/composables/useKitchenLineSelection'
+import { useKitchenMonitor } from '@/composables/useKitchenMonitor'
+import type { KitchenOrderTicket } from '@/types/api'
+import { buildKitchenProductSummary } from '@/utils/kitchenProductSummary'
+import {
+  kitchenViewModeFromSlug,
+  kitchenViewSlugFromMode,
+  type KitchenMonitorViewMode,
+} from '@/utils/kitchenMonitorViewSlug'
 
 const router = useRouter()
-const { event, waiter } = useEventContext()
+const route = useRoute()
+const { event } = useEventContext()
 
-interface KitchenPrinterTab {
-  printer_appliance_id: number
-  label: string
-  sort_order: number
-}
+const printerSlug = computed(() => String(route.params.printerSlug || ''))
 
-const kitchenPrinters = computed((): KitchenPrinterTab[] => {
-  const ev = event.value
-  if (!ev?.kitchen_monitors_enabled) return []
-  const rows = ev?.configuration?.kitchen_monitors || []
-  return rows
-    .map((row) => ({
-      printer_appliance_id: Number(row.printer_appliance_id),
-      label: String(row.label || `Drucker #${row.printer_appliance_id}`),
-      sort_order: Number(row.sort_order) || 0,
-    }))
-    .filter((row) => Number.isFinite(row.printer_appliance_id))
-    .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label))
-})
-
-const selectedPrinterId = ref<number | null>(null)
-const orders = ref<KitchenOrderTicket[]>([])
-const loading = ref(false)
-const error = ref('')
-const busyTicketId = ref<number | null>(null)
-const busyLineId = ref<number | null>(null)
-let pollTimer: ReturnType<typeof setInterval> | null = null
-
-const selectedPrinter = computed(() =>
-  kitchenPrinters.value.find((row) => row.printer_appliance_id === selectedPrinterId.value)
-    || kitchenPrinters.value[0]
-    || null,
-)
-
-function storageKey() {
-  return `pi_kitchen_printer_${event.value?.id || 'none'}`
-}
-
-function restorePrinter() {
-  const printers = kitchenPrinters.value
-  if (!printers.length) {
-    selectedPrinterId.value = null
-    return
-  }
-  let saved = ''
-  try {
-    saved = localStorage.getItem(storageKey()) || ''
-  } catch {
-    saved = ''
-  }
-  const savedId = Number(saved)
-  const match = printers.find((row) => row.printer_appliance_id === savedId)
-  selectedPrinterId.value = (match || printers[0]).printer_appliance_id
-}
-
-function selectPrinter(printerId: number) {
-  selectedPrinterId.value = Number(printerId)
-  try {
-    localStorage.setItem(storageKey(), String(printerId))
-  } catch {
-    /* ignore private mode */
-  }
-  loadOrders()
-}
-
-function lineName(line: OrderLineIn & { article_name?: string }) {
-  if (line?.article_name) return line.article_name
-  const aid = line?.article_id
-  if (aid == null) return `#?`
-  const article = event.value?.articles?.[String(aid)] || event.value?.articles?.[aid]
-  return article?.name || `#${aid}`
-}
-
-function ticketLineName(entry: KitchenTicketLineEntry) {
-  return lineName(entry.line as OrderLineIn & { article_name?: string })
-}
-
-function ticketAdditionText(entry: KitchenTicketLineEntry) {
-  return additionText(entry.line as OrderLineIn)
-}
-
-function additionText(line: OrderLineIn) {
-  const additions = (line?.additions || []) as LineAdditionIn[]
-  if (!additions.length) return ''
-  return additions
-    .map((add) => {
-      const id = Number(add.article_id)
-      const article = event.value?.articles?.[String(id)] || event.value?.articles?.[id]
-      const name = add.name || article?.name || `#${id}`
-      return `+ ${Math.max(1, Number(add.qty) || 1)}x ${name}`
-    })
-    .join(', ')
-}
-
-async function loadOrders() {
-  const ev = event.value
-  const printerId = selectedPrinterId.value
-  if (!ev?.id || printerId == null) {
-    orders.value = []
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    const data = await api<KitchenOrdersResponse>(
-      `/v1/kitchen/orders?event_id=${encodeURIComponent(ev.id)}&printer_appliance_id=${encodeURIComponent(printerId)}`,
-    )
-    orders.value = data?.orders || []
-  } catch (e: unknown) {
-    error.value = getErrorMessage(e, 'Kitchen Monitor konnte nicht geladen werden.')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function printTicket(ticket: KitchenOrderTicket) {
-  if (busyTicketId.value || busyLineId.value) return
-  busyTicketId.value = ticket.id
-  error.value = ''
-  try {
-    await api(`/v1/kitchen/tickets/${ticket.id}/print`, { method: 'POST' })
-    await loadOrders()
-  } catch (e: unknown) {
-    error.value = getErrorMessage(e, 'Drucken fehlgeschlagen.')
-  } finally {
-    busyTicketId.value = null
-  }
-}
-
-async function printLineUnit(ticket: KitchenOrderTicket, line: KitchenTicketLineEntry) {
-  if (busyTicketId.value || busyLineId.value) return
-  busyLineId.value = line.id
-  error.value = ''
-  try {
-    await api(`/v1/kitchen/tickets/${ticket.id}/lines/${line.id}/print-one`, { method: 'POST' })
-    await loadOrders()
-  } catch (e: unknown) {
-    error.value = getErrorMessage(e, 'Drucken fehlgeschlagen.')
-  } finally {
-    busyLineId.value = null
-  }
-}
-
-function startPolling() {
-  if (pollTimer) clearInterval(pollTimer)
-  pollTimer = setInterval(() => {
-    if (document.visibilityState === 'visible' && !busyTicketId.value && !busyLineId.value) {
-      loadOrders()
-    }
-  }, 5000)
-}
-
-watch(kitchenPrinters, restorePrinter, { immediate: true })
-watch(selectedPrinterId, () => {
-  loadOrders()
-})
+const {
+  kitchenPrinters,
+  selectedPrinter,
+  unknownPrinterSlug,
+  orders,
+  loading,
+  error,
+  busyTicketId,
+  loadOrders,
+  printComplete,
+  printPartial,
+  startPolling,
+  stopPolling,
+} = useKitchenMonitor({ event, printerSlug })
 
 onMounted(() => {
-  loadOrders()
+  void loadOrders()
   startPolling()
+  if (!viewModeMatchesRoute(viewMode.value)) {
+    syncViewToRoute(viewMode.value)
+  }
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  stopPolling()
 })
+
+const lineSelection = useKitchenLineSelection()
+
+const viewMode = ref<KitchenMonitorViewMode>(resolveViewMode())
+const showAdditions = ref(readShowAdditions())
+
+function viewStorageKey() {
+  return `pi_kitchen_view_${event.value?.id || 'none'}_${printerSlug.value || 'none'}`
+}
+
+function additionsStorageKey() {
+  return `pi_kitchen_show_additions_${event.value?.id || 'none'}_${printerSlug.value || 'none'}`
+}
+
+function readViewModeFromStorage(): KitchenMonitorViewMode {
+  try {
+    const saved = localStorage.getItem(viewStorageKey())
+    return saved === 'products' ? 'products' : 'orders'
+  } catch {
+    return 'orders'
+  }
+}
+
+function resolveViewMode(): KitchenMonitorViewMode {
+  const routeView = String(route.params.view || '')
+  if (routeView) return kitchenViewModeFromSlug(routeView)
+  return readViewModeFromStorage()
+}
+
+function readShowAdditions(): boolean {
+  try {
+    return localStorage.getItem(additionsStorageKey()) !== '0'
+  } catch {
+    return true
+  }
+}
+
+function syncViewToRoute(mode: KitchenMonitorViewMode) {
+  const nextView = kitchenViewSlugFromMode(mode)
+  if (String(route.params.view || '') === nextView) return
+  if (!route.params.view && mode === 'orders') return
+  void router.replace({
+    name: 'kitchen',
+    params: {
+      printerSlug: printerSlug.value,
+      view: nextView,
+    },
+  })
+}
+
+function viewModeMatchesRoute(mode: KitchenMonitorViewMode): boolean {
+  const slug = String(route.params.view || '')
+  if (!slug) return mode === 'orders'
+  return kitchenViewModeFromSlug(slug) === mode
+}
+
+function setViewMode(mode: KitchenMonitorViewMode) {
+  viewMode.value = mode
+  try {
+    localStorage.setItem(viewStorageKey(), mode)
+  } catch {
+    /* ignore */
+  }
+  syncViewToRoute(mode)
+}
+
+function setShowAdditions(value: boolean) {
+  showAdditions.value = value
+  try {
+    localStorage.setItem(additionsStorageKey(), value ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
+
+watch(
+  () => [route.params.view, event.value?.id, printerSlug.value] as const,
+  () => {
+    viewMode.value = resolveViewMode()
+    showAdditions.value = readShowAdditions()
+  },
+)
+
+const productSummary = computed(() => buildKitchenProductSummary(orders.value, event.value))
+
+watch(
+  orders,
+  (rows) => {
+    const allLines = rows.flatMap((ticket) => ticket.lines || [])
+    lineSelection.reconcileLines(allLines)
+  },
+  { deep: true },
+)
+
+async function onPartialPrint(ticket: KitchenOrderTicket) {
+  const payload = lineSelection.payloadForTicket(ticket)
+  await printPartial(ticket, payload)
+  lineSelection.clearTicket(ticket)
+}
+
+async function onCompletePrint(ticket: KitchenOrderTicket) {
+  await printComplete(ticket)
+  lineSelection.clearTicket(ticket)
+}
 </script>
 
 <style scoped>
 .kitchen-monitor {
-  min-height: 100vh;
-  padding: 0.75rem 1rem 1rem;
-}
-
-.kitchen-header,
-.toolbar,
-.ticket-top,
-.line-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.kitchen-header {
-  margin-bottom: 1rem;
-}
-
-.kitchen-header h1 {
-  margin-bottom: 0.15rem;
-}
-
-.small-btn {
-  min-height: 38px;
-  padding: 0.45rem 0.75rem;
-}
-
-.station-tabs {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.station-tab {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--text);
-  padding: 0.65rem 1rem;
-  font: inherit;
-  white-space: nowrap;
-}
-
-.station-tab.active {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: white;
-}
-
-.toolbar {
-  margin-bottom: 0.75rem;
-}
-
-.empty {
-  text-align: center;
-  color: var(--muted);
-  margin-top: 3rem;
-  font-size: 1.2rem;
-}
-
-.ticket-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 280px));
-  justify-content: start;
-  gap: 0.85rem;
-}
-
-.ticket-card {
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: var(--card);
-  padding: 1rem;
-  cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.ticket-card:active {
-  transform: scale(0.99);
-}
-
-.ticket-card.busy {
-  opacity: 0.65;
-  pointer-events: none;
-}
-
-.ticket-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-}
-
-.ticket-status {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.25rem 0.55rem;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-}
-
-.line-list {
-  list-style: none;
-  margin: 1rem 0 0;
-  padding: 0;
-}
-
-.line-row {
-  align-items: flex-start;
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--border);
-}
-
-.line-main {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
+  box-sizing: border-box;
+  height: 100dvh;
+  padding: 0.25rem;
+  overflow: hidden;
 }
 
-.line-note {
-  color: #fbbf24;
+.kitchen-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-.unit-btn {
-  border: none;
-  border-radius: 0.75rem;
-  background: var(--primary);
-  color: white;
-  padding: 0.65rem 0.75rem;
-  font: inherit;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.unit-btn:disabled {
-  opacity: 0.6;
-}
-
-.tap-hint {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-  color: var(--muted);
+.kitchen-body--products {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 </style>

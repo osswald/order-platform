@@ -108,6 +108,10 @@
             />
           </template>
 
+          <template #farbpalette>
+            <OrganisationColorPaletteSection :organisation-id="activeId" />
+          </template>
+
           <template #buchhaltung>
             <OrganisationAccountingSection
               :organisation-id="activeId"
@@ -117,6 +121,10 @@
 
           <template #positionen>
             <OrganisationPositionCommentsSection :organisation-id="activeId" />
+          </template>
+
+          <template #zutaten>
+            <OrganisationIngredientsSection :organisation-id="activeId" />
           </template>
         </SectionNavLayout>
 
@@ -196,7 +204,7 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editOrganisation(item)"
+        @click:row="onOrganisationRowClick"
       >
         <template #item.location="{ item }">
           {{ item.address || $t('common.emDash') }}<span v-if="item.city"> · {{ item.city }}</span>
@@ -228,9 +236,12 @@ import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import OrganisationPositionCommentsSection from './OrganisationPositionCommentsSection.vue'
+import OrganisationIngredientsSection from './OrganisationIngredientsSection.vue'
+import OrganisationColorPaletteSection from './OrganisationColorPaletteSection.vue'
 import SectionNavLayout from './SectionNavLayout.vue'
 import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
+import { useSectionQuerySync } from '../composables/useSectionQuerySync'
 import { validateForm } from '../utils/formRules.js'
 import {
   cancelPlannedLending,
@@ -297,7 +308,9 @@ const configSections = computed((): SectionNavSection[] => {
     { id: 'geraete', title: t('organisations.config.sectionGeraete') },
     { id: 'stripe', title: t('organisations.config.sectionStripe') },
     { id: 'belegvorlagen', title: t('organisations.config.sectionBelegvorlagen') },
+    { id: 'farbpalette', title: t('organisations.config.sectionColorPalette') },
     { id: 'positionen', title: t('organisations.config.sectionPositionen') },
+    { id: 'zutaten', title: t('organisations.config.sectionZutaten') },
     { id: 'buchhaltung', title: t('organisations.config.sectionBuchhaltung') },
   ]
 })
@@ -311,6 +324,10 @@ watch(
   },
   { immediate: true },
 )
+
+useSectionQuerySync(activeConfigTab, configSections, {
+  enabled: () => editMode.value && !!activeId.value,
+})
 
 const userFilterOptions = computed(() => [
   { value: '', label: t('common.all') },
@@ -497,6 +514,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onOrganisationRowClick(_event: Event, { item }: { item: OrganisationRead }) {
+  editOrganisation(item)
 }
 
 function editOrganisation(org: OrganisationRead) {

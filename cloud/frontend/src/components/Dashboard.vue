@@ -80,6 +80,15 @@
         </RouterLink>
       </div>
 
+      <DashboardOnboardingCard
+        v-if="summary.onboarding && activeOrganisationId != null"
+        :organisation-id="activeOrganisationId"
+        :onboarding="summary.onboarding"
+        :can-access-organisation-settings="canAccessOrganisationSettings"
+        @dismissed="reload"
+        @updated="reload"
+      />
+
       <div class="content-section">
         <div class="section-card">
           <h2>{{ $t('dashboard.eventsByStatus') }}</h2>
@@ -113,7 +122,7 @@
                 <v-icon
                   :icon="attentionIcon(item.type)"
                   size="small"
-                  color="white"
+                  class="activity-badge-icon"
                 />
               </span>
               <div class="activity-text">
@@ -139,15 +148,15 @@
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ $t('dashboard.salesLineItems') }}</span>
-            <span class="summary-value">{{ formatAmount(summary.sales.totals.line_cents) }} {{ summary.sales.currency }}</span>
+            <span class="summary-value">{{ formatMoney(summary.sales.totals.line_cents, summary.sales.currency, summary.sales.country_code) }}</span>
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ $t('dashboard.salesPaid') }}</span>
-            <span class="summary-value">{{ formatAmount(summary.sales.totals.paid_cents) }} {{ summary.sales.currency }}</span>
+            <span class="summary-value">{{ formatMoney(summary.sales.totals.paid_cents, summary.sales.currency, summary.sales.country_code) }}</span>
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ $t('dashboard.salesOpen') }}</span>
-            <span class="summary-value">{{ formatAmount(summary.sales.totals.open_cents) }} {{ summary.sales.currency }}</span>
+            <span class="summary-value">{{ formatMoney(summary.sales.totals.open_cents, summary.sales.currency, summary.sales.country_code) }}</span>
           </div>
         </div>
 
@@ -163,8 +172,8 @@
         >
           <template #item.period="{ item }">{{ formatEventDateRange(item.start, item.end) }}</template>
           <template #item.distinct_orders_count="{ item }">{{ item.distinct_orders_count }}</template>
-          <template #item.line_cents="{ item }">{{ formatAmount(item.line_cents) }}</template>
-          <template #item.open_cents="{ item }">{{ formatAmount(item.open_cents) }}</template>
+          <template #item.line_cents="{ item }">{{ formatMoney(item.line_cents, summary.sales.currency, summary.sales.country_code) }}</template>
+          <template #item.open_cents="{ item }">{{ formatMoney(item.open_cents, summary.sales.currency, summary.sales.country_code) }}</template>
         </VqDataTable>
       </div>
     </template>
@@ -178,8 +187,9 @@ import { RouterLink } from 'vue-router'
 import { useDashboardSummary } from '../composables/useDashboardSummary'
 import { attentionMessage, eventsStatDetail, formatEventDateRange, statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
-import { formatAmount } from '../utils/money'
+import { formatMoney } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
+import DashboardOnboardingCard from './DashboardOnboardingCard.vue'
 
 const { t } = useI18n()
 
@@ -188,10 +198,18 @@ import type { DataTableHeader } from '@/types/vuetify'
 const props = withDefaults(
   defineProps<{
     activeOrganisationId?: number | null
+    canAccessTenantAdmin?: boolean
+    isOrganisationAdmin?: boolean
   }>(),
   {
     activeOrganisationId: null,
+    canAccessTenantAdmin: false,
+    isOrganisationAdmin: false,
   },
+)
+
+const canAccessOrganisationSettings = computed(
+  () => props.canAccessTenantAdmin || props.isOrganisationAdmin,
 )
 
 const salesEventHeaders = computed((): DataTableHeader[] => [
@@ -419,8 +437,16 @@ function attentionIcon(type: string) {
   background: rgb(var(--v-theme-primary));
 }
 
+.activity-badge.info .activity-badge-icon {
+  color: rgb(var(--v-theme-on-primary));
+}
+
 .activity-badge.warn {
   background: rgb(var(--v-theme-warning));
+}
+
+.activity-badge.warn .activity-badge-icon {
+  color: rgb(var(--v-theme-on-warning));
 }
 
 .activity-text {

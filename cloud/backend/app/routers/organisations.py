@@ -10,8 +10,10 @@ from ..dashboard_summary import build_organisation_dashboard_summary
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
-from ..models import ApplianceLending, Event, HireCompany, Organisation, User
+from ..models import ApplianceLending, Event, HireCompany, Organisation, User, UserOrganisationOnboardingDismissal
+from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..reference_countries import country_response, get_country_or_404
+from ..schemas.dashboard import DashboardSummaryRead
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
 from ..tenancy import (
     TenantContext,
@@ -66,6 +68,7 @@ class OrganisationUpdate(BaseModel):
     default_tax_code_id: int | None = None
     accounts_enabled: bool | None = None
     position_comments_enabled: bool | None = None
+    ingredients_enabled: bool | None = None
 
 
 class TaxCodeSummaryRead(BaseModel):
@@ -85,6 +88,7 @@ class OrganisationRead(OrganisationBase):
     default_tax_code: TaxCodeSummaryRead | None = None
     accounts_enabled: bool = False
     position_comments_enabled: bool = False
+    ingredients_enabled: bool = False
 
 
 class OrgApplianceLendingItem(BaseModel):
@@ -122,6 +126,7 @@ def organisation_response(org: Organisation) -> dict:
         "default_tax_code": default_tax_code,
         "accounts_enabled": bool(org.accounts_enabled),
         "position_comments_enabled": bool(org.position_comments_enabled),
+        "ingredients_enabled": bool(org.ingredients_enabled),
     }
 
 
@@ -189,7 +194,7 @@ def read_organisation_appliance_lendings(
     return OrganisationApplianceLendingsRead(current=current, planned=planned, past=past)
 
 
-@router.get("/{organisation_id}/dashboard-summary")
+@router.get("/{organisation_id}/dashboard-summary", response_model=DashboardSummaryRead)
 def read_organisation_dashboard_summary(
     organisation_id: int,
     db: Session = Depends(get_db),
@@ -203,7 +208,81 @@ def read_organisation_dashboard_summary(
         .order_by(Event.start.desc())
         .all()
     )
-    return build_organisation_dashboard_summary(db, organisation.id, organisation.name, events)
+    return build_organisation_dashboard_summary(db, organisation, events, user_id=current_user.id)
+
+
+@router.post(
+    "/{organisation_id}/onboarding/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def dismiss_organisation_onboarding(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    existing = (
+        db.query(UserOrganisationOnboardingDismissal)
+        .filter(
+            UserOrganisationOnboardingDismissal.user_id == current_user.id,
+            UserOrganisationOnboardingDismissal.organisation_id == organisation_id,
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(
+            UserOrganisationOnboardingDismissal(
+                user_id=current_user.id,
+                organisation_id=organisation_id,
+            )
+        )
+        commit_or_raise(db)
+    return None
+
+
+@router.post(
+    "/{organisation_id}/onboarding/tasks/{task_id}/complete",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def complete_organisation_onboarding_task(
+    organisation_id: int,
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    complete_onboarding_task(
+        db,
+        user_id=current_user.id,
+        organisation_id=organisation_id,
+        task_id=task_id,
+    )
+    commit_or_raise(db)
+    return None
+
+
+@router.post(
+    "/{organisation_id}/onboarding/tasks/{task_id}/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def dismiss_organisation_onboarding_task(
+    organisation_id: int,
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    ensure_user_can_use_organisation(db, current_user, organisation_id, tenant.hire_company_id)
+    dismiss_onboarding_task(
+        db,
+        user_id=current_user.id,
+        organisation_id=organisation_id,
+        task_id=task_id,
+    )
+    commit_or_raise(db)
+    return None
 
 
 @router.delete(
@@ -326,6 +405,8 @@ def update_organisation(
         org.accounts_enabled = bool(org_in.accounts_enabled)
     if "position_comments_enabled" in update_fields:
         org.position_comments_enabled = bool(org_in.position_comments_enabled)
+    if "ingredients_enabled" in update_fields:
+        org.ingredients_enabled = bool(org_in.ingredients_enabled)
     commit_or_raise(db)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)

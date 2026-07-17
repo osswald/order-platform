@@ -74,7 +74,7 @@
         hover
         :no-data-text="$t('articleCategories.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => editCategory(item)"
+        @click:row="onCategoryRowClick"
       >
         <template #item.actions="{ item }">
           <v-btn
@@ -102,6 +102,7 @@ import { rules, validateForm } from '../utils/formRules.js'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation, organisationAccountsEnabled } from '../utils/orgScope'
+import { articleCategoryListHeaders } from '../utils/orgScopedListTableHeaders'
 import { useAccountingAccounts } from '../composables/useAccountingAccounts'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import VqDataTable from './VqDataTable.vue'
@@ -131,13 +132,7 @@ const {
   goToDetail,
 } = useListDetailRouting('article-categories')
 
-const tableHeaders = computed((): DataTableHeader[] => [
-  { title: t('common.id'), key: 'id' },
-  { title: t('common.name'), key: 'name' },
-  { title: t('common.organisation'), key: 'organisation_name' },
-  { title: t('articleCategories.articlesCount'), key: 'article_count' },
-  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
-])
+const tableHeaders = computed((): DataTableHeader[] => articleCategoryListHeaders(t))
 
 const categories = ref<ArticleCategoryRead[]>([])
 const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
@@ -259,6 +254,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onCategoryRowClick(_event: Event, { item }: { item: ArticleCategoryRead }) {
+  editCategory(item)
 }
 
 function editCategory(category: ArticleCategoryRead) {

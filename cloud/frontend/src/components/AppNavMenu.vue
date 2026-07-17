@@ -72,6 +72,13 @@
           @click="onNavigate"
         />
         <v-list-item
+          v-if="showIngredientsNav"
+          :to="routeTo('ingredients')"
+          prepend-icon="mdi-food-variant"
+          :title="$t('nav.ingredients')"
+          @click="onNavigate"
+        />
+        <v-list-item
           :to="routeTo('appliance-lendings')"
           prepend-icon="mdi-calendar-plus"
           :title="$t('nav.applianceLendings')"
@@ -165,6 +172,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { organisationIngredientsEnabled } from '../utils/orgScope'
+import type { AccessibleOrganisation } from '@/types/ui'
 
 const { t } = useI18n()
 
@@ -219,6 +228,13 @@ const activeOrganisationName = computed(() => {
   )
   return org?.name ?? organisationOptions.value[0]?.name ?? t('common.emDash')
 })
+
+const showIngredientsNav = computed(() =>
+  organisationIngredientsEnabled(
+    organisationOptions.value as AccessibleOrganisation[],
+    props.activeOrganisationId,
+  ),
+)
 
 function routeTo(name: string) {
   return { name }

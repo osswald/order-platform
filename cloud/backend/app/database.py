@@ -34,6 +34,23 @@ def _add_column_if_missing(table: str, column: str, ddl_sqlite: str, ddl_other: 
         conn.execute(text(stmt))
 
 
+def _patch_article_label_length() -> None:
+    """Truncate article labels to 21 chars (station receipt bon text limit)."""
+    try:
+        inspector = inspect(engine)
+        if "articles" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    with engine.begin() as conn:
+        if engine.dialect.name == "sqlite":
+            conn.execute(text("UPDATE articles SET label = SUBSTR(label, 1, 21) WHERE LENGTH(label) > 21"))
+        else:
+            conn.execute(
+                text("UPDATE articles SET label = SUBSTRING(label FROM 1 FOR 21) WHERE char_length(label) > 21")
+            )
+
+
 def apply_schema_patches() -> None:
     """create_all() does not add columns to existing tables; patch known drift here."""
     _add_column_if_missing(
@@ -53,6 +70,12 @@ def apply_schema_patches() -> None:
         "token_version",
         "ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0",
+    )
+    _add_column_if_missing(
+        "users",
+        "theme_preference",
+        "ALTER TABLE users ADD COLUMN theme_preference VARCHAR(16) NOT NULL DEFAULT 'system'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(16) NOT NULL DEFAULT 'system'",
     )
     appliance_columns = [
         ("name", "VARCHAR", "VARCHAR"),
@@ -220,6 +243,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_cash_registers ADD COLUMN pin VARCHAR NOT NULL DEFAULT '0000'",
         "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS pin VARCHAR NOT NULL DEFAULT '0000'",
     )
+    _add_column_if_missing(
+        "event_cash_registers",
+        "cash_drawer_command",
+        "ALTER TABLE event_cash_registers ADD COLUMN cash_drawer_command VARCHAR(32) NOT NULL DEFAULT 'none'",
+        "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS cash_drawer_command VARCHAR(32) NOT NULL DEFAULT 'none'",
+    )
     _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")
@@ -310,7 +339,9 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN tax_code_id INTEGER",
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS tax_code_id INTEGER",
     )
+    _patch_article_label_length()
     _patch_edge_order_item_fiscal_columns()
+    _patch_edge_order_items_ordered_at()
     _patch_edge_operational_snapshot_tables()
     _patch_event_waiter_register_subsidiary_columns()
     _ensure_accounting_tax_code_defaults_table()
@@ -320,7 +351,46 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN position_comments_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS position_comments_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _add_column_if_missing(
+        "organisations",
+        "ingredients_enabled",
+        "ALTER TABLE organisations ADD COLUMN ingredients_enabled BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ingredients_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "organisations",
+        "color_palette",
+        "ALTER TABLE organisations ADD COLUMN color_palette TEXT",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS color_palette JSON",
+    )
     _ensure_organisation_position_comments_table()
+    _ensure_ingredients_tables()
+    _ensure_user_organisation_onboarding_dismissals_table()
+    _ensure_user_organisation_onboarding_task_states_table()
+
+
+def _ensure_user_organisation_onboarding_task_states_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "user_organisation_onboarding_task_states" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import UserOrganisationOnboardingTaskState
+
+    UserOrganisationOnboardingTaskState.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_user_organisation_onboarding_dismissals_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "user_organisation_onboarding_dismissals" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import UserOrganisationOnboardingDismissal
+
+    UserOrganisationOnboardingDismissal.__table__.create(bind=engine, checkfirst=True)
 
 
 def _patch_edge_operational_snapshot_tables() -> None:
@@ -354,6 +424,68 @@ def _patch_edge_operational_snapshot_tables() -> None:
                     "ON edge_cash_sessions (organisation_id, event_id, subject_key)"
                 )
             )
+
+
+def _patch_edge_order_items_ordered_at() -> None:
+    _add_column_if_missing(
+        "edge_order_items",
+        "ordered_at",
+        "ALTER TABLE edge_order_items ADD COLUMN ordered_at DATETIME",
+        "ALTER TABLE edge_order_items ADD COLUMN IF NOT EXISTS ordered_at TIMESTAMPTZ",
+    )
+    try:
+        inspector = inspect(engine)
+        if "edge_order_items" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_order_items_event_id_ordered_at "
+                "ON edge_order_items (event_id, ordered_at)"
+            )
+        )
+        if is_sqlite:
+            conn.execute(
+                text("UPDATE edge_order_items SET ordered_at = created_at WHERE ordered_at IS NULL")
+            )
+        else:
+            conn.execute(
+                text(
+                    "UPDATE edge_order_items SET ordered_at = created_at WHERE ordered_at IS NULL"
+                )
+            )
+    _backfill_edge_order_items_ordered_at_from_payload()
+
+
+def _backfill_edge_order_items_ordered_at_from_payload() -> None:
+    from .event_stats import parse_ordered_at
+    from .models import EdgeOrderItem
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(EdgeOrderItem)
+            .filter(EdgeOrderItem.ordered_at == EdgeOrderItem.created_at)
+            .all()
+        )
+        changed = False
+        for row in rows:
+            line = row.payload if isinstance(row.payload, dict) else {}
+            parsed = parse_ordered_at(line.get("ordered_at"))
+            if parsed is None:
+                continue
+            row.ordered_at = parsed
+            changed = True
+        if changed:
+            db.commit()
+    except Exception:
+        db.rollback()
+        log.exception("Failed to backfill edge_order_items.ordered_at from payload")
+    finally:
+        db.close()
 
 
 def _patch_edge_order_item_fiscal_columns() -> None:
@@ -395,6 +527,22 @@ def _ensure_organisation_position_comments_table() -> None:
     from .models import OrganisationPositionComment
 
     OrganisationPositionComment.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_ingredients_tables() -> None:
+    try:
+        inspector = inspect(engine)
+        names = set(inspector.get_table_names())
+    except Exception:
+        return
+    from .models import ArticleIngredientLink, EventIngredientStock, Ingredient
+
+    if "ingredients" not in names:
+        Ingredient.__table__.create(bind=engine, checkfirst=True)
+    if "article_ingredient_links" not in names:
+        ArticleIngredientLink.__table__.create(bind=engine, checkfirst=True)
+    if "event_ingredient_stock" not in names:
+        EventIngredientStock.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_accounting_tax_code_defaults_table() -> None:

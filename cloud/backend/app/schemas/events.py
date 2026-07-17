@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,6 +11,7 @@ from ..event_status import ALLOWED_STATUSES
 from ..payment_types_config import normalize_payment_types
 
 PAYMENT_MODES = {"instant", "pay_now", "pay_later"}
+CASH_DRAWER_COMMANDS = Literal["none", "escp_pin2", "escp_pin5", "escp_pin2_long", "escp_pin5_long"]
 
 class EventBase(BaseModel):
     name: str = Field(..., min_length=1)
@@ -109,6 +110,8 @@ class EventRead(EventBase):
 
     id: int
     organisation_name: str
+    organisation_currency: str = "EUR"
+    organisation_country_code: str = "CH"
 
 
 class PrinterOptionRead(BaseModel):
@@ -186,6 +189,7 @@ class CashRegisterRead(BaseModel):
     pin: str
     layout_uuid: str
     receipt_printer_appliance_id: int | None
+    cash_drawer_command: CASH_DRAWER_COMMANDS = "none"
     subsidiary_code: str | None = None
 
 
@@ -265,6 +269,7 @@ class CashRegisterIn(BaseModel):
     pin: str = Field("0000", min_length=1, max_length=32)
     layout_uuid: str = Field(..., min_length=1)
     receipt_printer_appliance_id: int | None = None
+    cash_drawer_command: CASH_DRAWER_COMMANDS = "none"
     subsidiary_code: str | None = Field(None, max_length=32)
 
 
@@ -384,6 +389,7 @@ class CollectiveBillRead(BaseModel):
 
 class EventCollectiveBillsListRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     collective_bills: list[CollectiveBillRead]
 class TransactionRead(BaseModel):
     id: int
@@ -405,6 +411,7 @@ class TransactionRead(BaseModel):
 
 class EventTransactionsPageRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     total: int
     page: int
     items_per_page: int
@@ -431,6 +438,7 @@ class CashSessionRead(BaseModel):
 
 class EventCashSessionsPageRead(BaseModel):
     currency: str
+    country_code: str = "CH"
     total: int
     page: int
     items_per_page: int
@@ -469,11 +477,125 @@ class V3SalesByPaymentTypeRead(BaseModel):
 
 class EventSalesReportV3Read(BaseModel):
     currency: str
+    country_code: str = "CH"
     totals: V3SalesTotalsRead
     by_waiter: list[V3SalesByWaiterRead]
     by_station: list[V3SalesByStationRead]
     by_article: list[V3SalesByArticleRead]
     by_payment_type: list[V3SalesByPaymentTypeRead]
+
+
+class StatsTotalsRead(BaseModel):
+    distinct_orders_count: int
+    line_cents: int
+    paid_cents: int
+    open_cents: int
+    average_order_value_cents: int
+
+
+class StatsTimelineBucketRead(BaseModel):
+    start: str
+    end: str
+    label: str
+
+
+class StatsArticleSeriesRead(BaseModel):
+    article_id: int
+    name: str
+    qty: list[int]
+
+
+class StatsArticleTotalRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+
+
+class StatsArticleTimelineRead(BaseModel):
+    bucket_count: int
+    buckets: list[StatsTimelineBucketRead]
+    series: list[StatsArticleSeriesRead]
+    totals: list[StatsArticleTotalRead]
+
+
+class StatsCategorySeriesRead(BaseModel):
+    category_id: int
+    name: str
+    qty: list[int]
+
+
+class StatsCategoryTotalRead(BaseModel):
+    category_id: int
+    name: str
+    qty: int
+
+
+class StatsCategoryTimelineRead(BaseModel):
+    bucket_count: int
+    buckets: list[StatsTimelineBucketRead]
+    series: list[StatsCategorySeriesRead]
+    totals: list[StatsCategoryTotalRead]
+
+
+class StatsRevenueTimelineRead(BaseModel):
+    bucket_count: int
+    buckets: list[StatsTimelineBucketRead]
+    line_cents: list[int]
+
+
+class StatsTopArticleRead(BaseModel):
+    article_id: int
+    name: str
+    qty: int
+    line_cents: int
+
+
+class StatsByOrderSourceRead(BaseModel):
+    source: str
+    label: str
+    qty: int
+    line_cents: int
+
+
+class StatsByWaiterRead(BaseModel):
+    name: str
+    order_count: int
+    qty: int
+    line_cents: int
+    paid_cents: int
+
+
+class StatsByStationRead(BaseModel):
+    name: str
+    qty: int
+    line_cents: int
+
+
+class StatsByPaymentTypeRead(BaseModel):
+    type: str
+    label: str
+    amount_cents: int
+
+
+class EventStatsRead(BaseModel):
+    currency: str
+    country_code: str = "CH"
+    from_: str = Field(alias="from")
+    to: str
+    bucket_count: int
+    totals: StatsTotalsRead
+    revenue_timeline: StatsRevenueTimelineRead
+    top_articles: list[StatsTopArticleRead]
+    by_order_source: list[StatsByOrderSourceRead]
+    article_timeline: StatsArticleTimelineRead
+    category_timeline: StatsCategoryTimelineRead
+    by_payment_type: list[StatsByPaymentTypeRead]
+    by_waiter: list[StatsByWaiterRead]
+    by_station: list[StatsByStationRead]
+
+    model_config = {"populate_by_name": True}
+
+
 class PaymentBatchV3Read(BaseModel):
     uuid: str
     name: str
@@ -485,4 +607,5 @@ class PaymentBatchV3Read(BaseModel):
 
 class EventPaymentBatchesV3Read(BaseModel):
     currency: str
+    country_code: str = "CH"
     payment_batches: list[PaymentBatchV3Read]

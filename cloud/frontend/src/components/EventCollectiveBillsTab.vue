@@ -4,6 +4,7 @@
       <v-btn variant="outlined" type="button" :disabled="loading" @click="load">{{ $t('common.refresh') }}</v-btn>
     </div>
     <p v-if="loadError" class="error">{{ loadError }}</p>
+    <p v-else-if="pdfError" class="error">{{ pdfError }}</p>
     <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
     <template v-else-if="data">
       <p v-if="!data.collective_bills.length" class="muted">{{ $t('events.tabs.noCollectiveBills') }}</p>
@@ -24,6 +25,17 @@
             </div>
           </v-expansion-panel-title>
           <v-expansion-panel-text>
+            <div class="bill-actions">
+              <v-btn
+                variant="outlined"
+                type="button"
+                size="small"
+                data-testid="open-pdf-settings"
+                @click="openPdfSettings(bill)"
+              >
+                {{ $t('events.tabs.downloadCollectiveBillPdf') }}
+              </v-btn>
+            </div>
             <div class="bill-summary">
               <div class="summary-grid">
                 <div class="summary-card">
@@ -73,21 +85,53 @@
         </v-expansion-panel>
       </v-expansion-panels>
     </template>
+
+    <v-dialog v-model="pdfSettingsOpen" max-width="28rem">
+      <v-card>
+        <v-card-title>{{ $t('events.tabs.collectiveBillPdfSettingsTitle') }}</v-card-title>
+        <v-card-text>
+          <v-checkbox
+            v-model="includeOrderDetailInPdf"
+            density="compact"
+            hide-details
+            :label="$t('events.tabs.collectiveBillPdfIncludeOrderDetail')"
+          />
+        </v-card-text>
+        <v-card-actions class="dialog-actions">
+          <v-spacer />
+          <v-btn variant="outlined" type="button" @click="closePdfSettings">
+            {{ $t('common.cancel') }}
+          </v-btn>
+          <v-btn
+            color="primary"
+            type="button"
+            data-testid="confirm-pdf-download"
+            :disabled="!pdfSettingsBill || pdfLoadingUuid === pdfSettingsBill?.uuid"
+            :loading="pdfSettingsBill != null && pdfLoadingUuid === pdfSettingsBill.uuid"
+            @click="confirmPdfDownload"
+          >
+            {{ $t('events.tabs.downloadCollectiveBillPdf') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { apiJson } from '../api'
-import { formatAmount } from '../utils/money'
+import { apiFetch, apiJson } from '../api'
+import { formatMoney as formatMoneyWithCurrency } from '../utils/money'
+import { formatDateTime } from '../utils/localeFormat'
+import { currentLocale } from '../i18n'
 import VqDataTable from './VqDataTable.vue'
 import type { CollectiveBillRead, EventCollectiveBillsListRead } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import type { CollectiveBillLineGroup, CollectiveBillPositionRow } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps<{ eventId: number }>()
 
@@ -99,19 +143,21 @@ const positionHeaders = computed((): DataTableHeader[] => [
 
 const loading = ref(false)
 const loadError = ref('')
+const pdfLoadingUuid = ref('')
+const pdfError = ref('')
+const pdfSettingsOpen = ref(false)
+const pdfSettingsBill = ref<CollectiveBillRead | null>(null)
+const includeOrderDetailInPdf = ref(false)
 const data = ref<EventCollectiveBillsListRead | null>(null)
 
 function formatMoney(cents: number | null | undefined): string {
-  return `${formatAmount(cents)} ${data.value?.currency || 'CHF'}`
+  return formatMoneyWithCurrency(cents, data.value?.currency || 'CHF', data.value?.country_code)
 }
 
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return t('common.emDash')
-  try {
-    return new Date(iso).toLocaleString('de-CH')
-  } catch {
-    return iso
-  }
+  const formatted = formatDateTime(iso, currentLocale(), data.value?.country_code)
+  return formatted === '—' ? iso : formatted
 }
 
 function statusLabel(v: string | null | undefined): string {
@@ -137,6 +183,58 @@ function positionRows(bill: CollectiveBillRead): CollectiveBillPositionRow[] {
     qty: g.total_qty ?? 1,
     line_cents: g.line_total_cents ?? 0,
   }))
+}
+
+function openPdfSettings(bill: CollectiveBillRead) {
+  pdfError.value = ''
+  pdfSettingsBill.value = bill
+  pdfSettingsOpen.value = true
+}
+
+function closePdfSettings() {
+  pdfSettingsOpen.value = false
+  pdfSettingsBill.value = null
+}
+
+async function confirmPdfDownload() {
+  const bill = pdfSettingsBill.value
+  if (!bill) return
+  pdfSettingsOpen.value = false
+  await downloadPdf(bill)
+  pdfSettingsBill.value = null
+}
+
+async function downloadPdf(bill: CollectiveBillRead) {
+  pdfLoadingUuid.value = bill.uuid
+  pdfError.value = ''
+  try {
+    const params = new URLSearchParams()
+    if (includeOrderDetailInPdf.value) {
+      params.set('include_order_detail', 'true')
+    }
+    const query = params.toString()
+    const path = `/events/${props.eventId}/collective-bills/${bill.uuid}/pdf${query ? `?${query}` : ''}`
+    const response = await apiFetch(path, {
+      headers: {
+        'Accept-Language': locale.value === 'en' ? 'en' : 'de',
+      },
+    })
+    if (!response.ok) {
+      throw new Error(t('events.tabs.downloadCollectiveBillPdfFailed'))
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const safeName = (bill.name || 'Sammelrechnung').replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-') || 'Sammelrechnung'
+    anchor.href = url
+    anchor.download = `Sammelrechnung-${safeName}.pdf`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  } catch (e: unknown) {
+    pdfError.value = getErrorMessage(e, t('events.tabs.downloadCollectiveBillPdfFailed'))
+  } finally {
+    pdfLoadingUuid.value = ''
+  }
 }
 
 async function load() {
@@ -187,6 +285,19 @@ watch(() => props.eventId, load, { immediate: true })
 
 .panel-meta {
   font-size: 0.85rem;
+}
+
+.bill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dialog-actions {
+  padding-inline: 1rem 1.25rem;
+  padding-bottom: 1rem;
 }
 
 .bill-summary {

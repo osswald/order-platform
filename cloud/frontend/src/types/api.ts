@@ -10,9 +10,14 @@ export type HireCompanyRead = components['schemas']['HireCompanyRead']
 export type HireCompanyCreate = components['schemas']['HireCompanyCreate']
 export type HireCompanyUpdate = components['schemas']['HireCompanyUpdate']
 
-export type OrganisationRead = components['schemas']['OrganisationRead']
+export type OrganisationRead = components['schemas']['OrganisationRead'] & {
+  ingredients_enabled?: boolean
+}
 export type OrganisationCreate = components['schemas']['OrganisationCreate']
 export type OrganisationUpdate = components['schemas']['OrganisationUpdate']
+export type ColorPaletteEntry = components['schemas']['ColorPaletteEntry']
+export type ColorPaletteRead = components['schemas']['ColorPaletteRead']
+export type ColorPaletteUpdate = components['schemas']['ColorPaletteUpdate']
 
 export type UserRead = components['schemas']['UserRead']
 export type UserCreate = components['schemas']['UserCreate']
@@ -30,8 +35,50 @@ export type EventConfigurationIn = components['schemas']['EventConfigurationIn']
 export type EventCashSessionsPageRead = components['schemas']['EventCashSessionsPageRead']
 export type EventCollectiveBillsListRead = components['schemas']['EventCollectiveBillsListRead']
 export type EventSalesReportV3Read = components['schemas']['EventSalesReportV3Read']
-export type EventStockListRead = components['schemas']['EventStockListRead']
-export type EventStockUpdateIn = components['schemas']['EventStockUpdateIn']
+export type EventStatsRead = components['schemas']['EventStatsRead']
+export interface EventIngredientStockItemRead {
+  id: number
+  name: string
+  unit?: string | null
+  monitor_stock: boolean
+  in_stock?: number | null
+}
+
+export interface EventIngredientStockItemIn {
+  ingredient_id: number
+  monitor_stock: boolean
+  in_stock: number | null
+}
+
+export type EventStockListRead = components['schemas']['EventStockListRead'] & {
+  ingredients?: EventIngredientStockItemRead[]
+}
+
+export type EventStockUpdateIn = components['schemas']['EventStockUpdateIn'] & {
+  ingredients?: EventIngredientStockItemIn[]
+}
+
+export interface IngredientRead {
+  id: number
+  name: string
+  unit: string | null
+  is_active: boolean
+  organisation_id: number
+  organisation_name: string
+  usage_count: number
+}
+
+export interface ArticleIngredientLinkRead {
+  ingredient_id: number
+  name: string
+  unit: string | null
+  amount: number
+  sort_order: number
+}
+
+export interface ArticleIngredientsRead {
+  items: ArticleIngredientLinkRead[]
+}
 export type EventTransactionsPageRead = components['schemas']['EventTransactionsPageRead']
 export type CashSessionRead = components['schemas']['CashSessionRead']
 export type CollectiveBillRead = components['schemas']['CollectiveBillRead']
@@ -76,6 +123,7 @@ export type TaxCodeRateRead = components['schemas']['TaxCodeRateRead']
 
 export type TokenResponse = components['schemas']['Token']
 export type AuthMeResponse = components['schemas']['MeResponse']
+export type AuthMeUpdate = components['schemas']['MeUpdate']
 
 export interface ApiError extends Error {
   status?: number

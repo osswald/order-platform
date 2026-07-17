@@ -61,7 +61,7 @@ import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
-import { formatAmount } from '../utils/money'
+import { formatMoney as formatMoneyWithCurrency } from '../utils/money'
 import type { CashSessionRead, EventCashSessionsPageRead } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import type { CashSessionLedgerRow } from '@/types/ui'
@@ -87,6 +87,7 @@ const headers = computed((): DataTableHeader[] => [
 const loading = ref(false)
 const loadError = ref('')
 const currency = ref('CHF')
+const countryCode = ref('CH')
 const items = ref<CashSessionRead[]>([])
 const totalItems = ref(0)
 const page = ref(1)
@@ -96,7 +97,7 @@ const sortDesc = ref(true)
 let optionsInitialized = false
 
 function formatMoney(cents: number | null | undefined): string {
-  return `${formatAmount(cents)} ${currency.value}`
+  return formatMoneyWithCurrency(cents, currency.value, countryCode.value)
 }
 
 function ledgerRows(session: CashSessionRead): CashSessionLedgerRow[] {
@@ -120,6 +121,7 @@ async function load() {
       `/events/${props.eventId}/cash-sessions?${buildQuery()}`,
     )
     currency.value = data.currency || 'CHF'
+    countryCode.value = data.country_code || 'CH'
     items.value = data.items || []
     totalItems.value = data.total ?? 0
   } catch (e: unknown) {

@@ -109,7 +109,9 @@ def shift_session_close(
     return ShiftSessionRead(**session_to_api_dict(session))
 
 
-def _shift_receipt_escpos(db: Session, session, ev: dict, *, paper_width: str | None) -> bytes:
+def _shift_receipt_escpos(
+    db: Session, session, ev: dict, *, paper_width: str | None, charset: str | None = None
+) -> bytes:
     payload = session_to_sync_payload(db, session)
     return build_shift_close_receipt_text(
         payload,
@@ -117,6 +119,7 @@ def _shift_receipt_escpos(db: Session, session, ev: dict, *, paper_width: str | 
         currency=ev.get("currency", "EUR"),
         event=ev,
         paper_width=paper_width,
+        charset=charset,
     )
 
 
@@ -145,6 +148,7 @@ def shift_session_receipt(
         session,
         ev,
         paper_width=body.paper_width if body else None,
+        charset=body.charset if body else None,
     )
     return ShiftSessionEscposResponse(
         cash_session_id=int(session.id),
@@ -179,7 +183,9 @@ def shift_session_print(
     if session.status == "OPEN":
         close_session(db, session, counted_cash_cents=body.counted_cash_cents)
         sync_cash_session(db, session)
-    esc = _shift_receipt_escpos(db, session, ev, paper_width=body.paper_width)
+    esc = _shift_receipt_escpos(
+        db, session, ev, paper_width=body.paper_width, charset=body.charset
+    )
     host, port, feed_lines = resolve_printer_endpoint(ev, station_uuid)
     job = PrintJob(
         local_order_id=0,

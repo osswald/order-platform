@@ -7,9 +7,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .currency import organisation_country_code
 from .event_sales import build_event_sales_report
 from .event_status import ALLOWED_STATUSES, PI_VISIBLE_STATUSES, normalize_status
-from .models import Article, ArticleCategory, Event, Waiter
+from .models import Article, ArticleCategory, Event, Organisation, Waiter
+from .onboarding_tasks import build_onboarding_tasks, is_onboarding_dismissed
 from .payment_types_config import payment_types_from_event
 from .twint_qr import has_twint_qr
 
@@ -117,7 +119,7 @@ def _catalog_counts(db: Session, organisation_id: int) -> dict[str, int]:
     return {"waiters": waiters, "articles": articles, "categories": categories}
 
 
-def _aggregate_sales(db: Session, events: list[Event]) -> dict[str, Any]:
+def _aggregate_sales(db: Session, events: list[Event], organisation: Organisation) -> dict[str, Any]:
     prod_events = [e for e in events if normalize_status(e.status) == "prod"]
     by_event: list[dict[str, Any]] = []
     total_orders = 0
@@ -152,6 +154,7 @@ def _aggregate_sales(db: Session, events: list[Event]) -> dict[str, Any]:
 
     return {
         "currency": currency,
+        "country_code": organisation_country_code(organisation, "CH"),
         "totals": {
             "distinct_orders_count": total_orders,
             "line_cents": total_line,
@@ -164,14 +167,22 @@ def _aggregate_sales(db: Session, events: list[Event]) -> dict[str, Any]:
 
 def build_organisation_dashboard_summary(
     db: Session,
-    organisation_id: int,
-    organisation_name: str,
+    organisation: Organisation,
     events: list[Event],
+    *,
+    user_id: int | None = None,
 ) -> dict[str, Any]:
+    organisation_id = organisation.id
+    organisation_name = organisation.name
     now = _utc_now()
     today = now.date()
     status_counts = events_by_status_counts(events)
     running_ids = running_event_ids(events, now)
+    dismissed = (
+        is_onboarding_dismissed(db, user_id=user_id, organisation_id=organisation_id)
+        if user_id is not None
+        else False
+    )
 
     return {
         "organisation_id": organisation_id,
@@ -183,5 +194,8 @@ def build_organisation_dashboard_summary(
         "catalog": _catalog_counts(db, organisation_id),
         "lendings": _lending_bucket_counts(db, organisation_id, today),
         "attention": build_attention_items(events, now),
-        "sales": _aggregate_sales(db, events),
+        "sales": _aggregate_sales(db, events, organisation),
+        "onboarding": build_onboarding_tasks(
+            db, organisation, events, dismissed=dismissed, user_id=user_id
+        ),
     }

@@ -7,6 +7,16 @@
     :showDetail="showDetail"
     @open-create="openCreateForm"
   >
+    <template #header-actions>
+      <v-btn
+        v-if="canImportOrderjutsu && !showDetail"
+        variant="outlined"
+        type="button"
+        @click="router.push({ name: 'events-import-orderjutsu' })"
+      >
+        {{ t('events.importOrderjutsu') }}
+      </v-btn>
+    </template>
     <template #detail>
       <EventStatusStepper
         v-model="form.status"
@@ -27,6 +37,7 @@
         :event-id="activeId"
         :organisation-id="activeOrganisationId"
         :organisation-currency="organisationCurrency"
+        :organisation-country-code="organisationCountryCode"
         :event-status="form.status"
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
@@ -127,19 +138,35 @@
         item-value="id"
         class="vq-data-table list-table"
         hover
-        @click:row="(_, { item }) => editEvent(item)"
+        @click:row="onEventRowClick"
       >
         <template #item.status="{ item }">
           <v-chip :color="eventStatusColor(item.status)" size="small" variant="tonal">
             {{ statusLabel(item.status) }}
           </v-chip>
         </template>
-        <template #item.start="{ item }">{{ formatDateTime(item.start) }}</template>
-        <template #item.end="{ item }">{{ formatDateTime(item.end) }}</template>
-        <template v-if="isAdmin" #item.actions="{ item }">
-          <v-btn color="error" variant="outlined" size="small" @click.stop="deleteEvent(item.id)">
-            {{ t('common.delete') }}
-          </v-btn>
+        <template #item.start="{ item }">{{ formatEventDateTime(item.start, item.organisation_country_code) }}</template>
+        <template #item.end="{ item }">{{ formatEventDateTime(item.end, item.organisation_country_code) }}</template>
+        <template #item.actions="{ item }">
+          <div class="row-actions">
+            <v-btn
+              v-if="item.status !== 'config'"
+              icon="mdi-chart-bar"
+              variant="text"
+              size="small"
+              :title="t('events.stats.openStats')"
+              @click.stop="openStats(item.id)"
+            />
+            <v-btn
+              v-if="isAdmin"
+              color="error"
+              variant="outlined"
+              size="small"
+              @click.stop="deleteEvent(item.id)"
+            >
+              {{ t('common.delete') }}
+            </v-btn>
+          </div>
         </template>
         <template #no-data>{{ t('events.noResults') }}</template>
       </VqDataTable>
@@ -149,7 +176,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import HelpLink from './HelpLink.vue'
@@ -161,24 +188,32 @@ import { apiFetch, apiJson } from '../api'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { eventListHeaders } from '../utils/orgScopedListTableHeaders'
 import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
 import VqDataTable from './VqDataTable.vue'
+import { formatDateTime as formatDateTimeLocale } from '../utils/localeFormat'
+import { currentLocale } from '../i18n'
 import type { EventRead, EventCreate, EventUpdate } from '@/types/api'
 import type { EventStammdatenForm } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const props = withDefaults(
   defineProps<{
     isAdmin?: boolean
+    isTenantAdmin?: boolean
+    isOrganisationAdmin?: boolean
     activeOrganisationId?: number | null
   }>(),
   {
     isAdmin: false,
+    isTenantAdmin: false,
+    isOrganisationAdmin: false,
     activeOrganisationId: null,
   },
 )
@@ -224,6 +259,7 @@ const paymentTypeOptions = computed(() =>
 )
 
 const organisationCurrency = ref('EUR')
+const organisationCountryCode = ref('CH')
 
 const emptyForm = (): EventStammdatenForm => ({
   name: '',
@@ -284,6 +320,11 @@ const showTwintQrSection = computed(() =>
 )
 
 const canCreateEvents = computed(() => props.activeOrganisationId != null)
+const canImportOrderjutsu = computed(
+  () =>
+    props.activeOrganisationId != null &&
+    (props.isAdmin || props.isTenantAdmin || props.isOrganisationAdmin),
+)
 
 const selectableStatusOptions = computed(() => {
   if (!editMode.value) {
@@ -296,27 +337,11 @@ const selectableStatusOptions = computed(() => {
   return statusOptions.value.filter((o) => allowed.has(o.value))
 })
 
-const tableHeaders = computed((): DataTableHeader[] => {
-  const headers: DataTableHeader[] = [
-    { title: t('events.table.id'), key: 'id' },
-    { title: t('events.table.name'), key: 'name' },
-    { title: t('events.table.status'), key: 'status', sortable: false },
-    { title: t('events.table.organisation'), key: 'organisation_name' },
-    { title: t('events.table.start'), key: 'start', sortable: false },
-    { title: t('events.table.end'), key: 'end', sortable: false },
-  ]
-  if (props.isAdmin) {
-    headers.push({ title: t('events.table.actions'), key: 'actions', sortable: false, align: 'end' })
-  }
-  return headers
-})
+const tableHeaders = computed((): DataTableHeader[] => eventListHeaders(t))
 
-function formatDateTime(value: string | null | undefined): string {
+function formatEventDateTime(value: string | null | undefined, countryCode?: string | null): string {
   if (!value) return t('common.emDash')
-  return new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+  return formatDateTimeLocale(value, currentLocale(), countryCode)
 }
 
 function parseDate(value: string | null | undefined): Date | null {
@@ -471,6 +496,7 @@ async function applyEventToForm(event: EventRead) {
   }
   originalStatus.value = event.status || 'config'
   organisationCurrency.value = event.organisation_currency || 'EUR'
+  organisationCountryCode.value = event.organisation_country_code || 'CH'
   stammdatenBaseline.value = stammdatenSnapshot()
   message.value = ''
   if (hasTwintQr.value) void loadTwintQrPreview()
@@ -514,9 +540,17 @@ function openCreateForm() {
   goToCreate()
 }
 
+function onEventRowClick(_event: Event, { item }: { item: EventRead }) {
+  void editEvent(item)
+}
+
 async function editEvent(event: EventRead) {
   await applyEventToForm(event)
   goToDetail(event.id)
+}
+
+function openStats(id: number) {
+  router.push({ name: 'events-stats', params: { id: String(id) } })
 }
 
 function defaultCopyName(name: string | null | undefined): string {
@@ -664,6 +698,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0.45rem;
   margin-bottom: 1rem;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
 }
 
 .actions {

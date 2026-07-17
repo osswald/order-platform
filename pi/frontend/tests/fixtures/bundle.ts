@@ -9,6 +9,7 @@ export function bundleCopy(bundle: EdgeBundleResponse): EdgeBundleResponse {
 export function defaultBundle(): EdgeBundleResponse {
   return {
     organisation_id: 1,
+    ingredients_enabled: false,
     position_comments_enabled: false,
     position_comment_presets: [],
     events: [

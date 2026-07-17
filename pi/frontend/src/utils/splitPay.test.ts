@@ -60,6 +60,12 @@ describe('sumGroupBasketCents', () => {
     ]
     expect(sumGroupBasketCents(groups)).toBe(750)
   })
+
+  it('returns zero for empty or missing groups', () => {
+    expect(sumGroupBasketCents([])).toBe(0)
+    expect(sumGroupBasketCents(null)).toBe(0)
+    expect(sumGroupBasketCents(undefined)).toBe(0)
+  })
 })
 
 describe('voucher credit', () => {
@@ -71,6 +77,12 @@ describe('voucher credit', () => {
         { applied_cents: -10 },
       ]),
     ).toBe(250)
+  })
+
+  it('returns zero for empty or missing redemptions', () => {
+    expect(sumVoucherCreditCents([])).toBe(0)
+    expect(sumVoucherCreditCents(null)).toBe(0)
+    expect(sumVoucherCreditCents(undefined)).toBe(0)
   })
 
   it('subtracts voucher credit from raw basket total', () => {

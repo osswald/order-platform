@@ -44,7 +44,7 @@ import { computed } from 'vue'
 import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent } from '@/types/api'
 import {
   discountLabel,
-  formatAmount,
+  formatMoney,
   lineGrossCents,
   lineTotalCents as computeLineTotalCents,
   normalizeDiscount,
@@ -121,7 +121,9 @@ function netCentsForQty(qty: number) {
   return computeLineTotalCents(line, props.articles, props.event)
 }
 
-const lineTotal = computed(() => formatAmount(netCentsForQty(displayQty.value)))
+const currencyCode = computed(() => props.event?.currency || 'CHF')
+
+const lineTotal = computed(() => formatMoney(netCentsForQty(displayQty.value), currencyCode.value))
 
 const hasDiscount = computed(() => Boolean(normalizeDiscount(props.discount)))
 
@@ -131,7 +133,7 @@ const discountHint = computed(() => (hasDiscount.value ? discountLabel(props.dis
 
 const formatGrossTotal = computed(() => {
   const gross = lineGrossCents(lineForPricing.value, props.articles, props.event)
-  return formatAmount(gross)
+  return formatMoney(gross, currencyCode.value)
 })
 </script>
 

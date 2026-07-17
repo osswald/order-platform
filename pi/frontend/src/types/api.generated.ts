@@ -260,6 +260,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders/{order_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Order Summary */
+        get: operations["get_order_summary_v1_orders__order_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/settle-partial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle Order Partial */
+        post: operations["settle_order_partial_v1_orders__order_id__settle_partial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/assign-collective": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign Order To Collective */
+        post: operations["assign_order_to_collective_v1_orders__order_id__assign_collective_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/registers/{register_uuid}/open-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Register Open Orders */
+        get: operations["list_register_open_orders_v1_registers__register_uuid__open_orders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tables/open": {
         parameters: {
             query?: never;
@@ -447,6 +515,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/stock/validate-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Order Stock */
+        post: operations["validate_order_stock_v1_stock_validate_order_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kitchen/printers": {
         parameters: {
             query?: never;
@@ -529,6 +614,23 @@ export interface paths {
         put?: never;
         /** Print Kitchen Ticket Line Unit */
         post: operations["print_kitchen_ticket_line_unit_v1_kitchen_tickets__ticket_id__lines__line_id__print_one_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kitchen/tickets/{ticket_id}/print-partial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Print Kitchen Ticket Partial */
+        post: operations["print_kitchen_ticket_partial_v1_kitchen_tickets__ticket_id__print_partial_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1033,6 +1135,8 @@ export interface components {
             price: number;
             /** Additions */
             additions?: components["schemas"]["EdgeBundleArticleAddition"][];
+            /** Ingredients */
+            ingredients?: components["schemas"]["EdgeBundleArticleIngredient"][];
             /** Label */
             label?: string | null;
             /** In Stock */
@@ -1065,6 +1169,21 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** EdgeBundleArticleIngredient */
+        EdgeBundleArticleIngredient: {
+            /** Ingredient Id */
+            ingredient_id: number;
+            /** Name */
+            name?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Amount */
+            amount?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * EdgeBundleContract
          * @description Validated shape for synced organisation bundles.
@@ -1081,6 +1200,11 @@ export interface components {
             position_comments_enabled: boolean;
             /** Position Comment Presets */
             position_comment_presets?: components["schemas"]["PositionCommentPreset"][];
+            /**
+             * Ingredients Enabled
+             * @default false
+             */
+            ingredients_enabled: boolean;
             /** Admin Pin Hashes */
             admin_pin_hashes?: string[];
         } & {
@@ -1108,6 +1232,10 @@ export interface components {
             articles?: {
                 [key: string]: components["schemas"]["EdgeBundleArticle"];
             };
+            /** Ingredients */
+            ingredients?: {
+                [key: string]: components["schemas"]["EdgeBundleIngredient"];
+            };
             configuration?: components["schemas"]["EdgeEventConfiguration"];
             /** Kitchen Monitors Enabled */
             kitchen_monitors_enabled?: boolean | null;
@@ -1119,6 +1247,23 @@ export interface components {
             discounts_enabled?: boolean | null;
             /** Twint Qr Data Url */
             twint_qr_data_url?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** EdgeBundleIngredient */
+        EdgeBundleIngredient: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+            /** In Stock */
+            in_stock?: number | null;
+            /** Sellable */
+            sellable?: boolean | null;
+            /** Monitor Stock */
+            monitor_stock?: boolean | null;
         } & {
             [key: string]: unknown;
         };
@@ -1290,6 +1435,18 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** KitchenTicketPartialPrintBody */
+        KitchenTicketPartialPrintBody: {
+            /** Lines */
+            lines: components["schemas"]["KitchenTicketPartialPrintLine"][];
+        };
+        /** KitchenTicketPartialPrintLine */
+        KitchenTicketPartialPrintLine: {
+            /** Line Id */
+            line_id: number;
+            /** Qty */
+            qty: number;
+        };
         /** KitchenTicketPrintResponse */
         KitchenTicketPrintResponse: {
             /** Print Job Id */
@@ -1400,6 +1557,10 @@ export interface components {
             articles?: {
                 [key: string]: components["schemas"]["ArticleStockPatch"];
             };
+            /** Ingredients */
+            ingredients?: {
+                [key: string]: components["schemas"]["ArticleStockPatch"];
+            };
         };
         /** OkResponse */
         OkResponse: {
@@ -1456,6 +1617,17 @@ export interface components {
             /** Tables */
             tables: components["schemas"]["OpenTableRow"][];
         };
+        /** OrderAssignCollectiveResponse */
+        OrderAssignCollectiveResponse: {
+            /** Collective Bill Id */
+            collective_bill_id: number;
+            /** Collective Bill Uuid */
+            collective_bill_uuid: string;
+            /** Name */
+            name: string;
+            /** Local Order Id */
+            local_order_id: number;
+        };
         /** OrderLineIn */
         OrderLineIn: {
             /** Article Id */
@@ -1487,6 +1659,24 @@ export interface components {
             article_name?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** OrderPartialSettleResponse */
+        OrderPartialSettleResponse: {
+            /** Paid Cents */
+            paid_cents: number;
+            /** Paid Order Ids */
+            paid_order_ids: number[];
+            /** Payment Id */
+            payment_id: number;
+            /** Remaining Cents */
+            remaining_cents: number;
+            /** Local Order Id */
+            local_order_id: number;
+            /**
+             * Voucher Credit Cents
+             * @default 0
+             */
+            voucher_credit_cents: number;
         };
         /** OrderPayBody */
         OrderPayBody: {
@@ -1570,6 +1760,8 @@ export interface components {
             reprint: boolean;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252" | "ascii") | null;
         };
         /** PaymentReceiptEscposResponse */
         PaymentReceiptEscposResponse: {
@@ -1722,6 +1914,8 @@ export interface components {
             event_id?: number | null;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252" | "ascii") | null;
         };
         /** PrinterTestStationPrintsBody */
         PrinterTestStationPrintsBody: {
@@ -1766,6 +1960,30 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** RegisterOpenOrderRow */
+        RegisterOpenOrderRow: {
+            /** Local Order Id */
+            local_order_id: number;
+            /** Client Order Id */
+            client_order_id: string;
+            /** Pickup Code */
+            pickup_code?: string | null;
+            /** Total Cents */
+            total_cents: number;
+            /** Item Count */
+            item_count: number;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** RegisterOpenOrdersResponse */
+        RegisterOpenOrdersResponse: {
+            /** Event Id */
+            event_id: number;
+            /** Currency */
+            currency: string;
+            /** Orders */
+            orders: components["schemas"]["RegisterOpenOrderRow"][];
+        };
         /** SetupStatusResponse */
         SetupStatusResponse: {
             /** Configured */
@@ -1798,6 +2016,8 @@ export interface components {
             station_uuid?: string | null;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252" | "ascii") | null;
         };
         /** ShiftSessionEscposResponse */
         ShiftSessionEscposResponse: {
@@ -1865,6 +2085,8 @@ export interface components {
             counted_cash_cents?: number | null;
             /** Paper Width */
             paper_width?: ("80mm" | "58mm" | "53mm") | null;
+            /** Charset */
+            charset?: ("pc858" | "pc850" | "cp1252" | "ascii") | null;
         };
         /** StationTestPrintResult */
         StationTestPrintResult: {
@@ -1880,6 +2102,30 @@ export interface components {
             ok: boolean;
             /** Error */
             error?: string | null;
+        };
+        /** StockValidateLineIn */
+        StockValidateLineIn: {
+            /** Article Id */
+            article_id: number;
+            /** Qty */
+            qty: number;
+            /** Additions */
+            additions?: components["schemas"]["LineAdditionIn"][];
+        };
+        /** StockValidateOrderIn */
+        StockValidateOrderIn: {
+            /** Event Id */
+            event_id: number;
+            /** Lines */
+            lines?: components["schemas"]["StockValidateLineIn"][];
+        };
+        /** StockValidateOrderResponse */
+        StockValidateOrderResponse: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
         };
         /** SyncMetaResponse */
         SyncMetaResponse: {
@@ -2529,6 +2775,140 @@ export interface operations {
             };
         };
     };
+    get_order_summary_v1_orders__order_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    settle_order_partial_v1_orders__order_id__settle_partial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TableSettlePartialBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPartialSettleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_order_to_collective_v1_orders__order_id__assign_collective_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignCollectiveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderAssignCollectiveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_register_open_orders_v1_registers__register_uuid__open_orders_get: {
+        parameters: {
+            query: {
+                event_id: number;
+            };
+            header?: never;
+            path: {
+                register_uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterOpenOrdersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_open_tables_v1_tables_open_get: {
         parameters: {
             query: {
@@ -2900,6 +3280,39 @@ export interface operations {
             };
         };
     };
+    validate_order_stock_v1_stock_validate_order_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockValidateOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockValidateOrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_kitchen_printers_v1_kitchen_printers_get: {
         parameters: {
             query: {
@@ -3037,6 +3450,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitchenTicketPrintResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    print_kitchen_ticket_partial_v1_kitchen_tickets__ticket_id__print_partial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KitchenTicketPartialPrintBody"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

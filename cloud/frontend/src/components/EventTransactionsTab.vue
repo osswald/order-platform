@@ -147,7 +147,9 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
-import { formatAmount } from '../utils/money'
+import { formatMoney as formatMoneyWithCurrency } from '../utils/money'
+import { formatDateTime } from '../utils/localeFormat'
+import { currentLocale } from '../i18n'
 import { TABLE_MOBILE_BREAKPOINT } from '../constants/layout'
 import type { EventTransactionsPageRead, TransactionRead } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
@@ -181,11 +183,13 @@ const kindOptions = computed((): SelectOption<string>[] => [
   { value: 'bestellung', label: t('events.tabs.kindOrder') },
   { value: 'teilzahlung', label: t('events.tabs.kindPartialPayment') },
   { value: 'zahlung', label: t('events.tabs.kindPayment') },
+  { value: 'kassenschublade', label: t('events.tabs.kindCashDrawer') },
 ])
 
 const loading = ref(false)
 const loadError = ref('')
 const currency = ref('CHF')
+const countryCode = ref('CH')
 const items = ref<TransactionRead[]>([])
 const totalItems = ref(0)
 const page = ref(1)
@@ -198,16 +202,13 @@ const filterKind = ref<string | null>(null)
 let optionsInitialized = false
 
 function formatMoney(cents: number | null | undefined): string {
-  return `${formatAmount(cents)} ${currency.value}`
+  return formatMoneyWithCurrency(cents, currency.value, countryCode.value)
 }
 
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return t('common.emDash')
-  try {
-    return new Date(iso).toLocaleString('de-CH')
-  } catch {
-    return iso
-  }
+  const formatted = formatDateTime(iso, currentLocale(), countryCode.value)
+  return formatted === '—' ? iso : formatted
 }
 
 function shortId(id: string | null | undefined): string {
@@ -221,12 +222,14 @@ function kindLabel(k: string): string {
     bestellung: t('events.tabs.kindOrder'),
     teilzahlung: t('events.tabs.kindPartialPayment'),
     zahlung: t('events.tabs.kindPayment'),
+    kassenschublade: t('events.tabs.kindCashDrawer'),
   }
   return map[k] || k
 }
 
 function kindChipColor(k: string): string | undefined {
   if (k === 'zahlung') return 'success'
+  if (k === 'kassenschublade') return 'warning'
   if (k === 'teilzahlung') return 'info'
   return 'default'
 }
@@ -265,6 +268,7 @@ async function load() {
       `/events/${props.eventId}/transactions?${buildQuery()}`,
     )
     currency.value = data.currency || 'CHF'
+    countryCode.value = data.country_code || 'CH'
     items.value = data.items || []
     totalItems.value = data.total ?? 0
   } catch (e: unknown) {

@@ -198,6 +198,34 @@ def test_transactions_transfer_events(db_session):
     assert row["moved_lines"][0]["name"] == "Bier"
 
 
+def test_transactions_cash_drawer_kind(db_session):
+    db, event = db_session
+    _add_order(
+        db,
+        chunk_id="drawer-1",
+        created_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+        payload={
+            "entity_type": "cash_drawer",
+            "opened_at": "2026-06-01T12:00:00+00:00",
+            "cash_register_uuid": "reg-1",
+            "cash_register_name": "Hauptkasse",
+            "cash_drawer_command": "escp_pin2",
+            "payment_id": 42,
+            "client_order_id": "pwa-abc",
+            "payments": [{"type": "cash", "amount_cents": 500}],
+        },
+    )
+    db.commit()
+
+    page = build_event_transactions_page(db, event, kind="kassenschublade")
+    assert page["total"] == 1
+    row = page["items"][0]
+    assert row["kind"] == "kassenschublade"
+    assert row["waiter_name"] == "Hauptkasse"
+    assert row["paid_cents"] == 500
+    assert "Beleg #42" in row["payment_methods"]
+
+
 def test_transactions_sort_by_line_cents(db_session):
     db, event = db_session
     _add_order(

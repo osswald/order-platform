@@ -75,7 +75,7 @@
         hover
         :no-data-text="$t('waiters.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => editWaiter(item)"
+        @click:row="onWaiterRowClick"
       >
         <template #item.actions="{ item }">
           <v-btn color="error" variant="text" @click.stop="deleteWaiter(item.id)">{{ $t('common.delete') }}</v-btn>
@@ -97,6 +97,7 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation } from '../utils/orgScope'
+import { waiterListHeaders } from '../utils/orgScopedListTableHeaders'
 import VqDataTable from './VqDataTable.vue'
 import HelpLink from './HelpLink.vue'
 import type { WaiterRead } from '@/types/api'
@@ -120,13 +121,7 @@ const {
   goToDetail,
 } = useListDetailRouting('waiters')
 
-const tableHeaders = computed((): DataTableHeader[] => [
-  { title: t('common.id'), key: 'id' },
-  { title: t('common.name'), key: 'name' },
-  { title: t('common.pin'), key: 'pin' },
-  { title: t('common.organisation'), key: 'organisation_name' },
-  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' },
-])
+const tableHeaders = computed((): DataTableHeader[] => waiterListHeaders(t))
 
 const waiters = ref<WaiterRead[]>([])
 const message = ref('')
@@ -232,6 +227,10 @@ function resetForm() {
 
 function openCreateForm() {
   goToCreate()
+}
+
+function onWaiterRowClick(_event: Event, { item }: { item: WaiterRead }) {
+  editWaiter(item)
 }
 
 function editWaiter(waiter: WaiterRead) {

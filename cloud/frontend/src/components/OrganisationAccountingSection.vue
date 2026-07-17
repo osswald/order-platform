@@ -64,7 +64,7 @@
             class="vq-data-table list-table nested-table"
             hide-default-footer
             :no-data-text="t('organisations.accounting.noAccounts')"
-            @click:row="(_e, { item }) => editAccount(item)"
+            @click:row="onAccountRowClick"
           >
             <template #item.is_default_for_article_categories="{ item }">
               {{ item.is_default_for_article_categories ? t('common.yes') : t('common.no') }}
@@ -362,7 +362,18 @@ function openCreateAccount() {
   accountDialogVisible.value = true
 }
 
-function editAccount(account: { id: number; name?: string | null; number?: string | null; is_default_for_article_categories?: boolean }) {
+type AccountingAccountRow = {
+  id: number
+  name?: string | null
+  number?: string | null
+  is_default_for_article_categories?: boolean
+}
+
+function onAccountRowClick(_event: Event, { item }: { item: AccountingAccountRow }) {
+  editAccount(item)
+}
+
+function editAccount(account: AccountingAccountRow) {
   accountEditId.value = account.id
   accountForm.value = {
     name: account.name || '',

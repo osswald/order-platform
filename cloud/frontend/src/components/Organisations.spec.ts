@@ -72,7 +72,7 @@ async function mountOrganisations(path: string) {
   })
 
   await flushPromises()
-  return wrapper
+  return { wrapper, router }
 }
 
 describe('Organisations', () => {
@@ -89,37 +89,50 @@ describe('Organisations', () => {
   })
 
   it('renders a flat Stammdaten form without SectionNavLayout on create route', async () => {
-    const wrapper = await mountOrganisations('/organisations/new')
+    const { wrapper, router } = await mountOrganisations('/organisations/new')
 
     expect(wrapper.findComponent(SectionNavLayout).exists()).toBe(false)
     expect(wrapper.find('[data-testid="stammdaten-fields"]').exists()).toBe(true)
+    expect(router.currentRoute.value.query.section).toBeUndefined()
   })
 
-  it('renders SectionNavLayout with six tabs on edit route', async () => {
-    const wrapper = await mountOrganisations('/organisations/1')
+  it('renders SectionNavLayout with eight tabs on edit route', async () => {
+    const { wrapper, router } = await mountOrganisations('/organisations/1')
     const layout = wrapper.findComponent(SectionNavLayout)
 
     expect(layout.exists()).toBe(true)
-    expect(layout.props('sections')).toHaveLength(6)
+    expect(layout.props('sections')).toHaveLength(8)
     expect(layout.props('sections')!.map((section: { title: string }) => section.title)).toEqual([
       'Stammdaten',
       'Geräte/Ausleihen',
       'Kartenzahlung (Stripe)',
       'Belegvorlagen',
+      'Farbpalette (App Layout)',
       'Positionen',
+      'Zutaten',
       'Buchhaltung',
     ])
+    expect(router.currentRoute.value.query.section).toBe('stammdaten')
   })
 
   it('shows the accounting section when the Buchhaltung tab is active', async () => {
-    const wrapper = await mountOrganisations('/organisations/1')
+    const { wrapper, router } = await mountOrganisations('/organisations/1')
     const layout = wrapper.findComponent(SectionNavLayout)
     const buchhaltungButton = layout.findAll('.section-nav-item').find((button) =>
       button.text().includes('Buchhaltung'),
     )
 
     await buchhaltungButton!.trigger('click')
+    await flushPromises()
 
     expect(wrapper.find('[data-testid="accounting-section"]').exists()).toBe(true)
+    expect(router.currentRoute.value.query.section).toBe('buchhaltung')
+  })
+
+  it('activates the tab from the section query on load', async () => {
+    const { wrapper, router } = await mountOrganisations('/organisations/1?section=stripe')
+
+    expect(router.currentRoute.value.query.section).toBe('stripe')
+    expect(wrapper.find('[data-testid="stripe-section"]').exists()).toBe(true)
   })
 })

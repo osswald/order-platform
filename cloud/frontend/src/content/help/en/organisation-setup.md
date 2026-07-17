@@ -36,6 +36,18 @@ Stripe Connect is set up per organisation. Payouts go to the organisation.
 
 See the **Stripe Connect** help article for onboarding, event activation, and troubleshooting.
 
+## Color palette (app layout)
+
+In the **Color palette (app layout)** tab you define reusable colors for buttons on waiter app layouts:
+
+- Each color has a **label** (e.g. "Bar", "Food", "VIP") and a **color value** (hex)
+- Add, edit, or remove colors and apply changes with **Save**
+- Up to 32 colors per organisation; duplicate color values are not allowed
+
+In **event configuration** under **App layouts**, these colors appear as quick picks when editing a layout cell — in addition to the free-form color picker. If no palette is defined, only the manual picker is shown.
+
+Cells still store the hex color value; the palette is only a consistent selection aid in the cloud admin UI.
+
 ## Who can do what?
 
 - **Hire company admin** — create, delete, and fully manage organisations

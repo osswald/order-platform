@@ -1,6 +1,6 @@
 # Vendiqo Pi SD card image (SDM on Linux)
 
-Build a **generic** Raspberry Pi OS image with [sdm](https://github.com/gitbls/sdm). Run the build on a **Linux host** — on macOS, use an **Ubuntu VM in UTM** (Docker Desktop cannot run SDM’s systemd-nspawn customize step).
+Part of the [Vendiqo Order Platform](../README.md). Builds a **generic** Raspberry Pi OS image with [sdm](https://github.com/gitbls/sdm). Run the build on a **Linux host** — on macOS, use an **Ubuntu VM in UTM** (Docker Desktop cannot run SDM’s systemd-nspawn customize step).
 
 The image has **no** `EDGE_CLIENT_ID` or `EDGE_SECRET`. Pair each SD card on first boot (see [First boot](#first-boot)).
 

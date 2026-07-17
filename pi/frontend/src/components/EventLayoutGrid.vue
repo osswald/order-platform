@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { showToast } from '@/store'
 import type { EdgeBundleEvent } from '@/types/api'
-import { formatAmount, lineUnitCents } from '@/utils/money'
+import { formatMoney, lineUnitCents } from '@/utils/money'
 import {
   articlesForIds,
   fixedAmountVouchersForCell,
@@ -113,7 +113,7 @@ function buildPickItems(cell: LayoutCell): PickItem[] {
       type: 'voucher' as const,
       voucher,
       label: `Gutschein: ${voucher.name || 'Gutschein'}`,
-      priceLabel: formatAmount(cents),
+      priceLabel: formatMoney(cents, props.event.currency || 'CHF'),
     })
   }
   for (const id of cellArticleIds(cell)) {
@@ -124,7 +124,7 @@ function buildPickItems(cell: LayoutCell): PickItem[] {
       type: 'article' as const,
       article_id: id,
       label: a?.name || `Artikel #${id}`,
-      priceLabel: formatAmount(unit),
+      priceLabel: formatMoney(unit, props.event.currency || 'CHF'),
     })
   }
   return items.sort((a, b) => {

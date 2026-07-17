@@ -90,6 +90,22 @@
           </div>
           <div class="form-field">
             <label>{{ $t('events.config.color') }}</label>
+            <div v-if="paletteColors.length" class="org-palette-colors">
+              <p class="muted small">{{ $t('events.config.orgColorPalette') }}</p>
+              <div class="org-palette-swatches">
+                <button
+                  v-for="entry in paletteColors"
+                  :key="entry.label + entry.color"
+                  type="button"
+                  class="org-palette-swatch"
+                  :class="{ selected: cellEdit.color.toUpperCase() === entry.color.toUpperCase() }"
+                  @click="cellEdit.color = entry.color"
+                >
+                  <span class="org-palette-swatch-color" :style="{ background: entry.color }" />
+                  <span class="org-palette-swatch-label">{{ entry.label }}</span>
+                </button>
+              </div>
+            </div>
             <v-color-picker v-model="cellEdit.color" mode="hex" hide-inputs />
             <v-text-field
               v-model="cellEdit.color"
@@ -141,6 +157,16 @@
           </div>
         </v-card-text>
         <v-card-actions class="dialog-actions">
+          <v-btn
+            v-if="cellDialogHadContent"
+            data-testid="delete-layout-cell-btn"
+            color="error"
+            variant="text"
+            type="button"
+            @click="deleteCellDialog"
+          >
+            {{ $t('events.config.deleteCell') }}
+          </v-btn>
           <v-spacer />
           <v-btn variant="outlined" type="button" @click="cellDialogVisible = false">{{ $t('common.cancel') }}</v-btn>
           <v-btn color="primary" type="button" @click="applyCellDialog">{{ $t('events.config.apply') }}</v-btn>
@@ -155,7 +181,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
-import type { EventConfigurationRead } from '@/types/api'
+import { filterTreeNodes, mapTreeNodes } from '../utils/articleCategoryTree'
+import { layoutCellHasContent } from '../utils/eventConfigLayoutsPayload'
+import { newUuid } from '@/utils/newUuid'
+import type { ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
 import type {
   EventCellEditState,
   EventLayoutCellLocal,
@@ -169,10 +198,12 @@ import type {
 const props = withDefaults(
   defineProps<{
     eventId: number
+    organisationId?: number | null
     vouchersEnabled?: boolean
     voucherDefinitions?: EventVoucherDefinitionLocal[]
   }>(),
   {
+    organisationId: null,
     vouchersEnabled: false,
     voucherDefinitions: () => [],
   },
@@ -189,6 +220,7 @@ const { t } = useI18n()
 const layoutCellsLoaded = ref(false)
 const layoutCellsLoading = ref(false)
 const layoutCellsError = ref('')
+const paletteColors = ref<ColorPaletteEntry[]>([])
 
 const cellEditLayoutIndex = ref(0)
 const cellEditRow = ref(0)
@@ -204,12 +236,7 @@ const cellTreeNodesRaw = ref<StationArticleTreeNode[]>([])
 const cellTreeSelection = ref<string[]>([])
 const cellTreeFilter = ref('')
 const treeLoading = ref(false)
-
-interface TreeViewNode {
-  key: string
-  title: string
-  children?: TreeViewNode[]
-}
+const cellDialogHadContent = ref(false)
 
 const fixedAmountVoucherOptions = computed(() =>
   props.voucherDefinitions
@@ -227,36 +254,6 @@ const filteredCellTreeItems = computed(() => {
   if (!q) return cellTreeItems.value
   return filterTreeNodes(cellTreeItems.value, q)
 })
-
-function mapTreeNodes(nodes: StationArticleTreeNode[]): TreeViewNode[] {
-  return (nodes || []).map((n) => ({
-    key: n.key,
-    title: n.label,
-    children: n.children?.length ? mapTreeNodes(n.children) : undefined,
-  }))
-}
-
-function filterTreeNodes(nodes: TreeViewNode[], query: string): TreeViewNode[] {
-  const out: TreeViewNode[] = []
-  for (const node of nodes) {
-    if (node.children?.length) {
-      const filteredChildren = filterTreeNodes(node.children, query)
-      if (filteredChildren.length) {
-        out.push({ ...node, children: filteredChildren })
-      } else if (node.title.toLowerCase().includes(query)) {
-        out.push({ ...node })
-      }
-    } else if (node.title.toLowerCase().includes(query)) {
-      out.push({ ...node })
-    }
-  }
-  return out
-}
-
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
 
 function cellVoucherUuids(c: EventLayoutCellLocal | null | undefined): string[] {
   const list = c?.voucher_definition_uuids
@@ -392,6 +389,23 @@ function ensureCell(lo: EventLayoutLocal, row: number, col: number): EventLayout
   return c
 }
 
+function removeCellAt(lo: EventLayoutLocal, row: number, col: number) {
+  lo.cells = lo.cells.filter((c) => !(c.row === row && c.col === col))
+}
+
+function buildCellFromDialog(row: number, col: number): EventLayoutCellLocal {
+  const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
+  return {
+    row,
+    col,
+    label: cellEdit.value.label || '',
+    color: cellEdit.value.color || '#eeeeee',
+    voucher_definition_uuids: vUuids,
+    voucher_definition_uuid: vUuids[0] || null,
+    article_ids: treeSelectionToArticleIds(cellTreeSelection.value),
+  }
+}
+
 function articleIdsToTreeSelection(ids: number[]): string[] {
   return (ids || []).map((id) => `art-${id}`)
 }
@@ -508,6 +522,7 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
   cellTreeFilter.value = ''
   const lo = layouts.value[layoutIndex]
   const c = displayCell(lo, row, col)
+  cellDialogHadContent.value = layoutCellHasContent(c)
   const vUuids = cellVoucherUuids(c)
   cellEdit.value = {
     label: c.label || '',
@@ -534,13 +549,28 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
 
 function applyCellDialog() {
   const lo = layouts.value[cellEditLayoutIndex.value]
-  const c = ensureCell(lo, cellEditRow.value, cellEditCol.value)
-  c.label = cellEdit.value.label || ''
-  c.color = cellEdit.value.color || '#eeeeee'
-  const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
-  c.voucher_definition_uuids = vUuids
-  c.voucher_definition_uuid = vUuids[0] || null
-  c.article_ids = treeSelectionToArticleIds(cellTreeSelection.value)
+  const row = cellEditRow.value
+  const col = cellEditCol.value
+  const updated = buildCellFromDialog(row, col)
+  if (!layoutCellHasContent(updated)) {
+    removeCellAt(lo, row, col)
+  } else {
+    const c = ensureCell(lo, row, col)
+    c.label = updated.label
+    c.color = updated.color
+    c.voucher_definition_uuids = updated.voucher_definition_uuids
+    c.voucher_definition_uuid = updated.voucher_definition_uuid
+    c.article_ids = updated.article_ids
+  }
+  cellDialogHadContent.value = false
+  cellDialogVisible.value = false
+}
+
+function deleteCellDialog() {
+  if (!confirm(t('events.config.deleteCellConfirm'))) return
+  const lo = layouts.value[cellEditLayoutIndex.value]
+  removeCellAt(lo, cellEditRow.value, cellEditCol.value)
+  cellDialogHadContent.value = false
   cellDialogVisible.value = false
 }
 
@@ -550,12 +580,32 @@ function resetLayoutCellsState() {
   layoutCellsError.value = ''
 }
 
+async function loadPaletteColors() {
+  paletteColors.value = []
+  const orgId = props.organisationId
+  if (!orgId) return
+  try {
+    const data = await apiJson<{ colors?: ColorPaletteEntry[] }>(`/organisations/${orgId}/color-palette`)
+    paletteColors.value = data.colors ?? []
+  } catch {
+    paletteColors.value = []
+  }
+}
+
 watch(
   () => props.eventId,
   () => {
     resetLayoutCellsState()
     void loadLayoutCells()
   },
+)
+
+watch(
+  () => props.organisationId,
+  () => {
+    void loadPaletteColors()
+  },
+  { immediate: true },
 )
 
 onMounted(() => {
@@ -619,6 +669,49 @@ defineExpose({
   font-size: 0.65rem;
   opacity: 0.65;
   line-height: 1.1;
+}
+
+.org-palette-colors {
+  margin-bottom: 0.75rem;
+}
+
+.org-palette-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.org-palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.35rem;
+  min-width: 4.5rem;
+}
+
+.org-palette-swatch.selected {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
+}
+
+.org-palette-swatch-color {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.org-palette-swatch-label {
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.1;
+  max-width: 5rem;
+  word-break: break-word;
 }
 
 .color-hex-input {

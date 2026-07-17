@@ -13,15 +13,6 @@
 
     <div class="order-body">
       <div class="cart-half">
-        <ul v-if="voucherBasketLines.length" class="line-list register-voucher-list">
-          <SplitPayVoucherRow
-            v-for="(v, vi) in voucherBasketLines"
-            :key="v.key"
-            :label="v.label"
-            :amount-cents="v.appliedCents"
-            @remove="removeVoucherLine(vi)"
-          />
-        </ul>
         <CartPanel
           :lines="lines"
           :articles="articles"
@@ -88,10 +79,9 @@
     <OrderMenuSheet
       :open="orderMenuOpen"
       :show-order-discount="discountsEnabled"
-      :show-voucher="canRedeemVoucher"
+      :show-voucher="false"
       @close="orderMenuOpen = false"
       @order-discount="openOrderDiscount"
-      @redeem-voucher="openVoucherRedeem"
     />
 
     <LinePositionSheet
@@ -130,16 +120,6 @@
       @close="orderDiscountOpen = false"
       @discount-save="onOrderDiscountSave"
     />
-
-    <VoucherRedeemSheet
-      :open="voucherSheetOpen"
-      :event="event"
-      :gross-cents="registerArticleCents"
-      :selections="registerSelections"
-      :line-groups="registerLineGroups as unknown as LineGroupEntry[]"
-      @close="voucherSheetOpen = false"
-      @apply="onVoucherApply"
-    />
   </div>
 </template>
 
@@ -149,12 +129,7 @@ import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import { useCart } from '@/composables/useCart'
 import { useEventContext } from '@/composables/useEventContext'
-import {
-  discountsEnabled as eventDiscountsEnabled,
-  formatMoney,
-  lineTotalCents,
-  lineUnitCents,
-} from '@/utils/money'
+import { discountsEnabled as eventDiscountsEnabled, formatMoney } from '@/utils/money'
 import {
   articlesForIds,
   getDefaultLayout,
@@ -162,11 +137,13 @@ import {
   positionCommentPresets as bundlePositionCommentPresets,
   positionCommentsEnabled as bundlePositionCommentsEnabled,
   resolveStationUuidForArticle,
-  voucherDefinitionByUuid,
   cartLineLabelForEvent,
 } from '@/utils/bundleHelpers'
-import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
-import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
+import {
+  buildOrderPayloadLines,
+  newClientOrderId,
+  stockLinesFromPayloadLines,
+} from '@/utils/orderSubmit'
 import { useRoute } from 'vue-router'
 import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
 import OrderScreenHeader from '@/components/OrderScreenHeader.vue'
@@ -177,8 +154,6 @@ import StationFallbackList from '@/components/StationFallbackList.vue'
 import ArticlePickerSheet from '@/components/ArticlePickerSheet.vue'
 import AdditionsPickerSheet from '@/components/AdditionsPickerSheet.vue'
 import QtyInputModal from '@/components/QtyInputModal.vue'
-import VoucherRedeemSheet from '@/components/VoucherRedeemSheet.vue'
-import SplitPayVoucherRow from '@/components/SplitPayVoucherRow.vue'
 import OrderMenuSheet from '@/components/OrderMenuSheet.vue'
 import LineDiscountSheet from '@/components/LineDiscountSheet.vue'
 import LinePositionSheet from '@/components/LinePositionSheet.vue'
@@ -187,36 +162,25 @@ import { bundle } from '@/store'
 import type {
   EdgeBundleArticle,
   EdgeBundleEvent,
-  LineGroupEntry,
   LocalOrderCreate,
   LocalOrderCreatedResponse,
   OrderLineIn,
   RegisterDisplayPayload,
 } from '@/types/api'
-import { getErrorMessage } from '@/types/api'
+import { getErrorMessage, isApiError } from '@/types/api'
+import { stockInsufficientMessage } from '@/utils/stockError'
+import { validateCartStockBeforeSubmit } from '@/utils/validateCartStock'
 import type { CartLine } from '@/types/cart'
 import type { SheetOptionItem } from '@/components/SheetOptionList.vue'
-import { type VoucherRedemptionSelection } from '@/composables/useSplitPay'
 
 interface VoucherDefinition {
   uuid: string
   name?: string
 }
 
-interface VoucherApplyPayload {
-  voucher_definition_uuid: string
-  applied_cents: number
-  article_id?: number
-  note?: string
-  qty?: number
-  additions?: LineGroupEntry['additions']
-}
-
 const router = useRouter()
 const route = useRoute()
 const submitting = ref(false)
-const voucherSheetOpen = ref(false)
-const voucherRedemptions = ref<VoucherRedemptionSelection[]>([])
 const cellPickerOpen = ref(false)
 const cellPickerItems = ref<SheetOptionItem[]>([])
 const sheetOpen = ref(false)
@@ -238,18 +202,14 @@ const layoutEvent = computed((): EdgeBundleEvent => event.value as EdgeBundleEve
 const discountsEnabled = computed(() => eventDiscountsEnabled(event.value))
 const positionCommentsEnabled = computed(() => bundlePositionCommentsEnabled(bundle.value))
 const positionCommentPresets = computed(() => bundlePositionCommentPresets(bundle.value))
-const showHeaderMenu = computed(
-  () => cartCount.value > 0 && (canRedeemVoucher.value || discountsEnabled.value),
-)
+const showHeaderMenu = computed(() => cartCount.value > 0 && discountsEnabled.value)
 
 const {
   register,
   event,
   currency,
   updateDisplay,
-  pushDisplayPayload,
   setDisplayIdle,
-  scheduleIdleAfterPickup,
   clearPickupHold,
   hubRoute,
 } = useRegisterDisplay()
@@ -266,67 +226,18 @@ const {
   updateCartLine,
   decrementCartLine,
   availableQty,
+  lineQtyModalMax,
   getArticle,
   clearCart,
 } = useCart()
-const { waiter, showToast, patchEventArticles } = useEventContext()
+const { waiter, showToast, patchEventStock, refreshBundle } = useEventContext()
 
 const articles = computed(() => event.value?.articles || {})
 const layout = computed(() => {
   const layouts = event.value?.configuration?.app_layouts || []
   return layouts.find((lo) => String(lo.uuid) === String(register.value?.layout_uuid)) || getDefaultLayout(event.value)
 })
-const registerArticleCents = computed(() =>
-  lines.value
-    .filter((l) => l.kind !== 'voucher_sale')
-    .reduce((s, l) => s + lineTotalCents(l, articles.value, event.value), 0),
-)
-const voucherCreditCents = computed(() =>
-  voucherRedemptions.value.reduce((s, r) => s + Math.max(0, Number(r.applied_cents) || 0), 0),
-)
-const registerPayableCents = computed(() =>
-  Math.max(0, cartTotalCents.value - voucherCreditCents.value),
-)
-const canRedeemVoucher = computed(() => lines.value.some((l) => l.kind !== 'voucher_sale'))
-const totalLabel = computed(() => {
-  const base = formatMoney(registerPayableCents.value, currency.value)
-  if (!voucherCreditCents.value) return base
-  return `${base} (−${formatMoney(voucherCreditCents.value, currency.value)} Gutschein)`
-})
-const registerSelections = computed(() =>
-  lines.value
-    .filter((l) => l.kind !== 'voucher_sale' && l.article_id != null)
-    .map((l) => ({
-      article_id: l.article_id as number,
-      note: l.note || '',
-      qty: l.qty,
-      additions: (l.additions || []).map((a) => ({
-        article_id: a.article_id,
-        qty: a.qty ?? 1,
-      })),
-    })),
-)
-const registerLineGroups = computed(() =>
-  lines.value
-    .filter((l) => l.kind !== 'voucher_sale' && l.article_id != null)
-    .map((l) => ({
-      article_id: l.article_id as number,
-      note: l.note || '',
-      additions: l.additions || [],
-      unit_cents: lineUnitCents(l, articles.value, event.value),
-    })),
-)
-const voucherBasketLines = computed(() =>
-  voucherRedemptions.value.map((r, index) => {
-    const vd = voucherDefinitionByUuid(event.value, r.voucher_definition_uuid)
-    const name = vd?.name || 'Gutschein'
-    return {
-      key: `voucher-${index}-${r.voucher_definition_uuid}`,
-      label: `${name}`,
-      appliedCents: Math.max(0, Number(r.applied_cents) || 0),
-    }
-  }),
-)
+const totalLabel = computed(() => formatMoney(cartTotalCents.value, currency.value))
 
 const qtyModalMax = computed(() => {
   const line = qtyModalLine.value
@@ -335,8 +246,7 @@ const qtyModalMax = computed(() => {
   const articleId = line.article_id
   if (articleId == null) return 999
   const avail = availableQty(articleId, line.lineId)
-  if (avail === null) return 999
-  return line.qty + avail
+  return lineQtyModalMax(avail)
 })
 
 function orderingPayload(extra: Partial<RegisterDisplayPayload> = {}): RegisterDisplayPayload {
@@ -344,12 +254,8 @@ function orderingPayload(extra: Partial<RegisterDisplayPayload> = {}): RegisterD
     state: 'ordering',
     show_twint: false,
     twint_qr_data_url: null,
-    total_cents: registerPayableCents.value,
-    voucher_lines: voucherBasketLines.value.map((v) => ({
-      key: v.key,
-      label: v.label,
-      applied_cents: v.appliedCents,
-    })),
+    total_cents: cartTotalCents.value,
+    voucher_lines: [],
     lines: lines.value.map((l) => ({
       ...l,
       display_label: cartLineLabelForEvent(l, event.value),
@@ -463,9 +369,9 @@ function onQtyConfirm(n: number) {
     const articleId = line.article_id
     if (articleId == null) return
     const avail = availableQty(articleId, line.lineId)
-    if (avail !== null && qty > line.qty + avail) {
+    if (avail !== null && qty > avail) {
       showToast(`Nur noch ${avail} verfügbar`, 'err')
-      qty = line.qty + avail
+      qty = avail
     }
   }
   if (qty <= 0) removeCartLine(line.lineId)
@@ -487,15 +393,6 @@ function goBack() {
   clearCart()
   setDisplayIdle()
   router.push(hubRoute())
-}
-
-function openVoucherRedeem() {
-  orderMenuOpen.value = false
-  if (!registerArticleCents.value) {
-    showToast('Keine Artikel-Positionen für Gutschein', 'err')
-    return
-  }
-  voucherSheetOpen.value = true
 }
 
 function onTapComment(line: CartLine) {
@@ -562,92 +459,40 @@ function onOrderDiscountSave({ discount }: { discount?: CartLine['discount'] }) 
   setOrderDiscount(discount)
 }
 
-function onVoucherApply(redemption: VoucherApplyPayload) {
-  const next: VoucherRedemptionSelection = {
-    voucher_definition_uuid: redemption.voucher_definition_uuid,
-    article_id: redemption.article_id ?? 0,
-    applied_cents: redemption.applied_cents,
-    note: redemption.note,
-    qty: redemption.qty,
-    additions: redemption.additions as VoucherRedemptionSelection['additions'],
-  }
-  voucherRedemptions.value = [...voucherRedemptions.value, next]
-  voucherSheetOpen.value = false
-  showToast('Gutschein berücksichtigt', 'ok')
-}
-
-function removeVoucherLine(index: number) {
-  voucherRedemptions.value = voucherRedemptions.value.filter((_, i) => i !== index)
-}
-
 async function submitOrder() {
   if (!cartCount.value || !event.value || !register.value) return
-  const client_order_id = `pwa-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-  let payments
-  try {
-    payments = await resolvePaymentsForAmount(
-      event.value,
-      registerPayableCents.value,
-      client_order_id,
-      {
-        onTwintShow: ({ dataUrl, amountCents }) =>
-          updateDisplay({
-            state: 'twint',
-            show_twint: true,
-            twint_qr_data_url: dataUrl,
-            total_cents: amountCents,
-          }),
-        onTwintHide: () => {},
-      },
-    )
-  } catch (e: unknown) {
-    if (e instanceof Error && e.message !== 'cancelled') {
-      showToast(getErrorMessage(e, 'Zahlung abgebrochen.'), 'err')
-    }
-    return
-  }
+
+  const payloadLines = buildOrderPayloadLines(lines.value, {
+    positionCommentsEnabled: positionCommentsEnabled.value,
+    discountsEnabled: discountsEnabled.value,
+  })
+  const stockLines = stockLinesFromPayloadLines(payloadLines)
+
   submitting.value = true
   try {
-    const payloadLines: OrderLineIn[] = lines.value.map((l) => {
-      if (l.kind === 'voucher_sale') {
-        return {
-          kind: 'voucher_sale',
-          voucher_definition_uuid: l.voucher_definition_uuid,
-          qty: l.qty,
-          unit_cents: l.unit_cents,
-          note: '',
-          additions: [],
-        }
-      }
-      const row: OrderLineIn = {
-        article_id: l.article_id,
-        qty: l.qty,
-        station_uuid: l.station_uuid,
-        note: positionCommentsEnabled.value ? String(l.note || '').trim() : '',
-        additions: (l.additions || []).map((a) => ({ article_id: a.article_id, qty: a.qty ?? 1 })),
-      }
-      if (discountsEnabled.value && l.discount) row.discount = l.discount
-      return row
-    })
+    await refreshBundle()
+    await validateCartStockBeforeSubmit(event.value.id, stockLines)
+  } catch (e: unknown) {
+    if (isApiError(e) && e.status === 409) {
+      await refreshBundle()
+      showToast(stockInsufficientMessage(e, getErrorMessage(e, 'Bestand nicht ausreichend.')), 'err')
+    } else {
+      showToast(getErrorMessage(e, 'Fehler'), 'err')
+    }
+    submitting.value = false
+    return
+  }
+
+  try {
     const body: LocalOrderCreate = {
-      client_order_id,
+      client_order_id: newClientOrderId(),
       event_id: event.value.id,
       table_number: null,
       waiter_uuid: waiter.value?.uuid ?? null,
       order_source: 'cash_register',
       cash_register_uuid: String(register.value.uuid),
       lines: payloadLines,
-      payments,
-      voucher_redemptions: voucherRedemptions.value.map((r) => ({
-        voucher_definition_uuid: r.voucher_definition_uuid,
-        article_id: r.article_id,
-        note: r.note || '',
-        qty: r.qty || 1,
-        additions: (r.additions || []).map((a) => ({
-          article_id: a.article_id,
-          qty: a.qty ?? 1,
-        })),
-      })),
+      payments: [],
     }
     if (discountsEnabled.value && orderDiscount.value) {
       body.order_discount = orderDiscount.value
@@ -656,38 +501,33 @@ async function submitOrder() {
       method: 'POST',
       body: JSON.stringify(body),
     })
-    if (res.articles) patchEventArticles(event.value.id, res.articles)
-    scheduleIdleAfterPickup(10000)
-    await pushDisplayPayload({
-      state: 'submitted',
-      pickup_code: res.pickup_code ?? null,
-      pickup_status: res.pickup_status ?? null,
-      lines: [],
-      total_cents: 0,
-      show_twint: false,
-      twint_qr_data_url: null,
-      voucher_lines: [],
-    } as RegisterDisplayPayload)
-    voucherRedemptions.value = []
-    clearCart()
-    showToast(`Pickup ${res.pickup_code}`, 'ok')
-    if (res.payment_id && event.value) {
-      await offerPaymentReceipt({
-        paymentId: res.payment_id,
-        event: event.value,
-        showToast,
-        preferredTargetUuid: String(register.value.uuid),
+    if (res.articles || res.ingredients) {
+      patchEventStock(event.value.id, {
+        articles: res.articles,
+        ingredients: res.ingredients,
       })
     }
-    await router.push(hubRoute())
+    clearCart()
+    await router.push({
+      name: 'register-pay',
+      params: {
+        registerUuid: String(register.value.uuid),
+        orderId: String(res.local_order_id),
+      },
+    })
   } catch (e: unknown) {
-    showToast(getErrorMessage(e, 'Fehler'), 'err')
+    if (isApiError(e) && e.status === 409) {
+      await refreshBundle()
+      showToast(stockInsufficientMessage(e, getErrorMessage(e, 'Bestand nicht ausreichend.')), 'err')
+    } else {
+      showToast(getErrorMessage(e, 'Fehler'), 'err')
+    }
   } finally {
     submitting.value = false
   }
 }
 
-watch([lines, voucherRedemptions, cartCount], () => syncDisplayToCart(), { deep: true })
+watch([lines, cartCount], () => syncDisplayToCart(), { deep: true })
 
 onMounted(() => {
   if (!register.value) {
@@ -704,11 +544,5 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-.register-voucher-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  flex-shrink: 0;
 }
 </style>

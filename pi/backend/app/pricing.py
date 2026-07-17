@@ -7,6 +7,27 @@ def _article_entry(articles: dict, article_id) -> dict | None:
     return articles.get(str(article_id)) or articles.get(article_id)
 
 
+def article_station_display_name(art: dict) -> str:
+    """Receipt line text for station slips: label (bon text) with name fallback."""
+    label = str(art.get("label") or "").strip()
+    if label:
+        return label
+    return str(art.get("name") or "").strip()
+
+
+def station_line_display_name(line: dict, art: dict | None, article_id) -> str:
+    if art:
+        display = article_station_display_name(art)
+        if display:
+            return display
+    snapped = str(line.get("article_name") or "").strip()
+    if snapped:
+        return snapped
+    if article_id is not None:
+        return f"#{article_id}"
+    return "—"
+
+
 def addition_display_name(
     addition: dict,
     articles: dict,

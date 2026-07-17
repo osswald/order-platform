@@ -1,0 +1,26 @@
+cloud-backend:
+  - cloud/backend/**
+pi-backend:
+  - pi/backend/**
+cloud-frontend:
+  - cloud/frontend/**
+pi-frontend:
+  - pi/frontend/**
+shared-python:
+  - packages/vendiqo_shared/**
+shared-frontend:
+  - packages/frontend-shared/**
+cloud-shared:
+  - cloud/shared/**
+hosted-pi-manager:
+  - cloud/hosted-pi-manager/**
+cloud-openapi:
+  - cloud/frontend/openapi.json
+  - cloud/frontend/src/types/api.generated.ts
+pi-openapi:
+  - pi/frontend/openapi.json
+  - pi/frontend/src/types/api.generated.ts
+ruff-config:
+  - ruff.toml
+eslint-config:
+  - eslint.config.js

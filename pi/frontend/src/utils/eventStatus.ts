@@ -9,3 +9,7 @@ export function eventStatusLabel(status: string | null | undefined): string {
   const key = String(status || '').toLowerCase() as keyof typeof STATUS_LABELS
   return STATUS_LABELS[key] || key || '—'
 }
+
+export function isEventTest(status: string | null | undefined): boolean {
+  return String(status ?? '').toLowerCase() === 'test'
+}

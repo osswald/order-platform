@@ -15,7 +15,7 @@
 
       <template v-else-if="step === 'amount-confirm'">
         <p class="confirm-text">
-          Gutschrift auf Teilbetrag: <strong>{{ formatAmount(creditPreview) }}</strong>
+          Gutschrift auf Teilbetrag: <strong>{{ formatMoney(creditPreview, eventCurrency) }}</strong>
         </p>
         <button type="button" class="btn primary" style="width: 100%" @click="confirmAmount">Übernehmen</button>
         <button type="button" class="btn" style="width: 100%; margin-top: 0.5rem" @click="close">Abbrechen</button>
@@ -39,7 +39,7 @@ import type {
   LineGroupEntry,
   LineSelection,
 } from '@/types/api'
-import { formatAmount, voucherEntitlementCreditCents } from '@/utils/money'
+import { formatMoney, voucherEntitlementCreditCents } from '@/utils/money'
 import { lineAdditionLabels, voucherDefinitionsForEvent } from '@/utils/bundleHelpers'
 import SheetOptionList, { type SheetOptionItem } from './SheetOptionList.vue'
 
@@ -120,9 +120,11 @@ const typeListItems = computed(() =>
   })),
 )
 
+const eventCurrency = computed(() => props.event?.currency || 'CHF')
+
 function typeHint(vd: VoucherDefinition) {
   if (vd.kind === 'fixed_amount') {
-    return formatAmount(vd.value_cents || 0)
+    return formatMoney(vd.value_cents || 0, eventCurrency.value)
   }
   return 'Artikel-Gutschein'
 }
@@ -157,7 +159,7 @@ const lineListItems = computed(() =>
   eligibleSelections.value.map((sel, idx) => ({
     key: idx,
     label: sel.label,
-    meta: formatAmount(sel.unit_cents),
+    meta: formatMoney(sel.unit_cents, eventCurrency.value),
     sel,
   })),
 )

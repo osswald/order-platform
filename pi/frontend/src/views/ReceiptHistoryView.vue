@@ -16,7 +16,7 @@
       <div>
         <strong>{{ title(payment) }}</strong>
         <p class="muted">
-          {{ formatAmount(payment.total_cents) }}
+          {{ formatMoney(payment.total_cents, currency) }}
           <template v-if="payment.paid_at"> · {{ formatDate(String(payment.paid_at)) }}</template>
         </p>
         <p class="muted small">
@@ -36,10 +36,10 @@ import { useEventContext } from '@/composables/useEventContext'
 import { api } from '@/api'
 import type { PaymentListItem, PaymentsListResponse } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
 
-const { event, waiter, showToast } = useEventContext()
+const { event, currency, waiter, showToast } = useEventContext()
 const payments = ref<PaymentListItem[]>([])
 const loading = ref(false)
 const error = ref('')

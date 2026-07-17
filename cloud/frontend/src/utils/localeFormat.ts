@@ -1,29 +1,37 @@
-/** Map vue-i18n locale to BCP 47 tag for Intl formatters. */
-export function intlLocale(locale: string): string {
-  if (locale === 'de') return 'de-CH'
-  if (locale === 'en') return 'en-CH'
-  return locale || 'de-CH'
+import { i18n } from '@/i18n'
+import { resolveFormatLocale } from './formatLocale'
+
+function formatLocaleTag(uiLocale: string, countryCode?: string | null): string {
+  return resolveFormatLocale(uiLocale, countryCode)
 }
 
-export function collatorLocale(locale: string): string {
-  return intlLocale(locale)
+function formatDecimal(
+  cents: number | null | undefined,
+  uiLocale: string,
+  countryCode?: string | null,
+): string {
+  const formatLocale = formatLocaleTag(uiLocale, countryCode)
+  return i18n.global.n((cents || 0) / 100, { key: 'decimal', locale: formatLocale })
 }
 
-export function formatMoney(cents: number | null | undefined, locale = 'de', currency = 'CHF'): string {
-  const value = (cents || 0) / 100
-  return new Intl.NumberFormat(intlLocale(locale), {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
+export { collatorLocale, intlLocale, resolveFormatLocale } from './formatLocale'
+
+export function formatMoney(
+  cents: number | null | undefined,
+  locale = 'de',
+  currency = 'CHF',
+  countryCode?: string | null,
+): string {
+  const code = (currency || 'CHF').toUpperCase()
+  return `${code} ${formatDecimal(cents, locale, countryCode)}`
 }
 
-export function formatAmount(cents: number | null | undefined, locale = 'de'): string {
-  return new Intl.NumberFormat(intlLocale(locale), {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format((cents || 0) / 100)
+export function formatAmount(
+  cents: number | null | undefined,
+  locale = 'de',
+  countryCode?: string | null,
+): string {
+  return formatDecimal(cents, locale, countryCode)
 }
 
 /** Major currency units with ISO code prefix, e.g. "CHF 12.50". */
@@ -31,47 +39,68 @@ export function formatPriceWithCurrency(
   amount: number | string | null | undefined,
   currency: string,
   locale = 'de',
+  countryCode?: string | null,
 ): string {
-  const formatted = new Intl.NumberFormat(intlLocale(locale), {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(amount) || 0)
-  return `${currency} ${formatted}`
+  const code = (currency || 'CHF').toUpperCase()
+  const formatLocale = formatLocaleTag(locale, countryCode)
+  const value = Number(amount) || 0
+  const formatted = i18n.global.n(value, { key: 'decimal', locale: formatLocale })
+  return `${code} ${formatted}`
 }
 
-export function formatDate(isoOrDate: string | Date | null | undefined, locale = 'de'): string {
-  if (!isoOrDate) return '—'
+function parseDate(isoOrDate: string | Date | null | undefined): Date | null {
+  if (!isoOrDate) return null
   const d = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString(intlLocale(locale))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+export function formatDate(
+  isoOrDate: string | Date | null | undefined,
+  locale = 'de',
+  countryCode?: string | null,
+): string {
+  const d = parseDate(isoOrDate)
+  if (!d) return '—'
+  const formatLocale = formatLocaleTag(locale, countryCode)
+  return i18n.global.d(d, { key: 'date', locale: formatLocale })
 }
 
 export function formatDateTime(
   isoOrDate: string | Date | null | undefined,
   locale = 'de',
-  options: Intl.DateTimeFormatOptions = {},
+  countryCode?: string | null,
 ): string {
-  if (!isoOrDate) return '—'
-  const d = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(intlLocale(locale), {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    ...options,
-  })
+  const d = parseDate(isoOrDate)
+  if (!d) return '—'
+  const formatLocale = formatLocaleTag(locale, countryCode)
+  return i18n.global.d(d, { key: 'short', locale: formatLocale })
 }
 
 export function formatDateRange(
   startIso: string | null | undefined,
   endIso: string | null | undefined,
   locale = 'de',
+  countryCode?: string | null,
 ): string {
   if (!startIso || !endIso) return '—'
-  try {
-    const start = formatDateTime(startIso, locale)
-    const end = formatDateTime(endIso, locale)
-    return `${start} – ${end}`
-  } catch {
-    return '—'
-  }
+  const start = formatDateTime(startIso, locale, countryCode)
+  const end = formatDateTime(endIso, locale, countryCode)
+  if (start === '—' && end === '—') return '—'
+  return `${start} – ${end}`
+}
+
+export function formatTimeRange(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined,
+  locale = 'de',
+  countryCode?: string | null,
+): string {
+  if (!startIso || !endIso) return '—'
+  const start = parseDate(startIso)
+  const end = parseDate(endIso)
+  if (!start || !end) return '—'
+  const formatLocale = formatLocaleTag(locale, countryCode)
+  const startText = i18n.global.d(start, { key: 'time', locale: formatLocale })
+  const endText = i18n.global.d(end, { key: 'time', locale: formatLocale })
+  return `${startText} – ${endText}`
 }

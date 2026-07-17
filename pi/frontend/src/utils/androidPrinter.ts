@@ -1,5 +1,6 @@
 import { api } from '@/api'
 import type { PaymentReceiptEscposResponse } from '@/types/api'
+import { getReceiptCharset } from './receiptCharset'
 import { getReceiptPaperWidth } from './receiptPaperWidth'
 
 interface BridgeResult extends AndroidBridgeResult {
@@ -82,7 +83,11 @@ export async function printPaymentReceipt(
     `/v1/payments/${encodeURIComponent(String(paymentId))}/receipt`,
     {
       method: 'POST',
-      body: JSON.stringify({ reprint, paper_width: getReceiptPaperWidth() }),
+      body: JSON.stringify({
+        reprint,
+        paper_width: getReceiptPaperWidth(),
+        charset: getReceiptCharset(),
+      }),
     },
   )
   const result = printEscposBase64(data.escpos_payload)
@@ -95,7 +100,11 @@ export async function printPaymentReceipt(
 export async function printTestReceipt(eventId: number | null): Promise<BridgeResult> {
   const data = await api<PaymentReceiptEscposResponse>('/v1/printers/test-receipt', {
     method: 'POST',
-    body: JSON.stringify({ event_id: eventId || null, paper_width: getReceiptPaperWidth() }),
+    body: JSON.stringify({
+      event_id: eventId || null,
+      paper_width: getReceiptPaperWidth(),
+      charset: getReceiptCharset(),
+    }),
   })
   const result = printEscposBase64(data.escpos_payload)
   if (!result.ok) {

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { EdgeBundleEvent } from '@/types/api'
-import { formatAmount } from './money'
+import { formatMoney } from './money'
 import { eventPaymentTypes, eventTwintQrDataUrl, type PaymentType } from './paymentTypes'
 import { stripeTerminalPickerEntry } from './stripeTerminalAvailability'
 
@@ -23,8 +23,8 @@ let rejectPick: ((reason?: unknown) => void) | null = null
 let resolveTwintQr: (() => void) | null = null
 let rejectTwintQr: ((reason?: unknown) => void) | null = null
 
-function amountLabelFor(cents: number | null | undefined): string {
-  if (cents != null) return formatAmount(cents)
+function amountLabelFor(cents: number | null | undefined, currency: string): string {
+  if (cents != null) return formatMoney(cents, currency)
   return ''
 }
 
@@ -56,7 +56,7 @@ async function pickTypeFromSheet(event: EdgeBundleEvent, amountCents: number | n
     return entryValue(enabled[0])
   }
   pickerTypes.value = entries
-  pickerAmountLabel.value = amountLabelFor(amountCents)
+  pickerAmountLabel.value = amountLabelFor(amountCents, event.currency || 'CHF')
   pickerOpen.value = true
   return new Promise((resolve, reject) => {
     resolvePick = resolve
@@ -87,7 +87,7 @@ export async function pickPaymentType(
   const type = await pickTypeFromSheet(event, amountCents)
   const qrUrl = type === 'twint' ? eventTwintQrDataUrl(event) : null
   if (qrUrl) {
-    const label = pickerAmountLabel.value || amountLabelFor(amountCents)
+    const label = pickerAmountLabel.value || amountLabelFor(amountCents, event.currency || 'CHF')
     hooks.onTwintShow?.({ dataUrl: qrUrl, amountLabel: label, amountCents })
     try {
       await showTwintQr(qrUrl, label)

@@ -30,12 +30,42 @@ export function cellVoucherUuidsForPayload(cell: LayoutCellLike): string[] {
   return []
 }
 
+/** Matches backend layout_cell_requires_content: articles and/or vouchers required. */
+export function layoutCellHasContent(cell: LayoutCellLike): boolean {
+  const articleIds = Array.isArray(cell.article_ids) ? cell.article_ids : []
+  if (articleIds.length > 0) return true
+  return cellVoucherUuidsForPayload(cell).length > 0
+}
+
 export function isLayoutCellInGrid(
   cell: { row: number; col: number },
   width: number,
   height: number,
 ): boolean {
   return cell.row >= 0 && cell.col >= 0 && cell.row < height && cell.col < width
+}
+
+export function stationArticleUnion(stations: Array<{ article_ids?: number[] | null }>): Set<number> {
+  const out = new Set<number>()
+  for (const station of stations) {
+    for (const id of station.article_ids || []) {
+      out.add(Number(id))
+    }
+  }
+  return out
+}
+
+export function pruneLayoutCellArticlesToStationUnion(
+  layouts: LayoutLike[],
+  allowedArticleIds: Set<number>,
+): LayoutLike[] {
+  return layouts.map((layout) => ({
+    ...layout,
+    cells: (layout.cells || []).map((cell) => ({
+      ...cell,
+      article_ids: (cell.article_ids || []).filter((id) => allowedArticleIds.has(Number(id))),
+    })),
+  }))
 }
 
 export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
@@ -47,6 +77,7 @@ export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
     grid_height: layout.grid_height,
     cells: (layout.cells || [])
       .filter((cell) => isLayoutCellInGrid(cell, layout.grid_width, layout.grid_height))
+      .filter((cell) => layoutCellHasContent(cell))
       .map((cell) => {
         const voucherUuids = cellVoucherUuidsForPayload(cell)
         return {
@@ -91,13 +122,19 @@ export function resolveAppLayoutsForPut(options: {
   layoutsLocal: EventLayoutLocal[]
   layoutCellsLoaded: boolean
   serverLayouts?: readonly ServerLayoutCellsSource[] | null
+  stations?: Array<{ article_ids?: number[] | null }> | null
 }): AppLayoutIn[] {
-  const { layoutsLocal, layoutCellsLoaded, serverLayouts } = options
+  const { layoutsLocal, layoutCellsLoaded, serverLayouts, stations } = options
+  let layouts: LayoutLike[]
   if (layoutCellsLoaded) {
-    return mapLayoutsToPutPayload(layoutsLocal)
+    layouts = layoutsLocal
+  } else if (!serverLayouts?.length) {
+    layouts = layoutsLocal
+  } else {
+    layouts = mergeLayoutsWithServerCells(layoutsLocal, serverLayouts)
   }
-  if (!serverLayouts?.length) {
-    return mapLayoutsToPutPayload(layoutsLocal)
+  if (stations != null) {
+    layouts = pruneLayoutCellArticlesToStationUnion(layouts, stationArticleUnion(stations))
   }
-  return mapLayoutsToPutPayload(mergeLayoutsWithServerCells(layoutsLocal, serverLayouts))
+  return mapLayoutsToPutPayload(layouts)
 }

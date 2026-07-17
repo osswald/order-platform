@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h1>Kellner</h1>
+    <h1>
+      Kellner
+      <TestBetriebPill v-if="isTest" />
+    </h1>
     <p class="muted">{{ event?.name }} · {{ waiter?.name }}</p>
 
     <div v-if="failedCount > 0" class="card print-fail-banner">
@@ -58,14 +61,17 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { isAndroidApp } from '@/api'
+import TestBetriebPill from '@/components/TestBetriebPill.vue'
 import { useEventContext } from '@/composables/useEventContext'
 import { maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
 import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
+import { isEventTest } from '@/utils/eventStatus'
 
 const router = useRouter()
 const { event, waiter, setWaiter, selectedEventId } = useEventContext()
 const { failedCount, loadFailedJobs } = useStationPrintFailures()
 const androidApp = computed(() => isAndroidApp())
+const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
 
 onMounted(() => {
   const eventId = selectedEventId.value
@@ -92,6 +98,12 @@ async function switchWaiter() {
 </script>
 
 <style scoped>
+h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
 .print-fail-banner {
   margin-top: 1rem;
   padding: 1rem;

@@ -5,21 +5,45 @@ on:
     branches: [main, master]
     paths:
       - "cloud/backend/**"
+      - "cloud/hosted-pi-manager/**"
       - "pi/backend/**"
+      - "packages/vendiqo_shared/**"
+      - "cloud/shared/**"
+      - ".github/filters.yaml"
       - ".github/workflows/backend-tests.yml"
   pull_request:
     paths:
       - "cloud/backend/**"
+      - "cloud/hosted-pi-manager/**"
       - "pi/backend/**"
+      - "packages/vendiqo_shared/**"
+      - "cloud/shared/**"
+      - ".github/filters.yaml"
       - ".github/workflows/backend-tests.yml"
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  test:
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        backend: [cloud, pi]
+    outputs:
+      cloud: ${{ steps.filter.outputs.cloud-backend == 'true' || steps.filter.outputs.shared-python == 'true' || steps.filter.outputs.cloud-shared == 'true' }}
+      pi: ${{ steps.filter.outputs.pi-backend == 'true' || steps.filter.outputs.shared-python == 'true' }}
+      hosted-pi-manager: ${{ steps.filter.outputs.hosted-pi-manager == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: .github/filters.yaml
+
+  test-cloud:
+    needs: changes
+    if: needs.changes.outputs.cloud == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -31,20 +55,77 @@ jobs:
       - name: Install shared package
         run: pip install -e packages/vendiqo_shared
 
-      - name: Install dependencies (${{ matrix.backend }})
-        working-directory: ${{ matrix.backend }}/backend
+      - name: Install dependencies (cloud)
+        working-directory: cloud/backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Run tests with coverage (${{ matrix.backend }})
-        working-directory: ${{ matrix.backend }}/backend
+      - name: Run tests with coverage (cloud)
+        working-directory: cloud/backend
         env:
-          PYTHONPATH: ${{ github.workspace }}/${{ matrix.backend }}/backend
+          PYTHONPATH: ${{ github.workspace }}/cloud/backend
         run: python -m pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70 -q
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.backend }}
-          path: ${{ matrix.backend }}/backend/coverage.xml
+          name: coverage-cloud
+          path: cloud/backend/coverage.xml
+
+  test-pi:
+    needs: changes
+    if: needs.changes.outputs.pi == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install shared package
+        run: pip install -e packages/vendiqo_shared
+
+      - name: Install dependencies (pi)
+        working-directory: pi/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests with coverage (pi)
+        working-directory: pi/backend
+        env:
+          PYTHONPATH: ${{ github.workspace }}/pi/backend
+        run: python -m pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70 -q
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-pi
+          path: pi/backend/coverage.xml
+
+  test-hosted-pi-manager:
+    needs: changes
+    if: needs.changes.outputs.hosted-pi-manager == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (hosted-pi-manager)
+        working-directory: cloud/hosted-pi-manager
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests (hosted-pi-manager)
+        working-directory: cloud/hosted-pi-manager
+        env:
+          PYTHONPATH: ${{ github.workspace }}/cloud/hosted-pi-manager
+        run: python -m pytest tests/ -v

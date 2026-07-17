@@ -148,6 +148,39 @@ def test_station_slip_uses_feed_lines_from_printer_appliance():
     assert b"\x1bd\x06" not in payload
 
 
+def test_station_slip_partial_print_banner_and_excluded_lines():
+    slip = build_escpos_receipt_text(
+        {
+            "table_number": 5,
+            "order_number": 10,
+            "ordered_at": "2024-01-22T10:07:00+00:00",
+            "waiter_name": "Chef",
+            "kitchen_partial_print": True,
+            "lines": [
+                {"article_id": 10, "qty": 2, "article_name": "Schnitzel", "note": "", "additions": []},
+            ],
+            "kitchen_excluded_lines": [
+                {"article_id": 10, "qty": 3, "article_name": "Schnitzel", "note": "", "additions": []},
+                {"article_id": 20, "qty": 1, "article_name": "Salat", "note": "", "additions": []},
+            ],
+        },
+        "Event",
+        station_name="Grill",
+        articles={
+            "10": {"id": 10, "name": "Schnitzel", "price": 9.5},
+            "20": {"id": 20, "name": "Salat", "price": 4.0},
+        },
+        local_order_id=7,
+        event=_event_with_printing(),
+    )
+    text = _slip_text(slip)
+    assert "TEILDRUCK" in text
+    assert "Noch offen" in text
+    assert "Salat" in text
+    assert text.index("TEILDRUCK") < text.index("Schnitzel")
+    assert text.index("Noch offen") > text.index("Schnitzel")
+
+
 def test_pickup_order_slip_large_code():
     slip = build_escpos_receipt_text(
         {

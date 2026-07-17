@@ -60,7 +60,7 @@
           </div>
         </template>
         <template v-else>
-          <MoneyKeypad v-model="draftAmountCents" />
+          <MoneyKeypad v-model="draftAmountCents" :currency="currency" />
         </template>
 
         <div class="preview-block">

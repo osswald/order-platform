@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Table,
     Text,
@@ -67,9 +68,50 @@ class User(Base):
     hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=True, index=True)
     event_admin_pin_hash = Column(String(255), nullable=True)
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
+    theme_preference = Column(String(16), nullable=False, default="system", server_default="system")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     hire_company = relationship("HireCompany", back_populates="users", foreign_keys=[hire_company_id])
     organisations = relationship("Organisation", secondary=organisation_users, back_populates="users")
+
+
+class UserOrganisationOnboardingDismissal(Base):
+    __tablename__ = "user_organisation_onboarding_dismissals"
+    __table_args__ = (
+        UniqueConstraint("user_id", "organisation_id", name="uq_user_org_onboarding_dismissal"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    organisation_id = Column(
+        Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dismissed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    user = relationship("User")
+    organisation = relationship("Organisation")
+
+
+class UserOrganisationOnboardingTaskState(Base):
+    __tablename__ = "user_organisation_onboarding_task_states"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "organisation_id",
+            "task_id",
+            name="uq_user_org_onboarding_task_state",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    organisation_id = Column(
+        Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    task_id = Column(String(64), nullable=False, index=True)
+    manually_completed = Column(Boolean, nullable=False, default=False, server_default="false")
+    dismissed = Column(Boolean, nullable=False, default=False, server_default="false")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    user = relationship("User")
+    organisation = relationship("Organisation")
 
 
 class Organisation(Base):
@@ -95,6 +137,8 @@ class Organisation(Base):
     default_tax_code_id = Column(Integer, ForeignKey("tax_codes.id"), nullable=True, index=True)
     accounts_enabled = Column(Boolean, nullable=False, default=False)
     position_comments_enabled = Column(Boolean, nullable=False, default=False)
+    ingredients_enabled = Column(Boolean, nullable=False, default=False)
+    color_palette = Column(JSON, nullable=True)
     hire_company = relationship("HireCompany", back_populates="organisations")
     country = relationship("Country", back_populates="organisations")
     default_tax_code = relationship("TaxCode", foreign_keys=[default_tax_code_id])
@@ -374,7 +418,7 @@ class Article(Base):
     __tablename__ = "articles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    label = Column(String(22), nullable=False)
+    label = Column(String(21), nullable=False)
     price = Column(Float, nullable=False)
     import_article_number = Column(String, nullable=True)
     description = Column(Text, nullable=True)
@@ -406,6 +450,28 @@ class ArticleAdditionLink(Base):
     preselected = Column(Boolean, nullable=False, default=False)
     base_article = relationship("Article", foreign_keys=[base_article_id])
     addition_article = relationship("Article", foreign_keys=[addition_article_id])
+
+
+class Ingredient(Base):
+    __tablename__ = "ingredients"
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    unit = Column(String(32), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    organisation = relationship("Organisation", backref="ingredients")
+
+
+class ArticleIngredientLink(Base):
+    """Recipe ingredients for a composite article."""
+
+    __tablename__ = "article_ingredient_links"
+    base_article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
+    ingredient_id = Column(Integer, ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True)
+    amount = Column(Numeric(12, 3), nullable=False, default=1)
+    sort_order = Column(Integer, nullable=False, default=0)
+    base_article = relationship("Article", foreign_keys=[base_article_id])
+    ingredient = relationship("Ingredient")
 
 
 class EventStation(Base):
@@ -523,6 +589,7 @@ class EventCashRegister(Base):
     subsidiary_code = Column(String(32), nullable=True)
     layout_uuid = Column(String(36), nullable=False)
     receipt_printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
+    cash_drawer_command = Column(String(32), nullable=False, default="none", server_default="none")
     event = relationship("Event", back_populates="cash_registers")
     receipt_printer_appliance = relationship("Appliance", foreign_keys=[receipt_printer_appliance_id])
 
@@ -632,6 +699,19 @@ class EventArticleStock(Base):
     article = relationship("Article")
 
 
+class EventIngredientStock(Base):
+    """Per-event stock for ingredients used by composite articles."""
+
+    __tablename__ = "event_ingredient_stock"
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), primary_key=True)
+    ingredient_id = Column(Integer, ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True)
+    monitor_stock = Column(Boolean, nullable=False, default=False)
+    in_stock = Column(Numeric(12, 3), nullable=True)
+    baseline_in_stock = Column(Numeric(12, 3), nullable=True)
+    event = relationship("Event", backref="ingredient_stock")
+    ingredient = relationship("Ingredient")
+
+
 class EdgeOrderSession(Base):
     __tablename__ = "edge_order_sessions"
     id = Column(Integer, primary_key=True, index=True)
@@ -670,6 +750,7 @@ class EdgeOrderItem(Base):
     payment_batch_uuid = Column(String(36), nullable=True, index=True)
     method = Column(String(32), nullable=True, index=True)
     payload = Column(JSON, nullable=False, default=dict)
+    ordered_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

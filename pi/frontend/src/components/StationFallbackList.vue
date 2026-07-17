@@ -47,7 +47,7 @@ function stationArticles(st: EdgeStationConfig) {
 }
 
 function formatPrice(a: EdgeBundleArticle & { id: number }) {
-  return formatPriceAmount(a.price ?? 0)
+  return formatPriceAmount(a.price ?? 0, props.event.currency || 'CHF')
 }
 </script>
 

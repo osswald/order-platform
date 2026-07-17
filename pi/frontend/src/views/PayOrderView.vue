@@ -20,9 +20,9 @@
       </ul>
 
       <div class="card">
-        <p>Zu zahlen: <strong>{{ formatAmount(totalCents) }}</strong></p>
-        <MoneyKeypad v-model="cashCents" />
-        <p v-if="cashMismatch" class="err-text">Betrag muss {{ formatAmount(totalCents) }} sein.</p>
+        <p>Zu zahlen: <strong>{{ formatMoney(totalCents, currency) }}</strong></p>
+        <MoneyKeypad v-model="cashCents" :currency="currency" />
+        <p v-if="cashMismatch" class="err-text">Betrag muss {{ formatMoney(totalCents, currency) }} sein.</p>
       </div>
       <button
         type="button"
@@ -48,7 +48,7 @@ import { useCart } from '@/composables/useCart'
 import { useEventContext } from '@/composables/useEventContext'
 import type { AccountSummaryResponse, EdgeBundleEvent, OrderLineIn, OrderPayResponse } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount, lineTotalCents, type MoneyLine } from '@/utils/money'
+import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
 import { lineAdditionLabels } from '@/utils/bundleHelpers'
 import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
 import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
@@ -56,7 +56,7 @@ import MoneyKeypad from '@/components/MoneyKeypad.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { event, showToast } = useEventContext()
+const { event, currency, showToast } = useEventContext()
 const { activeTableNumber, articleName } = useCart()
 const orderId = computed(() => route.params.id)
 const table = computed(() => route.query.table || activeTableNumber.value)
@@ -81,7 +81,7 @@ function toMoneyLine(line: OrderLineIn): MoneyLine {
 }
 
 function payLineTotal(line: OrderLineIn): string {
-  return formatAmount(lineTotalCents(toMoneyLine(line), articles.value))
+  return formatMoney(lineTotalCents(toMoneyLine(line), articles.value), currency.value)
 }
 
 function payLineAdditions(line: OrderLineIn) {

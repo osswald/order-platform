@@ -21,12 +21,14 @@ from .routers import (
     article_categories,
     articles,
     auth,
+    color_palette,
     countries,
     edge,
     events,
     health,
     hire_companies,
     hosted_pi,
+    ingredients,
     organisations,
     payment_types,
     position_comments,
@@ -151,6 +153,7 @@ app.include_router(countries.router, prefix="/countries", tags=["countries"])
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(receipt_printing.router, tags=["receipt-printing"])
 app.include_router(position_comments.router, tags=["position-comments"])
+app.include_router(color_palette.router, tags=["color-palette"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])
 app.include_router(users.router, prefix="/users", tags=["users"])
@@ -162,6 +165,7 @@ app.include_router(tax_codes.router, prefix="/tax-codes", tags=["tax-codes"])
 app.include_router(payment_types.router, prefix="/payment-types", tags=["payment-types"])
 app.include_router(accounting_accounts.router, prefix="/accounting-accounts", tags=["accounting-accounts"])
 app.include_router(articles.router, prefix="/articles", tags=["articles"])
+app.include_router(ingredients.router, prefix="/ingredients", tags=["ingredients"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])
 app.include_router(stripe_connect.router, prefix="/stripe/connect", tags=["stripe-connect"])

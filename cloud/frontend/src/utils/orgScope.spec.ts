@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { organisationAccountsEnabled } from './orgScope'
+import { organisationAccountsEnabled, organisationIngredientsEnabled } from './orgScope'
 
 describe('organisationAccountsEnabled', () => {
   const organisations = [
@@ -23,5 +23,30 @@ describe('organisationAccountsEnabled', () => {
   it('returns false when organisation id is null or org list is empty', () => {
     expect(organisationAccountsEnabled(organisations, null)).toBe(false)
     expect(organisationAccountsEnabled([], 1)).toBe(false)
+  })
+})
+
+describe('organisationIngredientsEnabled', () => {
+  const organisations = [
+    { id: 1, name: 'Org A', ingredients_enabled: true },
+    { id: 2, name: 'Org B', ingredients_enabled: false },
+    { id: 3, name: 'Org C', ingredients_enabled: false },
+  ]
+
+  it('returns true when the active org has ingredients_enabled', () => {
+    expect(organisationIngredientsEnabled(organisations, 1)).toBe(true)
+  })
+
+  it('returns false when ingredients_enabled is false', () => {
+    expect(organisationIngredientsEnabled(organisations, 2)).toBe(false)
+  })
+
+  it('returns false when ingredients_enabled is missing', () => {
+    expect(organisationIngredientsEnabled(organisations, 3)).toBe(false)
+  })
+
+  it('returns false when organisation id is null or org list is empty', () => {
+    expect(organisationIngredientsEnabled(organisations, null)).toBe(false)
+    expect(organisationIngredientsEnabled([], 1)).toBe(false)
   })
 })

@@ -1,24 +1,33 @@
 """Event reporting routes."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..auth_deps import get_current_user
 from ..deps import get_db
 from ..edge_reporting import build_payment_batches_report_v3, build_sales_report_v3
 from ..event_bookkeeping import build_event_bookkeeping_report
 from ..event_cash_sessions import build_cash_sessions_page
-from ..event_collective_bills import build_event_collective_bills_list
+from ..event_collective_bills import build_event_collective_bills_list, build_single_collective_bill
 from ..event_sales import build_event_sales_report
+from ..event_stats import build_event_stats
 from ..event_transactions import build_event_transactions_page
+from ..i18n.deps import get_locale
 from ..i18n.errors import api_error
-from ..models import User
+from ..models import Organisation, User
+from ..pdf.documents.collective_bill import build_collective_bill_pdf
+from ..pdf.formatting import safe_filename
+from ..pdf.response import pdf_download_response
+from ..pdf.settings import CollectiveBillPdfSettings
 from ..schemas.events import (
     EventCashSessionsPageRead,
     EventCollectiveBillsListRead,
     EventPaymentBatchesV3Read,
     EventSalesReportRead,
     EventSalesReportV3Read,
+    EventStatsRead,
     EventTransactionsPageRead,
 )
 from ..tenancy import TenantContext, get_current_tenant
@@ -47,6 +56,44 @@ def read_event_collective_bills(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_event_collective_bills_list(db, event)
+
+
+@router.get("/{event_id}/collective-bills/{bill_uuid}/pdf")
+def read_event_collective_bill_pdf(
+    event_id: int,
+    bill_uuid: str,
+    include_order_detail: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+    locale: str = Depends(get_locale),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    bill = build_single_collective_bill(db, event, bill_uuid)
+    if bill is None:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    organisation = (
+        db.query(Organisation)
+        .options(
+            joinedload(Organisation.hire_company),
+            joinedload(Organisation.country),
+        )
+        .filter(Organisation.id == event.organisation_id)
+        .first()
+    )
+    if organisation is None:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    event.organisation = organisation
+    currency = str(bill.pop("_currency", None) or "CHF")
+    pdf_bytes = build_collective_bill_pdf(
+        event=event,
+        organisation=organisation,
+        bill=bill,
+        currency=currency,
+        settings=CollectiveBillPdfSettings(locale=locale, include_order_detail=include_order_detail),
+    )
+    filename = f"Sammelrechnung-{safe_filename(bill.get('name') or 'bill')}.pdf"
+    return pdf_download_response(pdf_bytes, filename)
 
 
 @router.get("/{event_id}/transactions", response_model=EventTransactionsPageRead)
@@ -106,6 +153,45 @@ def read_event_sales_report_v3(
 ):
     event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
     return build_sales_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
+
+
+@router.get("/{event_id}/stats", response_model=EventStatsRead)
+def read_event_stats(
+    event_id: int,
+    from_dt: datetime = Query(..., alias="from"),
+    to_dt: datetime = Query(..., alias="to"),
+    article_ids: list[int] | None = Query(None),
+    category_ids: list[int] | None = Query(None),
+    bucket_count: int = Query(24, ge=12, le=48),
+    locale: str = Depends(get_locale),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    try:
+        return build_event_stats(
+            db,
+            organisation_id=event.organisation_id,
+            event_id=event.id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+            article_ids=article_ids,
+            category_ids=category_ids,
+            bucket_count=bucket_count,
+            locale=locale,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code == "invalid_time_range":
+            raise api_error("invalid_time_range", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        if code == "invalid_article_ids":
+            raise api_error("invalid_article_ids", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        if code == "invalid_category_ids":
+            raise api_error("invalid_category_ids", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        if code == "invalid_bucket_count":
+            raise api_error("invalid_bucket_count", status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
+        raise
 
 
 @router.get("/{event_id}/payment-batches-v3", response_model=EventPaymentBatchesV3Read)

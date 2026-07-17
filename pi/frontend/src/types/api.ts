@@ -6,6 +6,7 @@ export type EdgeBundleResponse = components['schemas']['EdgeBundleContract']
 export type EdgeBundleEvent = components['schemas']['EdgeBundleEvent']
 export type EdgeBundleArticle = components['schemas']['EdgeBundleArticle']
 export type EdgeBundleArticleAddition = components['schemas']['EdgeBundleArticleAddition']
+export type ArticleStockPatch = components['schemas']['ArticleStockPatch']
 export type EdgeEventConfiguration = components['schemas']['EdgeEventConfiguration']
 export type EdgeStationConfig = components['schemas']['EdgeStationConfig']
 
@@ -40,6 +41,7 @@ export type CollectiveBillCreatedResponse = components['schemas']['CollectiveBil
 export type KitchenOrdersResponse = components['schemas']['KitchenOrdersResponse']
 export type KitchenOrderTicket = components['schemas']['KitchenOrderTicket']
 export type KitchenTicketLineEntry = components['schemas']['KitchenTicketLineEntry']
+export type KitchenTicketPrintResponse = components['schemas']['KitchenTicketPrintResponse']
 export type PickupOrdersResponse = components['schemas']['PickupOrdersResponse']
 export type PickupOrderItem = components['schemas']['PickupOrderItem']
 export type PaymentsListResponse = components['schemas']['PaymentsListResponse']
@@ -48,6 +50,10 @@ export type RegisterDisplayResponse = components['schemas']['RegisterDisplayResp
 export type PrinterTestStationPrintsResponse = components['schemas']['PrinterTestStationPrintsResponse']
 export type StationTestPrintResult = components['schemas']['StationTestPrintResult']
 export type TablePartialSettleResponse = components['schemas']['TablePartialSettleResponse']
+export type OrderPartialSettleResponse = components['schemas']['OrderPartialSettleResponse']
+export type OrderAssignCollectiveResponse = components['schemas']['OrderAssignCollectiveResponse']
+export type RegisterOpenOrdersResponse = components['schemas']['RegisterOpenOrdersResponse']
+export type RegisterOpenOrderRow = components['schemas']['RegisterOpenOrderRow']
 export type AdminStatusResponse = components['schemas']['AdminStatusResponse']
 
 export interface ApiError extends Error {

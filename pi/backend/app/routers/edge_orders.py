@@ -15,7 +15,7 @@ from ..discounts import validate_submit_discounts
 from ..domain.items import upsert_items_from_payload
 from ..domain.kitchen_sync import enqueue_kitchen_tickets_sync
 from ..domain.sessions import ensure_order_session
-from ..domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync
+from ..domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync, event_mode_label
 from ..instant_collective_bill import ensure_instant_collective_bill
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
 from ..models import CollectiveBill, LocalOrder
@@ -46,8 +46,12 @@ from ..schemas.edge import (
     LocalOrderCreatedResponse,
     OpenCollectiveBillsResponse,
     OpenTablesResponse,
+    OrderAssignCollectiveResponse,
+    OrderPartialSettleResponse,
     OrderPayBody,
     OrderPayResponse,
+    RegisterOpenOrderRow,
+    RegisterOpenOrdersResponse,
     TablePartialSettleResponse,
     TableSettleBody,
     TableSettlePartialBody,
@@ -93,6 +97,52 @@ from .edge_common import (
 router = APIRouter()
 
 
+def _create_voucher_sale_print_jobs(
+    db: Session,
+    *,
+    order_id: int,
+    ev: dict,
+    cash_register_uuid: str | None,
+    order_lines: list[dict],
+) -> list[int]:
+    """One voucher slip per sold voucher unit, printed at the register printer."""
+    slip_units: list[tuple[str, int]] = []
+    for line in order_lines:
+        if not is_voucher_sale_line(line):
+            continue
+        vd = voucher_definition_by_uuid(ev, str(line.get("voucher_definition_uuid") or ""))
+        name = (vd or {}).get("name") or "Gutschein"
+        uc = voucher_sale_unit_cents(ev, line)
+        qty = max(1, int(line.get("qty") or 1))
+        slip_units.extend([(name, uc)] * qty)
+    total_slips = len(slip_units)
+    job_ids: list[int] = []
+    for idx, (vname, uc) in enumerate(slip_units, start=1):
+        job_ids.append(
+            _create_voucher_print_job(
+                db,
+                order_id=order_id,
+                ev=ev,
+                cash_register_uuid=cash_register_uuid,
+                voucher_name=vname,
+                value_cents=uc,
+                copy_index=idx if total_slips > 1 else None,
+                copy_total=total_slips if total_slips > 1 else None,
+            )
+        )
+    return job_ids
+
+
+def _voucher_sale_total_cents(ev: dict, lines: list[dict]) -> int:
+    total = 0
+    for line in lines or []:
+        if not isinstance(line, dict) or not is_voucher_sale_line(line):
+            continue
+        qty = max(1, int(line.get("qty") or 1))
+        total += voucher_sale_unit_cents(ev, line) * qty
+    return total
+
+
 @router.post("/v1/orders", response_model=LocalOrderCreatedResponse)
 def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) -> LocalOrderCreatedResponse:
     bundle = get_bundle_dict(db)
@@ -112,6 +162,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             "article_id": ln.get("article_id"),
             "qty": ln.get("qty"),
             "note": ln.get("note") or "",
+            "additions": ln.get("additions") or [],
         }
         for ln in lines
         if isinstance(ln, dict) and ln.get("article_id") is not None and not is_voucher_sale_line(ln)
@@ -136,7 +187,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     _validate_payment_types(ev, payments)
     normalized_order_discount = validate_submit_discounts(ev, lines, order_discount_raw, arts)
     validate_submit_position_notes(bundle, lines)
-    line_cents, _ = order_lines_total_cents(lines, ev, arts, normalized_order_discount)
+    line_cents, line_item_count = order_lines_total_cents(lines, ev, arts, normalized_order_discount)
     redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
     if redemptions_in and not payments:
         raise HTTPException(status_code=400, detail="Gutschein einlösen erfordert Zahlung")
@@ -153,9 +204,9 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     expected_cents = max(0, line_cents - voucher_credit)
     instant_bill = None
     if order_source == "cash_register":
-        if not payments:
-            raise HTTPException(status_code=400, detail="payments required for cash-register orders")
-        if _payments_total_cents(payments) != expected_cents:
+        # Payments are optional: without payments the order is created open and
+        # settled on the register payment screen (like waiter orders).
+        if payments and _payments_total_cents(payments) != expected_cents:
             raise HTTPException(status_code=400, detail="payment amount must match order total")
     elif pm == "instant":
         payments = []
@@ -163,8 +214,11 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         if not instant_bill:
             raise HTTPException(status_code=400, detail="Sammelrechnung für Sofort-Zahlung nicht konfiguriert")
 
-    payment_status = "paid" if order_source == "cash_register" else _payment_status_for_create(ev, payments)
-    if has_voucher_sale and payment_status != "paid":
+    if order_source == "cash_register":
+        payment_status = "paid" if payments else "open"
+    else:
+        payment_status = _payment_status_for_create(ev, payments)
+    if has_voucher_sale and payment_status != "paid" and order_source != "cash_register":
         raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
     order_lines = _lines_with_station_uuid(ev, lines)
     article_order_lines = article_lines_only(order_lines)
@@ -187,6 +241,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         "payments": payments,
         "payment_status": payment_status,
         "order_source": order_source,
+        "mode": event_mode_label(ev.get("status")),
     }
     if voucher_records:
         payload["voucher_redemptions"] = voucher_records
@@ -205,6 +260,9 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
                 "pickup_number": pickup_number,
                 "pickup_code": pickup_code,
                 "pickup_status": pickup_status,
+                # Snapshot for the pickup screen: partial settlements move lines
+                # into paid orders, so the live line list can undercount later.
+                "item_count": line_item_count,
             }
         )
     order_number: int | None = None
@@ -262,29 +320,16 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     kitchen_ticket_ids: list[int] = []
 
     if payment_status == "paid" and has_voucher_sale:
-        slip_units: list[tuple[str, int]] = []
-        for line in order_lines:
-            if not is_voucher_sale_line(line):
-                continue
-            vd = voucher_definition_by_uuid(ev, str(line.get("voucher_definition_uuid") or ""))
-            name = (vd or {}).get("name") or "Gutschein"
-            uc = voucher_sale_unit_cents(ev, line)
-            qty = max(1, int(line.get("qty") or 1))
-            slip_units.extend([(name, uc)] * qty)
-        total_slips = len(slip_units)
-        for idx, (vname, uc) in enumerate(slip_units, start=1):
-            print_job_ids.append(
-                _create_voucher_print_job(
-                    db,
-                    order_id=order.id,
-                    ev=ev,
-                    cash_register_uuid=body.cash_register_uuid,
-                    voucher_name=vname,
-                    value_cents=uc,
-                    copy_index=idx if total_slips > 1 else None,
-                    copy_total=total_slips if total_slips > 1 else None,
-                )
+        # Open register orders print voucher slips at settlement instead.
+        print_job_ids.extend(
+            _create_voucher_sale_print_jobs(
+                db,
+                order_id=order.id,
+                ev=ev,
+                cash_register_uuid=body.cash_register_uuid,
+                order_lines=order_lines,
             )
+        )
 
     for station_uuid, station_lines in groups.items():
         if not station_lines:
@@ -348,7 +393,12 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         db,
         event_id=body.event_id,
         client_order_id=body.client_order_id,
-        payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+        payload=enrich_payload_for_cloud_sync(
+            payload,
+            local_order_id=order.id,
+            session_id=session_id,
+            mode=event_mode_label(ev.get("status")),
+        ),
     )
 
     from ..shift_integration import record_shift_order_submit
@@ -365,7 +415,12 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         voucher_records=voucher_records if voucher_records and payment_status != "paid" else None,
     )
 
-    articles_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts)
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, body.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    validate_stock(ev, line_dicts)
+    stock_patch = apply_stock_to_bundle(bundle, body.event_id, line_dicts, strict=True)
     save_bundle(db, bundle)
 
     payment_receipt_id = None
@@ -391,7 +446,8 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         pickup_code=pickup_code,
         pickup_status=payload.get("pickup_status") if order_source == "cash_register" else None,
         payment_mode=(ev.get("payment_mode") or "pay_later").lower(),
-        articles=articles_patch,
+        articles=stock_patch.get("articles") or {},
+        ingredients=stock_patch.get("ingredients") or {},
     )
 
 
@@ -428,6 +484,298 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
     receipt = _create_payment_receipt(db, ev, payload, source_type="order", source_id=order.id)
     db.commit()
     return OrderPayResponse(local_order_id=order.id, payment_id=receipt.id, payment_status="paid")
+
+
+def _open_order_or_404(db: Session, order_id: int) -> LocalOrder:
+    order = (
+        db.query(LocalOrder)
+        .filter(LocalOrder.id == order_id, LocalOrder.payment_status == "open")
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found or not open")
+    return order
+
+
+def _event_for_order(db: Session, order: LocalOrder) -> dict:
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, order.event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    return ev
+
+
+def _voucher_sale_summary_lines(ev: dict, lines: list) -> list[dict]:
+    out: list[dict] = []
+    for line in lines or []:
+        if not isinstance(line, dict) or not is_voucher_sale_line(line):
+            continue
+        vd = voucher_definition_by_uuid(ev, str(line.get("voucher_definition_uuid") or ""))
+        qty = max(1, int(line.get("qty") or 1))
+        unit = voucher_sale_unit_cents(ev, line)
+        out.append(
+            {
+                "voucher_definition_uuid": line.get("voucher_definition_uuid"),
+                "name": (vd or {}).get("name") or "Gutschein",
+                "qty": qty,
+                "unit_cents": unit,
+                "total_cents": unit * qty,
+            }
+        )
+    return out
+
+
+@router.get("/v1/orders/{order_id}/summary", response_model=AccountSummaryResponse)
+def get_order_summary(order_id: int, db: Session = Depends(get_db)) -> AccountSummaryResponse:
+    order = _open_order_or_404(db, order_id)
+    ev = _event_for_order(db, order)
+    arts = _article_map(ev)
+
+    payload = json.loads(order.payload_json)
+    summary = _summary_from_orders(
+        [order],
+        ev,
+        arts,
+        {
+            "local_order_id": order.id,
+            "event_id": order.event_id,
+            "pickup_code": order.pickup_code or payload.get("pickup_code"),
+            "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
+        },
+    )
+    voucher_sale_lines = _voucher_sale_summary_lines(ev, payload.get("lines") or [])
+    summary["voucher_sale_lines"] = voucher_sale_lines
+    summary["voucher_sale_cents"] = sum(v["total_cents"] for v in voucher_sale_lines)
+    return AccountSummaryResponse.model_validate(summary)
+
+
+@router.post("/v1/orders/{order_id}/settle-partial", response_model=OrderPartialSettleResponse)
+def settle_order_partial(
+    order_id: int, body: TableSettlePartialBody, db: Session = Depends(get_db)
+) -> OrderPartialSettleResponse:
+    order = _open_order_or_404(db, order_id)
+    ev = _event_for_order(db, order)
+    arts = _article_map(ev)
+
+    payload = json.loads(order.payload_json)
+    order_lines = payload.get("lines") or []
+    has_voucher_sale = any(is_voucher_sale_line(ln) for ln in order_lines if isinstance(ln, dict))
+
+    selections = [s.model_dump() for s in body.selections]
+    line_groups = _build_line_groups_from_orders([order], arts)
+    groups_by_key = {
+        _line_key(g["article_id"], g.get("note", ""), g.get("additions"), g.get("discount")): int(
+            g.get("total_qty") or 0
+        )
+        for g in line_groups
+    }
+    need: dict[tuple, int] = {}
+    for s in selections:
+        key = _line_key(s["article_id"], s.get("note", ""), s.get("additions"), s.get("discount"))
+        need[key] = need.get(key, 0) + int(s["qty"])
+    covers_all = need == groups_by_key
+
+    if covers_all and (selections or has_voucher_sale):
+        # Full settlement in place: the order keeps its lines, is marked paid,
+        # and voucher-sale slips print now (they are withheld while open).
+        if not body.payments:
+            raise HTTPException(status_code=400, detail="payments required")
+        payments = dump_payments(body.payments)
+        _validate_payment_types(ev, payments)
+        gross_cents = _selections_total_cents_from_groups(selections, line_groups) if selections else 0
+        redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
+        voucher_credit, voucher_records = compute_voucher_credits(
+            ev,
+            gross_cents=gross_cents,
+            redemptions=redemptions_in,
+            articles=arts,
+            selections=selections,
+            line_groups=line_groups,
+        )
+        expected_cents = max(0, gross_cents - voucher_credit) + _voucher_sale_total_cents(ev, order_lines)
+        paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
+        if paid_total != expected_cents:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Payment total {paid_total} does not match payable {expected_cents}",
+            )
+        payload["payments"] = payments
+        payload["payment_status"] = "paid"
+        payload["settled_at"] = datetime.now(UTC).isoformat()
+        if voucher_records:
+            payload["voucher_redemptions"] = voucher_records
+            payload["voucher_credit_cents"] = voucher_credit
+        order.payment_status = "paid"
+        order.payload_json = json.dumps(payload)
+        _sync_outbox_payload(db, order, payload)
+        payment_id = _create_payment_receipt(
+            db,
+            ev,
+            payload,
+            source_type="order",
+            source_id=order.id,
+        ).id
+        if has_voucher_sale:
+            _create_voucher_sale_print_jobs(
+                db,
+                order_id=order.id,
+                ev=ev,
+                cash_register_uuid=order.cash_register_uuid or payload.get("cash_register_uuid"),
+                order_lines=order_lines,
+            )
+        db.commit()
+        return OrderPartialSettleResponse(
+            paid_cents=expected_cents,
+            remaining_cents=0,
+            paid_order_ids=[order.id],
+            payment_id=payment_id,
+            local_order_id=order.id,
+            voucher_credit_cents=voucher_credit,
+        )
+
+    if has_voucher_sale:
+        raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert vollständige Zahlung")
+
+    meta: dict = {"table_number": None, "settlement_order_id": order.id}
+    for key in ("order_source", "cash_register_uuid", "cash_register_name", "pickup_code"):
+        value = payload.get(key)
+        if value:
+            meta[key] = value
+    result = _settle_orders_partial(
+        db,
+        ev,
+        body,
+        [order],
+        settlement_meta=meta,
+        paid_order_prefix=f"partial-order-{order.id}",
+        source_type="order_partial",
+    )
+    db.commit()
+
+    db.refresh(order)
+    remaining_cents = 0
+    if order.payment_status == "open":
+        remaining_payload = json.loads(order.payload_json)
+        remaining_cents = order_total_cents(
+            remaining_payload.get("lines") or [],
+            remaining_payload.get("order_discount"),
+            ev,
+            arts,
+        )
+
+    return OrderPartialSettleResponse(
+        paid_cents=result["paid_cents"],
+        remaining_cents=remaining_cents,
+        paid_order_ids=result["paid_order_ids"],
+        payment_id=result["payment_id"],
+        local_order_id=order.id,
+        voucher_credit_cents=result["voucher_credit_cents"],
+    )
+
+
+@router.post("/v1/orders/{order_id}/assign-collective", response_model=OrderAssignCollectiveResponse)
+def assign_order_to_collective(
+    order_id: int, body: AssignCollectiveBody, db: Session = Depends(get_db)
+) -> OrderAssignCollectiveResponse:
+    if not body.selections:
+        raise HTTPException(status_code=400, detail="selections required")
+    if body.collective_bill_id is None and not body.new_name:
+        raise HTTPException(status_code=400, detail="collective_bill_id or new_name required")
+
+    order = _open_order_or_404(db, order_id)
+    ev = _event_for_order(db, order)
+
+    payload = json.loads(order.payload_json)
+    if any(is_voucher_sale_line(ln) for ln in payload.get("lines") or [] if isinstance(ln, dict)):
+        raise HTTPException(
+            status_code=400,
+            detail="Gutscheinverkauf kann nicht auf eine Sammelrechnung übertragen werden",
+        )
+
+    bill = _resolve_or_create_collective_bill(
+        db,
+        event_id=order.event_id,
+        collective_bill_id=body.collective_bill_id,
+        new_name=body.new_name,
+    )
+
+    selections = _selections_from_body(body.selections)
+    try:
+        moved = take_from_orders(
+            db,
+            [order],
+            selections,
+            _sync_outbox_payload,
+            transfer_destination={
+                "to_collective_bill_uuid": bill.uuid,
+                "to_collective_bill_name": bill.name,
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    append_lines_to_collective(
+        db,
+        ev=ev,
+        bill=bill,
+        event_id=order.event_id,
+        waiter_uuid=order.waiter_uuid,
+        lines=moved,
+        lines_with_station=_lines_with_station_uuid,
+        sync_outbox=_sync_outbox_payload,
+    )
+    db.commit()
+    return OrderAssignCollectiveResponse(
+        collective_bill_id=bill.id,
+        collective_bill_uuid=bill.uuid,
+        name=bill.name,
+        local_order_id=order.id,
+    )
+
+
+@router.get("/v1/registers/{register_uuid}/open-orders", response_model=RegisterOpenOrdersResponse)
+def list_register_open_orders(
+    register_uuid: str,
+    event_id: int = Query(...),
+    db: Session = Depends(get_db),
+) -> RegisterOpenOrdersResponse:
+    bundle = get_bundle_dict(db)
+    ev = event_from_bundle(bundle, event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
+    if not _cash_register_from_event(ev, register_uuid):
+        raise HTTPException(status_code=404, detail="Unknown cash register for this event")
+
+    arts = _article_map(ev)
+    currency = ev.get("currency", "EUR")
+    orders = (
+        db.query(LocalOrder)
+        .filter(
+            LocalOrder.event_id == event_id,
+            LocalOrder.order_source == "cash_register",
+            LocalOrder.cash_register_uuid == register_uuid,
+            LocalOrder.payment_status == "open",
+            LocalOrder.collective_bill_id.is_(None),
+        )
+        .order_by(LocalOrder.id.desc())
+        .all()
+    )
+    rows: list[RegisterOpenOrderRow] = []
+    for o in orders:
+        payload = json.loads(o.payload_json)
+        lines = payload.get("lines") or []
+        total_cents, item_count = _line_totals(lines, arts, ev)
+        rows.append(
+            RegisterOpenOrderRow(
+                local_order_id=o.id,
+                client_order_id=o.client_order_id,
+                pickup_code=o.pickup_code or payload.get("pickup_code"),
+                total_cents=total_cents,
+                item_count=item_count,
+                created_at=o.created_at.isoformat() if o.created_at else None,
+            )
+        )
+    return RegisterOpenOrdersResponse(event_id=event_id, currency=currency, orders=rows)
 
 
 @router.get("/v1/tables/open", response_model=OpenTablesResponse)
@@ -539,17 +887,6 @@ def settle_table_partial(
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
-    if not body.payments:
-        raise HTTPException(status_code=400, detail="payments required")
-    if not body.selections:
-        raise HTTPException(status_code=400, detail="selections required")
-
-    payments = dump_payments(body.payments)
-    _validate_payment_types(ev, payments)
-
-    arts = _article_map(ev)
-    selections = [s.model_dump() for s in body.selections]
-
     orders = (
         db.query(LocalOrder)
         .filter(
@@ -564,152 +901,21 @@ def settle_table_partial(
     if not orders:
         raise HTTPException(status_code=404, detail="No open orders for this table")
 
-    line_groups = _build_line_groups_from_orders(orders, arts)
-    gross_cents = _selections_total_cents_from_groups(selections, line_groups)
-    redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
-    voucher_credit, voucher_records = compute_voucher_credits(
+    meta = {
+        "table_number": table_number,
+        "settlement_table": table_number,
+    }
+    result = _settle_orders_partial(
+        db,
         ev,
-        gross_cents=gross_cents,
-        redemptions=redemptions_in,
-        articles=arts,
-        selections=selections,
-        line_groups=line_groups,
+        body,
+        orders,
+        settlement_meta=meta,
+        paid_order_prefix=f"partial-{table_number}",
     )
-    expected_cents = max(0, gross_cents - voucher_credit)
-    paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
-    if paid_total != expected_cents:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Payment total {paid_total} does not match payable {expected_cents}",
-        )
-
-    need: dict[tuple, int] = {}
-    for s in selections:
-        key = _line_key(
-            s["article_id"],
-            s.get("note", ""),
-            s.get("additions"),
-            s.get("discount"),
-        )
-        need[key] = need.get(key, 0) + int(s["qty"])
-
-    paid_lines: list[dict] = []
-    order_discounts_collected: list[dict] = []
-    now = datetime.now(UTC).isoformat()
-
-    for order in orders:
-        payload = json.loads(order.payload_json)
-        open_lines: list[dict] = []
-        for line in payload.get("lines") or []:
-            if not isinstance(line, dict):
-                continue
-            if is_voucher_sale_line(line):
-                continue
-            aid = line.get("article_id")
-            if aid is None:
-                continue
-            note = str(line.get("note") or "")
-            adds = _normalize_additions(line.get("additions"))
-            key = _line_key(aid, note, adds, line.get("discount"))
-            qty = max(1, int(line.get("qty") or 1))
-            take = min(qty, need.get(key, 0))
-            if take > 0:
-                pl = {
-                    "article_id": int(aid),
-                    "qty": take,
-                    "note": note,
-                    "additions": adds,
-                }
-                su = line.get("station_uuid")
-                if su:
-                    pl["station_uuid"] = su
-                copy_line_fiscal_fields(line, pl)
-                paid_lines.append(pl)
-                need[key] = need.get(key, 0) - take
-                qty -= take
-            if qty > 0:
-                rem = {**line, "qty": qty, "additions": adds}
-                open_lines.append(rem)
-        payload["lines"] = open_lines
-        if open_lines:
-            order.payload_json = json.dumps(payload)
-            _sync_outbox_payload(db, order, payload)
-        else:
-            order.payment_status = "paid"
-            payload["payment_status"] = "paid"
-            payload["settled_at"] = now
-            payload["settlement_table"] = table_number
-            order.payload_json = json.dumps(payload)
-            _sync_outbox_payload(db, order, payload)
-            od = normalize_discount(payload.get("order_discount"))
-            if od:
-                order_discounts_collected.append(od)
-
-    leftover = sum(v for v in need.values() if v > 0)
-    if leftover > 0:
-        raise HTTPException(status_code=400, detail="Selection exceeds open quantities on table")
-
-    paid_order_ids: list[int] = []
-    payment_id = None
-    if paid_lines:
-        pay_cid = f"partial-{table_number}-{uuid.uuid4().hex[:12]}"
-        paid_lines = _lines_with_station_uuid(ev, paid_lines)
-        paid_payload = {
-            "client_order_id": pay_cid,
-            "event_id": body.event_id,
-            "table_number": table_number,
-            "waiter_uuid": orders[0].waiter_uuid if orders else None,
-            "lines": paid_lines,
-            "payments": payments,
-            "payment_status": "paid",
-            "settled_at": now,
-            "settlement_table": table_number,
-            "partial_settlement": True,
-            "voucher_redemptions": voucher_records,
-            "voucher_credit_cents": voucher_credit,
-        }
-        if len(order_discounts_collected) == 1:
-            paid_payload["order_discount"] = order_discounts_collected[0]
-        order_nums = {int(ln["order_number"]) for ln in paid_lines if ln.get("order_number") is not None}
-        if len(order_nums) == 1:
-            paid_payload["order_number"] = order_nums.pop()
-        sess_id = int(orders[0].session_id) if orders else ensure_order_session(
-            db,
-            event_id=body.event_id,
-            table_number=table_number,
-            waiter_uuid=orders[0].waiter_uuid if orders else None,
-            order_source="waiter",
-        )
-        paid_order = LocalOrder(
-            session_id=sess_id,
-            client_order_id=pay_cid,
-            event_id=body.event_id,
-            table_number=table_number,
-            waiter_uuid=orders[0].waiter_uuid if orders else None,
-            payment_status="paid",
-            payload_json=json.dumps(paid_payload),
-            print_status="done",
-        )
-        db.add(paid_order)
-        db.flush()
-        paid_order_ids.append(paid_order.id)
-        payment_id = _create_payment_receipt(
-            db,
-            ev,
-            paid_payload,
-            source_type="table_partial",
-            source_id=paid_order.id,
-        ).id
-        paid_payload = enrich_payload_for_cloud_sync(
-            paid_payload,
-            local_order_id=paid_order.id,
-            session_id=sess_id,
-        )
-        paid_order.payload_json = json.dumps(paid_payload)
-        enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
-
     db.commit()
 
+    arts = _article_map(ev)
     remaining_orders = (
         db.query(LocalOrder)
         .filter(
@@ -729,12 +935,12 @@ def settle_table_partial(
         )
 
     return TablePartialSettleResponse(
-        paid_cents=expected_cents,
+        paid_cents=result["paid_cents"],
         remaining_cents=remaining_cents,
-        paid_order_ids=paid_order_ids,
-        payment_id=payment_id,
+        paid_order_ids=result["paid_order_ids"],
+        payment_id=result["payment_id"],
         table_number=table_number,
-        voucher_credit_cents=voucher_credit,
+        voucher_credit_cents=result["voucher_credit_cents"],
     )
 
 
@@ -824,6 +1030,25 @@ def _selections_from_body(selections: list[LineSelection]) -> list[dict]:
     return [s.model_dump() for s in selections]
 
 
+def _resolve_or_create_collective_bill(
+    db: Session,
+    *,
+    event_id: int,
+    collective_bill_id: int | None,
+    new_name: str | None,
+) -> CollectiveBill:
+    if new_name:
+        bill = CollectiveBill(
+            uuid=str(uuid.uuid4()),
+            event_id=event_id,
+            name=new_name.strip(),
+        )
+        db.add(bill)
+        db.flush()
+        return bill
+    return _collective_bill_open(db, collective_bill_id, event_id)
+
+
 @router.post("/v1/tables/{from_table}/transfer-lines", response_model=TransferLinesResponse)
 def transfer_table_lines(
     from_table: int, body: TransferLinesBody, db: Session = Depends(get_db)
@@ -901,16 +1126,12 @@ def assign_table_to_collective(
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
-    if body.new_name:
-        bill = CollectiveBill(
-            uuid=str(uuid.uuid4()),
-            event_id=body.event_id,
-            name=body.new_name.strip(),
-        )
-        db.add(bill)
-        db.flush()
-    else:
-        bill = _collective_bill_open(db, body.collective_bill_id, body.event_id)
+    bill = _resolve_or_create_collective_bill(
+        db,
+        event_id=body.event_id,
+        collective_bill_id=body.collective_bill_id,
+        new_name=body.new_name,
+    )
 
     orders = (
         db.query(LocalOrder)
@@ -1093,6 +1314,7 @@ def _settle_orders_partial(
     *,
     settlement_meta: dict,
     paid_order_prefix: str,
+    source_type: str | None = None,
 ) -> dict:
     if not body.payments:
         raise HTTPException(status_code=400, detail="payments required")
@@ -1208,6 +1430,7 @@ def _settle_orders_partial(
             "partial_settlement": True,
             "voucher_redemptions": voucher_records,
             "voucher_credit_cents": voucher_credit,
+            "mode": event_mode_label(ev.get("status")),
             **settlement_meta,
         }
         if len(order_discounts_collected) == 1:
@@ -1227,7 +1450,7 @@ def _settle_orders_partial(
             session_id=sess_id,
             client_order_id=pay_cid,
             event_id=body.event_id,
-            table_number=0 if coll_id else settlement_meta.get("table_number"),
+            table_number=0 if coll_id else (settlement_meta.get("table_number") or 0),
             collective_bill_id=coll_id,
             waiter_uuid=orders[0].waiter_uuid if orders else None,
             payment_status="paid",
@@ -1237,17 +1460,20 @@ def _settle_orders_partial(
         db.add(paid_order)
         db.flush()
         paid_order_ids.append(paid_order.id)
+        if source_type is None:
+            source_type = "collective_partial" if settlement_meta.get("collective_bill_id") else "table_partial"
         payment_id = _create_payment_receipt(
             db,
             ev,
             paid_payload,
-            source_type="collective_partial" if settlement_meta.get("collective_bill_id") else "table_partial",
+            source_type=source_type,
             source_id=paid_order.id,
         ).id
         paid_payload = enrich_payload_for_cloud_sync(
             paid_payload,
             local_order_id=paid_order.id,
             session_id=sess_id,
+            mode=event_mode_label(ev.get("status")),
         )
         paid_order.payload_json = json.dumps(paid_payload)
         enqueue_payload_sync(db, event_id=body.event_id, client_order_id=pay_cid, payload=paid_payload)
@@ -1256,6 +1482,7 @@ def _settle_orders_partial(
         "paid_cents": expected_cents,
         "paid_order_ids": paid_order_ids,
         "payment_id": payment_id,
+        "voucher_credit_cents": voucher_credit,
     }
 
 

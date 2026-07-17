@@ -2,7 +2,7 @@ import { createApp, watch } from 'vue'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
-import { VDateInput } from 'vuetify/labs/VDateInput'
+import { de as vuetifyDe, en as vuetifyEn } from 'vuetify/locale'
 import DateFnsAdapter from '@date-io/date-fns'
 import { de as dateFnsDe } from 'date-fns/locale/de'
 import { enUS as dateFnsEnUS } from 'date-fns/locale/en-US'
@@ -11,13 +11,16 @@ import '@mdi/font/css/materialdesignicons.css'
 import App from './App.vue'
 import { router } from './router/index'
 import { i18n } from './i18n'
+import { resolveInitialTheme } from './utils/themePreference'
 
 const vuetify = createVuetify({
-  components: { ...components, VDateInput },
+  // VDateInput is included in the v4 core components namespace (no separate labs import).
+  components: { ...components },
   directives,
   locale: {
     locale: 'de',
     fallback: 'en',
+    messages: { de: vuetifyDe, en: vuetifyEn },
   },
   date: {
     adapter: DateFnsAdapter,
@@ -27,7 +30,11 @@ const vuetify = createVuetify({
     },
   },
   theme: {
-    defaultTheme: 'light',
+    defaultTheme: resolveInitialTheme(),
+    themes: {
+      light: {},
+      dark: {},
+    },
   },
   defaults: {
     VBtn: { variant: 'outlined' },

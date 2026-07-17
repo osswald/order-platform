@@ -8,13 +8,27 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import unicodedata
 from collections.abc import Callable
+from contextvars import ContextVar
 from io import BytesIO
+from typing import Literal
 
 from escpos.printer import Dummy
 from PIL import Image, ImageOps
 
 log = logging.getLogger(__name__)
+
+ReceiptCharset = Literal["pc858", "pc850", "cp1252", "ascii"]
+
+RECEIPT_CHARSET_PRESETS: dict[str, tuple[str, int]] = {
+    "pc858": ("cp858", 19),
+    "pc850": ("cp850", 2),
+    "cp1252": ("cp1252", 16),
+    "ascii": ("ascii", 0),
+}
+
+_slip_charset: ContextVar[str | None] = ContextVar("slip_charset", default=None)
 
 # Typical 80 mm thermal printer printable width in dots.
 DEFAULT_MAX_IMAGE_WIDTH = 384
@@ -75,27 +89,96 @@ def escpos_codepage() -> int:
         return 19
 
 
-def escpos_init_preamble() -> bytes:
+def resolve_escpos_charset(charset: str | None = None) -> tuple[str, int]:
+    key = (charset or _slip_charset.get() or "").strip().lower()
+    if key in RECEIPT_CHARSET_PRESETS:
+        return RECEIPT_CHARSET_PRESETS[key]
+    return escpos_encoding(), escpos_codepage()
+
+
+def escpos_init_preamble(*, charset: str | None = None) -> bytes:
     """Initialize printer and select code page (PC858 default)."""
-    return b"\x1b\x40" + bytes([0x1B, 0x74, escpos_codepage() & 0xFF])
+    _, codepage = resolve_escpos_charset(charset)
+    return b"\x1b\x40" + bytes([0x1B, 0x74, codepage & 0xFF])
 
 
-def encode_escpos_text(text: str) -> bytes:
-    return str(text).encode(escpos_encoding(), errors="replace")
+CASH_DRAWER_COMMANDS: dict[str, bytes] = {
+    "escp_pin2": bytes.fromhex("1b70003232"),
+    "escp_pin5": bytes.fromhex("1b70013232"),
+    "escp_pin2_long": bytes.fromhex("1b700019fa"),
+    "escp_pin5_long": bytes.fromhex("1b700119fa"),
+}
 
 
-def finish_slip(printer: Dummy, *, feed_lines: int = 1) -> bytes:
+def build_cash_drawer_kick(command: str) -> bytes:
+    """Build raw ESC/POS bytes to pulse the cash drawer (network printers)."""
+    key = str(command or "").strip().lower()
+    if not key or key == "none":
+        return b""
+    kick = CASH_DRAWER_COMMANDS.get(key)
+    if kick is None:
+        raise ValueError(f"unknown cash drawer command: {command}")
+    return escpos_init_preamble() + kick
+
+
+def transliterate_receipt_text(text: str) -> str:
+    """Fold umlauts and accents to ASCII for printers that ignore code pages."""
+    replacements = {
+        "ä": "ae",
+        "ö": "oe",
+        "ü": "ue",
+        "Ä": "Ae",
+        "Ö": "Oe",
+        "Ü": "Ue",
+        "ß": "ss",
+    }
+    out: list[str] = []
+    for ch in str(text):
+        if ch in replacements:
+            out.append(replacements[ch])
+            continue
+        decomposed = unicodedata.normalize("NFD", ch)
+        base = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+        out.append(base)
+    return "".join(out)
+
+
+def encode_escpos_text(text: str, *, charset: str | None = None) -> bytes:
+    encoding, _ = resolve_escpos_charset(charset)
+    payload = transliterate_receipt_text(text) if encoding == "ascii" else str(text)
+    return payload.encode(encoding, errors="replace")
+
+
+def write_escpos_text(printer: Dummy, text: str, *, newline: bool = True, charset: str | None = None) -> None:
+    _, codepage = resolve_escpos_charset(charset)
+    body = str(text) + ("\n" if newline else "")
+    printer._raw(
+        bytes([0x1B, 0x74, codepage & 0xFF]) + encode_escpos_text(body, charset=charset)
+    )
+
+
+def finish_slip(printer: Dummy, *, feed_lines: int = 1, charset: str | None = None) -> bytes:
     feed_lines = max(0, min(10, int(feed_lines)))
     if feed_lines > 0:
         printer.print_and_feed(feed_lines)
     printer.cut(feed=False)
-    return escpos_init_preamble() + printer.output
+    return escpos_init_preamble(charset=charset) + printer.output
 
 
-def render_slip(render_fn: Callable[[Dummy], None], *, feed_lines: int = 1) -> bytes:
-    printer = new_slip()
-    render_fn(printer)
-    return finish_slip(printer, feed_lines=feed_lines)
+def render_slip(
+    render_fn: Callable[[Dummy], None],
+    *,
+    feed_lines: int = 1,
+    charset: str | None = None,
+) -> bytes:
+    token = _slip_charset.set(charset) if charset else None
+    try:
+        printer = new_slip()
+        render_fn(printer)
+        return finish_slip(printer, feed_lines=feed_lines, charset=charset)
+    finally:
+        if charset is not None:
+            _slip_charset.reset(token)
 
 
 def write_heading(printer: Dummy, text: str) -> None:
@@ -114,7 +197,7 @@ def write_sized_line(printer: Dummy, text: str, size: str = "normal") -> None:
         printer.set(bold=True, double_height=True, double_width=True)
     else:
         printer.set(bold=False, double_height=False, double_width=False)
-    printer.text(f"{text}\n")
+    write_escpos_text(printer, text)
     printer.set(bold=False, double_height=False, double_width=False)
 
 
@@ -138,7 +221,7 @@ def write_small_line(printer: Dummy, text: str) -> None:
         double_width=False,
         normal_textsize=True,
     )
-    printer.text(f"{text}\n")
+    write_escpos_text(printer, text)
     _reset_text_style(printer)
 
 
@@ -155,7 +238,7 @@ def write_centered_small_block(printer: Dummy, text: str) -> None:
         normal_textsize=True,
     )
     for line in block.split("\n"):
-        printer.text(f"{line}\n")
+        write_escpos_text(printer, line)
     _reset_text_style(printer)
 
 
@@ -165,7 +248,7 @@ def write_centered_block(printer: Dummy, text: str) -> None:
         return
     printer.set(align="center")
     for line in block.split("\n"):
-        printer.text(f"{line}\n")
+        write_escpos_text(printer, line)
     printer.set(align="left")
 
 
@@ -195,7 +278,7 @@ def write_two_column(
     pad = max(1, width - len(left) - len(right))
     if left_bold:
         printer.set(bold=True)
-    printer.text(f"{left}{' ' * pad}{right}\n")
+    write_escpos_text(printer, f"{left}{' ' * pad}{right}")
     printer.set(bold=False, double_height=False, double_width=False)
 
 
@@ -239,7 +322,7 @@ def write_item_row(
     if key in ("large", "xlarge"):
         write_sized_line(printer, line, key)
     else:
-        printer.text(f"{line}\n")
+        write_escpos_text(printer, line)
 
 
 def write_subline(printer: Dummy, text: str, *, indent: int = 2, size: str = "normal") -> None:
@@ -248,7 +331,7 @@ def write_subline(printer: Dummy, text: str, *, indent: int = 2, size: str = "no
     if key in ("large", "xlarge"):
         write_sized_line(printer, line, key)
     else:
-        printer.text(f"{line}\n")
+        write_escpos_text(printer, line)
 
 
 def escpos_hero_scale() -> int:
@@ -280,7 +363,7 @@ def write_hero(
         scale = max(1, min(8, scale))
         printer._raw(_gs_char_size(scale, scale))
         printer.set(bold=True, double_height=False, double_width=False)
-        printer.text(f"{text}\n")
+        write_escpos_text(printer, text)
         printer._raw(_gs_char_size(1, 1))
         printer.set(bold=False)
     elif key == "large":

@@ -97,6 +97,7 @@ def test_reconcile_test_to_prod_purges(db):
     purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
     assert purged == [1]
     assert _submission_count(db) == 0
+    assert db.query(OutboxEntry).count() == 0
 
 
 def test_reconcile_prod_to_prod_no_purge(db):

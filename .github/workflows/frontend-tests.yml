@@ -6,44 +6,97 @@ on:
     paths:
       - "cloud/frontend/**"
       - "pi/frontend/**"
+      - "packages/frontend-shared/**"
+      - "cloud/shared/**"
+      - ".github/filters.yaml"
       - ".github/workflows/frontend-tests.yml"
   pull_request:
     paths:
       - "cloud/frontend/**"
       - "pi/frontend/**"
+      - "packages/frontend-shared/**"
+      - "cloud/shared/**"
+      - ".github/filters.yaml"
       - ".github/workflows/frontend-tests.yml"
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  test:
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        frontend: [cloud, pi]
+    outputs:
+      cloud: ${{ steps.filter.outputs.cloud-frontend == 'true' || steps.filter.outputs.shared-frontend == 'true' || steps.filter.outputs.cloud-shared == 'true' }}
+      pi: ${{ steps.filter.outputs.pi-frontend == 'true' || steps.filter.outputs.shared-frontend == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: .github/filters.yaml
+
+  test-cloud:
+    needs: changes
+    if: needs.changes.outputs.cloud == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: ${{ matrix.frontend }}/frontend/package-lock.json
+          cache-dependency-path: cloud/frontend/package-lock.json
 
-      - name: Install dependencies (${{ matrix.frontend }})
-        working-directory: ${{ matrix.frontend }}/frontend
+      - name: Install dependencies (cloud)
+        working-directory: cloud/frontend
         run: npm ci
 
-      - name: Typecheck (${{ matrix.frontend }})
-        working-directory: ${{ matrix.frontend }}/frontend
+      - name: Typecheck (cloud)
+        working-directory: cloud/frontend
         run: npm run typecheck
 
-      - name: Run tests with coverage (${{ matrix.frontend }})
-        working-directory: ${{ matrix.frontend }}/frontend
+      - name: Run tests with coverage (cloud)
+        working-directory: cloud/frontend
         run: npm run test:coverage
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.frontend }}-frontend
-          path: ${{ matrix.frontend }}/frontend/coverage/
+          name: coverage-cloud-frontend
+          path: cloud/frontend/coverage/
+
+  test-pi:
+    needs: changes
+    if: needs.changes.outputs.pi == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: pi/frontend/package-lock.json
+
+      - name: Install dependencies (pi)
+        working-directory: pi/frontend
+        run: npm ci
+
+      - name: Typecheck (pi)
+        working-directory: pi/frontend
+        run: npm run typecheck
+
+      - name: Run tests with coverage (pi)
+        working-directory: pi/frontend
+        run: npm run test:coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-pi-frontend
+          path: pi/frontend/coverage/

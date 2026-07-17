@@ -4,9 +4,8 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "@vendiqo/frontend-shared": ["../../packages/frontend-shared/src"],
       "@vendiqo/frontend-shared/*": ["../../packages/frontend-shared/src/*"]
     },

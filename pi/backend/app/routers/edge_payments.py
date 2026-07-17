@@ -223,6 +223,7 @@ def payment_receipt(
         generated_at=datetime.now(UTC).isoformat(),
         event=ev,
         paper_width=body.paper_width if body else None,
+        charset=body.charset if body else None,
     )
     return PaymentReceiptEscposResponse(
         payment_id=row.id,

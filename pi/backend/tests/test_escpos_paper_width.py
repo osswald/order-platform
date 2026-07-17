@@ -11,7 +11,11 @@ def _decode_receipt(raw: bytes) -> str:
 
 
 def _strip_esc(text: str) -> str:
-    cleaned = re.sub(r"\x1b[@-Z\\-_]|\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    cleaned = re.sub(
+        r"\x1b[@-Z\\-_]|\x1b\[[0-?]*[ -/]*[@-~]|\x1bt.",
+        "",
+        text,
+    )
     return "".join(c for c in cleaned if c.isprintable() or c in " \t\n\r")
 
 

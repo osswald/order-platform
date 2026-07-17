@@ -23,6 +23,7 @@ from .escpos_render import (
     write_centered_block,
     write_centered_sized,
     write_centered_small_block,
+    write_escpos_text,
     write_hero,
     write_item_row,
     write_line,
@@ -108,6 +109,16 @@ def _event_title_for_print(ev: dict | None, event_name: str) -> str:
     return label or event_name
 
 
+def _event_is_test(event: dict | None) -> bool:
+    return str((event or {}).get("status") or "").lower() == "test"
+
+
+def _write_test_mode_banner(printer: Dummy, event: dict | None) -> None:
+    if not _event_is_test(event):
+        return
+    write_centered_block(printer, "TESTBETRIEB")
+
+
 def _escpos_line_width() -> int:
     return escpos_env_line_width()
 
@@ -154,17 +165,50 @@ def _station_operator_label(body: dict) -> str:
 
 
 def _line_base_total_cents(line: dict, arts: dict) -> int:
-    from .pricing import _article_entry
+    from .pricing import _addition_price_cents, _article_entry
 
     qty = max(1, int(line.get("qty") or 1))
+    additions = [a for a in (line.get("additions") or []) if isinstance(a, dict)]
     if line.get("unit_cents") is not None:
         unit = int(line["unit_cents"])
+        if additions:
+            for add in additions:
+                add_qty = max(1, int(add.get("qty") or 1))
+                if add.get("unit_cents") is not None:
+                    unit -= int(add["unit_cents"]) * add_qty
+                else:
+                    add_id = add.get("article_id")
+                    if add_id is not None:
+                        base = _article_entry(arts, line.get("article_id"))
+                        unit -= _addition_price_cents(arts, base, int(add_id)) * add_qty
+            unit = max(0, unit)
     else:
         aid = line.get("article_id")
         base = _article_entry(arts, aid)
         price = float(base["price"]) if base and base.get("price") is not None else 0.0
         unit = int(round(price * 100))
     return unit * qty
+
+
+def _addition_line_cents(add: dict, arts: dict, art: dict, line_qty: int) -> int:
+    from .pricing import _addition_price_cents
+
+    add_qty = max(1, int(add.get("qty") or 1))
+    if add.get("unit_cents") is not None:
+        return int(add["unit_cents"]) * add_qty * line_qty
+    add_id = add.get("article_id")
+    if add_id is None:
+        return 0
+    return _addition_price_cents(arts, art, int(add_id)) * add_qty * line_qty
+
+
+def _line_has_priced_additions(line: dict, arts: dict, art: dict, line_qty: int) -> bool:
+    for add in line.get("additions") or []:
+        if not isinstance(add, dict):
+            continue
+        if _addition_line_cents(add, arts, art, line_qty) > 0:
+            return True
+    return False
 
 
 def _escpos_text(text: str) -> bytes:
@@ -286,24 +330,28 @@ def _write_payment_order_lines(
         name = line.get("article_name") or art.get("name") or f"#{aid}"
         gross_cents = line_gross_cents(line, arts)
         cents = line_total_cents(line, arts)
+        additions = [a for a in (line.get("additions") or []) if isinstance(a, dict)]
+        split_addition_prices = bool(additions) and not line.get("discount") and _line_has_priced_additions(
+            line, arts, art, qty
+        )
+        row_cents = _line_base_total_cents(line, arts) if split_addition_prices else cents
         if align_prices:
-            write_two_column(printer, f"{qty}x {name}", _format_price(cents), width)
+            write_two_column(printer, f"{qty}x {name}", _format_price(row_cents), width)
         else:
-            write_sized_line(printer, f"{qty}x {name} {_format_price(cents)}", line_size)
+            write_sized_line(printer, f"{qty}x {name} {_format_price(row_cents)}", line_size)
         hint = discount_hint(line.get("discount"), gross_cents, cents)
         if hint:
             write_subline(printer, hint, size=line_size)
-        for add in line.get("additions") or []:
-            if not isinstance(add, dict):
-                continue
+        for add in additions:
             add_qty = max(1, int(add.get("qty") or 1))
             add_name = addition_display_name(add, arts, art)
-            add_cents = int(add.get("unit_cents") or 0) * add_qty * qty
+            add_cents = _addition_line_cents(add, arts, art, qty)
             add_left = f"  + {add_qty}x {add_name}" if add_qty > 1 else f"  + {add_name}"
-            if align_prices and add_cents:
-                write_two_column(printer, add_left, _format_price(add_cents), width)
-            elif add_cents:
-                write_sized_line(printer, f"{add_left} {_format_price(add_cents)}", line_size)
+            if split_addition_prices and add_cents:
+                if align_prices:
+                    write_two_column(printer, add_left, _format_price(add_cents), width)
+                else:
+                    write_sized_line(printer, f"{add_left} {_format_price(add_cents)}", line_size)
             else:
                 write_sized_line(printer, add_left, line_size)
 
@@ -376,6 +424,8 @@ def build_payment_receipt_text(
     feed_lines: int = 1,
     paper_width: str | None = None,
     line_width: int | None = None,
+    charset: str | None = None,
+    test_charset_banner: bool = False,
 ) -> bytes:
     """Build a payment receipt ESC/POS payload (Android Bluetooth or network)."""
     arts = articles or {}
@@ -395,6 +445,12 @@ def build_payment_receipt_text(
             logo_enabled=bool(profile.get("logo_enabled", True)),
             max_width=logo_width,
         )
+        _write_test_mode_banner(printer, event)
+        if test_charset_banner:
+            printer.set(align="center")
+            write_line(printer, "Testdruck")
+            write_escpos_text(printer, "Ää Öö Üü ß  Éé Èè Îî Çç")
+            printer.set(align="left")
         write_sized_line(printer, "Beleg", line_size)
         if reprint:
             write_sized_line(printer, "Kopie / Nachdruck", line_size)
@@ -469,7 +525,7 @@ def build_payment_receipt_text(
         else:
             write_sized_line(printer, "Danke!", line_size)
 
-    return render_slip(render, feed_lines=feed_lines)
+    return render_slip(render, feed_lines=feed_lines, charset=charset)
 
 
 def build_shift_close_receipt_text(
@@ -481,6 +537,7 @@ def build_shift_close_receipt_text(
     feed_lines: int = 1,
     paper_width: str | None = None,
     line_width: int | None = None,
+    charset: str | None = None,
 ) -> bytes:
     """Schichtabrechnung slip when closing a waiter/register shift."""
     profile = _profile_cfg(event, "payment_receipt")
@@ -505,6 +562,7 @@ def build_shift_close_receipt_text(
             logo_enabled=bool(profile.get("logo_enabled", True)),
             max_width=logo_width,
         )
+        _write_test_mode_banner(printer, event)
         write_sized_line(printer, "Schichtabrechnung", line_size)
         if profile.get("show_event_title", True) and title:
             write_two_column(printer, title, "", width, left_bold=True)
@@ -525,7 +583,7 @@ def build_shift_close_receipt_text(
         for vname, amount in sorted(by_voucher.items(), key=lambda x: x[0]):
             write_sized_line(printer, f"{vname}: {_money(int(amount), currency)}", line_size)
 
-    return render_slip(render, feed_lines=feed_lines)
+    return render_slip(render, feed_lines=feed_lines, charset=charset)
 
 
 def build_voucher_slip_text(
@@ -570,7 +628,7 @@ def _write_station_order_lines_formatted(
     show_discount_hints: bool = True,
 ) -> tuple[int, int]:
     from .discounts import discount_hint
-    from .pricing import line_gross_cents, line_total_cents
+    from .pricing import line_gross_cents, line_total_cents, station_line_display_name
 
     total_qty = 0
     total_cents = 0
@@ -582,7 +640,7 @@ def _write_station_order_lines_formatted(
             continue
         qty = max(1, int(line.get("qty") or 1))
         art = arts.get(str(aid)) or arts.get(int(aid)) or {} if aid is not None else {}
-        name = line.get("article_name") or art.get("name") or (f"#{aid}" if aid is not None else "—")
+        name = station_line_display_name(line, art if art else None, aid)
         if aid is not None:
             gross_cents = line_gross_cents(line, arts)
             line_cents = line_total_cents(line, arts)
@@ -610,7 +668,11 @@ def _write_station_order_lines_formatted(
             add_qty = max(1, int(add.get("qty") or 1))
             add_name = addition_display_name(add, arts, art)
             sub = f"{add_qty} + {add_name}" if add_qty > 1 else f"+ {add_name}"
-            write_subline(printer, sub, size=line_size)
+            add_cents = _addition_line_cents(add, arts, art, qty)
+            if show_prices and add_cents:
+                write_item_row(printer, 0, sub, add_cents, width, indent=2, size=line_size)
+            else:
+                write_subline(printer, sub, size=line_size)
         note = (line.get("note") or "").strip()
         if note:
             write_subline(printer, note, size=line_size)
@@ -649,10 +711,11 @@ def _render_receipt_slip(
     show_prices = False if is_station_kitchen else bool(profile.get("show_price", False))
 
     write_logo_from_event(printer, event, logo_enabled=bool(profile.get("logo_enabled", True)))
+    _write_test_mode_banner(printer, event)
     if test_charset_banner:
         printer.set(align="center")
         write_line(printer, "Testdruck")
-        printer._raw(encode_escpos_text("Ää Öö Üü ß  Éé Èè Îî Çç\n"))
+        write_escpos_text(printer, "Ää Öö Üü ß  Éé Èè Îî Çç")
         printer.set(align="left")
     body = payload or {}
 
@@ -705,6 +768,9 @@ def _render_receipt_slip(
             write_hero(printer, hero, size=hero_size, magnification=8)
 
         write_separator(printer, width=width)
+        if is_station_kitchen and body.get("kitchen_partial_print"):
+            write_centered_block(printer, "TEILDRUCK")
+            write_separator(printer, width=width)
         total_qty, total_cents = _write_station_order_lines_formatted(
             printer,
             body,
@@ -714,6 +780,19 @@ def _render_receipt_slip(
             show_prices=show_prices,
             show_discount_hints=not is_station_kitchen,
         )
+        if is_station_kitchen and body.get("kitchen_excluded_lines"):
+            write_separator(printer, width=width)
+            write_centered_block(printer, "Noch offen")
+            write_separator(printer, width=width)
+            _write_station_order_lines_formatted(
+                printer,
+                {"lines": body.get("kitchen_excluded_lines") or []},
+                arts,
+                width,
+                line_size=line_size,
+                show_prices=False,
+                show_discount_hints=False,
+            )
 
     if not is_voucher and show_prices:
         write_separator(printer, width=width)

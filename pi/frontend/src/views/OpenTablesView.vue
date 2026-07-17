@@ -12,7 +12,7 @@
       <li v-for="t in tables" :key="t.table_number">
         <button type="button" class="table-row" @click="openTable(t.table_number)">
           <span class="num">Tisch {{ t.table_number }}</span>
-          <span class="meta muted">{{ t.order_count }} Bestellung(en) · {{ formatAmount(t.total_cents) }}</span>
+          <span class="meta muted">{{ t.order_count }} Bestellung(en) · {{ formatMoney(t.total_cents, currency) }}</span>
         </button>
       </li>
     </ul>
@@ -31,12 +31,12 @@ import { useCart } from '@/composables/useCart'
 import { useEventContext } from '@/composables/useEventContext'
 import type { OpenTableRow, OpenTablesResponse } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 
 const router = useRouter()
 const loading = ref(true)
 const tables = ref<OpenTableRow[]>([])
-const { event, showToast } = useEventContext()
+const { event, currency, showToast } = useEventContext()
 const { activeTableNumber } = useCart()
 
 onMounted(load)

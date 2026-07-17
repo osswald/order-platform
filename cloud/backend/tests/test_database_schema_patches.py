@@ -16,6 +16,15 @@ from tests.helpers import country_id_by_code
 client = TestClient(app)
 
 
+def test_patch_edge_order_items_ordered_at_adds_column():
+    from app.database import _patch_edge_order_items_ordered_at
+
+    _patch_edge_order_items_ordered_at()
+
+    cols = {c["name"] for c in inspect(engine).get_columns("edge_order_items")}
+    assert "ordered_at" in cols
+
+
 def test_apply_schema_patches_drops_legacy_event_currency_column():
     with engine.begin() as conn:
         conn.execute(
@@ -217,7 +226,7 @@ def test_run_migrations_bootstraps_pre_alembic_database():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "005_stripe_webhook_events"
+    assert _alembic_current_revision() == "006_edge_order_items_ordered_at"
     inspector = inspect(engine)
     assert "stripe_webhook_events" in inspector.get_table_names()
 
@@ -229,5 +238,5 @@ def test_run_migrations_applies_fresh_database_from_scratch():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "005_stripe_webhook_events"
+    assert _alembic_current_revision() == "006_edge_order_items_ordered_at"
     assert "users" in inspect(engine).get_table_names()

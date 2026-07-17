@@ -6,9 +6,12 @@ import { listDetailRoutes } from '../composables/useListDetailRouting'
 
 import Dashboard from '../components/Dashboard.vue'
 import Events from '../components/Events.vue'
+import EventStatsPage from '../components/EventStatsPage.vue'
+import OrderjutsuImportWizard from '../components/OrderjutsuImportWizard.vue'
 import Waiters from '../components/Waiters.vue'
 import Articles from '../components/Articles.vue'
 import ArticleCategories from '../components/ArticleCategories.vue'
+import Ingredients from '../components/Ingredients.vue'
 import ApplianceLendings from '../components/ApplianceLendings.vue'
 import Organisations from '../components/Organisations.vue'
 import HireCompanies from '../components/HireCompanies.vue'
@@ -49,12 +52,30 @@ const routes = [
     meta: orgScoped,
   },
   ...listDetailRoutes({ path: '/events', listName: 'events', component: Events, meta: orgScoped }),
+  {
+    path: '/events/import/orderjutsu',
+    name: 'events-import-orderjutsu',
+    component: OrderjutsuImportWizard,
+    meta: { ...organisationManagerOnly, platformAdminAllowed: true },
+  },
+  {
+    path: '/events/:id(\\d+)/stats',
+    name: 'events-stats',
+    component: EventStatsPage,
+    meta: orgScoped,
+  },
   ...listDetailRoutes({ path: '/waiters', listName: 'waiters', component: Waiters, meta: orgScoped }),
   ...listDetailRoutes({ path: '/articles', listName: 'articles', component: Articles, meta: orgScoped }),
   ...listDetailRoutes({
     path: '/article-categories',
     listName: 'article-categories',
     component: ArticleCategories,
+    meta: orgScoped,
+  }),
+  ...listDetailRoutes({
+    path: '/ingredients',
+    listName: 'ingredients',
+    component: Ingredients,
     meta: orgScoped,
   }),
   {

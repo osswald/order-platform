@@ -8,6 +8,7 @@ import {
 } from '@/utils/contextReload'
 import { isApiError } from '@/types/api'
 import type { AuthMeResponse, HireCompanyBrief, OrganisationRead } from '@/types/api'
+import { syncThemeFromAuthMe } from './useThemePreference'
 
 const ROLE_PLATFORM = 'platform_admin'
 const ROLE_TENANT_ADMIN = 'tenant_admin'
@@ -132,6 +133,7 @@ export function useAuthSession() {
     }
     hireCompanies.value = Array.isArray(data.hire_companies) ? data.hire_companies : []
     syncActiveHireCompany()
+    syncThemeFromAuthMe(data)
   }
 
   async function syncSession(): Promise<boolean> {
@@ -227,12 +229,16 @@ export function useAuthSession() {
       return
     }
     if (route.meta.organisationManagerOnly && !canAccessOrganisationSettings.value) {
-      router.replace({
-        name: 'no-access',
-        params: { section },
-        query: route.query,
-      })
-      return
+      const platformAdminBypass =
+        route.meta.platformAdminAllowed === true && isPlatformAdmin.value
+      if (!platformAdminBypass) {
+        router.replace({
+          name: 'no-access',
+          params: { section },
+          query: route.query,
+        })
+        return
+      }
     }
     if (route.meta.usersOnly && !canAccessUsers.value) {
       router.replace({

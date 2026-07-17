@@ -11,6 +11,7 @@ from ..event_copy import copy_event, default_copy_name
 from ..event_status import (
     ALLOWED_STATUSES,
     assert_create_status,
+    normalize_status,
     purge_event_operational_data,
     validate_status_transition,
 )
@@ -58,6 +59,7 @@ def read_event_organisations(
             "vat_liable": bool(org.vat_liable),
             "default_tax_code_id": org.default_tax_code_id,
             "accounts_enabled": bool(org.accounts_enabled),
+            "ingredients_enabled": bool(org.ingredients_enabled),
         }
         for org in readable_organisations(db, current_user, tenant.hire_company_id)
     ]
@@ -164,7 +166,7 @@ def update_event(
             raise api_error("status_must_be_one_of", status.HTTP_422_UNPROCESSABLE_CONTENT, statuses=", ".join(sorted(ALLOWED_STATUSES)))
         old_status = event.status
         validate_status_transition(old_status, status_value)
-        if old_status == "test" and status_value == "prod":
+        if normalize_status(old_status) == "test" and status_value == "prod":
             purge_event_operational_data(db, event)
         event.status = status_value
     if event_in.start is not None:

@@ -1,6 +1,8 @@
 import { ref, computed, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import { apiJson } from '@/api'
+import { i18n } from '@/i18n'
+import { resolveFormatLocale } from '@/utils/formatLocale'
 import type { TaxCodeRead } from '@/types/api'
 
 const cache = new Map<string, TaxCodeRead[]>()
@@ -21,13 +23,15 @@ function currentRatePercent(rates: TaxCodeRead['rates']): number | null {
   return rate?.rate_percent ?? null
 }
 
-export function formatTaxCodeLabel(taxCode: TaxCodeRead, locale = 'de'): string {
+export function formatTaxCodeLabel(
+  taxCode: TaxCodeRead,
+  locale = 'de',
+  countryCode?: string | null,
+): string {
   const rate = currentRatePercent(taxCode.rates)
   if (rate == null) return taxCode.name
-  const formatted = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(rate)
+  const formatLocale = resolveFormatLocale(locale, countryCode)
+  const formatted = i18n.global.n(rate, { key: 'percent', locale: formatLocale })
   return `${taxCode.name} (${formatted}%)`
 }
 
@@ -39,8 +43,8 @@ export function useTaxCodes(countryIdRef: MaybeRefOrGetter<number | null | undef
   const options = computed(() =>
     taxCodes.value.map((code) => ({
       value: code.id,
-      label: formatTaxCodeLabel(code),
-      title: formatTaxCodeLabel(code),
+      label: formatTaxCodeLabel(code, i18n.global.locale.value, code.country?.code),
+      title: formatTaxCodeLabel(code, i18n.global.locale.value, code.country?.code),
     })),
   )
 

@@ -8,6 +8,16 @@ import uuid
 from sqlalchemy.orm import Session
 
 from ..models import KitchenTicket, KitchenTicketLine, LocalOrder, OutboxEntry
+from .sync_enqueue import stamp_operational_mode
+
+
+def _order_operational_mode(order: LocalOrder) -> str | None:
+    try:
+        payload = json.loads(order.payload_json or "{}")
+    except json.JSONDecodeError:
+        return None
+    mode = payload.get("mode")
+    return str(mode).lower() if mode else None
 
 
 def build_kitchen_tickets_payload(db: Session, order: LocalOrder) -> dict:
@@ -49,7 +59,10 @@ def build_kitchen_tickets_payload(db: Session, order: LocalOrder) -> dict:
 
 
 def enqueue_kitchen_tickets_sync(db: Session, order: LocalOrder) -> None:
-    payload = build_kitchen_tickets_payload(db, order)
+    payload = stamp_operational_mode(
+        build_kitchen_tickets_payload(db, order),
+        _order_operational_mode(order),
+    )
     for out in (
         db.query(OutboxEntry)
         .filter(

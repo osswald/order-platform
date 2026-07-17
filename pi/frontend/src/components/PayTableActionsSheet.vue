@@ -11,11 +11,15 @@
         <div class="menu-actions">
           <button type="button" class="btn menu-btn" @click="$emit('redeem-voucher')">Gutschein einlösen</button>
           <template v-if="!voucherOnly && !isInstantMode">
-            <button type="button" class="btn menu-btn" @click="step = 'transfer'">Tisch umbuchen</button>
+            <button v-if="!hideTransfer" type="button" class="btn menu-btn" @click="step = 'transfer'">
+              Tisch umbuchen
+            </button>
             <button type="button" class="btn menu-btn" @click="openCollective">Sammelrechnung</button>
           </template>
           <template v-else-if="!voucherOnly">
-            <button type="button" class="btn menu-btn" @click="step = 'transfer'">Tisch umbuchen</button>
+            <button v-if="!hideTransfer" type="button" class="btn menu-btn" @click="step = 'transfer'">
+              Tisch umbuchen
+            </button>
           </template>
         </div>
         <button type="button" class="btn" @click="close">Abbrechen</button>
@@ -34,7 +38,7 @@
           <li v-for="b in bills" :key="b.id">
             <button type="button" class="bill-row" @click="assignToBill(b)">
               <span class="name">{{ b.name }}</span>
-              <span class="meta muted">{{ formatAmount(b.total_cents) }}</span>
+              <span class="meta muted">{{ formatMoney(b.total_cents, currency) }}</span>
             </button>
           </li>
         </ul>
@@ -72,10 +76,10 @@ import type {
   OpenCollectiveBillsResponse,
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 import TableKeypad from './TableKeypad.vue'
 
-const { showToast, event } = useEventContext()
+const { showToast, event, currency } = useEventContext()
 
 const isInstantMode = computed(
   () => (event.value?.payment_mode || 'pay_later').toLowerCase() === 'instant',
@@ -88,12 +92,18 @@ const props = withDefaults(
     fromTable?: number | null
     selections?: LineSelection[]
     voucherOnly?: boolean
+    /** Hide "Tisch umbuchen" (e.g. register orders have no source table). */
+    hideTransfer?: boolean
+    /** Assign-collective endpoint; defaults to the table-scoped route. */
+    assignPath?: string | null
   }>(),
   {
     open: false,
     fromTable: null,
     selections: () => [],
     voucherOnly: false,
+    hideTransfer: false,
+    assignPath: null,
   },
 )
 
@@ -148,7 +158,8 @@ async function openCollective() {
 async function postAssign(body: { collective_bill_id?: number; new_name?: string }) {
   busy.value = true
   try {
-    const res = await api<AssignCollectiveResponse>(`/v1/tables/${props.fromTable}/assign-collective`, {
+    const path = props.assignPath || `/v1/tables/${props.fromTable}/assign-collective`
+    const res = await api<Pick<AssignCollectiveResponse, 'name'>>(path, {
       method: 'POST',
       body: JSON.stringify({
         event_id: props.eventId,

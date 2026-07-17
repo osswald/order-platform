@@ -6,13 +6,19 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from .i18n.errors import api_error
+from .ingredient_stock import reset_event_ingredient_stock_to_baseline
 from .models import (
     EdgeCashSession,
     EdgeKitchenTicketSnapshot,
+    EdgeOrderItem,
+    EdgeOrderSession,
     EdgeOrderSnapshot,
+    EdgePayment,
+    EdgePaymentBatch,
     EdgeSubmittedOrder,
     Event,
     EventCollectiveBill,
+    EventVoucherRedemption,
 )
 from .stock import reset_event_stock_to_baseline
 
@@ -63,21 +69,44 @@ def validate_status_transition(old: str, new: str) -> None:
         raise api_error("cannot_transition_status", status.HTTP_422_UNPROCESSABLE_CONTENT, old_status=old_n, new_status=new_n)
 
 
+def payload_is_stale_test(event: Event, payload: dict) -> bool:
+    """True when a Pi-synced test-mode order arrives after the event entered production."""
+    mode = str(payload.get("mode") or "").lower()
+    return mode == "test" and normalize_status(event.status) in {"prod", "archive"}
+
+
 def purge_event_operational_data(db: Session, event: Event) -> None:
     """Remove test orders/stats and reset stock when entering production."""
-    db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event.id).delete(
+    event_id = event.id
+    db.query(EdgeOrderItem).filter(EdgeOrderItem.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EdgeOrderSnapshot).filter(EdgeOrderSnapshot.event_id == event.id).delete(
+    db.query(EdgePayment).filter(EdgePayment.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EdgeKitchenTicketSnapshot).filter(EdgeKitchenTicketSnapshot.event_id == event.id).delete(
+    db.query(EdgePaymentBatch).filter(EdgePaymentBatch.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EdgeCashSession).filter(EdgeCashSession.event_id == event.id).delete(
+    db.query(EdgeOrderSession).filter(EdgeOrderSession.event_id == event_id).delete(
         synchronize_session=False
     )
-    db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event.id).delete(
+    db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeOrderSnapshot).filter(EdgeOrderSnapshot.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeKitchenTicketSnapshot).filter(EdgeKitchenTicketSnapshot.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EdgeCashSession).filter(EdgeCashSession.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event_id).delete(
+        synchronize_session=False
+    )
+    db.query(EventVoucherRedemption).filter(EventVoucherRedemption.event_id == event_id).delete(
         synchronize_session=False
     )
     reset_event_stock_to_baseline(db, event)
+    reset_event_ingredient_stock_to_baseline(db, event)

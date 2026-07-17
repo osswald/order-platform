@@ -28,11 +28,11 @@
         >
           <template #item="{ item, props: itemProps }">
             <v-list-item v-bind="itemProps" :title="undefined">
-              <ApplianceTypeChip :type="item.raw.value" />
+              <ApplianceTypeChip :type="item.value" />
             </v-list-item>
           </template>
           <template #selection="{ item }">
-            <ApplianceTypeChip :type="item.raw.value" />
+            <ApplianceTypeChip :type="item.value" />
           </template>
         </v-select>
       </div>
@@ -271,13 +271,13 @@
           >
             <template #item="{ item, props: itemProps }">
               <v-list-item v-bind="itemProps" :title="undefined">
-                <ApplianceTypeChip v-if="item.raw.value" :type="item.raw.value" />
-                <span v-else>{{ item.raw.label }}</span>
+                <ApplianceTypeChip v-if="item.value" :type="item.value" />
+                <span v-else>{{ item.label }}</span>
               </v-list-item>
             </template>
             <template #selection="{ item }">
-              <ApplianceTypeChip v-if="item.raw.value" :type="item.raw.value" />
-              <span v-else>{{ item.raw.label }}</span>
+              <ApplianceTypeChip v-if="item.value" :type="item.value" />
+              <span v-else>{{ item.label }}</span>
             </template>
           </v-select>
         </div>
@@ -371,6 +371,8 @@ import { filterApplianceList } from '../utils/applianceListFilters'
 import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
+import { formatDate, formatDateTime } from '../utils/localeFormat'
+import { currentLocale } from '../i18n'
 import type {
   ApplianceRead,
   AppliancePairingSessionRead,
@@ -537,16 +539,14 @@ function lendingHistoryStatusLabel(row: { returned_at?: string | null; segment?:
 
 function formatDeDate(iso: string | null | undefined) {
   if (!iso) return t('common.emDash')
-  const [y, m, d] = String(iso).split('T')[0].split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Date(y, m - 1, d).toLocaleDateString('de-DE')
+  const formatted = formatDate(iso, currentLocale())
+  return formatted === '—' ? iso : formatted
 }
 
 function formatDeDateTime(iso: string | null | undefined) {
   if (!iso) return t('common.emDash')
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('de-DE')
+  const formatted = formatDateTime(iso, currentLocale())
+  return formatted === '—' ? iso : formatted
 }
 
 const filteredAppliances = computed(() =>

@@ -105,8 +105,8 @@ describe('discount labels', () => {
 
 describe('format helpers', () => {
   it('formats money and price strings', () => {
-    expect(formatMoney(500)).toBe('5.00')
-    expect(formatPrice(12.5)).toBe('12.50')
+    expect(formatMoney(500, 'CHF')).toBe('CHF 5.00')
+    expect(formatPrice(12.5, 'CHF')).toBe('CHF 12.50')
   })
 })
 

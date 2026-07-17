@@ -34,6 +34,23 @@
       </div>
 
       <div class="card">
+        <h2 class="card-title">Zeichensatz</h2>
+        <p class="muted">Für Umlaute und Akzente auf Bluetooth-Druckern (z. B. GOOJPRT PT-210).</p>
+        <div class="paper-width-options">
+          <label v-for="opt in charsetOptions" :key="opt.value" class="paper-width-option">
+            <input
+              type="radio"
+              name="receipt_charset"
+              :value="opt.value"
+              :checked="receiptCharset === opt.value"
+              @change="onCharsetChange(opt.value)"
+            />
+            {{ opt.label }}
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="row">
           <button type="button" class="btn" @click="loadPrinters">Gekoppelte Drucker laden</button>
           <button type="button" class="btn primary" :disabled="busy || !selectedAddress" @click="testPrint">
@@ -62,11 +79,23 @@
 
       <p v-if="message" :class="messageType === 'ok' ? 'ok' : 'err'">{{ message }}</p>
     </template>
+
+    <button
+      v-if="adminUnlocked"
+      type="button"
+      class="btn"
+      style="width: 100%; margin-top: 1.5rem"
+      @click="router.push({ name: 'admin' })"
+    >
+      Zurück zum Admin
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAdminSession } from '@/composables/useAdminSession'
 import { useEventContext } from '@/composables/useEventContext'
 import { getErrorMessage } from '@/types/api'
 import {
@@ -79,11 +108,19 @@ import {
   setSelectedPrinter,
 } from '@/utils/androidPrinter'
 import {
+  getReceiptCharset,
+  RECEIPT_CHARSET_OPTIONS,
+  setReceiptCharset,
+  type ReceiptCharset,
+} from '@/utils/receiptCharset'
+import {
   getReceiptPaperWidth,
   RECEIPT_PAPER_WIDTH_OPTIONS,
   setReceiptPaperWidth,
 } from '@/utils/receiptPaperWidth'
 
+const router = useRouter()
+const { adminUnlocked } = useAdminSession()
 const { event } = useEventContext()
 const available = computed(() => isAndroidPrinterAvailable())
 
@@ -104,6 +141,8 @@ const message = ref('')
 const messageType = ref<'ok' | 'err'>('ok')
 const paperWidthOptions = RECEIPT_PAPER_WIDTH_OPTIONS
 const paperWidth = ref(getReceiptPaperWidth())
+const charsetOptions = RECEIPT_CHARSET_OPTIONS
+const receiptCharset = ref<ReceiptCharset>(getReceiptCharset())
 
 const permissionLabel = computed(() => {
   if (!permission.value) return 'unbekannt'
@@ -139,6 +178,12 @@ function loadPrinters() {
   }
   printers.value = (result.printers || []) as PairedPrinter[]
   refreshSelected()
+}
+
+function onCharsetChange(value: ReceiptCharset) {
+  setReceiptCharset(value)
+  receiptCharset.value = value
+  show('Zeichensatz gespeichert.', 'ok')
 }
 
 function onPaperWidthChange(value: string) {

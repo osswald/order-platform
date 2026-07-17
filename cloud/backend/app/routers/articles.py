@@ -5,11 +5,17 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..accounting_validation import resolve_article_accounting_account_id, validate_article_accounting_account
 from ..additions import replace_addition_links, serialize_links_for_admin, validate_base_article
+from ..article_delete_guards import assert_article_deletable
 from ..auth_deps import get_current_user
 from ..currency import organisation_currency
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
+from ..ingredients import (
+    replace_ingredient_links,
+    serialize_ingredient_links_for_admin,
+    validate_base_article_for_ingredients,
+)
 from ..models import Article, ArticleCategory, Organisation, User
 from ..tax_code_validation import validate_article_tax_code
 from ..tenancy import TenantContext, get_current_tenant
@@ -20,7 +26,7 @@ router = APIRouter()
 
 class ArticleBase(BaseModel):
     name: str = Field(..., min_length=1)
-    label: str = Field(..., min_length=1, max_length=22)
+    label: str = Field(..., min_length=1, max_length=21)
     price: float
     import_article_number: str | None = None
     description: str | None = None
@@ -38,7 +44,7 @@ class ArticleCreate(ArticleBase):
 
 class ArticleUpdate(BaseModel):
     name: str | None = Field(None, min_length=1)
-    label: str | None = Field(None, min_length=1, max_length=22)
+    label: str | None = Field(None, min_length=1, max_length=21)
     price: float | None = None
     import_article_number: str | None = None
     description: str | None = None
@@ -70,6 +76,10 @@ class ArticleMinimalRead(BaseModel):
     organisation_id: int | None
     is_addition: bool
     is_active: bool
+    # DB FK is non-null; still optional here because category relation may be missing
+    # (orphaned FK / defensive path) and callers should not get a validation error.
+    article_category_id: int | None
+    article_category_name: str
 
 
 class ArticleAdditionLinkIn(BaseModel):
@@ -86,9 +96,24 @@ class ArticleAdditionsRead(BaseModel):
     items: list[dict]
 
 
+class ArticleIngredientLinkIn(BaseModel):
+    ingredient_id: int
+    amount: float = Field(1, gt=0)
+    sort_order: int | None = None
+
+
+class ArticleIngredientsUpdateIn(BaseModel):
+    items: list[ArticleIngredientLinkIn] = Field(default_factory=list)
+
+
+class ArticleIngredientsRead(BaseModel):
+    items: list[dict]
+
+
 def article_minimal_response(article: Article) -> ArticleMinimalRead:
     category = article.article_category
     organisation = category.organisation if category else None
+    category_id = category.id if category is not None else article.article_category_id
     return ArticleMinimalRead(
         id=article.id,
         name=article.name,
@@ -96,6 +121,8 @@ def article_minimal_response(article: Article) -> ArticleMinimalRead:
         organisation_id=organisation.id if organisation else None,
         is_addition=bool(article.is_addition),
         is_active=bool(article.is_active),
+        article_category_id=category_id,
+        article_category_name=category.name if category else "",
     )
 
 
@@ -244,6 +271,55 @@ def put_article_additions(
     return ArticleAdditionsRead(items=serialize_links_for_admin(db, base))
 
 
+@router.get("/{article_id}/ingredients", response_model=ArticleIngredientsRead)
+def read_article_ingredients(
+    article_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
+    if not article:
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
+    base = validate_base_article_for_ingredients(db, article_id)
+    return ArticleIngredientsRead(items=serialize_ingredient_links_for_admin(db, base))
+
+
+@router.put("/{article_id}/ingredients", response_model=ArticleIngredientsRead)
+def put_article_ingredients(
+    article_id: int,
+    body: ArticleIngredientsUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
+    if not article:
+        raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
+    base = validate_base_article_for_ingredients(db, article_id)
+    try:
+        replace_ingredient_links(
+            db,
+            base,
+            [
+                {
+                    "ingredient_id": i.ingredient_id,
+                    "amount": i.amount,
+                    "sort_order": i.sort_order,
+                }
+                for i in body.items
+            ],
+        )
+        commit_or_raise(db)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    return ArticleIngredientsRead(items=serialize_ingredient_links_for_admin(db, base))
+
+
 @router.get("/{article_id}", response_model=ArticleRead)
 def read_article(
     article_id: int,
@@ -345,6 +421,7 @@ def delete_article(
     article = _get_readable_article(db, current_user, article_id, tenant.hire_company_id)
     if not article:
         raise api_error("article_not_found", status.HTTP_404_NOT_FOUND)
+    assert_article_deletable(db, article.id)
     db.delete(article)
     commit_or_raise(db)
     return None

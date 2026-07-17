@@ -13,6 +13,19 @@ def organisation_currency(org: Organisation | None, fallback: str = "EUR") -> st
     return (raw or fallback).upper()
 
 
+def organisation_country_code(org: Organisation | None, fallback: str = "CH") -> str:
+    country = getattr(org, "country", None) if org else None
+    code = getattr(country, "code", None) if country else None
+    return (code or fallback).upper()
+
+
+def event_country_code(event: Event | None, fallback: str = "CH") -> str:
+    if event is None:
+        return fallback.upper()
+    org = getattr(event, "organisation", None)
+    return organisation_country_code(org, fallback)
+
+
 def event_currency(event: Event | None, fallback: str = "EUR") -> str:
     if event is None:
         return fallback.upper()

@@ -5,6 +5,7 @@ export interface AppRouteMeta {
   platformOnly?: boolean
   tenantAdminOnly?: boolean
   organisationManagerOnly?: boolean
+  platformAdminAllowed?: boolean
   usersOnly?: boolean
 }
 

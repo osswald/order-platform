@@ -77,6 +77,7 @@ export interface EventCashRegisterLocal {
   pin: string
   layout_uuid: string
   receipt_printer_appliance_id: number | null
+  cash_drawer_command?: string
   subsidiary_code?: string
 }
 
@@ -206,6 +207,16 @@ export interface EventStockItemLocal {
   name: string
   label: string
   monitor_stock: boolean
+  initial_in_stock: number
+  in_stock: number
+}
+
+export interface EventIngredientStockItemLocal {
+  id: number
+  name: string
+  unit: string | null
+  monitor_stock: boolean
+  initial_in_stock: number
   in_stock: number
 }
 
@@ -313,12 +324,30 @@ export interface AccessibleOrganisation {
   vat_liable: boolean
   default_tax_code_id: number | null
   accounts_enabled: boolean
+  ingredients_enabled: boolean
 }
 
 export interface DashboardAttentionItem {
   type: string
   event_id: number
   event_name: string
+}
+
+export interface OnboardingTask {
+  id: string
+  group: 'organisation' | 'catalogue' | 'event' | string
+  done: boolean
+  done_manually?: boolean
+  visible: boolean
+  target_route: string | null
+  target_params: Record<string, string> | null
+  target_query: Record<string, string> | null
+  target_event_id: number | null
+}
+
+export interface DashboardOnboarding {
+  dismissed: boolean
+  tasks: OnboardingTask[]
 }
 
 export interface DashboardSalesEventRow {
@@ -348,8 +377,10 @@ export interface DashboardSummary {
     planned: number
   }
   attention: DashboardAttentionItem[]
+  onboarding: DashboardOnboarding
   sales: {
     currency: string
+    country_code: string
     totals: {
       distinct_orders_count: number
       line_cents: number
@@ -379,6 +410,20 @@ export interface AdditionLinkLocal {
   price: number
   sort_order: number
   preselected: boolean
+}
+
+export interface IngredientLinkLocal {
+  ingredient_id: number
+  name: string
+  unit: string | null
+  amount: number
+  sort_order: number
+}
+
+export interface IngredientForm {
+  name: string
+  unit: string
+  isActive: boolean
 }
 
 export interface ArticleCategoryForm {

@@ -1688,6 +1688,140 @@
         }
       }
     },
+    "/organisations/{organisation_id}/color-palette": {
+      "get": {
+        "tags": [
+          "color-palette"
+        ],
+        "summary": "Get Color Palette",
+        "operationId": "get_color_palette_organisations__organisation_id__color_palette_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColorPaletteRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "color-palette"
+        ],
+        "summary": "Put Color Palette",
+        "operationId": "put_color_palette_organisations__organisation_id__color_palette_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColorPaletteUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColorPaletteRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organisations/": {
       "get": {
         "tags": [
@@ -1915,9 +2049,197 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryRead"
+                }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/onboarding/dismiss": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Dismiss Organisation Onboarding",
+        "operationId": "dismiss_organisation_onboarding_organisations__organisation_id__onboarding_dismiss_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/onboarding/tasks/{task_id}/complete": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Complete Organisation Onboarding Task",
+        "operationId": "complete_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__complete_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/onboarding/tasks/{task_id}/dismiss": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Dismiss Organisation Onboarding Task",
+        "operationId": "dismiss_organisation_onboarding_task_organisations__organisation_id__onboarding_tasks__task_id__dismiss_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -3200,6 +3522,134 @@
         }
       }
     },
+    "/events/import/orderjutsu/preview": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Preview Orderjutsu Import",
+        "operationId": "preview_orderjutsu_import_events_import_orderjutsu_preview_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderjutsuImportPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderjutsuImportPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/import/orderjutsu/commit": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Commit Orderjutsu Import Endpoint",
+        "operationId": "commit_orderjutsu_import_endpoint_events_import_orderjutsu_commit_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderjutsuImportCommit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderjutsuImportCommitResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/": {
       "get": {
         "tags": [
@@ -3970,6 +4420,102 @@
         }
       }
     },
+    "/events/{event_id}/collective-bills/{bill_uuid}/pdf": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Read Event Collective Bill Pdf",
+        "operationId": "read_event_collective_bill_pdf_events__event_id__collective_bills__bill_uuid__pdf_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "bill_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bill Uuid"
+            }
+          },
+          {
+            "name": "include_order_detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Order Detail"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          },
+          {
+            "name": "accept-language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept-Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/transactions": {
       "get": {
         "tags": [
@@ -4260,6 +4806,155 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EventSalesReportV3Read"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{event_id}/stats": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Read Event Stats",
+        "operationId": "read_event_stats_events__event_id__stats_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "To"
+            }
+          },
+          {
+            "name": "article_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Article Ids"
+            }
+          },
+          {
+            "name": "category_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Ids"
+            }
+          },
+          {
+            "name": "bucket_count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 48,
+              "minimum": 12,
+              "default": 24,
+              "title": "Bucket Count"
+            }
+          },
+          {
+            "name": "accept-language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept-Language"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventStatsRead"
                 }
               }
             }
@@ -6950,6 +7645,140 @@
         }
       }
     },
+    "/articles/{article_id}/ingredients": {
+      "get": {
+        "tags": [
+          "articles"
+        ],
+        "summary": "Read Article Ingredients",
+        "operationId": "read_article_ingredients_articles__article_id__ingredients_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "article_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Article Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleIngredientsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "articles"
+        ],
+        "summary": "Put Article Ingredients",
+        "operationId": "put_article_ingredients_articles__article_id__ingredients_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "article_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Article Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleIngredientsUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleIngredientsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/articles/{article_id}": {
       "get": {
         "tags": [
@@ -7138,6 +7967,330 @@
         }
       }
     },
+    "/ingredients/": {
+      "get": {
+        "tags": [
+          "ingredients"
+        ],
+        "summary": "Read Ingredients",
+        "operationId": "read_ingredients_ingredients__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IngredientRead"
+                  },
+                  "title": "Response Read Ingredients Ingredients  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ingredients"
+        ],
+        "summary": "Create Ingredient",
+        "operationId": "create_ingredient_ingredients__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingredients/{ingredient_id}": {
+      "get": {
+        "tags": [
+          "ingredients"
+        ],
+        "summary": "Read Ingredient",
+        "operationId": "read_ingredient_ingredients__ingredient_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ingredient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ingredient Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ingredients"
+        ],
+        "summary": "Update Ingredient",
+        "operationId": "update_ingredient_ingredients__ingredient_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ingredient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ingredient Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ingredients"
+        ],
+        "summary": "Delete Ingredient",
+        "operationId": "delete_ingredient_ingredients__ingredient_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ingredient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ingredient Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/token": {
       "post": {
         "tags": [
@@ -7193,6 +8346,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Me",
+        "operationId": "update_me_auth_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -9059,7 +10256,7 @@
           },
           "label": {
             "type": "string",
-            "maxLength": 22,
+            "maxLength": 21,
             "minLength": 1,
             "title": "Label"
           },
@@ -9146,6 +10343,66 @@
         ],
         "title": "ArticleCreate"
       },
+      "ArticleIngredientLinkIn": {
+        "properties": {
+          "ingredient_id": {
+            "type": "integer",
+            "title": "Ingredient Id"
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "default": 1
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ingredient_id"
+        ],
+        "title": "ArticleIngredientLinkIn"
+      },
+      "ArticleIngredientsRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ArticleIngredientsRead"
+      },
+      "ArticleIngredientsUpdateIn": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArticleIngredientLinkIn"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "ArticleIngredientsUpdateIn"
+      },
       "ArticleMinimalRead": {
         "properties": {
           "id": {
@@ -9178,6 +10435,21 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "article_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Category Id"
+          },
+          "article_category_name": {
+            "type": "string",
+            "title": "Article Category Name"
           }
         },
         "type": "object",
@@ -9187,7 +10459,9 @@
           "label",
           "organisation_id",
           "is_addition",
-          "is_active"
+          "is_active",
+          "article_category_id",
+          "article_category_name"
         ],
         "title": "ArticleMinimalRead"
       },
@@ -9200,7 +10474,7 @@
           },
           "label": {
             "type": "string",
-            "maxLength": 22,
+            "maxLength": 21,
             "minLength": 1,
             "title": "Label"
           },
@@ -9363,7 +10637,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 22,
+                "maxLength": 21,
                 "minLength": 1
               },
               {
@@ -9637,6 +10911,18 @@
             ],
             "title": "Receipt Printer Appliance Id"
           },
+          "cash_drawer_command": {
+            "type": "string",
+            "enum": [
+              "none",
+              "escp_pin2",
+              "escp_pin5",
+              "escp_pin2_long",
+              "escp_pin5_long"
+            ],
+            "title": "Cash Drawer Command",
+            "default": "none"
+          },
           "subsidiary_code": {
             "anyOf": [
               {
@@ -9694,6 +10980,18 @@
               }
             ],
             "title": "Receipt Printer Appliance Id"
+          },
+          "cash_drawer_command": {
+            "type": "string",
+            "enum": [
+              "none",
+              "escp_pin2",
+              "escp_pin5",
+              "escp_pin2_long",
+              "escp_pin5_long"
+            ],
+            "title": "Cash Drawer Command",
+            "default": "none"
           },
           "subsidiary_code": {
             "anyOf": [
@@ -9997,6 +11295,53 @@
         ],
         "title": "CollectiveBillRead"
       },
+      "ColorPaletteEntry": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "color"
+        ],
+        "title": "ColorPaletteEntry"
+      },
+      "ColorPaletteRead": {
+        "properties": {
+          "colors": {
+            "items": {
+              "$ref": "#/components/schemas/ColorPaletteEntry"
+            },
+            "type": "array",
+            "title": "Colors"
+          }
+        },
+        "type": "object",
+        "title": "ColorPaletteRead"
+      },
+      "ColorPaletteUpdate": {
+        "properties": {
+          "colors": {
+            "items": {
+              "$ref": "#/components/schemas/ColorPaletteEntry"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Colors"
+          }
+        },
+        "type": "object",
+        "title": "ColorPaletteUpdate"
+      },
       "CountryCreate": {
         "properties": {
           "code": {
@@ -10125,6 +11470,261 @@
         ],
         "title": "CurrentLendingRead"
       },
+      "DashboardAttentionItemRead": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "event_name": {
+            "type": "string",
+            "title": "Event Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "event_id",
+          "event_name"
+        ],
+        "title": "DashboardAttentionItemRead"
+      },
+      "DashboardCatalogRead": {
+        "properties": {
+          "waiters": {
+            "type": "integer",
+            "title": "Waiters"
+          },
+          "articles": {
+            "type": "integer",
+            "title": "Articles"
+          },
+          "categories": {
+            "type": "integer",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "waiters",
+          "articles",
+          "categories"
+        ],
+        "title": "DashboardCatalogRead"
+      },
+      "DashboardLendingsRead": {
+        "properties": {
+          "current": {
+            "type": "integer",
+            "title": "Current"
+          },
+          "planned": {
+            "type": "integer",
+            "title": "Planned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "planned"
+        ],
+        "title": "DashboardLendingsRead"
+      },
+      "DashboardSalesEventRowRead": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "distinct_orders_count": {
+            "type": "integer",
+            "title": "Distinct Orders Count"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "open_cents": {
+            "type": "integer",
+            "title": "Open Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "name",
+          "status",
+          "distinct_orders_count",
+          "line_cents",
+          "paid_cents",
+          "open_cents"
+        ],
+        "title": "DashboardSalesEventRowRead"
+      },
+      "DashboardSalesRead": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DashboardSalesTotalsRead"
+          },
+          "by_event": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardSalesEventRowRead"
+            },
+            "type": "array",
+            "title": "By Event"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "totals",
+          "by_event"
+        ],
+        "title": "DashboardSalesRead"
+      },
+      "DashboardSalesTotalsRead": {
+        "properties": {
+          "distinct_orders_count": {
+            "type": "integer",
+            "title": "Distinct Orders Count"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "open_cents": {
+            "type": "integer",
+            "title": "Open Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distinct_orders_count",
+          "line_cents",
+          "paid_cents",
+          "open_cents"
+        ],
+        "title": "DashboardSalesTotalsRead"
+      },
+      "DashboardSummaryRead": {
+        "properties": {
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "organisation_name": {
+            "type": "string",
+            "title": "Organisation Name"
+          },
+          "events_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Events By Status"
+          },
+          "running_event_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Running Event Ids"
+          },
+          "running_events_count": {
+            "type": "integer",
+            "title": "Running Events Count"
+          },
+          "events_total": {
+            "type": "integer",
+            "title": "Events Total"
+          },
+          "catalog": {
+            "$ref": "#/components/schemas/DashboardCatalogRead"
+          },
+          "lendings": {
+            "$ref": "#/components/schemas/DashboardLendingsRead"
+          },
+          "attention": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardAttentionItemRead"
+            },
+            "type": "array",
+            "title": "Attention"
+          },
+          "sales": {
+            "$ref": "#/components/schemas/DashboardSalesRead"
+          },
+          "onboarding": {
+            "$ref": "#/components/schemas/OnboardingRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organisation_id",
+          "organisation_name",
+          "events_by_status",
+          "running_event_ids",
+          "running_events_count",
+          "events_total",
+          "catalog",
+          "lendings",
+          "attention",
+          "sales",
+          "onboarding"
+        ],
+        "title": "DashboardSummaryRead"
+      },
       "EdgeBundleRead": {
         "properties": {
           "organisation_id": {
@@ -10165,6 +11765,11 @@
             },
             "type": "array",
             "title": "Position Comment Presets"
+          },
+          "ingredients_enabled": {
+            "type": "boolean",
+            "title": "Ingredients Enabled",
+            "default": false
           }
         },
         "type": "object",
@@ -10282,6 +11887,11 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Articles"
+          },
+          "ingredients": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Ingredients"
           },
           "printer_hosts": {
             "additionalProperties": {
@@ -10498,6 +12108,11 @@
             "type": "string",
             "title": "Currency"
           },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
           "total": {
             "type": "integer",
             "title": "Total"
@@ -10533,6 +12148,11 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
           },
           "collective_bills": {
             "items": {
@@ -10788,11 +12408,114 @@
         ],
         "title": "EventCreate"
       },
+      "EventIngredientStockItemIn": {
+        "properties": {
+          "ingredient_id": {
+            "type": "integer",
+            "title": "Ingredient Id"
+          },
+          "monitor_stock": {
+            "type": "boolean",
+            "title": "Monitor Stock",
+            "default": false
+          },
+          "initial_in_stock": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial In Stock"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ingredient_id"
+        ],
+        "title": "EventIngredientStockItemIn"
+      },
+      "EventIngredientStockItemRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "monitor_stock": {
+            "type": "boolean",
+            "title": "Monitor Stock"
+          },
+          "initial_in_stock": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial In Stock"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "monitor_stock"
+        ],
+        "title": "EventIngredientStockItemRead"
+      },
       "EventPaymentBatchesV3Read": {
         "properties": {
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
           },
           "payment_batches": {
             "items": {
@@ -10910,6 +12633,16 @@
           "organisation_name": {
             "type": "string",
             "title": "Organisation Name"
+          },
+          "organisation_currency": {
+            "type": "string",
+            "title": "Organisation Currency",
+            "default": "EUR"
+          },
+          "organisation_country_code": {
+            "type": "string",
+            "title": "Organisation Country Code",
+            "default": "CH"
           }
         },
         "type": "object",
@@ -11019,6 +12752,11 @@
             "type": "string",
             "title": "Currency"
           },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
           "totals": {
             "$ref": "#/components/schemas/V3SalesTotalsRead"
           },
@@ -11062,6 +12800,95 @@
         ],
         "title": "EventSalesReportV3Read"
       },
+      "EventStatsRead": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
+          },
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/StatsTotalsRead"
+          },
+          "revenue_timeline": {
+            "$ref": "#/components/schemas/StatsRevenueTimelineRead"
+          },
+          "top_articles": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTopArticleRead"
+            },
+            "type": "array",
+            "title": "Top Articles"
+          },
+          "by_order_source": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByOrderSourceRead"
+            },
+            "type": "array",
+            "title": "By Order Source"
+          },
+          "article_timeline": {
+            "$ref": "#/components/schemas/StatsArticleTimelineRead"
+          },
+          "category_timeline": {
+            "$ref": "#/components/schemas/StatsCategoryTimelineRead"
+          },
+          "by_payment_type": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByPaymentTypeRead"
+            },
+            "type": "array",
+            "title": "By Payment Type"
+          },
+          "by_waiter": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByWaiterRead"
+            },
+            "type": "array",
+            "title": "By Waiter"
+          },
+          "by_station": {
+            "items": {
+              "$ref": "#/components/schemas/StatsByStationRead"
+            },
+            "type": "array",
+            "title": "By Station"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "from",
+          "to",
+          "bucket_count",
+          "totals",
+          "revenue_timeline",
+          "top_articles",
+          "by_order_source",
+          "article_timeline",
+          "category_timeline",
+          "by_payment_type",
+          "by_waiter",
+          "by_station"
+        ],
+        "title": "EventStatsRead"
+      },
       "EventStockItemIn": {
         "properties": {
           "article_id": {
@@ -11072,6 +12899,18 @@
             "type": "boolean",
             "title": "Monitor Stock",
             "default": false
+          },
+          "initial_in_stock": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial In Stock"
           },
           "in_stock": {
             "anyOf": [
@@ -11110,6 +12949,17 @@
             "type": "boolean",
             "title": "Monitor Stock"
           },
+          "initial_in_stock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial In Stock"
+          },
           "in_stock": {
             "anyOf": [
               {
@@ -11133,6 +12983,13 @@
       },
       "EventStockListRead": {
         "properties": {
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/EventIngredientStockItemRead"
+            },
+            "type": "array",
+            "title": "Ingredients"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/EventStockItemRead"
@@ -11149,6 +13006,13 @@
       },
       "EventStockUpdateIn": {
         "properties": {
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/EventIngredientStockItemIn"
+            },
+            "type": "array",
+            "title": "Ingredients"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/EventStockItemIn"
@@ -11165,6 +13029,11 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "default": "CH"
           },
           "total": {
             "type": "integer",
@@ -11785,6 +13654,140 @@
         ],
         "title": "HostedPiRead"
       },
+      "IngredientCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "organisation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organisation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "IngredientCreate"
+      },
+      "IngredientRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "organisation_name": {
+            "type": "string",
+            "title": "Organisation Name"
+          },
+          "usage_count": {
+            "type": "integer",
+            "title": "Usage Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "organisation_id",
+          "organisation_name"
+        ],
+        "title": "IngredientRead"
+      },
+      "IngredientUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "IngredientUpdate"
+      },
       "KitchenMonitorPrinterIn": {
         "properties": {
           "printer_appliance_id": {
@@ -12011,6 +14014,16 @@
             "type": "array",
             "title": "Hire Companies",
             "default": []
+          },
+          "theme_preference": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark",
+              "system"
+            ],
+            "title": "Theme Preference",
+            "default": "system"
           }
         },
         "type": "object",
@@ -12020,6 +14033,28 @@
           "is_admin"
         ],
         "title": "MeResponse"
+      },
+      "MeUpdate": {
+        "properties": {
+          "theme_preference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "light",
+                  "dark",
+                  "system"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Preference"
+          }
+        },
+        "type": "object",
+        "title": "MeUpdate"
       },
       "MessageResponse": {
         "properties": {
@@ -12033,6 +14068,1109 @@
           "msg"
         ],
         "title": "MessageResponse"
+      },
+      "OnboardingRead": {
+        "properties": {
+          "dismissed": {
+            "type": "boolean",
+            "title": "Dismissed"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingTaskRead"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dismissed"
+        ],
+        "title": "OnboardingRead"
+      },
+      "OnboardingTaskRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done"
+          },
+          "done_manually": {
+            "type": "boolean",
+            "title": "Done Manually",
+            "default": false
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "target_route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Route"
+          },
+          "target_params": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Params"
+          },
+          "target_query": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Query"
+          },
+          "target_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group",
+          "done"
+        ],
+        "title": "OnboardingTaskRead"
+      },
+      "OrderjutsuImportCommit": {
+        "properties": {
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "event": {
+            "$ref": "#/components/schemas/OrderjutsuImportCommitEvent"
+          },
+          "articles": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportCommitArticle"
+            },
+            "type": "array",
+            "title": "Articles"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportCommitIngredient"
+            },
+            "type": "array",
+            "title": "Ingredients"
+          },
+          "cashiers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportCommitCashier"
+            },
+            "type": "array",
+            "title": "Cashiers"
+          },
+          "default_article_category_id": {
+            "type": "integer",
+            "title": "Default Article Category Id"
+          },
+          "enable_ingredients": {
+            "type": "boolean",
+            "title": "Enable Ingredients",
+            "default": false
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportCommitStation"
+            },
+            "type": "array",
+            "title": "Stations"
+          },
+          "import_stock": {
+            "type": "boolean",
+            "title": "Import Stock",
+            "default": true
+          },
+          "stock_articles": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportCommitStockArticle"
+            },
+            "type": "array",
+            "title": "Stock Articles"
+          },
+          "stock_ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportCommitStockIngredient"
+            },
+            "type": "array",
+            "title": "Stock Ingredients"
+          },
+          "import_vouchers": {
+            "type": "boolean",
+            "title": "Import Vouchers",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "organisation_id",
+          "payload",
+          "event",
+          "default_article_category_id"
+        ],
+        "title": "OrderjutsuImportCommit"
+      },
+      "OrderjutsuImportCommitArticle": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "link_existing",
+              "create_new",
+              "skip"
+            ],
+            "title": "Action"
+          },
+          "article_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "action"
+        ],
+        "title": "OrderjutsuImportCommitArticle"
+      },
+      "OrderjutsuImportCommitCashier": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "link_existing",
+              "create_org_waiter",
+              "event_only",
+              "skip"
+            ],
+            "title": "Action"
+          },
+          "waiter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiter Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "action"
+        ],
+        "title": "OrderjutsuImportCommitCashier"
+      },
+      "OrderjutsuImportCommitEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "cash_registers_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Registers Enabled"
+          },
+          "vouchers_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vouchers Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "start",
+          "end"
+        ],
+        "title": "OrderjutsuImportCommitEvent"
+      },
+      "OrderjutsuImportCommitIngredient": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "link_existing",
+              "create_new"
+            ],
+            "title": "Action"
+          },
+          "ingredient_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredient Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "action"
+        ],
+        "title": "OrderjutsuImportCommitIngredient"
+      },
+      "OrderjutsuImportCommitResult": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventRead"
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/EventConfigurationRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "event",
+          "configuration"
+        ],
+        "title": "OrderjutsuImportCommitResult"
+      },
+      "OrderjutsuImportCommitStation": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "printer_appliance_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printer Appliance Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index"
+        ],
+        "title": "OrderjutsuImportCommitStation"
+      },
+      "OrderjutsuImportCommitStockArticle": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "monitor_stock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitor Stock"
+          },
+          "initial_in_stock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial In Stock"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "OrderjutsuImportCommitStockArticle"
+      },
+      "OrderjutsuImportCommitStockIngredient": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "monitor_stock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitor Stock"
+          },
+          "initial_in_stock": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial In Stock"
+          },
+          "in_stock": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Stock"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "OrderjutsuImportCommitStockIngredient"
+      },
+      "OrderjutsuImportPreview": {
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/OrderjutsuImportPreviewEvent"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewProduct"
+            },
+            "type": "array",
+            "title": "Products"
+          },
+          "cashiers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewCashier"
+            },
+            "type": "array",
+            "title": "Cashiers"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewStation"
+            },
+            "type": "array",
+            "title": "Stations"
+          },
+          "layouts": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewLayoutSummary"
+            },
+            "type": "array",
+            "title": "Layouts"
+          },
+          "product_extras": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewExtra"
+            },
+            "type": "array",
+            "title": "Product Extras"
+          },
+          "stock_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewStockCandidate"
+            },
+            "type": "array",
+            "title": "Stock Candidates"
+          },
+          "vouchers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewVoucher"
+            },
+            "type": "array",
+            "title": "Vouchers"
+          },
+          "has_ingredients": {
+            "type": "boolean",
+            "title": "Has Ingredients"
+          },
+          "ingredients_enabled": {
+            "type": "boolean",
+            "title": "Ingredients Enabled"
+          },
+          "will_enable_ingredients": {
+            "type": "boolean",
+            "title": "Will Enable Ingredients"
+          },
+          "ingredient_matches": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewIngredient"
+            },
+            "type": "array",
+            "title": "Ingredient Matches"
+          },
+          "recipe_rows": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewRecipeRow"
+            },
+            "type": "array",
+            "title": "Recipe Rows"
+          },
+          "has_vouchers": {
+            "type": "boolean",
+            "title": "Has Vouchers"
+          },
+          "has_cash_registers": {
+            "type": "boolean",
+            "title": "Has Cash Registers"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/OrderjutsuImportPreviewWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event",
+          "products",
+          "cashiers",
+          "stations",
+          "layouts",
+          "product_extras",
+          "stock_candidates",
+          "vouchers",
+          "has_ingredients",
+          "ingredients_enabled",
+          "will_enable_ingredients",
+          "ingredient_matches",
+          "recipe_rows",
+          "has_vouchers",
+          "has_cash_registers"
+        ],
+        "title": "OrderjutsuImportPreview"
+      },
+      "OrderjutsuImportPreviewCashier": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "pin": {
+            "type": "string",
+            "title": "Pin"
+          },
+          "is_extra": {
+            "type": "boolean",
+            "title": "Is Extra"
+          },
+          "table_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Prefix"
+          },
+          "has_custom_layout": {
+            "type": "boolean",
+            "title": "Has Custom Layout",
+            "default": false
+          },
+          "auto_table": {
+            "type": "boolean",
+            "title": "Auto Table",
+            "default": false
+          },
+          "match_kind": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "none"
+            ],
+            "title": "Match Kind"
+          },
+          "matched_waiter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Waiter Id"
+          },
+          "matched_waiter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Waiter Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "label",
+          "pin",
+          "is_extra",
+          "match_kind"
+        ],
+        "title": "OrderjutsuImportPreviewCashier"
+      },
+      "OrderjutsuImportPreviewEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "currency_matches_org": {
+            "type": "boolean",
+            "title": "Currency Matches Org"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "start",
+          "end",
+          "currency",
+          "currency_matches_org"
+        ],
+        "title": "OrderjutsuImportPreviewEvent"
+      },
+      "OrderjutsuImportPreviewExtra": {
+        "properties": {
+          "product_ref": {
+            "type": "integer",
+            "title": "Product Ref"
+          },
+          "extra_ref": {
+            "type": "integer",
+            "title": "Extra Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_ref",
+          "extra_ref"
+        ],
+        "title": "OrderjutsuImportPreviewExtra"
+      },
+      "OrderjutsuImportPreviewIngredient": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "bon_text": {
+            "type": "string",
+            "title": "Bon Text"
+          },
+          "match_kind": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "none"
+            ],
+            "title": "Match Kind"
+          },
+          "matched_ingredient_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Ingredient Id"
+          },
+          "matched_ingredient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Ingredient Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "bon_text",
+          "match_kind"
+        ],
+        "title": "OrderjutsuImportPreviewIngredient"
+      },
+      "OrderjutsuImportPreviewLayoutSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "grid_width": {
+            "type": "integer",
+            "title": "Grid Width"
+          },
+          "grid_height": {
+            "type": "integer",
+            "title": "Grid Height"
+          },
+          "cell_count": {
+            "type": "integer",
+            "title": "Cell Count"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "default": false
+          },
+          "source_cashier_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Cashier Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "grid_width",
+          "grid_height",
+          "cell_count"
+        ],
+        "title": "OrderjutsuImportPreviewLayoutSummary"
+      },
+      "OrderjutsuImportPreviewProduct": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "bon_text": {
+            "type": "string",
+            "title": "Bon Text"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "is_addition": {
+            "type": "boolean",
+            "title": "Is Addition"
+          },
+          "monitor_stock": {
+            "type": "boolean",
+            "title": "Monitor Stock"
+          },
+          "stock": {
+            "type": "integer",
+            "title": "Stock"
+          },
+          "is_voucher": {
+            "type": "boolean",
+            "title": "Is Voucher"
+          },
+          "ingredient_only": {
+            "type": "boolean",
+            "title": "Ingredient Only"
+          },
+          "is_composite": {
+            "type": "boolean",
+            "title": "Is Composite"
+          },
+          "match_kind": {
+            "type": "string",
+            "enum": [
+              "import_number",
+              "exact",
+              "ambiguous",
+              "none"
+            ],
+            "title": "Match Kind"
+          },
+          "matched_article_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Article Id"
+          },
+          "matched_article_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Article Name"
+          },
+          "matched_article_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Article Price"
+          },
+          "ambiguous_article_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ambiguous Article Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "label",
+          "bon_text",
+          "price",
+          "is_addition",
+          "monitor_stock",
+          "stock",
+          "is_voucher",
+          "ingredient_only",
+          "is_composite",
+          "match_kind"
+        ],
+        "title": "OrderjutsuImportPreviewProduct"
+      },
+      "OrderjutsuImportPreviewRecipeRow": {
+        "properties": {
+          "product_ref": {
+            "type": "integer",
+            "title": "Product Ref"
+          },
+          "product_bon_text": {
+            "type": "string",
+            "title": "Product Bon Text"
+          },
+          "ingredient_ref": {
+            "type": "integer",
+            "title": "Ingredient Ref"
+          },
+          "ingredient_bon_text": {
+            "type": "string",
+            "title": "Ingredient Bon Text"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_ref",
+          "product_bon_text",
+          "ingredient_ref",
+          "ingredient_bon_text",
+          "amount"
+        ],
+        "title": "OrderjutsuImportPreviewRecipeRow"
+      },
+      "OrderjutsuImportPreviewRequest": {
+        "properties": {
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organisation_id",
+          "payload"
+        ],
+        "title": "OrderjutsuImportPreviewRequest"
+      },
+      "OrderjutsuImportPreviewStation": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "product_refs": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Product Refs"
+          },
+          "printer_loc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printer Loc"
+          },
+          "printer_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Printer Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "label"
+        ],
+        "title": "OrderjutsuImportPreviewStation"
+      },
+      "OrderjutsuImportPreviewStockCandidate": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "bon_text": {
+            "type": "string",
+            "title": "Bon Text"
+          },
+          "monitor_stock": {
+            "type": "boolean",
+            "title": "Monitor Stock"
+          },
+          "stock": {
+            "type": "integer",
+            "title": "Stock"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "article",
+              "ingredient"
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "bon_text",
+          "monitor_stock",
+          "stock",
+          "kind"
+        ],
+        "title": "OrderjutsuImportPreviewStockCandidate"
+      },
+      "OrderjutsuImportPreviewVoucher": {
+        "properties": {
+          "ref": {
+            "type": "integer",
+            "title": "Ref"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "label",
+          "price"
+        ],
+        "title": "OrderjutsuImportPreviewVoucher"
+      },
+      "OrderjutsuImportPreviewWarning": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "OrderjutsuImportPreviewWarning"
       },
       "OrgApplianceLendingItem": {
         "properties": {
@@ -12308,6 +15446,11 @@
             "type": "boolean",
             "title": "Position Comments Enabled",
             "default": false
+          },
+          "ingredients_enabled": {
+            "type": "boolean",
+            "title": "Ingredients Enabled",
+            "default": false
           }
         },
         "type": "object",
@@ -12448,6 +15591,17 @@
               }
             ],
             "title": "Position Comments Enabled"
+          },
+          "ingredients_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredients Enabled"
           }
         },
         "type": "object",
@@ -13488,6 +16642,398 @@
           "printer_appliance_id"
         ],
         "title": "StationPrinterRuleRead"
+      },
+      "StatsArticleSeriesRead": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsArticleSeriesRead"
+      },
+      "StatsArticleTimelineRead": {
+        "properties": {
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTimelineBucketRead"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/StatsArticleSeriesRead"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/StatsArticleTotalRead"
+            },
+            "type": "array",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_count",
+          "buckets",
+          "series",
+          "totals"
+        ],
+        "title": "StatsArticleTimelineRead"
+      },
+      "StatsArticleTotalRead": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsArticleTotalRead"
+      },
+      "StatsByOrderSourceRead": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "label",
+          "qty",
+          "line_cents"
+        ],
+        "title": "StatsByOrderSourceRead"
+      },
+      "StatsByPaymentTypeRead": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "label",
+          "amount_cents"
+        ],
+        "title": "StatsByPaymentTypeRead"
+      },
+      "StatsByStationRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "qty",
+          "line_cents"
+        ],
+        "title": "StatsByStationRead"
+      },
+      "StatsByWaiterRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "order_count",
+          "qty",
+          "line_cents",
+          "paid_cents"
+        ],
+        "title": "StatsByWaiterRead"
+      },
+      "StatsCategorySeriesRead": {
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsCategorySeriesRead"
+      },
+      "StatsCategoryTimelineRead": {
+        "properties": {
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTimelineBucketRead"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/StatsCategorySeriesRead"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/StatsCategoryTotalRead"
+            },
+            "type": "array",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_count",
+          "buckets",
+          "series",
+          "totals"
+        ],
+        "title": "StatsCategoryTimelineRead"
+      },
+      "StatsCategoryTotalRead": {
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "name",
+          "qty"
+        ],
+        "title": "StatsCategoryTotalRead"
+      },
+      "StatsRevenueTimelineRead": {
+        "properties": {
+          "bucket_count": {
+            "type": "integer",
+            "title": "Bucket Count"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsTimelineBucketRead"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "line_cents": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_count",
+          "buckets",
+          "line_cents"
+        ],
+        "title": "StatsRevenueTimelineRead"
+      },
+      "StatsTimelineBucketRead": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "label"
+        ],
+        "title": "StatsTimelineBucketRead"
+      },
+      "StatsTopArticleRead": {
+        "properties": {
+          "article_id": {
+            "type": "integer",
+            "title": "Article Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_id",
+          "name",
+          "qty",
+          "line_cents"
+        ],
+        "title": "StatsTopArticleRead"
+      },
+      "StatsTotalsRead": {
+        "properties": {
+          "distinct_orders_count": {
+            "type": "integer",
+            "title": "Distinct Orders Count"
+          },
+          "line_cents": {
+            "type": "integer",
+            "title": "Line Cents"
+          },
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "open_cents": {
+            "type": "integer",
+            "title": "Open Cents"
+          },
+          "average_order_value_cents": {
+            "type": "integer",
+            "title": "Average Order Value Cents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distinct_orders_count",
+          "line_cents",
+          "paid_cents",
+          "open_cents",
+          "average_order_value_cents"
+        ],
+        "title": "StatsTotalsRead"
       },
       "StripeAccountLinkRequest": {
         "properties": {

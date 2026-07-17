@@ -22,6 +22,7 @@ def edge_bundle_payload(
     admin_pin_hashes: list[str],
     position_comments_enabled: bool,
     position_comment_presets: list[dict[str, Any]],
+    ingredients_enabled: bool = False,
 ) -> dict[str, Any]:
     """Build the organisation bundle dict returned by GET /edge/v1/bundle."""
     payload = {
@@ -30,6 +31,7 @@ def edge_bundle_payload(
         "admin_pin_hashes": admin_pin_hashes,
         "position_comments_enabled": position_comments_enabled,
         "position_comment_presets": position_comment_presets,
+        "ingredients_enabled": ingredients_enabled,
     }
     validate_edge_bundle_payload(payload)
     return payload

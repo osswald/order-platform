@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AdditionsPickerSheet from './AdditionsPickerSheet.vue'
 import type { EdgeBundleArticleAddition } from '@/types/api'
+import * as store from '@/store'
+import { bundleWithStock } from '@tests/fixtures/bundle'
+import { resetStore } from '@tests/helpers/resetStore'
 
 function addition(overrides: Partial<EdgeBundleArticleAddition> & { article_id: number }): EdgeBundleArticleAddition {
   return {
@@ -44,13 +47,18 @@ function additionsIndex(wrapper: ReturnType<typeof mount>, articleId: number) {
     const name = row.find('.sheet-option-row__name').text()
     return { i, name }
   })
-  const target = `Addon ${articleId}`
-  const match = ids.find((x) => x.name === target)
+  const match = ids.find((x) => x.name === `Addon ${articleId}` || x.name === 'mit Salat')
   expect(match).toBeTruthy()
   return match!.i
 }
 
 describe('AdditionsPickerSheet', () => {
+  beforeEach(() => {
+    resetStore()
+    store.bundle.value = bundleWithStock()
+    store.selectedEventId.value = 1
+  })
+
   it('preselects additions flagged preselected when opened', async () => {
     const wrapper = openSheet([
       addition({ article_id: 1, preselected: true }),
@@ -74,6 +82,31 @@ describe('AdditionsPickerSheet', () => {
     ])
     await nextTick()
     expect(checkboxFor(wrapper, 1).element).toHaveProperty('checked', false)
+    wrapper.unmount()
+  })
+
+  it('disables ingredient-based sold-out additions', async () => {
+    resetStore()
+    const b = bundleWithStock()
+    const ev = b.events![0]!
+    ev.ingredients = {
+      '1': { id: 1, name: 'Kartoffelsalat', monitor_stock: true, in_stock: 0 },
+    }
+    ev.articles!['3'] = {
+      id: 3,
+      name: 'mit Salat',
+      price: 1.0,
+      is_addition: true,
+      ingredients: [{ ingredient_id: 1, amount: 0.5 }],
+      sellable: false,
+    }
+    store.bundle.value = b
+    store.selectedEventId.value = 1
+
+    const wrapper = openSheet([addition({ article_id: 3, name: 'mit Salat', sellable: false })])
+    await nextTick()
+    expect(checkboxFor(wrapper, 3).attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('ausverkauft')
     wrapper.unmount()
   })
 

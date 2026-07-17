@@ -129,19 +129,11 @@
       </div>
       <div class="form-field">
         <label>{{ $t('events.config.articles') }}</label>
-        <v-select
+        <StationArticleTransferPicker
           v-model="st.article_ids"
-          :items="articleOptions"
-          item-title="name"
-          item-value="value"
-          :placeholder="$t('events.config.selectArticles')"
+          :articles="articles"
           :loading="catalogLoading"
-          :disabled="catalogLoading"
-          multiple
-          chips
-          closable-chips
-          density="compact"
-          hide-details
+          :disabled="catalogLoading || !!catalogError"
         />
       </div>
     </div>
@@ -152,8 +144,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
+import StationArticleTransferPicker from './StationArticleTransferPicker.vue'
 import { rules } from '../utils/formRules.js'
-import type { ArticleSelectOption, EventStationLocal, SelectOption } from '@/types/ui'
+import type { ArticleRead } from '@/types/api'
+import type { EventStationLocal, SelectOption } from '@/types/ui'
 import type { PrinterOptionRead } from '@/types/api'
 
 withDefaults(
@@ -161,7 +155,7 @@ withDefaults(
     catalogLoading?: boolean
     catalogError?: string
     printerOptions?: PrinterOptionRead[]
-    articleOptions?: ArticleSelectOption[]
+    articles?: ArticleRead[]
     alternativePrintersEnabled?: boolean
     printerRuleTypeOptions?: SelectOption<string>[]
   }>(),
@@ -169,7 +163,7 @@ withDefaults(
     catalogLoading: false,
     catalogError: '',
     printerOptions: () => [],
-    articleOptions: () => [],
+    articles: () => [],
     alternativePrintersEnabled: false,
     printerRuleTypeOptions: () => [],
   },

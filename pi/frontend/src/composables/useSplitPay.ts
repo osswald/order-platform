@@ -3,9 +3,10 @@ import { additionsSignature, articleName, showToast } from '@/store'
 import { api } from '@/api'
 import type { DiscountIn, EdgeBundleEvent, LineAdditionIn, PaymentIn } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
-import { formatAmount } from '@/utils/money'
+import { formatMoney } from '@/utils/money'
 import { lineAdditionLabels } from '@/utils/bundleHelpers'
 import { buildPayment } from '@/utils/paymentTypes'
+import type { PickPaymentHooks } from '@/utils/pickPaymentType'
 import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
 import {
   basketCentsAfterVoucher,
@@ -56,6 +57,10 @@ export interface UseSplitPayOptions {
   loadSummary: () => Promise<SplitPaySummary>
   settlePartialPath: () => string
   voucherRedemptions?: Ref<VoucherRedemptionSelection[]>
+  /** Amount always due on top of the selected lines (e.g. voucher sales on a register order). */
+  fixedCents?: Ref<number>
+  /** Forwarded to payment resolution (e.g. mirror TWINT QR to a customer display). */
+  paymentHooks?: PickPaymentHooks
 }
 
 export function useSplitPay({
@@ -64,6 +69,8 @@ export function useSplitPay({
   loadSummary,
   settlePartialPath,
   voucherRedemptions = ref([]),
+  fixedCents = ref(0),
+  paymentHooks,
 }: UseSplitPayOptions) {
   const summary = ref<SplitPaySummary | null>(null)
   const groups = ref<SplitPayGroupRow[]>([])
@@ -78,10 +85,12 @@ export function useSplitPay({
   const voucherCreditCents = computed(() =>
     sumVoucherCreditCents(voucherRedemptions.value),
   )
-  const basketCents = computed(() =>
-    basketCentsAfterVoucher(rawBasketCents.value, voucherCreditCents.value),
+  const basketCents = computed(
+    () => basketCentsAfterVoucher(rawBasketCents.value, voucherCreditCents.value) + fixedCents.value,
   )
-  const restCents = computed(() => Math.max(0, totalCents.value - rawBasketCents.value))
+  const restCents = computed(() =>
+    Math.max(0, totalCents.value - rawBasketCents.value - fixedCents.value),
+  )
   const basketItemCount = computed(() => groups.value.reduce((s, g) => s + g.basketQty, 0))
   const remainingItemCount = computed(() =>
     groups.value.reduce((s, g) => s + (g.totalQty - g.basketQty), 0),
@@ -173,7 +182,7 @@ export function useSplitPay({
       return buildPayment(cents, 'instant')
     }
     if (!event.value) throw new Error('Kein Event')
-    return resolvePaymentsForAmount(event.value, cents)
+    return resolvePaymentsForAmount(event.value, cents, null, paymentHooks || {})
   }
 
   async function reload(): Promise<SplitPaySummary> {
@@ -213,7 +222,7 @@ export function useSplitPay({
         onFullySettled?.()
         return res
       }
-      showToast(`Teilbetrag bezahlt. Rest: ${formatAmount(res.remaining_cents)}`, 'ok')
+      showToast(`Teilbetrag bezahlt. Rest: ${formatMoney(res.remaining_cents, event.value?.currency || 'CHF')}`, 'ok')
       await reload()
       return res
     } finally {
@@ -222,7 +231,7 @@ export function useSplitPay({
   }
 
   async function onGreenCheck(onFullySettled?: () => void): Promise<SplitPaySummary | undefined> {
-    if (!rawBasketCents.value) return
+    if (!rawBasketCents.value && !fixedCents.value) return
     let payments: PaymentIn[]
     try {
       payments = await paymentsForAmount(basketCents.value)

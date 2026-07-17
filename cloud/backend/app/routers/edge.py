@@ -21,7 +21,8 @@ from ..edge_operational_mirror import (
 )
 from ..edge_operational_snapshot import build_operational_snapshot_for_events
 from ..event_cash_sessions import upsert_edge_cash_session
-from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status
+from ..event_stats import resolve_sync_ordered_at
+from ..event_status import ORDER_ACCEPT_STATUSES, PI_VISIBLE_STATUSES, normalize_status, payload_is_stale_test
 from ..i18n.errors import api_error
 from ..models import (
     Appliance,
@@ -211,8 +212,39 @@ def _events_for_edge_bundle(db: Session, ctx: ApplianceEdgeContext) -> tuple[lis
     return _active_events_for_org(db, ctx.organisation_id), False
 
 
+def _deduct_stock_for_order_lines(db: Session, event: Event, lines: list) -> None:
+    stock_lines = [
+        ln for ln in lines if isinstance(ln, dict) and str(ln.get("kind") or "") != "voucher_sale"
+    ]
+    if not stock_lines:
+        return
+    from ..models import Article
+
+    names: dict[int, str] = {}
+    for st in event.stations or []:
+        for a in st.articles or []:
+            names[a.id] = a.name
+    extra_ids: set[int] = set()
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        for add in line.get("additions") or []:
+            if isinstance(add, dict) and add.get("article_id") is not None:
+                extra_ids.add(int(add["article_id"]))
+    if extra_ids:
+        for a in db.query(Article).filter(Article.id.in_(list(extra_ids))).all():
+            names[a.id] = a.name
+    apply_stock_deductions(db, event.id, stock_lines, article_names=names)
+
+
 def _article_snapshot(db: Session, event: Event) -> dict[str, Any]:
     return article_snapshot_for_event(db, event)
+
+
+def _ingredient_snapshot(db: Session, event: Event) -> dict[str, Any]:
+    from ..ingredient_stock import ingredient_snapshot_for_event
+
+    return ingredient_snapshot_for_event(db, event)
 
 
 def _printer_hosts_by_station(db: Session, event: Event) -> dict[str, dict]:
@@ -276,6 +308,7 @@ class EdgeEventBundle(BaseModel):
     end: datetime
     configuration: dict[str, Any]
     articles: dict[str, Any]
+    ingredients: dict[str, Any] = Field(default_factory=dict)
     printer_hosts: dict[str, dict] = Field(default_factory=dict)
 
 
@@ -292,6 +325,7 @@ class EdgeBundleRead(BaseModel):
     admin_pin_hashes: list[str] = Field(default_factory=list)
     position_comments_enabled: bool = False
     position_comment_presets: list[PositionCommentPresetBundleRead] = Field(default_factory=list)
+    ingredients_enabled: bool = False
 
 
 class EdgePairRequest(BaseModel):
@@ -419,11 +453,13 @@ def read_edge_bundle(
                 end=ev.end,
                 configuration=cfg_dict,
                 articles=_article_snapshot(db, ev),
+                ingredients=_ingredient_snapshot(db, ev),
                 printer_hosts=printer_hosts,
             )
         )
     org = db.query(Organisation).filter(Organisation.id == org_id).first()
     position_comments_enabled = bool(org and org.position_comments_enabled)
+    ingredients_enabled = bool(org and org.ingredients_enabled)
     position_comment_presets = (
         _position_comment_presets_for_org(db, org_id) if position_comments_enabled else []
     )
@@ -434,6 +470,7 @@ def read_edge_bundle(
         admin_pin_hashes=_admin_pin_hashes_for_org(db, org_id),
         position_comments_enabled=position_comments_enabled,
         position_comment_presets=position_comment_presets,
+        ingredients_enabled=ingredients_enabled,
     )
     return EdgeBundleRead(
         organisation_id=bundle_core["organisation_id"],
@@ -443,6 +480,7 @@ def read_edge_bundle(
         admin_pin_hashes=bundle_core["admin_pin_hashes"],
         position_comments_enabled=bundle_core["position_comments_enabled"],
         position_comment_presets=bundle_core["position_comment_presets"],
+        ingredients_enabled=bundle_core["ingredients_enabled"],
     )
 
 
@@ -526,6 +564,9 @@ def submit_edge_order(
         raise api_error("event_status_does_not_accept_orders", status.HTTP_403_FORBIDDEN, status=ev_status)
 
     payload = body.payload or {}
+    if payload_is_stale_test(event, payload):
+        return EdgeOrderAck(server_order_id=0, duplicate=False)
+
     row = EdgeSubmittedOrder(
         client_order_id=body.client_order_id,
         appliance_id=ctx.appliance.id,
@@ -548,25 +589,7 @@ def submit_edge_order(
         return EdgeOrderAck(server_order_id=existing.id, duplicate=True)
 
     lines = payload.get("lines") or []
-    stock_lines = [
-        ln for ln in lines if isinstance(ln, dict) and str(ln.get("kind") or "") != "voucher_sale"
-    ]
-    if stock_lines:
-        from ..models import Article
-
-        names: dict[int, str] = {}
-        for st in event.stations or []:
-            for a in st.articles or []:
-                names[a.id] = a.name
-        extra_ids: set[int] = set()
-        for line in lines:
-            for add in line.get("additions") or []:
-                if isinstance(add, dict) and add.get("article_id") is not None:
-                    extra_ids.add(int(add["article_id"]))
-        if extra_ids:
-            for a in db.query(Article).filter(Article.id.in_(list(extra_ids))).all():
-                names[a.id] = a.name
-        apply_stock_deductions(db, event.id, stock_lines, article_names=names)
+    _deduct_stock_for_order_lines(db, event, lines)
 
     from ..event_collective_bills import upsert_collective_bill_from_payload
 
@@ -612,6 +635,9 @@ def submit_operational_chunk(
         raise api_error("event_not_found_for_organisation", status.HTTP_404_NOT_FOUND)
 
     payload = body.payload or {}
+    if payload_is_stale_test(event, payload):
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=0)
+
     entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()
 
     row = EdgeSubmittedOrder(
@@ -646,6 +672,10 @@ def submit_operational_chunk(
         commit_or_raise(db)
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
 
+    if entity_type == "cash_drawer":
+        commit_or_raise(db)
+        return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
+
     if entity_type == "kitchen_tickets":
         upsert_edge_kitchen_ticket_snapshot(
             db,
@@ -658,6 +688,7 @@ def submit_operational_chunk(
         return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=1)
 
     lines = payload.get("lines") or []
+    _deduct_stock_for_order_lines(db, event, lines)
     payments = payload.get("payments") or []
     submission_id = int(payload.get("submission_id") or payload.get("local_order_id") or 0) or None
     session_id = int(payload.get("session_id") or 0) or submission_id or 0
@@ -681,6 +712,8 @@ def submit_operational_chunk(
             )
         )
     line_sum = 0
+    sync_now = datetime.now(UTC)
+    header_ordered_at = resolve_sync_ordered_at(order_payload=payload, line_payload={}) or sync_now
     for line in lines:
         if not isinstance(line, dict):
             continue
@@ -695,6 +728,7 @@ def submit_operational_chunk(
         tax_rate = float(line["tax_rate_percent"]) if line.get("tax_rate_percent") is not None else None
         net_cents = int(line["net_cents"]) if line.get("net_cents") is not None else None
         vat_cents = int(line["vat_cents"]) if line.get("vat_cents") is not None else None
+        line_ordered_at = resolve_sync_ordered_at(order_payload=payload, line_payload=line) or header_ordered_at
         db.add(
             EdgeOrderItem(
                 organisation_id=ctx.organisation_id,
@@ -720,6 +754,7 @@ def submit_operational_chunk(
                 payment_batch_uuid=batch_uuid or None,
                 method=method,
                 payload=line,
+                ordered_at=line_ordered_at,
             )
         )
     if batch_uuid:

@@ -32,7 +32,7 @@ describe('formatTaxCodeLabel', () => {
       country: { id: 1, code: 'CH', name: 'Schweiz' },
       rates: [{ id: 1, rate_percent: 8.1, valid_from: '2020-01-01', valid_to: null }],
     })
-    expect(label).toBe('Normalsatz (8,1%)')
+    expect(label).toBe('Normalsatz (8.1%)')
   })
 
   it('returns name only when no rates', () => {
@@ -58,7 +58,7 @@ describe('formatTaxCodeLabel', () => {
         { id: 2, rate_percent: 99, valid_from: future.toISOString().slice(0, 10), valid_to: null },
       ],
     })
-    expect(label).toBe('Alt (7,7%)')
+    expect(label).toBe('Alt (7.7%)')
   })
 })
 

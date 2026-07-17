@@ -83,7 +83,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
-import { formatAmount } from '../utils/money'
+import { formatMoney as formatMoneyWithCurrency } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 import type { EventSalesReportV3Read } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
@@ -128,8 +128,7 @@ const paymentHeaders = computed((): DataTableHeader[] => [
 ])
 
 function formatMoney(cents: number | null | undefined): string {
-  const currency = report.value?.currency || 'CHF'
-  return `${formatAmount(cents)} ${currency}`
+  return formatMoneyWithCurrency(cents, report.value?.currency || 'CHF', report.value?.country_code)
 }
 
 async function loadReport() {

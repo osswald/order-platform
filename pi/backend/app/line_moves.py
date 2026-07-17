@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from .domain.sessions import ensure_order_session
-from .domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync
+from .domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync, event_mode_label
 from .models import CollectiveBill, LocalOrder
 from .order_line_utils import merge_lines_into_list, take_selections_from_orders
 
@@ -94,6 +94,7 @@ def append_lines_to_table(
             "payments": [],
             "payment_status": "open",
             "transferred": True,
+            "mode": event_mode_label(ev.get("status")),
         }
         session_id = ensure_order_session(
             db,
@@ -119,7 +120,12 @@ def append_lines_to_table(
             db,
             event_id=event_id,
             client_order_id=cid,
-            payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+            payload=enrich_payload_for_cloud_sync(
+                payload,
+                local_order_id=order.id,
+                session_id=session_id,
+                mode=event_mode_label(ev.get("status")),
+            ),
         )
 
 
@@ -168,6 +174,7 @@ def append_lines_to_collective(
             "lines": stamped,
             "payments": [],
             "payment_status": "open",
+            "mode": event_mode_label(ev.get("status")),
         }
         session_id = ensure_order_session(
             db,
@@ -193,5 +200,10 @@ def append_lines_to_collective(
             db,
             event_id=event_id,
             client_order_id=cid,
-            payload=enrich_payload_for_cloud_sync(payload, local_order_id=order.id, session_id=session_id),
+            payload=enrich_payload_for_cloud_sync(
+                payload,
+                local_order_id=order.id,
+                session_id=session_id,
+                mode=event_mode_label(ev.get("status")),
+            ),
         )

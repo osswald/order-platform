@@ -76,11 +76,13 @@ import Sidebar from './components/Sidebar.vue'
 import AppNavMenu from './components/AppNavMenu.vue'
 import { useAuthSession } from './composables/useAuthSession'
 import { useBreakpoint } from './composables/useBreakpoint'
+import { useThemePreference } from './composables/useThemePreference'
 import { MOBILE_BREAKPOINT } from './constants/layout'
 import { SESSION_CONTEXT_KEY } from './sessionContext'
 import { normalizeOrganisationId } from './utils/orgId'
 
 const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
+useThemePreference()
 const mobileNavOpen = ref(false)
 const route = useRoute()
 

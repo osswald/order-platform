@@ -106,7 +106,7 @@
           </template>
 
           <template v-else>
-            <MoneyKeypad v-model="draftAmountCents" />
+            <MoneyKeypad v-model="draftAmountCents" :currency="currency" />
             <p class="muted hint">Max. {{ formatMoney(lineGross, currency) }}</p>
           </template>
 

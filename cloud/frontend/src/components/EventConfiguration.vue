@@ -19,7 +19,7 @@
             :catalog-loading="catalogLoading"
             :catalog-error="catalogError"
             :printer-options="printerOptions"
-            :article-options="articleOptions"
+            :articles="stationArticleCatalog"
             :alternative-printers-enabled="alternativePrintersEnabled"
             :printer-rule-type-options="printerRuleTypeOptions"
           />
@@ -55,8 +55,9 @@
         <template v-if="vouchersEnabled" #gutscheine>
           <EventConfigVouchersSection
             v-model="vouchersLocal"
-            :article-options="articleOptions"
+            :articles="eventArticleCatalog"
             :catalog-loading="catalogLoading"
+            :catalog-error="catalogError"
             :currency-label="currencyLabel"
             :voucher-kind-options="voucherKindOptions"
             @voucher-removed="onVoucherRemoved"
@@ -69,6 +70,7 @@
             v-model="layoutsLocal"
             v-model:cell-dialog-open="cellDialogOpen"
             :event-id="eventId"
+            :organisation-id="organisationId"
             :vouchers-enabled="vouchersEnabled"
             :voucher-definitions="vouchersLocal"
             @layout-removed="onLayoutRemoved"
@@ -111,7 +113,11 @@
         </template>
 
         <template v-if="showBookkeepingTab" #buchhaltung>
-          <EventBookkeepingTab :event-id="eventId" :currency="organisationCurrency" />
+          <EventBookkeepingTab
+            :event-id="eventId"
+            :currency="organisationCurrency"
+            :country-code="organisationCountryCode"
+          />
         </template>
       </SectionNavLayout>
 
@@ -143,6 +149,7 @@ import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } fr
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useSectionQuerySync } from '../composables/useSectionQuerySync'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
 import { useEventConfigurationAutosave } from '../composables/useEventConfigurationAutosave'
 import { loadOrgCatalog } from '../composables/useOrgCatalog'
@@ -163,7 +170,8 @@ import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
-import { resolveAppLayoutsForPut } from '../utils/eventConfigLayoutsPayload'
+import { resolveAppLayoutsForPut, stationArticleUnion } from '../utils/eventConfigLayoutsPayload'
+import { newUuid } from '@/utils/newUuid'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
 import type {
   ArticleRead,
@@ -178,7 +186,6 @@ import type {
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import type {
-  ArticleSelectOption,
   EventCashRegisterLocal,
   EventKitchenMonitorLocal,
   EventLayoutCellLocal,
@@ -200,6 +207,7 @@ const props = withDefaults(
     eventId: number
     organisationId?: number | null
     organisationCurrency?: string
+    organisationCountryCode?: string
     eventStatus?: string
     cashRegistersEnabled?: boolean
     vouchersEnabled?: boolean
@@ -211,6 +219,7 @@ const props = withDefaults(
   {
     organisationId: null,
     organisationCurrency: 'EUR',
+    organisationCountryCode: 'CH',
     eventStatus: 'config',
     cashRegistersEnabled: false,
     vouchersEnabled: false,
@@ -286,6 +295,8 @@ watch(
   { immediate: true },
 )
 
+useSectionQuerySync(activeConfigTab, configSections)
+
 const loading = ref(true)
 const loadError = ref('')
 const catalogLoading = ref(false)
@@ -334,19 +345,19 @@ const pickedWaiterIds = ref<number[]>([])
 
 let waiterKey = 0
 
-const articleOptions = computed((): ArticleSelectOption[] => {
+const stationArticleCatalog = computed((): ArticleRead[] => {
   const oid = props.organisationId
-  return articlesRaw.value
-    .filter(
-      (a) =>
-        !a.is_addition &&
-        a.is_active &&
-        (oid == null || Number(a.organisation_id) === Number(oid)),
-    )
-    .map((a) => ({
-      name: a.name,
-      value: a.id,
-    }))
+  return articlesRaw.value.filter(
+    (a) =>
+      !a.is_addition &&
+      a.is_active &&
+      (oid == null || Number(a.organisation_id) === Number(oid)),
+  )
+})
+
+const eventArticleCatalog = computed((): ArticleRead[] => {
+  const allowed = stationArticleUnion(stationsLocal.value)
+  return stationArticleCatalog.value.filter((a) => allowed.has(a.id))
 })
 
 const kitchenMonitorPrinterOptions = computed((): PrinterOptionRead[] => {
@@ -395,11 +406,6 @@ function onLayoutRemoved({ removedUuid, fallbackUuid }: LayoutRemovedPayload) {
   cashRegistersLocal.value.forEach((reg) => {
     if (reg.layout_uuid === removedUuid) reg.layout_uuid = fallbackUuid
   })
-}
-
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function normalizePickupPrefix(value: string | null | undefined): string {
@@ -522,6 +528,7 @@ function applyConfigurationFromResponse(
     pin: reg.pin || '0000',
     layout_uuid: reg.layout_uuid || layoutsLocal.value[0]?.uuid || '',
     receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+    cash_drawer_command: reg.cash_drawer_command || 'none',
     subsidiary_code: reg.subsidiary_code || '',
   }))
 }
@@ -623,6 +630,7 @@ function layoutCellsLoading(): boolean {
 
 function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']): EventConfigurationIn {
   layoutsSectionRef.value?.ensureDefaultLayout()
+  const eventArticleIds = stationArticleUnion(stationsLocal.value)
   return {
     stations: stationsLocal.value.map((s) => {
       const row: StationConfigIn = {
@@ -658,12 +666,15 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
       layoutsLocal: layoutsLocal.value,
       layoutCellsLoaded: layoutCellsLoaded(),
       serverLayouts,
+      stations: stationsLocal.value,
     }),
     voucher_definitions: vouchersLocal.value.map((vd) => {
       const row: VoucherDefinitionIn = {
         name: vd.name,
         kind: vd.kind,
-        allowed_article_ids: Array.isArray(vd.allowed_article_ids) ? vd.allowed_article_ids : [],
+        allowed_article_ids: (Array.isArray(vd.allowed_article_ids) ? vd.allowed_article_ids : []).filter(
+          (id) => eventArticleIds.has(Number(id)),
+        ),
         include_additions: !!vd.include_additions,
       }
       if (vd.uuid) row.uuid = vd.uuid
@@ -679,6 +690,7 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
         pin: reg.pin || '0000',
         layout_uuid: reg.layout_uuid,
         receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
+        cash_drawer_command: (reg.cash_drawer_command || 'none') as CashRegisterIn['cash_drawer_command'],
         subsidiary_code: (reg.subsidiary_code || '').trim() || null,
       }
       if (reg.uuid != null) row.uuid = reg.uuid

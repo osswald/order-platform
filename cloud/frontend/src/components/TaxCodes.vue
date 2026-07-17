@@ -124,7 +124,7 @@
         hide-default-footer
         :no-data-text="$t('taxCodes.noData')"
         class="vq-data-table list-table"
-        @click:row="(_e, { item }) => openDetail(item)"
+        @click:row="onTaxCodeRowClick"
       >
         <template #item.country="{ item }">
           {{ item.country?.name || $t('common.emDash') }}
@@ -318,6 +318,10 @@ function resetForm() {
 function openCreateForm() {
   if (!props.isAdmin) return
   goToCreate()
+}
+
+function onTaxCodeRowClick(_event: Event, { item }: { item: TaxCodeRead }) {
+  openDetail(item)
 }
 
 function openDetail(row: TaxCodeRead) {
