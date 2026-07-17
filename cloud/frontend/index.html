@@ -7,18 +7,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>Cloud Frontend</title>
-    <script>
-      (function () {
-        var pref = localStorage.getItem('theme_preference') || 'system';
-        var dark =
-          pref === 'dark' ||
-          (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('v-theme--dark', dark);
-        document.documentElement.classList.toggle('v-theme--light', !dark);
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', dark ? '#121212' : '#FFFFFF');
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="app"></div>
