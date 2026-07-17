@@ -50,6 +50,10 @@ export type RegisterDisplayResponse = components['schemas']['RegisterDisplayResp
 export type PrinterTestStationPrintsResponse = components['schemas']['PrinterTestStationPrintsResponse']
 export type StationTestPrintResult = components['schemas']['StationTestPrintResult']
 export type TablePartialSettleResponse = components['schemas']['TablePartialSettleResponse']
+export type OrderPartialSettleResponse = components['schemas']['OrderPartialSettleResponse']
+export type OrderAssignCollectiveResponse = components['schemas']['OrderAssignCollectiveResponse']
+export type RegisterOpenOrdersResponse = components['schemas']['RegisterOpenOrdersResponse']
+export type RegisterOpenOrderRow = components['schemas']['RegisterOpenOrderRow']
 export type AdminStatusResponse = components['schemas']['AdminStatusResponse']
 
 export interface ApiError extends Error {

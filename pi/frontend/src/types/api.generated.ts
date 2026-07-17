@@ -260,6 +260,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders/{order_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Order Summary */
+        get: operations["get_order_summary_v1_orders__order_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/settle-partial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle Order Partial */
+        post: operations["settle_order_partial_v1_orders__order_id__settle_partial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{order_id}/assign-collective": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign Order To Collective */
+        post: operations["assign_order_to_collective_v1_orders__order_id__assign_collective_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/registers/{register_uuid}/open-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Register Open Orders */
+        get: operations["list_register_open_orders_v1_registers__register_uuid__open_orders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tables/open": {
         parameters: {
             query?: never;
@@ -1549,6 +1617,17 @@ export interface components {
             /** Tables */
             tables: components["schemas"]["OpenTableRow"][];
         };
+        /** OrderAssignCollectiveResponse */
+        OrderAssignCollectiveResponse: {
+            /** Collective Bill Id */
+            collective_bill_id: number;
+            /** Collective Bill Uuid */
+            collective_bill_uuid: string;
+            /** Name */
+            name: string;
+            /** Local Order Id */
+            local_order_id: number;
+        };
         /** OrderLineIn */
         OrderLineIn: {
             /** Article Id */
@@ -1580,6 +1659,24 @@ export interface components {
             article_name?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** OrderPartialSettleResponse */
+        OrderPartialSettleResponse: {
+            /** Paid Cents */
+            paid_cents: number;
+            /** Paid Order Ids */
+            paid_order_ids: number[];
+            /** Payment Id */
+            payment_id: number;
+            /** Remaining Cents */
+            remaining_cents: number;
+            /** Local Order Id */
+            local_order_id: number;
+            /**
+             * Voucher Credit Cents
+             * @default 0
+             */
+            voucher_credit_cents: number;
         };
         /** OrderPayBody */
         OrderPayBody: {
@@ -1862,6 +1959,30 @@ export interface components {
             payload?: components["schemas"]["RegisterDisplayPayload"];
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** RegisterOpenOrderRow */
+        RegisterOpenOrderRow: {
+            /** Local Order Id */
+            local_order_id: number;
+            /** Client Order Id */
+            client_order_id: string;
+            /** Pickup Code */
+            pickup_code?: string | null;
+            /** Total Cents */
+            total_cents: number;
+            /** Item Count */
+            item_count: number;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** RegisterOpenOrdersResponse */
+        RegisterOpenOrdersResponse: {
+            /** Event Id */
+            event_id: number;
+            /** Currency */
+            currency: string;
+            /** Orders */
+            orders: components["schemas"]["RegisterOpenOrderRow"][];
         };
         /** SetupStatusResponse */
         SetupStatusResponse: {
@@ -2641,6 +2762,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderPayResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_order_summary_v1_orders__order_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    settle_order_partial_v1_orders__order_id__settle_partial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TableSettlePartialBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPartialSettleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_order_to_collective_v1_orders__order_id__assign_collective_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignCollectiveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderAssignCollectiveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_register_open_orders_v1_registers__register_uuid__open_orders_get: {
+        parameters: {
+            query: {
+                event_id: number;
+            };
+            header?: never;
+            path: {
+                register_uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterOpenOrdersResponse"];
                 };
             };
             /** @description Validation Error */
