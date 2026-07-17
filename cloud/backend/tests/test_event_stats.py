@@ -115,6 +115,30 @@ def test_parse_ordered_at_from_iso_string():
     assert dt == datetime(2026, 6, 25, 10, 30, tzinfo=UTC)
 
 
+def test_parse_ordered_at_from_iso_string_with_z_suffix():
+    dt = parse_ordered_at("2026-06-25T10:30:00Z")
+    assert dt == datetime(2026, 6, 25, 10, 30, tzinfo=UTC)
+
+
+def test_parse_ordered_at_from_offsetless_iso_string_assumes_utc():
+    dt = parse_ordered_at("2026-06-25T10:30:00")
+    assert dt is not None
+    assert dt.tzinfo is not None
+    assert dt == datetime(2026, 6, 25, 10, 30, tzinfo=UTC)
+
+
+def test_parse_ordered_at_from_naive_datetime_assumes_utc():
+    dt = parse_ordered_at(datetime(2026, 6, 25, 10, 30))
+    assert dt == datetime(2026, 6, 25, 10, 30, tzinfo=UTC)
+
+
+def test_parse_ordered_at_invalid_inputs_return_none():
+    assert parse_ordered_at(None) is None
+    assert parse_ordered_at("") is None
+    assert parse_ordered_at("   ") is None
+    assert parse_ordered_at("not-a-date") is None
+
+
 def test_event_article_ids_from_stations(db_session):
     ids = event_article_ids(db_session, event_id=1, organisation_id=1)
     assert ids == {ARTICLE_A, ARTICLE_B}
