@@ -78,8 +78,8 @@
               :disabled="!canPickAppliances"
             >
               <template #item="{ item, props: itemProps }">
-                <v-list-subheader v-if="item.raw.type === 'subheader'">
-                  <ApplianceTypeChip :type="item.raw.applianceType" />
+                <v-list-subheader v-if="item.type === 'subheader'">
+                  <ApplianceTypeChip :type="item.applianceType" />
                 </v-list-subheader>
                 <v-list-item v-else v-bind="itemProps" />
               </template>

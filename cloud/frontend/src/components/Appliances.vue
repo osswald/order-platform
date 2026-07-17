@@ -28,11 +28,11 @@
         >
           <template #item="{ item, props: itemProps }">
             <v-list-item v-bind="itemProps" :title="undefined">
-              <ApplianceTypeChip :type="item.raw.value" />
+              <ApplianceTypeChip :type="item.value" />
             </v-list-item>
           </template>
           <template #selection="{ item }">
-            <ApplianceTypeChip :type="item.raw.value" />
+            <ApplianceTypeChip :type="item.value" />
           </template>
         </v-select>
       </div>
@@ -271,13 +271,13 @@
           >
             <template #item="{ item, props: itemProps }">
               <v-list-item v-bind="itemProps" :title="undefined">
-                <ApplianceTypeChip v-if="item.raw.value" :type="item.raw.value" />
-                <span v-else>{{ item.raw.label }}</span>
+                <ApplianceTypeChip v-if="item.value" :type="item.value" />
+                <span v-else>{{ item.label }}</span>
               </v-list-item>
             </template>
             <template #selection="{ item }">
-              <ApplianceTypeChip v-if="item.raw.value" :type="item.raw.value" />
-              <span v-else>{{ item.raw.label }}</span>
+              <ApplianceTypeChip v-if="item.value" :type="item.value" />
+              <span v-else>{{ item.label }}</span>
             </template>
           </v-select>
         </div>
