@@ -39,9 +39,10 @@ def parse_ordered_at(value: datetime | str | None) -> datetime | None:
     if not text:
         return None
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
         return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def effective_ordered_at(row: EdgeOrderItem) -> datetime | None:
