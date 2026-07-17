@@ -664,6 +664,203 @@
         }
       }
     },
+    "/v1/orders/{order_id}/summary": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Order Summary",
+        "operationId": "get_order_summary_v1_orders__order_id__summary_get",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{order_id}/settle-partial": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Settle Order Partial",
+        "operationId": "settle_order_partial_v1_orders__order_id__settle_partial_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableSettlePartialBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPartialSettleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{order_id}/assign-collective": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Assign Order To Collective",
+        "operationId": "assign_order_to_collective_v1_orders__order_id__assign_collective_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignCollectiveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderAssignCollectiveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/registers/{register_uuid}/open-orders": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Register Open Orders",
+        "operationId": "list_register_open_orders_v1_registers__register_uuid__open_orders_get",
+        "parameters": [
+          {
+            "name": "register_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Register Uuid"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterOpenOrdersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tables/open": {
       "get": {
         "tags": [
@@ -4303,6 +4500,34 @@
         ],
         "title": "OpenTablesResponse"
       },
+      "OrderAssignCollectiveResponse": {
+        "properties": {
+          "collective_bill_id": {
+            "type": "integer",
+            "title": "Collective Bill Id"
+          },
+          "collective_bill_uuid": {
+            "type": "string",
+            "title": "Collective Bill Uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "collective_bill_id",
+          "collective_bill_uuid",
+          "name",
+          "local_order_id"
+        ],
+        "title": "OrderAssignCollectiveResponse"
+      },
       "OrderLineIn": {
         "properties": {
           "article_id": {
@@ -4414,6 +4639,47 @@
         "additionalProperties": true,
         "type": "object",
         "title": "OrderLineIn"
+      },
+      "OrderPartialSettleResponse": {
+        "properties": {
+          "paid_cents": {
+            "type": "integer",
+            "title": "Paid Cents"
+          },
+          "paid_order_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Paid Order Ids"
+          },
+          "payment_id": {
+            "type": "integer",
+            "title": "Payment Id"
+          },
+          "remaining_cents": {
+            "type": "integer",
+            "title": "Remaining Cents"
+          },
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "voucher_credit_cents": {
+            "type": "integer",
+            "title": "Voucher Credit Cents",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "paid_cents",
+          "paid_order_ids",
+          "payment_id",
+          "remaining_cents",
+          "local_order_id"
+        ],
+        "title": "OrderPartialSettleResponse"
       },
       "OrderPayBody": {
         "properties": {
@@ -5256,6 +5522,82 @@
           "event_id"
         ],
         "title": "RegisterDisplayResponse"
+      },
+      "RegisterOpenOrderRow": {
+        "properties": {
+          "local_order_id": {
+            "type": "integer",
+            "title": "Local Order Id"
+          },
+          "client_order_id": {
+            "type": "string",
+            "title": "Client Order Id"
+          },
+          "pickup_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Code"
+          },
+          "total_cents": {
+            "type": "integer",
+            "title": "Total Cents"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_order_id",
+          "client_order_id",
+          "total_cents",
+          "item_count"
+        ],
+        "title": "RegisterOpenOrderRow"
+      },
+      "RegisterOpenOrdersResponse": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/RegisterOpenOrderRow"
+            },
+            "type": "array",
+            "title": "Orders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "currency",
+          "orders"
+        ],
+        "title": "RegisterOpenOrdersResponse"
       },
       "SetupStatusResponse": {
         "properties": {

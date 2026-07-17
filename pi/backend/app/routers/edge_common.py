@@ -657,7 +657,7 @@ def _printer_host_configured(ev: dict, target_uuid: str) -> bool:
 
 def _local_order_id_for_payment_receipt(row: PaymentReceipt) -> int:
     """PrintJob requires local_order_id; use settlement order when recorded on receipt."""
-    if row.source_type in ("order", "table_partial") and row.source_id:
+    if row.source_type in ("order", "table_partial", "order_partial") and row.source_id:
         try:
             return int(row.source_id)
         except (TypeError, ValueError):

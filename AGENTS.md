@@ -71,6 +71,19 @@ cd cloud/frontend && npm run typecheck
 
 CI runs frontend tests via `.github/workflows/frontend-tests.yml` on changes under `cloud/frontend/**` or `pi/frontend/**`. Cloud PRs also run `npm run typecheck`. Backend schema changes trigger `.github/workflows/openapi-sync.yml`.
 
+### OpenSpec (spec-driven changes)
+
+The repo uses [OpenSpec](https://openspec.dev/) as a planning layer for non-trivial changes. Specs and change proposals live in [`openspec/`](openspec/) (`openspec/specs/` for living specs, `openspec/changes/` for in-flight changes); Cursor slash commands are generated in `.cursor/commands/` and `.cursor/skills/`.
+
+Workflow: propose → review → apply → archive.
+
+- `/opsx:propose "your idea"` — create a change proposal (proposal, tasks, spec deltas) for review before coding
+- `/opsx:apply` — implement an approved change
+- `/opsx:archive` — after merge, fold the spec deltas into `openspec/specs/` and archive the change
+- `/opsx:explore`, `/opsx:update`, `/opsx:sync` — explore specs, update a change, re-sync specs
+
+The CLI is a root dev dependency (`@fission-ai/openspec`), run it via `npx openspec` (e.g. `npx openspec list`, `npx openspec validate --all`). Project context for generated artifacts is configured in [`openspec/config.yaml`](openspec/config.yaml).
+
 ### Lint (Ruff + ESLint)
 
 CI runs Ruff and ESLint via `.github/workflows/lint.yml`. Run the same checks locally before committing:
