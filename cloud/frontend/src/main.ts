@@ -14,6 +14,7 @@ import { i18n } from './i18n'
 import { resolveInitialTheme } from './utils/themePreference'
 
 const vuetify = createVuetify({
+  // VDateInput is included in the v4 core components namespace (no separate labs import).
   components: { ...components },
   directives,
   locale: {
