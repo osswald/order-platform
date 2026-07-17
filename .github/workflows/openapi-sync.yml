@@ -52,23 +52,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
-
-      - name: Install shared package
-        run: pip install -e packages/vendiqo_shared
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: "cloud/backend/uv.lock"
 
       - name: Install backend dependencies (cloud)
         working-directory: cloud/backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: uv sync --frozen --no-dev
 
       - name: Export OpenAPI schema (cloud)
         working-directory: cloud/backend
-        run: python scripts/export_openapi.py
+        run: uv run python scripts/export_openapi.py
 
       - name: Verify openapi.json matches committed snapshot (cloud)
         run: git diff --exit-code cloud/frontend/openapi.json
@@ -96,23 +93,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
-
-      - name: Install shared package
-        run: pip install -e packages/vendiqo_shared
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: "pi/backend/uv.lock"
 
       - name: Install backend dependencies (pi)
         working-directory: pi/backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: uv sync --frozen --no-dev
 
       - name: Export OpenAPI schema (pi)
         working-directory: pi/backend
-        run: python scripts/export_openapi.py
+        run: uv run python scripts/export_openapi.py
 
       - name: Verify openapi.json matches committed snapshot (pi)
         run: git diff --exit-code pi/frontend/openapi.json

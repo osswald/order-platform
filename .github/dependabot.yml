@@ -12,14 +12,20 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
 
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /cloud/backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
 
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /pi/backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: uv
+    directory: /cloud/hosted-pi-manager
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
