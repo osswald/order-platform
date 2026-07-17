@@ -39,12 +39,14 @@ if ! $run_ruff_cloud && ! $run_ruff_pi && ! $run_eslint_cloud && ! $run_eslint_p
 fi
 
 ruff_cmd() {
-  if command -v ruff >/dev/null 2>&1; then
+  if command -v uvx >/dev/null 2>&1; then
+    uvx ruff "$@"
+  elif command -v ruff >/dev/null 2>&1; then
     ruff "$@"
   elif python3 -m ruff --version >/dev/null 2>&1; then
     python3 -m ruff "$@"
   else
-    echo "error: ruff not found. Install with: python3 -m pip install ruff" >&2
+    echo "error: ruff not found. Install uv (https://docs.astral.sh/uv/): curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
     exit 1
   fi
 }

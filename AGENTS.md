@@ -43,17 +43,19 @@ cd /workspace/pi && docker compose up -d --build
 
 ### Running tests
 
-Install dev dependencies once per backend (`pytest`, `pytest-cov`):
+Python dependencies are managed with [uv](https://docs.astral.sh/uv/) (install once: `curl -LsSf https://astral.sh/uv/install.sh | sh`). Each backend has a `pyproject.toml` + committed `uv.lock`; `uv sync` installs runtime and dev dependencies (including the editable `vendiqo_shared` path dependency):
 
-- **Pi backend**: `cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && python3 -m pytest tests/ -v` (receipt rendering uses `python-escpos` + Pillow)
-- **Cloud backend**: `cd cloud/backend && pip install -r requirements.txt -r requirements-dev.txt && python3 -m pytest tests/ -v`
+- **Pi backend**: `cd pi/backend && uv sync && uv run python -m pytest tests/ -v` (receipt rendering uses `python-escpos` + Pillow)
+- **Cloud backend**: `cd cloud/backend && uv sync && uv run python -m pytest tests/ -v`
 
 With coverage report:
 
 ```bash
-cd cloud/backend && pip install -r requirements.txt -r requirements-dev.txt && pytest --cov=app --cov-report=term-missing
-cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && pytest --cov=app --cov-report=term-missing
+cd cloud/backend && uv sync && uv run pytest --cov=app --cov-report=term-missing
+cd pi/backend && uv sync && uv run pytest --cov=app --cov-report=term-missing
 ```
+
+When changing dependencies, use `uv add <pkg>` (or edit `pyproject.toml` and run `uv lock`) and commit `pyproject.toml` and `uv.lock` together.
 
 CI runs both suites via `.github/workflows/backend-tests.yml` on changes under `cloud/backend/**` or `pi/backend/**`.
 
@@ -95,7 +97,7 @@ CI runs Ruff and ESLint via `.github/workflows/lint.yml`. Run the same checks lo
 npm run lint                     # same as ./scripts/lint.sh
 ```
 
-Requires `python3 -m pip install ruff`, `./scripts/npm.sh ci` at repo root, and `./scripts/npm.sh ci` in `cloud/frontend` and `pi/frontend` before ESLint runs. Use `./scripts/npm.sh` instead of `npm` when installing dependencies to avoid the deprecated `devdir` config warning in some environments.
+Ruff runs via `uvx ruff` (requires uv; falls back to a `ruff` binary or `python3 -m ruff` if uv is missing). ESLint requires `./scripts/npm.sh ci` at repo root and in `cloud/frontend` and `pi/frontend` before it runs. Use `./scripts/npm.sh` instead of `npm` when installing dependencies to avoid the deprecated `devdir` config warning in some environments.
 
 ### Cloud frontend TypeScript and OpenAPI
 

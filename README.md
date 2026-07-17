@@ -114,9 +114,11 @@ Default cloud admin login (from `cloud/.env.example`): `admin@vendiqo.local` / `
 Backend (pytest):
 
 ```bash
-cd cloud/backend && pip install -r requirements.txt -r requirements-dev.txt && python3 -m pytest tests/ -v
-cd pi/backend && pip install -r requirements.txt -r requirements-dev.txt && python3 -m pytest tests/ -v
+cd cloud/backend && uv sync && uv run python -m pytest tests/ -v
+cd pi/backend && uv sync && uv run python -m pytest tests/ -v
 ```
+
+Requires [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
 
 Frontend (Vitest):
 
@@ -138,4 +140,4 @@ See [AGENTS.md](AGENTS.md) for coverage commands and CI details.
 
 ## Lockfiles
 
-`cloud/backend/requirements.lock` and `pi/backend/requirements.lock` are generated with `pip-compile --generate-hashes --allow-unsafe` (see comments in the lockfiles).
+Python dependencies are managed with [uv](https://docs.astral.sh/uv/): each backend (`cloud/backend`, `pi/backend`, `cloud/hosted-pi-manager`) has a `pyproject.toml` plus a committed `uv.lock`. Update dependencies with `uv add <pkg>` / `uv lock` and commit both files together; Docker and CI install with `uv sync --frozen`.
