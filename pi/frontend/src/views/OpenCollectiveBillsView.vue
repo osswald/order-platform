@@ -31,7 +31,7 @@
       </li>
     </ul>
 
-    <button type="button" class="btn" style="width: 100%; margin-top: 1rem" @click="router.push({ name: 'hub' })">
+    <button type="button" class="btn" style="width: 100%; margin-top: 1rem" @click="goBack">
       Zurück
     </button>
   </div>
@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useEventContext } from '@/composables/useEventContext'
 import { api } from '@/api'
 import type {
@@ -49,8 +49,13 @@ import type {
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import { formatMoney } from '@/utils/money'
+import {
+  hubLocationFromCollectiveReturn,
+  payCollectiveLocation,
+} from '@/utils/collectiveReturnNav'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(true)
 const creating = ref(false)
 const bills = ref<CollectiveBillListItem[]>([])
@@ -66,7 +71,7 @@ async function load() {
   loading.value = true
   const ev = event.value
   if (!ev) {
-    router.replace({ name: 'hub' })
+    router.replace(hubLocationFromCollectiveReturn(route.query))
     return
   }
   try {
@@ -94,7 +99,7 @@ async function createBill() {
     showToast(`«${r.name}» erstellt`, 'ok')
     await load()
     if (r.id) {
-      router.push({ name: 'pay-collective', query: { id: String(r.id) } })
+      router.push(payCollectiveLocation(r.id, route.query))
     }
   } catch (e: unknown) {
     showToast(getErrorMessage(e, 'Erstellen fehlgeschlagen'), 'err')
@@ -104,7 +109,11 @@ async function createBill() {
 }
 
 function openBill(id: number) {
-  router.push({ name: 'pay-collective', query: { id: String(id) } })
+  router.push(payCollectiveLocation(id, route.query))
+}
+
+function goBack() {
+  router.push(hubLocationFromCollectiveReturn(route.query))
 }
 </script>
 
