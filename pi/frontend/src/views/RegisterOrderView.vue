@@ -493,6 +493,7 @@ async function submitOrder() {
       cash_register_uuid: String(register.value.uuid),
       lines: payloadLines,
       payments: [],
+      voucher_print_via_bluetooth: false,
     }
     if (discountsEnabled.value && orderDiscount.value) {
       body.order_discount = orderDiscount.value

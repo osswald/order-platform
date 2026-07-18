@@ -457,6 +457,7 @@ async function submitOrder() {
       order_source: 'waiter',
       lines: payloadLines,
       payments: [],
+      voucher_print_via_bluetooth: false,
     }
     applyVoucherPrintPlanToOrderBody(body, voucherPrintPlan)
     if (discountsEnabled.value && orderDiscount.value) {

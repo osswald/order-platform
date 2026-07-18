@@ -34,13 +34,17 @@
 import { computed, ref, watch } from 'vue'
 import { useEventContext } from '@/composables/useEventContext'
 import type {
-  EdgeBundleArticle,
   EdgeBundleEvent,
   LineGroupEntry,
   LineSelection,
 } from '@/types/api'
 import { formatMoney, voucherEntitlementCreditCents } from '@/utils/money'
-import { lineAdditionLabels, voucherDefinitionsForEvent } from '@/utils/bundleHelpers'
+import { voucherDefinitionsForEvent } from '@/utils/bundleHelpers'
+import {
+  asArticleLineSelection,
+  type ArticleLineSelection,
+  voucherRedeemSelectionLabel,
+} from '@/utils/voucherRedeemSelection'
 import SheetOptionList, { type SheetOptionItem } from './SheetOptionList.vue'
 
 interface VoucherDefinition {
@@ -52,7 +56,7 @@ interface VoucherDefinition {
   include_additions?: boolean
 }
 
-interface EligibleSelection extends LineSelection {
+interface EligibleSelection extends ArticleLineSelection {
   label: string
   unit_cents: number
 }
@@ -129,30 +133,22 @@ function typeHint(vd: VoucherDefinition) {
   return 'Artikel-Gutschein'
 }
 
-function selectionLabel(
-  sel: LineSelection,
-  arts: Record<string, EdgeBundleArticle>,
-) {
-  const a = arts[String(sel.article_id)] || arts[sel.article_id]
-  const base = a?.name || `Artikel #${sel.article_id}`
-  const adds = lineAdditionLabels(sel, arts)
-  if (!adds.length) return base
-  const hint = adds.map((x) => x.name).join(', ')
-  return `${base} (+ ${hint})`
-}
-
 const eligibleSelections = computed((): EligibleSelection[] => {
   const vd = pendingType.value
   if (!vd || vd.kind !== 'article_entitlement') return []
   const allowed = new Set((vd.allowed_article_ids || []).map(Number))
   const arts = props.event?.articles || {}
-  return (props.selections || [])
-    .filter((s) => allowed.has(Number(s.article_id)))
-    .map((s) => ({
+  const out: EligibleSelection[] = []
+  for (const raw of props.selections || []) {
+    const s = asArticleLineSelection(raw)
+    if (!s || !allowed.has(s.article_id)) continue
+    out.push({
       ...s,
-      label: selectionLabel(s, arts),
+      label: voucherRedeemSelectionLabel(s, arts),
       unit_cents: voucherEntitlementCreditCents(s, arts, vd, props.event, props.lineGroups),
-    }))
+    })
+  }
+  return out
 })
 
 const lineListItems = computed(() =>
