@@ -41,6 +41,10 @@ cd /workspace/pi && docker compose up -d --build
 - `cloud/.env` — created from `cloud/.env.example`; dev defaults: `APP_ENV=development` (or omit), `POSTGRES_PASSWORD=devpass123`, `SECRET_KEY=devsecretkey123456789` (optional in dev), `ADMIN_EMAIL=admin@vendiqo.local`, `ADMIN_PASSWORD=admin123`, `ENABLE_OPENAPI=true`, `REFRESH_COOKIE_SECURE=false`. Production (`APP_ENV=production`) requires a strong unique `SECRET_KEY` (enforced at startup).
 - `pi/.env` — created from `pi/.env.example`; set `SYNC_ENABLED=0` for local dev without cloud pairing; leave `ESCPOS_PRINTER_HOST_OVERRIDE` unset to print to cloud bundle printer IPs (or set it to a LAN printer IP)
 
+### Node version (Cloud VM gotcha)
+
+CI and the frontends target **Node 20**. The Cloud VM ships a default `node` (`/exec-daemon/node`) that is Node 22, whose newer ICU changes the Swiss locale group separator (`1'234.56` → `1’234.56`) and fails `pi/frontend/src/utils/money.test.ts`. Node 20 is installed via nvm and made the default for login shells (prepended to `~/.bashrc`), so a fresh terminal already resolves `node -v` → `v20`. If you hit that money-format test failure, confirm you are on Node 20 (`node -v`), not the daemon's Node 22.
+
 ### Running tests
 
 Python dependencies are managed with [uv](https://docs.astral.sh/uv/) (install once: `curl -LsSf https://astral.sh/uv/install.sh | sh`). Each backend has a `pyproject.toml` + committed `uv.lock`; `uv sync` installs runtime and dev dependencies (including the editable `vendiqo_shared` path dependency):
