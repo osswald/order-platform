@@ -15,6 +15,9 @@
       <button type="button" class="btn primary hub-btn" @click="startOrder">
         Neue Bestellung
       </button>
+      <button type="button" class="btn hub-btn" @click="openCollectiveBills">
+        Sammelrechnungen
+      </button>
 
       <section v-if="openOrders.length" class="open-orders">
         <h2>Offene Bestellungen</h2>
@@ -47,6 +50,7 @@ import { useRegisterSession } from '@/composables/useRegisterSession'
 import { ensureShiftForSubject, maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
 import { isEventTest } from '@/utils/eventStatus'
 import { formatMoney } from '@/utils/money'
+import { registerCollectiveOpenLocation } from '@/utils/collectiveReturnNav'
 import type { RegisterOpenOrderRow, RegisterOpenOrdersResponse } from '@/types/api'
 import { useEventContext } from '@/composables/useEventContext'
 
@@ -82,6 +86,12 @@ function startOrder() {
   clearPickupHold()
   clearCart()
   router.push(orderRoute())
+}
+
+function openCollectiveBills() {
+  const reg = register.value
+  if (!reg) return
+  router.push(registerCollectiveOpenLocation(String(reg.uuid)))
 }
 
 function resumePayment(o: RegisterOpenOrderRow) {

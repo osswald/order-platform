@@ -36,7 +36,19 @@ vi.mock('@/composables/useRegisterDisplay', () => ({
   }),
 }))
 
+vi.mock('@/api', () => ({
+  api: vi.fn(async () => ({ orders: [] })),
+}))
+
+vi.mock('@/composables/useEventContext', () => ({
+  useEventContext: () => ({
+    currency: ref('CHF'),
+  }),
+}))
+
+import { api } from '@/api'
 import RegisterHubView from './RegisterHubView.vue'
+import { COLLECTIVE_RETURN_TO_REGISTER } from '@/utils/collectiveReturnNav'
 
 function baseEvent(status: string): EdgeBundleEvent {
   return {
@@ -90,5 +102,45 @@ describe('RegisterHubView', () => {
     const wrapper = mountHub()
     await flushPromises()
     expect(wrapper.find('.test-pill').exists()).toBe(false)
+  })
+
+  it('navigates to Sammelrechnungen with register return query', async () => {
+    const wrapper = mountHub()
+    await flushPromises()
+    const buttons = wrapper.findAll('button')
+    const collectiveBtn = buttons.find((b) => b.text().includes('Sammelrechnungen'))
+    expect(collectiveBtn).toBeTruthy()
+    await collectiveBtn!.trigger('click')
+    expect(push).toHaveBeenCalledWith({
+      name: 'collective-open',
+      query: {
+        returnTo: COLLECTIVE_RETURN_TO_REGISTER,
+        registerUuid: 'register-1',
+      },
+    })
+  })
+
+  it('still lists open orders for resume payment', async () => {
+    vi.mocked(api).mockResolvedValueOnce({
+      orders: [
+        {
+          local_order_id: 11,
+          pickup_code: 'A1',
+          item_count: 2,
+          total_cents: 800,
+          created_at: '2026-07-18T12:00:00Z',
+        },
+      ],
+    })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Offene Bestellungen')
+    expect(wrapper.text()).toContain('Pickup A1')
+    const orderBtn = wrapper.find('.order-row')
+    await orderBtn.trigger('click')
+    expect(push).toHaveBeenCalledWith({
+      name: 'register-pay',
+      params: { registerUuid: 'register-1', orderId: '11' },
+    })
   })
 })
