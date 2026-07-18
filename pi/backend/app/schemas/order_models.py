@@ -59,7 +59,10 @@ class OpenOrderEntry(BaseModel):
 
 
 class LineGroupEntry(BaseModel):
-    article_id: int
+    kind: Literal["article", "voucher_sale"] = "article"
+    article_id: int | None = None
+    voucher_definition_uuid: str | None = None
+    name: str | None = None
     note: str = ""
     additions: list[LineAdditionIn] = Field(default_factory=list)
     discount: DiscountIn | None = None

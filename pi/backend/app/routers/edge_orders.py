@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from datetime import UTC, datetime
@@ -27,11 +28,10 @@ from ..order_fiscal import (
     snapshot_lines,
     waiter_name_from_event,
 )
-from ..order_line_utils import copy_line_fiscal_fields
-from ..order_line_utils import line_key as _line_key
+from ..order_line_utils import copy_line_fiscal_fields, selection_key
 from ..position_comments import validate_submit_position_notes
 from ..pricing import normalize_discount, order_lines_gross_cents, order_total_cents
-from ..print_worker import group_lines_by_station
+from ..print_worker import build_voucher_slip_text, group_lines_by_station
 from ..printer_routing import printer_in_kitchen_monitor, subgroup_lines_by_printer
 from ..schemas.edge import (
     AccountSummaryResponse,
@@ -97,15 +97,8 @@ from .edge_common import (
 router = APIRouter()
 
 
-def _create_voucher_sale_print_jobs(
-    db: Session,
-    *,
-    order_id: int,
-    ev: dict,
-    cash_register_uuid: str | None,
-    order_lines: list[dict],
-) -> list[int]:
-    """One voucher slip per sold voucher unit, printed at the register printer."""
+def _voucher_slip_units(ev: dict, order_lines: list[dict]) -> list[tuple[str, int]]:
+    """(voucher name, unit cents) per sold voucher unit, one slip each."""
     slip_units: list[tuple[str, int]] = []
     for line in order_lines:
         if not is_voucher_sale_line(line):
@@ -115,6 +108,21 @@ def _create_voucher_sale_print_jobs(
         uc = voucher_sale_unit_cents(ev, line)
         qty = max(1, int(line.get("qty") or 1))
         slip_units.extend([(name, uc)] * qty)
+    return slip_units
+
+
+def _create_voucher_sale_print_jobs(
+    db: Session,
+    *,
+    order_id: int,
+    ev: dict,
+    cash_register_uuid: str | None,
+    order_lines: list[dict],
+    printer_station_uuid: str | None = None,
+) -> list[int]:
+    """One voucher slip per sold voucher unit, printed at the register printer
+    or at an explicitly requested printer_hosts target."""
+    slip_units = _voucher_slip_units(ev, order_lines)
     total_slips = len(slip_units)
     job_ids: list[int] = []
     for idx, (vname, uc) in enumerate(slip_units, start=1):
@@ -128,19 +136,49 @@ def _create_voucher_sale_print_jobs(
                 value_cents=uc,
                 copy_index=idx if total_slips > 1 else None,
                 copy_total=total_slips if total_slips > 1 else None,
+                printer_station_uuid=printer_station_uuid,
             )
         )
     return job_ids
 
 
-def _voucher_sale_total_cents(ev: dict, lines: list[dict]) -> int:
-    total = 0
+def _voucher_sale_escpos_payloads(ev: dict, order_lines: list[dict]) -> tuple[list[str], list[str]]:
+    """Base64 ESC/POS voucher slips for frontend Bluetooth printing (no PrintJobs)."""
+    slip_units = _voucher_slip_units(ev, order_lines)
+    total_slips = len(slip_units)
+    payloads: list[str] = []
+    names: list[str] = []
+    for idx, (vname, uc) in enumerate(slip_units, start=1):
+        esc = build_voucher_slip_text(
+            event_name=ev.get("name", "Event"),
+            voucher_name=vname,
+            value_cents=uc,
+            currency=ev.get("currency", "EUR"),
+            copy_index=idx if total_slips > 1 else None,
+            copy_total=total_slips if total_slips > 1 else None,
+            event=ev,
+        )
+        payloads.append(base64.b64encode(esc).decode("ascii"))
+        names.append(vname)
+    return payloads, names
+
+
+def _snapshot_voucher_sale_lines(ev: dict, lines: list) -> list:
+    """Stamp server-resolved unit price and name onto voucher-sale lines."""
+    out = []
     for line in lines or []:
-        if not isinstance(line, dict) or not is_voucher_sale_line(line):
+        if not (isinstance(line, dict) and is_voucher_sale_line(line)):
+            out.append(line)
             continue
-        qty = max(1, int(line.get("qty") or 1))
-        total += voucher_sale_unit_cents(ev, line) * qty
-    return total
+        ln = dict(line)
+        vd = voucher_definition_by_uuid(ev, str(ln.get("voucher_definition_uuid") or "")) or {}
+        unit = voucher_sale_unit_cents(ev, ln)
+        ln["unit_cents"] = unit
+        ln["value_cents"] = unit
+        if vd.get("name"):
+            ln["voucher_name"] = vd["name"]
+        out.append(ln)
+    return out
 
 
 @router.post("/v1/orders", response_model=LocalOrderCreatedResponse)
@@ -218,9 +256,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         payment_status = "paid" if payments else "open"
     else:
         payment_status = _payment_status_for_create(ev, payments)
-    if has_voucher_sale and payment_status != "paid" and order_source != "cash_register":
-        raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert Zahlung")
-    order_lines = _lines_with_station_uuid(ev, lines)
+    order_lines = _snapshot_voucher_sale_lines(ev, _lines_with_station_uuid(ev, lines))
     article_order_lines = article_lines_only(order_lines)
     table_number_payload = None if order_source == "cash_register" else body.table_number
     table_number_db = 0 if order_source == "cash_register" else body.table_number
@@ -319,17 +355,36 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     customer_print_job_ids: list[int] = []
     kitchen_ticket_ids: list[int] = []
 
-    if payment_status == "paid" and has_voucher_sale:
-        # Open register orders print voucher slips at settlement instead.
-        print_job_ids.extend(
-            _create_voucher_sale_print_jobs(
-                db,
-                order_id=order.id,
-                ev=ev,
-                cash_register_uuid=body.cash_register_uuid,
-                order_lines=order_lines,
+    # Voucher slips print at order submission (even for open unpaid orders);
+    # settlement and assignment never reprint them.
+    voucher_escpos_payloads: list[str] = []
+    voucher_names: list[str] = []
+    if has_voucher_sale:
+        if order_source == "cash_register":
+            print_job_ids.extend(
+                _create_voucher_sale_print_jobs(
+                    db,
+                    order_id=order.id,
+                    ev=ev,
+                    cash_register_uuid=body.cash_register_uuid,
+                    order_lines=order_lines,
+                )
             )
-        )
+        elif body.voucher_print_via_bluetooth:
+            voucher_escpos_payloads, voucher_names = _voucher_sale_escpos_payloads(ev, order_lines)
+        elif body.voucher_printer_station_uuid:
+            print_job_ids.extend(
+                _create_voucher_sale_print_jobs(
+                    db,
+                    order_id=order.id,
+                    ev=ev,
+                    cash_register_uuid=None,
+                    order_lines=order_lines,
+                    printer_station_uuid=body.voucher_printer_station_uuid,
+                )
+            )
+        # Waiter orders without a destination create no voucher jobs; the
+        # frontend warns and the order still submits.
 
     for station_uuid, station_lines in groups.items():
         if not station_lines:
@@ -448,6 +503,8 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         payment_mode=(ev.get("payment_mode") or "pay_later").lower(),
         articles=stock_patch.get("articles") or {},
         ingredients=stock_patch.get("ingredients") or {},
+        voucher_escpos_payloads=voucher_escpos_payloads,
+        voucher_names=voucher_names,
     )
 
 
@@ -487,11 +544,7 @@ def pay_local_order(order_id: int, body: OrderPayBody, db: Session = Depends(get
 
 
 def _open_order_or_404(db: Session, order_id: int) -> LocalOrder:
-    order = (
-        db.query(LocalOrder)
-        .filter(LocalOrder.id == order_id, LocalOrder.payment_status == "open")
-        .first()
-    )
+    order = db.query(LocalOrder).filter(LocalOrder.id == order_id, LocalOrder.payment_status == "open").first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found or not open")
     return order
@@ -558,41 +611,40 @@ def settle_order_partial(
     arts = _article_map(ev)
 
     payload = json.loads(order.payload_json)
-    order_lines = payload.get("lines") or []
-    has_voucher_sale = any(is_voucher_sale_line(ln) for ln in order_lines if isinstance(ln, dict))
 
     selections = [s.model_dump() for s in body.selections]
-    line_groups = _build_line_groups_from_orders([order], arts)
-    groups_by_key = {
-        _line_key(g["article_id"], g.get("note", ""), g.get("additions"), g.get("discount")): int(
-            g.get("total_qty") or 0
-        )
-        for g in line_groups
-    }
+    line_groups = _build_line_groups_from_orders([order], arts, ev)
+    groups_by_key = {selection_key(g): int(g.get("total_qty") or 0) for g in line_groups}
     need: dict[tuple, int] = {}
     for s in selections:
-        key = _line_key(s["article_id"], s.get("note", ""), s.get("additions"), s.get("discount"))
+        key = selection_key(s)
         need[key] = need.get(key, 0) + int(s["qty"])
     covers_all = need == groups_by_key
 
-    if covers_all and (selections or has_voucher_sale):
-        # Full settlement in place: the order keeps its lines, is marked paid,
-        # and voucher-sale slips print now (they are withheld while open).
+    if covers_all and selections:
+        # Full settlement in place: the order keeps its lines and is marked paid.
+        # Voucher slips already printed at order creation; never reprint here.
         if not body.payments:
             raise HTTPException(status_code=400, detail="payments required")
         payments = dump_payments(body.payments)
         _validate_payment_types(ev, payments)
-        gross_cents = _selections_total_cents_from_groups(selections, line_groups) if selections else 0
+        article_selections = [s for s in selections if str(s.get("kind") or "article") != "voucher_sale"]
+        voucher_selections = [s for s in selections if str(s.get("kind") or "") == "voucher_sale"]
+        gross_cents = _selections_total_cents_from_groups(article_selections, line_groups) if article_selections else 0
+        voucher_sale_cents = (
+            _selections_total_cents_from_groups(voucher_selections, line_groups) if voucher_selections else 0
+        )
         redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
+        # Redemption credit applies to article gross only, never to voucher face value.
         voucher_credit, voucher_records = compute_voucher_credits(
             ev,
             gross_cents=gross_cents,
             redemptions=redemptions_in,
             articles=arts,
-            selections=selections,
+            selections=article_selections,
             line_groups=line_groups,
         )
-        expected_cents = max(0, gross_cents - voucher_credit) + _voucher_sale_total_cents(ev, order_lines)
+        expected_cents = max(0, gross_cents - voucher_credit) + voucher_sale_cents
         paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
         if paid_total != expected_cents:
             raise HTTPException(
@@ -615,14 +667,6 @@ def settle_order_partial(
             source_type="order",
             source_id=order.id,
         ).id
-        if has_voucher_sale:
-            _create_voucher_sale_print_jobs(
-                db,
-                order_id=order.id,
-                ev=ev,
-                cash_register_uuid=order.cash_register_uuid or payload.get("cash_register_uuid"),
-                order_lines=order_lines,
-            )
         db.commit()
         return OrderPartialSettleResponse(
             paid_cents=expected_cents,
@@ -632,9 +676,6 @@ def settle_order_partial(
             local_order_id=order.id,
             voucher_credit_cents=voucher_credit,
         )
-
-    if has_voucher_sale:
-        raise HTTPException(status_code=400, detail="Gutscheinverkauf erfordert vollständige Zahlung")
 
     meta: dict = {"table_number": None, "settlement_order_id": order.id}
     for key in ("order_source", "cash_register_uuid", "cash_register_name", "pickup_code"):
@@ -684,13 +725,6 @@ def assign_order_to_collective(
 
     order = _open_order_or_404(db, order_id)
     ev = _event_for_order(db, order)
-
-    payload = json.loads(order.payload_json)
-    if any(is_voucher_sale_line(ln) for ln in payload.get("lines") or [] if isinstance(ln, dict)):
-        raise HTTPException(
-            status_code=400,
-            detail="Gutscheinverkauf kann nicht auf eine Sammelrechnung übertragen werden",
-        )
 
     bill = _resolve_or_create_collective_bill(
         db,
@@ -808,7 +842,7 @@ def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) 
             table_order_sets[tn] = set()
         payload = json.loads(o.payload_json)
         lines = payload.get("lines") or []
-        line_cents, line_qty = _line_totals(lines, arts)
+        line_cents, line_qty = _line_totals(lines, arts, ev)
         table_order_sets[tn] |= distinct_order_numbers_from_payload(payload, legacy_key=f"legacy:{o.id}")
         by_table[tn]["total_cents"] += line_cents
         by_table[tn]["item_count"] += line_qty
@@ -816,10 +850,7 @@ def list_open_tables(event_id: int = Query(...), db: Session = Depends(get_db)) 
     for tn, row in by_table.items():
         row["order_count"] = len(table_order_sets.get(tn, set()))
 
-    tables = [
-        {**row, "currency": currency}
-        for row in sorted(by_table.values(), key=lambda r: r["table_number"])
-    ]
+    tables = [{**row, "currency": currency} for row in sorted(by_table.values(), key=lambda r: r["table_number"])]
     return OpenTablesResponse(event_id=event_id, currency=currency, tables=tables)
 
 
@@ -930,9 +961,7 @@ def settle_table_partial(
     for o in remaining_orders:
         payload = json.loads(o.payload_json)
         lines = payload.get("lines") or []
-        remaining_cents += order_total_cents(
-            lines, payload.get("order_discount"), ev, arts
-        )
+        remaining_cents += order_total_cents(lines, payload.get("order_discount"), ev, arts)
 
     return TablePartialSettleResponse(
         paid_cents=result["paid_cents"],
@@ -945,9 +974,7 @@ def settle_table_partial(
 
 
 @router.post("/v1/tables/{table_number}/settle", response_model=TableSettleResponse)
-def settle_table(
-    table_number: int, body: TableSettleBody, db: Session = Depends(get_db)
-) -> TableSettleResponse:
+def settle_table(table_number: int, body: TableSettleBody, db: Session = Depends(get_db)) -> TableSettleResponse:
     if table_number < 1 or table_number > 99999:
         raise HTTPException(status_code=400, detail="table_number must be between 1 and 99999")
 
@@ -982,7 +1009,7 @@ def settle_table(
     for o in orders:
         payload = json.loads(o.payload_json)
         lines = payload.get("lines") or []
-        cents, _ = _line_totals(lines, arts)
+        cents, _ = _line_totals(lines, arts, ev)
         total_cents += cents
 
     paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
@@ -1231,12 +1258,7 @@ def list_open_collective_bills(
             )
             .all()
         )
-        has_any_order = (
-            db.query(LocalOrder.id)
-            .filter(LocalOrder.collective_bill_id == bill.id)
-            .first()
-            is not None
-        )
+        has_any_order = db.query(LocalOrder.id).filter(LocalOrder.collective_bill_id == bill.id).first() is not None
         if has_any_order and not open_orders:
             continue
         total_cents = 0
@@ -1244,7 +1266,7 @@ def list_open_collective_bills(
         item_count = 0
         for o in open_orders:
             payload = json.loads(o.payload_json)
-            cents, qty = _line_totals(payload.get("lines") or [], arts)
+            cents, qty = _line_totals(payload.get("lines") or [], arts, ev)
             total_cents += cents
             item_count += qty
         result.append(
@@ -1258,9 +1280,7 @@ def list_open_collective_bills(
                 "currency": currency,
             }
         )
-    return OpenCollectiveBillsResponse(
-        event_id=event_id, currency=currency, collective_bills=result
-    )
+    return OpenCollectiveBillsResponse(event_id=event_id, currency=currency, collective_bills=result)
 
 
 @router.get("/v1/collective-bills/{bill_id}", response_model=AccountSummaryResponse)
@@ -1274,11 +1294,7 @@ def get_collective_bill_summary(
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
-    bill = (
-        db.query(CollectiveBill)
-        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == event_id)
-        .first()
-    )
+    bill = db.query(CollectiveBill).filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == event_id).first()
     if not bill:
         raise HTTPException(status_code=404, detail="Sammelrechnung not found")
 
@@ -1330,18 +1346,24 @@ def _settle_orders_partial(
     if not orders:
         raise HTTPException(status_code=404, detail="No open orders")
 
-    line_groups = _build_line_groups_from_orders(orders, arts)
-    gross_cents = _selections_total_cents_from_groups(selections, line_groups)
+    line_groups = _build_line_groups_from_orders(orders, arts, ev)
+    article_selections = [s for s in selections if str(s.get("kind") or "article") != "voucher_sale"]
+    voucher_selections = [s for s in selections if str(s.get("kind") or "") == "voucher_sale"]
+    gross_cents = _selections_total_cents_from_groups(article_selections, line_groups) if article_selections else 0
+    voucher_sale_cents = (
+        _selections_total_cents_from_groups(voucher_selections, line_groups) if voucher_selections else 0
+    )
     redemptions_in = [r.model_dump() for r in body.voucher_redemptions]
+    # Redemption credit applies to article gross only, never to voucher face value.
     voucher_credit, voucher_records = compute_voucher_credits(
         ev,
         gross_cents=gross_cents,
         redemptions=redemptions_in,
         articles=arts,
-        selections=selections,
+        selections=article_selections,
         line_groups=line_groups,
     )
-    expected_cents = max(0, gross_cents - voucher_credit)
+    expected_cents = max(0, gross_cents - voucher_credit) + voucher_sale_cents
     paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
     if paid_total != expected_cents:
         raise HTTPException(
@@ -1351,12 +1373,7 @@ def _settle_orders_partial(
 
     need: dict[tuple, int] = {}
     for s in selections:
-        key = _line_key(
-            s["article_id"],
-            s.get("note", ""),
-            s.get("additions"),
-            s.get("discount"),
-        )
+        key = selection_key(s)
         need[key] = need.get(key, 0) + int(s["qty"])
 
     paid_lines: list[dict] = []
@@ -1369,23 +1386,34 @@ def _settle_orders_partial(
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
                 continue
-            if is_voucher_sale_line(line):
-                continue
+            is_voucher = is_voucher_sale_line(line)
             aid = line.get("article_id")
-            if aid is None:
+            if aid is None and not is_voucher:
                 continue
             note = str(line.get("note") or "")
             adds = _normalize_additions(line.get("additions"))
-            key = _line_key(aid, note, adds, line.get("discount"))
+            key = selection_key({**line, "additions": adds})
             qty = max(1, int(line.get("qty") or 1))
             take = min(qty, need.get(key, 0))
             if take > 0:
-                pl = {
-                    "article_id": int(aid),
-                    "qty": take,
-                    "note": note,
-                    "additions": adds,
-                }
+                if is_voucher:
+                    pl = {
+                        "kind": "voucher_sale",
+                        "voucher_definition_uuid": str(line.get("voucher_definition_uuid") or ""),
+                        "qty": take,
+                        "note": note,
+                        "additions": adds,
+                    }
+                    for extra in ("voucher_name", "value_cents"):
+                        if line.get(extra) is not None:
+                            pl[extra] = line[extra]
+                else:
+                    pl = {
+                        "article_id": int(aid),
+                        "qty": take,
+                        "note": note,
+                        "additions": adds,
+                    }
                 su = line.get("station_uuid")
                 if su:
                     pl["station_uuid"] = su
@@ -1439,12 +1467,16 @@ def _settle_orders_partial(
         if len(order_nums) == 1:
             paid_payload["order_number"] = order_nums.pop()
         coll_id = settlement_meta.get("collective_bill_id")
-        sess_id = int(orders[0].session_id) if orders else ensure_order_session(
-            db,
-            event_id=body.event_id,
-            table_number=settlement_meta.get("table_number"),
-            waiter_uuid=orders[0].waiter_uuid if orders else None,
-            order_source="waiter",
+        sess_id = (
+            int(orders[0].session_id)
+            if orders
+            else ensure_order_session(
+                db,
+                event_id=body.event_id,
+                table_number=settlement_meta.get("table_number"),
+                waiter_uuid=orders[0].waiter_uuid if orders else None,
+                order_source="waiter",
+            )
         )
         paid_order = LocalOrder(
             session_id=sess_id,
@@ -1498,9 +1530,7 @@ def settle_collective_partial(
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
     bill = (
-        db.query(CollectiveBill)
-        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == body.event_id)
-        .first()
+        db.query(CollectiveBill).filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == body.event_id).first()
     )
     if not bill:
         raise HTTPException(status_code=404, detail="Sammelrechnung not found")
@@ -1544,7 +1574,7 @@ def settle_collective_partial(
     remaining_cents = 0
     for o in remaining_orders:
         payload = json.loads(o.payload_json)
-        cents, _ = _line_totals(payload.get("lines") or [], arts)
+        cents, _ = _line_totals(payload.get("lines") or [], arts, ev)
         remaining_cents += cents
 
     return CollectivePartialSettleResponse(
@@ -1557,18 +1587,14 @@ def settle_collective_partial(
 
 
 @router.post("/v1/collective-bills/{bill_id}/settle", response_model=CollectiveSettleResponse)
-def settle_collective(
-    bill_id: int, body: TableSettleBody, db: Session = Depends(get_db)
-) -> CollectiveSettleResponse:
+def settle_collective(bill_id: int, body: TableSettleBody, db: Session = Depends(get_db)) -> CollectiveSettleResponse:
     bundle = get_bundle_dict(db)
     ev = event_from_bundle(bundle, body.event_id)
     if not ev:
         raise HTTPException(status_code=404, detail="Unknown event_id for cached bundle")
 
     bill = (
-        db.query(CollectiveBill)
-        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == body.event_id)
-        .first()
+        db.query(CollectiveBill).filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == body.event_id).first()
     )
     if not bill:
         raise HTTPException(status_code=404, detail="Sammelrechnung not found")
@@ -1595,7 +1621,7 @@ def settle_collective(
     total_cents = 0
     for o in orders:
         payload = json.loads(o.payload_json)
-        cents, _ = _line_totals(payload.get("lines") or [], arts)
+        cents, _ = _line_totals(payload.get("lines") or [], arts, ev)
         total_cents += cents
 
     paid_total = sum(int(p.get("amount_cents") or 0) for p in payments)
@@ -1644,4 +1670,3 @@ def settle_collective(
         total_cents=total_cents,
         collective_bill_id=bill.id,
     )
-

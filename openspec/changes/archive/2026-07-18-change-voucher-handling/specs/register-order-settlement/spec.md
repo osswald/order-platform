@@ -1,9 +1,5 @@
-# register-order-settlement Specification
+## MODIFIED Requirements
 
-## Purpose
-Define how cash-register orders are created open, settled (fully, partially, or via vouchers), assigned to collective bills, and resumed from the register UI — unifying the register payment flow with the waiter table-settlement flow.
-
-## Requirements
 ### Requirement: Register orders are created open without payments
 The system SHALL accept `POST /v1/orders` with `order_source = "cash_register"` and no payments, creating the order with `payment_status = "open"`. Pickup code allocation, station print jobs, kitchen tickets, and customer pickup slips SHALL be created at order creation exactly as before. If the order contains voucher-sale lines, voucher slips SHALL also be printed at order creation. If payments are provided, the system SHALL keep the existing behavior (exact-amount validation, order born `paid`).
 
@@ -18,17 +14,6 @@ The system SHALL accept `POST /v1/orders` with `order_source = "cash_register"` 
 #### Scenario: Voucher sale lines print on open creation
 - **WHEN** a register order containing voucher-sale lines is posted without payments
 - **THEN** the order is created open and voucher slips are printed at creation for each submitted voucher unit
-
-### Requirement: Order-scoped settlement summary
-The system SHALL provide `GET /v1/orders/{order_id}/summary` returning the open line groups of a single order in the same shape as the table and collective-bill summaries.
-
-#### Scenario: Summary of an open register order
-- **WHEN** the summary of an open register order is requested
-- **THEN** the response contains line groups with quantities, unit prices, and total cents for the order's unpaid lines
-
-#### Scenario: Order not open
-- **WHEN** the summary of a paid or unknown order is requested
-- **THEN** the system responds with 404
 
 ### Requirement: Split settlement of a single order
 The system SHALL provide `POST /v1/orders/{order_id}/settle-partial` accepting line selections (including voucher-sale groups), payments, and voucher redemptions, using the same settlement semantics as table partial settlement: paid lines move to a new paid order (or the original is marked paid on full settle), the payment amount MUST equal the selected total minus voucher credit applied to articles only, and a payment receipt is created. Open voucher-sale lines SHALL be settleable in whole or in part. Settlement MUST NOT create voucher print jobs for units already printed at order creation.
@@ -63,29 +48,3 @@ The system SHALL provide `POST /v1/orders/{order_id}/assign-collective` moving s
 #### Scenario: Assign voucher-sale lines
 - **WHEN** selected voucher-sale lines on a register order are assigned to a collective bill
 - **THEN** those lines move to the bill's open order without printing voucher slips
-
-### Requirement: Open register orders are listed for resumption
-The system SHALL provide `GET /v1/registers/{register_uuid}/open-orders?event_id=` returning open cash-register orders of that register (order id, pickup code, total cents, item count, created_at) so the register UI can resume payment.
-
-#### Scenario: Open order listed
-- **WHEN** a register order was created open and not yet settled
-- **THEN** it appears in that register's open-orders list with its pickup code and open total
-
-#### Scenario: Settled order not listed
-- **WHEN** a register order has been fully settled or fully assigned
-- **THEN** it no longer appears in the open-orders list
-
-### Requirement: Register payment happens on a payment screen after order creation
-The register UI SHALL create the order first (no payment collection on the order screen) and then show a payment screen with per-line split payment, voucher redemption, and collective-bill assignment. Voucher redemption SHALL NOT be available on the register order screen. Leaving the payment screen SHALL keep the order open and return to the register hub, which lists open orders.
-
-#### Scenario: Order screen submits without payment
-- **WHEN** the cashier submits the cart on the register order screen
-- **THEN** the order is created open and the payment screen for that order is shown
-
-#### Scenario: Payment screen parity with waiter settle screen
-- **WHEN** the payment screen is shown
-- **THEN** it offers line-selection split payment, voucher redemption, and collective-bill assignment, like the waiter table settle screen
-
-#### Scenario: Abandoning payment
-- **WHEN** the cashier navigates back from the payment screen without paying
-- **THEN** the order remains open and is listed on the register hub for later payment

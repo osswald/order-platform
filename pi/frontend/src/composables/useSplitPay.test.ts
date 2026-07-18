@@ -96,12 +96,55 @@ describe('useSplitPay', () => {
     bumpBasket(groups.value[0], -2)
     expect(selectionsPayload()).toEqual([
       {
+        kind: 'article',
         article_id: 10,
         note: '',
         qty: 1,
         additions: [],
       },
     ])
+  })
+
+  it('treats voucher_sale line groups as selectable rows and keeps redemption off their face value', async () => {
+    const loadSummary = vi.fn().mockResolvedValue({
+      total_cents: 2500,
+      line_groups: [
+        {
+          kind: 'article',
+          article_id: 10,
+          note: '',
+          additions: [],
+          total_qty: 1,
+          unit_cents: 500,
+          line_total_cents: 500,
+        },
+        {
+          kind: 'voucher_sale',
+          voucher_definition_uuid: 'vd-20',
+          name: '20 CHF Gutschein',
+          total_qty: 1,
+          unit_cents: 2000,
+          line_total_cents: 2000,
+        },
+      ],
+    })
+    const voucherRedemptions = ref([{ applied_cents: 200, voucher_definition_uuid: 'vd-20', article_id: 10 }])
+    const { splitPay } = createSplitPay({ loadSummary, voucherRedemptions })
+    const { groups, basketCents, selectionsPayload, reload } = splitPay
+
+    await reload()
+
+    expect(groups.value).toHaveLength(2)
+    expect(groups.value[1].kind).toBe('voucher_sale')
+    expect(groups.value[1].name).toBe('20 CHF Gutschein')
+    // 500 article − 200 credit + 2000 voucher sale
+    expect(basketCents.value).toBe(2300)
+    expect(selectionsPayload()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'voucher_sale', voucher_definition_uuid: 'vd-20', qty: 1 }),
+        expect.objectContaining({ kind: 'article', article_id: 10, qty: 1 }),
+      ]),
+    )
   })
 
   it('applies voucher credit to basketCents', async () => {

@@ -29,7 +29,7 @@ from ..models import (
     PrintJob,
 )
 from ..order_fiscal import waiter_name_from_event
-from ..order_line_utils import discount_signature
+from ..order_line_utils import discount_signature, selection_key
 from ..order_line_utils import line_key as _line_key
 from ..pricing import (
     line_total_cents,
@@ -47,7 +47,12 @@ from ..print_worker import (
 )
 from ..printer_endpoint import parse_printer_host_entry, resolve_printer_endpoint
 from ..printer_routing import resolve_endpoint_by_appliance, resolve_printer_target
-from ..vouchers import is_voucher_sale_line, order_lines_total_cents
+from ..vouchers import (
+    is_voucher_sale_line,
+    order_lines_total_cents,
+    voucher_definition_by_uuid,
+    voucher_sale_unit_cents,
+)
 
 PAYMENT_MODES_CASH = {"pay_now", "instant"}
 ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "stripe_terminal"})
@@ -176,27 +181,15 @@ def _selections_total_cents_from_groups(selections: list, line_groups: list[dict
     """Sum selection qty using discounted line_total_cents from open order line groups."""
     net_by_key: dict[tuple, tuple[int, int]] = {}
     for g in line_groups:
-        key = _line_key(
-            g["article_id"],
-            g.get("note", ""),
-            g.get("additions"),
-            g.get("discount"),
-        )
         total_qty = max(1, int(g.get("total_qty") or 1))
         line_total = int(g.get("line_total_cents") or 0)
-        net_by_key[key] = (line_total, total_qty)
+        net_by_key[selection_key(g)] = (line_total, total_qty)
     total = 0
     for s in selections:
         if not isinstance(s, dict):
             continue
         qty = max(1, int(s.get("qty") or 1))
-        key = _line_key(
-            s.get("article_id"),
-            s.get("note", ""),
-            s.get("additions"),
-            s.get("discount"),
-        )
-        entry = net_by_key.get(key)
+        entry = net_by_key.get(selection_key(s))
         if entry is None:
             raise HTTPException(status_code=400, detail="Selection not found on open orders")
         line_total, total_qty = entry
@@ -204,7 +197,7 @@ def _selections_total_cents_from_groups(selections: list, line_groups: list[dict
     return total
 
 
-def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
+def _build_line_groups_from_orders(orders: list, articles: dict, ev: dict | None = None) -> list[dict]:
     merged: dict[tuple, dict] = {}
     for o in orders:
         payload = json.loads(o.payload_json)
@@ -212,6 +205,28 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
             if not isinstance(line, dict):
                 continue
             if is_voucher_sale_line(line):
+                if ev is None:
+                    continue
+                v_uuid = str(line.get("voucher_definition_uuid") or "")
+                key = ("voucher_sale", v_uuid)
+                qty = max(1, int(line.get("qty") or 1))
+                unit = voucher_sale_unit_cents(ev, line)
+                if key not in merged:
+                    vd = voucher_definition_by_uuid(ev, v_uuid) or {}
+                    merged[key] = {
+                        "kind": "voucher_sale",
+                        "article_id": None,
+                        "voucher_definition_uuid": v_uuid,
+                        "name": vd.get("name") or "Gutschein",
+                        "note": "",
+                        "additions": [],
+                        "discount": None,
+                        "total_qty": 0,
+                        "unit_cents": unit,
+                        "line_total_cents": 0,
+                    }
+                merged[key]["total_qty"] += qty
+                merged[key]["line_total_cents"] += unit * qty
                 continue
             aid = line.get("article_id")
             if aid is None:
@@ -219,12 +234,13 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
             note = str(line.get("note") or "")
             adds = _normalize_additions(line.get("additions"))
             disc = normalize_discount(line.get("discount"))
-            key = _line_key(aid, note, adds, disc)
+            key = ("article", *_line_key(aid, note, adds, disc))
             qty = max(1, int(line.get("qty") or 1))
             line_cents = line_total_cents(line, articles)
             unit = line_unit_cents(line, articles)
             if key not in merged:
                 merged[key] = {
+                    "kind": "article",
                     "article_id": int(aid),
                     "note": note,
                     "additions": adds,
@@ -238,7 +254,9 @@ def _build_line_groups_from_orders(orders: list, articles: dict) -> list[dict]:
     return sorted(
         merged.values(),
         key=lambda g: (
-            g["article_id"],
+            1 if g.get("kind") == "voucher_sale" else 0,
+            int(g.get("article_id") or 0),
+            str(g.get("voucher_definition_uuid") or ""),
             g["note"],
             _additions_signature(g.get("additions")),
             discount_signature(g.get("discount")),
@@ -376,8 +394,9 @@ def _create_voucher_print_job(
     value_cents: int,
     copy_index: int | None = None,
     copy_total: int | None = None,
+    printer_station_uuid: str | None = None,
 ) -> int:
-    reg_uuid = _receipt_register_uuid(ev, cash_register_uuid)
+    reg_uuid = printer_station_uuid or _receipt_register_uuid(ev, cash_register_uuid)
     host, port, feed_lines = resolve_printer_endpoint(ev, reg_uuid)
     esc = build_voucher_slip_text(
         event_name=ev.get("name", "Event"),
@@ -423,6 +442,7 @@ def _payments_total_cents(payments: list[dict]) -> int:
         total += int(payment.get("amount_cents") or 0)
     return total
 
+
 def _add_waiter_name(ev: dict, payload: dict) -> None:
     if payload.get("waiter_name"):
         return
@@ -431,6 +451,7 @@ def _add_waiter_name(ev: dict, payload: dict) -> None:
         name = waiter_name_from_event(ev, waiter_uuid)
         if name:
             payload["waiter_name"] = name
+
 
 def _station_config_for_uuid(ev: dict, station_uuid: str | None) -> dict | None:
     if station_uuid is None:
@@ -593,13 +614,13 @@ def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
             out.status = "pending"
             return
     enqueue_payload_sync(db, event_id=order.event_id, client_order_id=cid, payload=payload)
+
+
 def _set_pickup_ready_if_complete(db: Session, order: LocalOrder) -> None:
     if order.order_source != "cash_register" or order.pickup_status in {"ready", "picked_up"}:
         return
     pending = (
-        db.query(KitchenTicket)
-        .filter(KitchenTicket.local_order_id == order.id, KitchenTicket.status != "done")
-        .first()
+        db.query(KitchenTicket).filter(KitchenTicket.local_order_id == order.id, KitchenTicket.status != "done").first()
     )
     if pending:
         return
@@ -610,6 +631,7 @@ def _set_pickup_ready_if_complete(db: Session, order: LocalOrder) -> None:
     payload["ready_at"] = order.ready_at.isoformat()
     order.payload_json = json.dumps(payload)
     _sync_outbox_payload(db, order, payload)
+
 
 def _create_payment_receipt(
     db: Session,
@@ -750,11 +772,7 @@ def _receipt_payload_from_orders(
 
 
 def _collective_bill_open(db: Session, bill_id: int, event_id: int) -> CollectiveBill:
-    bill = (
-        db.query(CollectiveBill)
-        .filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == event_id)
-        .first()
-    )
+    bill = db.query(CollectiveBill).filter(CollectiveBill.id == bill_id, CollectiveBill.event_id == event_id).first()
     if not bill:
         raise HTTPException(status_code=404, detail="Sammelrechnung not found")
     has_open = (
@@ -766,9 +784,7 @@ def _collective_bill_open(db: Session, bill_id: int, event_id: int) -> Collectiv
         .first()
     )
     if not has_open:
-        any_order = (
-            db.query(LocalOrder).filter(LocalOrder.collective_bill_id == bill.id).first()
-        )
+        any_order = db.query(LocalOrder).filter(LocalOrder.collective_bill_id == bill.id).first()
         if any_order:
             raise HTTPException(status_code=400, detail="Sammelrechnung ist bereits abgeschlossen")
     return bill
@@ -783,7 +799,7 @@ def _summary_from_orders(orders: list, ev: dict, arts: dict, extra: dict) -> dic
         lines = payload.get("lines") or []
         order_discount = payload.get("order_discount")
         line_cents = order_total_cents(lines, order_discount, ev, arts)
-        _, line_qty = _line_totals(lines, arts)
+        _, line_qty = _line_totals(lines, arts, ev)
         total_cents += line_cents
         item_count += line_qty
         entry = {
@@ -796,7 +812,7 @@ def _summary_from_orders(orders: list, ev: dict, arts: dict, extra: dict) -> dic
         if order_discount:
             entry["order_discount"] = order_discount
         open_orders.append(entry)
-    line_groups = _build_line_groups_from_orders(orders, arts)
+    line_groups = _build_line_groups_from_orders(orders, arts, ev)
     return {
         **extra,
         "currency": ev.get("currency", "EUR"),

@@ -8,7 +8,6 @@
     actions-hide-transfer
     :actions-assign-path="`/v1/orders/${orderId}/assign-collective`"
     :receipt-target-uuid="registerUuid"
-    :fixed-rows="fixedRows"
     :payment-hooks="paymentHooks"
     @back="onBack"
     @settled="onSettled"
@@ -26,20 +25,10 @@ import type { PickPaymentHooks } from '@/utils/pickPaymentType'
 import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
 import { useEventContext } from '@/composables/useEventContext'
 import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
-import SplitPaySettleScreen, { type FixedSettleRow, type SettleResult } from '@/components/SplitPaySettleScreen.vue'
-
-interface VoucherSaleSummaryLine {
-  voucher_definition_uuid?: string | null
-  name?: string
-  qty?: number
-  unit_cents?: number
-  total_cents?: number
-}
+import SplitPaySettleScreen, { type SettleResult } from '@/components/SplitPaySettleScreen.vue'
 
 type OrderSummary = AccountSummaryResponse & {
   pickup_code?: string | null
-  voucher_sale_lines?: VoucherSaleSummaryLine[]
-  voucher_sale_cents?: number
 }
 
 const route = useRoute()
@@ -56,7 +45,6 @@ const {
 
 const orderId = computed(() => parseInt(String(route.params.orderId), 10))
 const pickupCode = ref<string | null>(null)
-const fixedRows = ref<FixedSettleRow[]>([])
 const headerTitle = computed(() =>
   pickupCode.value ? `Bezahlen – Pickup ${pickupCode.value}` : 'Bezahlen',
 )
@@ -76,12 +64,6 @@ const paymentHooks: PickPaymentHooks = {
 async function loadSummary(): Promise<OrderSummary> {
   const data = await api<OrderSummary>(`/v1/orders/${orderId.value}/summary`)
   pickupCode.value = data.pickup_code || null
-  fixedRows.value = (data.voucher_sale_lines || []).map((v, i) => ({
-    key: `voucher-sale-${i}-${v.voucher_definition_uuid || ''}`,
-    label: `Gutschein: ${v.name || 'Gutschein'}`,
-    qty: Math.max(1, Number(v.qty) || 1),
-    amountCents: Math.max(0, Number(v.total_cents) || 0),
-  }))
   syncCustomerDisplay(data)
   return data
 }

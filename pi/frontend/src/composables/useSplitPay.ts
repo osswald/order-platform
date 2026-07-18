@@ -18,7 +18,10 @@ import {
 export interface SplitPaySummary {
   total_cents?: number
   line_groups?: Array<{
-    article_id: number
+    kind?: 'article' | 'voucher_sale' | string | null
+    article_id?: number | null
+    voucher_definition_uuid?: string | null
+    name?: string | null
     note?: string
     additions?: LineAdditionIn[]
     discount?: DiscountIn | null
@@ -31,7 +34,9 @@ export interface SplitPaySummary {
 
 export interface SplitPayGroupRow {
   key: string
-  article_id: number
+  kind: 'article' | 'voucher_sale'
+  article_id: number | null
+  voucher_definition_uuid: string | null
   note: string
   additions: LineAdditionIn[]
   discount: DiscountIn | null
@@ -57,7 +62,7 @@ export interface UseSplitPayOptions {
   loadSummary: () => Promise<SplitPaySummary>
   settlePartialPath: () => string
   voucherRedemptions?: Ref<VoucherRedemptionSelection[]>
-  /** Amount always due on top of the selected lines (e.g. voucher sales on a register order). */
+  /** @deprecated Voucher sales are selectable line groups; kept for API compatibility. */
   fixedCents?: Ref<number>
   /** Forwarded to payment resolution (e.g. mirror TWINT QR to a customer display). */
   paymentHooks?: PickPaymentHooks
@@ -82,11 +87,21 @@ export function useSplitPay({
   const totalCents = computed(() => summary.value?.total_cents || 0)
 
   const rawBasketCents = computed(() => sumGroupBasketCents(groups.value))
+  const articleBasketCents = computed(() =>
+    sumGroupBasketCents(groups.value.filter((g) => g.kind !== 'voucher_sale')),
+  )
+  const voucherSaleBasketCents = computed(() =>
+    sumGroupBasketCents(groups.value.filter((g) => g.kind === 'voucher_sale')),
+  )
   const voucherCreditCents = computed(() =>
     sumVoucherCreditCents(voucherRedemptions.value),
   )
+  // Redemption credit reduces article gross only; voucher-sale face value stays fully payable.
   const basketCents = computed(
-    () => basketCentsAfterVoucher(rawBasketCents.value, voucherCreditCents.value) + fixedCents.value,
+    () =>
+      basketCentsAfterVoucher(articleBasketCents.value, voucherCreditCents.value) +
+      voucherSaleBasketCents.value +
+      fixedCents.value,
   )
   const restCents = computed(() =>
     Math.max(0, totalCents.value - rawBasketCents.value - fixedCents.value),
@@ -98,7 +113,7 @@ export function useSplitPay({
   const topGroups = computed(() => groups.value.filter((g) => g.basketQty > 0))
   const bottomGroups = computed(() => groups.value.filter((g) => g.basketQty < g.totalQty))
 
-  function lineKey(
+  function articleLineKey(
     articleId: number,
     note: string | undefined,
     additions: LineAdditionIn[] | undefined,
@@ -110,13 +125,35 @@ export function useSplitPay({
     const arts = event.value?.articles || {}
     const lg = data?.line_groups || []
     groups.value = lg.map((g) => {
+      const kind = g.kind === 'voucher_sale' ? 'voucher_sale' : 'article'
       const additions = g.additions || []
       const discount = g.discount || null
-      const line = { article_id: g.article_id, additions, discount, qty: 1 }
       const discKey = discount ? JSON.stringify(discount) : ''
+      if (kind === 'voucher_sale') {
+        const vUuid = String(g.voucher_definition_uuid || '')
+        return {
+          key: `voucher_sale:${vUuid}`,
+          kind,
+          article_id: null,
+          voucher_definition_uuid: vUuid,
+          note: '',
+          additions: [],
+          discount: null,
+          totalQty: g.total_qty,
+          unitCents: g.unit_cents,
+          lineTotalCents: g.line_total_cents ?? 0,
+          basketQty: g.total_qty,
+          name: g.name || 'Gutschein',
+          additionLabels: [],
+        }
+      }
+      const articleId = Number(g.article_id)
+      const line = { article_id: articleId, additions, discount, qty: 1 }
       return {
-        key: `${lineKey(g.article_id, g.note, additions)}:${discKey}`,
-        article_id: g.article_id,
+        key: `${articleLineKey(articleId, g.note, additions)}:${discKey}`,
+        kind,
+        article_id: articleId,
+        voucher_definition_uuid: null,
         note: g.note || '',
         additions,
         discount,
@@ -124,7 +161,7 @@ export function useSplitPay({
         unitCents: g.unit_cents,
         lineTotalCents: g.line_total_cents ?? 0,
         basketQty: g.total_qty,
-        name: articleName(g.article_id),
+        name: g.name || articleName(articleId),
         additionLabels: lineAdditionLabels(line, arts),
       }
     })
@@ -157,14 +194,26 @@ export function useSplitPay({
 
   function selectionsPayload() {
     return topGroups.value.map((g) => {
+      if (g.kind === 'voucher_sale') {
+        return {
+          kind: 'voucher_sale' as const,
+          voucher_definition_uuid: g.voucher_definition_uuid || '',
+          article_id: null,
+          note: '',
+          qty: g.basketQty,
+          additions: [],
+        }
+      }
       const row: {
+        kind: 'article'
         article_id: number
         note: string
         qty: number
         additions: Array<{ article_id: number; qty: number }>
         discount?: DiscountIn
       } = {
-        article_id: g.article_id,
+        kind: 'article',
+        article_id: Number(g.article_id),
         note: g.note,
         qty: g.basketQty,
         additions: (g.additions || []).map((a) => ({
@@ -269,6 +318,8 @@ export function useSplitPay({
     onQtyConfirm,
     selectionsPayload,
     reload,
+    settlePartial,
     onGreenCheck,
+    fixedCents,
   }
 }
