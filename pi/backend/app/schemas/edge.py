@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .order_models import (
     ArticleStockPatch,
@@ -59,6 +59,10 @@ class LocalOrderCreate(BaseModel):
     order_discount: DiscountIn | None = None
     payments: list[PaymentIn] = Field(default_factory=list)
     voucher_redemptions: list[VoucherRedemptionIn] = Field(default_factory=list)
+    # Waiter voucher-slip destination: explicit network target (printer_hosts key)
+    # or Bluetooth mode where escpos payloads are returned instead of print jobs.
+    voucher_printer_station_uuid: str | None = None
+    voucher_print_via_bluetooth: bool = False
 
 
 class RegisterDisplayBody(BaseModel):
@@ -76,11 +80,22 @@ class TableSettleBody(BaseModel):
 
 
 class LineSelection(BaseModel):
-    article_id: int
+    kind: Literal["article", "voucher_sale"] = "article"
+    article_id: int | None = None
+    voucher_definition_uuid: str | None = None
     note: str = ""
     qty: int = Field(..., ge=1)
     additions: list[LineAdditionIn] = Field(default_factory=list)
     discount: DiscountIn | None = None
+
+    @model_validator(mode="after")
+    def _check_target(self) -> LineSelection:
+        if self.kind == "voucher_sale":
+            if not (self.voucher_definition_uuid or "").strip():
+                raise ValueError("voucher_sale selection requires voucher_definition_uuid")
+        elif self.article_id is None:
+            raise ValueError("article selection requires article_id")
+        return self
 
 
 class TableSettlePartialBody(BaseModel):
@@ -198,6 +213,9 @@ class LocalOrderCreatedResponse(BaseModel):
     payment_mode: str
     articles: dict[str, ArticleStockPatch] = Field(default_factory=dict)
     ingredients: dict[str, ArticleStockPatch] = Field(default_factory=dict)
+    # Base64 ESC/POS voucher slips for frontend Bluetooth printing (one per unit).
+    voucher_escpos_payloads: list[str] = Field(default_factory=list)
+    voucher_names: list[str] = Field(default_factory=list)
 
 
 class KitchenStationItem(BaseModel):

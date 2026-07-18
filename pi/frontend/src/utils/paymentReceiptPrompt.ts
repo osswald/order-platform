@@ -28,7 +28,8 @@ function askPrintReceipt(): Promise<boolean> {
   })
 }
 
-function pickReceiptStation(
+/** Shared network-printer picker (payment receipts, voucher slips, …). */
+export function pickReceiptStation(
   targets: Array<{ uuid: string; label: string }>,
 ): Promise<string> {
   receiptPromptTargets.value = targets

@@ -37,8 +37,7 @@ def is_article_line(line: dict) -> bool:
 
 
 def voucher_sale_unit_cents(ev: dict, line: dict) -> int:
-    if line.get("unit_cents") is not None:
-        return max(0, int(line["unit_cents"]))
+    """Price a voucher sale exclusively from the event definition (ignore client unit_cents)."""
     v_uuid = str(line.get("voucher_definition_uuid") or "").strip()
     vd = voucher_definition_by_uuid(ev, v_uuid)
     if not vd:
@@ -134,8 +133,13 @@ def compute_voucher_credits(
     unit_by_key: dict[tuple, int] = {}
     if line_groups:
         for g in line_groups:
+            if str(g.get("kind") or "article") == "voucher_sale":
+                continue
+            aid = g.get("article_id")
+            if aid is None:
+                continue
             key = _line_key(
-                g["article_id"],
+                aid,
                 g.get("note", ""),
                 g.get("additions"),
                 g.get("discount"),
