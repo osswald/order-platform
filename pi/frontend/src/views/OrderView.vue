@@ -148,6 +148,11 @@ import type { EdgeBundleArticle, EdgeBundleEvent, LocalOrderCreate, LocalOrderCr
 import { getErrorMessage, isApiError } from '@/types/api'
 import { stockInsufficientMessage } from '@/utils/stockError'
 import { validateCartStockBeforeSubmit } from '@/utils/validateCartStock'
+import {
+  applyVoucherPrintPlanToOrderBody,
+  deliverWaiterVoucherPrints,
+  resolveWaiterVoucherPrintPlan,
+} from '@/utils/voucherPrintDestination'
 import type { CartLine } from '@/types/cart'
 import type { SheetOptionItem } from '@/components/SheetOptionList.vue'
 
@@ -430,6 +435,20 @@ async function submitOrder() {
       positionCommentsEnabled: positionCommentsEnabled.value,
       discountsEnabled: discountsEnabled.value,
     })
+    const hasVoucherSales = payloadLines.some((l) => l.kind === 'voucher_sale')
+    let voucherPrintPlan
+    try {
+      voucherPrintPlan = await resolveWaiterVoucherPrintPlan(event.value, {
+        hasVoucherSales,
+        showToast,
+      })
+    } catch (e: unknown) {
+      const message = getErrorMessage(e, 'Abgebrochen')
+      if (message !== 'cancelled' && !(e instanceof Error && e.message === 'cancelled')) {
+        showToast(message, 'err')
+      }
+      return
+    }
     const body: LocalOrderCreate = {
       client_order_id: newClientOrderId(),
       event_id: event.value.id,
@@ -438,7 +457,9 @@ async function submitOrder() {
       order_source: 'waiter',
       lines: payloadLines,
       payments: [],
+      voucher_print_via_bluetooth: false,
     }
+    applyVoucherPrintPlanToOrderBody(body, voucherPrintPlan)
     if (discountsEnabled.value && orderDiscount.value) {
       body.order_discount = orderDiscount.value
     }
@@ -455,6 +476,7 @@ async function submitOrder() {
         ingredients: res.ingredients,
       })
     }
+    deliverWaiterVoucherPrints(res, voucherPrintPlan, showToast)
     const pm = res.payment_mode || paymentMode.value
     if (pm === 'pay_now') {
       clearCart()

@@ -20,6 +20,18 @@ function buildRouter() {
         meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true },
       },
       {
+        path: '/collective/open',
+        name: 'collective-open',
+        component: { template: '<div/>' },
+        meta: { requiresBundle: true, requiresEvent: true, requiresOperator: true },
+      },
+      {
+        path: '/pay/collective',
+        name: 'pay-collective',
+        component: { template: '<div/>' },
+        meta: { requiresBundle: true, requiresEvent: true, requiresOperator: true, fullscreen: true },
+      },
+      {
         path: '/register/:registerUuid',
         name: 'register-order',
         component: { template: '<div/>' },
@@ -74,6 +86,62 @@ describe('setupRouterGuards', () => {
     const router = buildRouter()
     const result = await router.push('/order')
     expect(result).toBeUndefined()
+    expect(router.currentRoute.value.name).toBe('login')
+  })
+
+  it('allows collective-open with an active cash-register session', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    store.registerSession.value = { uuid: 'register-1', name: 'Kasse 1' }
+    const router = buildRouter()
+    await router.push('/collective/open')
+    expect(router.currentRoute.value.name).toBe('collective-open')
+  })
+
+  it('allows pay-collective with an active cash-register session', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    store.registerSession.value = { uuid: 'register-1', name: 'Kasse 1' }
+    const router = buildRouter()
+    await router.push({ name: 'pay-collective', query: { id: '7' } })
+    expect(router.currentRoute.value.name).toBe('pay-collective')
+  })
+
+  it('allows collective-open with an active waiter session', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    store.waiter.value = { uuid: 'w-1', name: 'Anna' }
+    const router = buildRouter()
+    await router.push('/collective/open')
+    expect(router.currentRoute.value.name).toBe('collective-open')
+  })
+
+  it('allows pay-collective with an active waiter session', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    store.waiter.value = { uuid: 'w-1', name: 'Anna' }
+    const router = buildRouter()
+    await router.push({ name: 'pay-collective', query: { id: '7' } })
+    expect(router.currentRoute.value.name).toBe('pay-collective')
+  })
+
+  it('redirects to login when operator is required but neither session exists', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    const router = buildRouter()
+    await router.push('/collective/open?returnTo=register-hub&registerUuid=register-1')
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe(
+      '/collective/open?returnTo=register-hub&registerUuid=register-1',
+    )
+  })
+
+  it('blocks cash-register sessions from unrelated requiresWaiter routes', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = 1
+    store.registerSession.value = { uuid: 'register-1', name: 'Kasse 1' }
+    const router = buildRouter()
+    await router.push('/order')
     expect(router.currentRoute.value.name).toBe('login')
   })
 

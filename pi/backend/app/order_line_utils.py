@@ -74,6 +74,25 @@ def line_key(
     )
 
 
+def _is_voucher_sale(entry: dict) -> bool:
+    return str(entry.get("kind") or "") == "voucher_sale"
+
+
+def selection_key(entry: dict) -> tuple:
+    """Unified key for article lines and voucher-sale lines/selections."""
+    if _is_voucher_sale(entry):
+        return ("voucher_sale", str(entry.get("voucher_definition_uuid") or ""))
+    return (
+        "article",
+        *line_key(
+            entry.get("article_id"),
+            entry.get("note", ""),
+            entry.get("additions"),
+            entry.get("discount"),
+        ),
+    )
+
+
 def take_selections_from_orders(
     orders: list,
     selections: list[dict],
@@ -83,15 +102,9 @@ def take_selections_from_orders(
     transfer_destination: dict | None = None,
 ) -> list[dict]:
     """Remove selected qty from open orders; return extracted line dicts."""
-    need: dict[tuple[int, str, str, str], int] = {}
+    need: dict[tuple, int] = {}
     for s in selections:
-        key = line_key(
-            s["article_id"],
-            s.get("note", ""),
-            s.get("additions"),
-            s.get("discount"),
-        )
-        need[key] = need.get(key, 0) + int(s["qty"])
+        need[selection_key(s)] = need.get(selection_key(s), 0) + int(s["qty"])
 
     moved: list[dict] = []
     for order in orders:
@@ -101,21 +114,34 @@ def take_selections_from_orders(
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
                 continue
+            is_voucher = _is_voucher_sale(line)
             aid = line.get("article_id")
-            if aid is None:
+            if aid is None and not is_voucher:
                 continue
             note = str(line.get("note") or "")
             adds = normalize_additions(line.get("additions"))
-            key = line_key(aid, note, adds, line.get("discount"))
+            key = selection_key({**line, "additions": adds})
             qty = max(1, int(line.get("qty") or 1))
             take = min(qty, need.get(key, 0))
             if take > 0:
-                pl = {
-                    "article_id": int(aid),
-                    "qty": take,
-                    "note": note,
-                    "additions": adds,
-                }
+                if is_voucher:
+                    pl = {
+                        "kind": "voucher_sale",
+                        "voucher_definition_uuid": str(line.get("voucher_definition_uuid") or ""),
+                        "qty": take,
+                        "note": note,
+                        "additions": adds,
+                    }
+                    for extra in ("voucher_name", "value_cents"):
+                        if line.get(extra) is not None:
+                            pl[extra] = line[extra]
+                else:
+                    pl = {
+                        "article_id": int(aid),
+                        "qty": take,
+                        "note": note,
+                        "additions": adds,
+                    }
                 su = line.get("station_uuid")
                 if su:
                     pl["station_uuid"] = su
@@ -140,27 +166,23 @@ def take_selections_from_orders(
 
 
 def merge_lines_into_list(lines: list[dict], incoming: list[dict]) -> None:
-    """Merge incoming lines into lines list by line_key (in-place)."""
+    """Merge incoming lines into lines list by selection_key (in-place)."""
     for inc in incoming:
         if not isinstance(inc, dict):
             continue
         aid = inc.get("article_id")
-        if aid is None:
+        if aid is None and not _is_voucher_sale(inc):
             continue
-        note = str(inc.get("note") or "")
         adds = normalize_additions(inc.get("additions"))
-        key = line_key(aid, note, adds, inc.get("discount"))
+        key = selection_key({**inc, "additions": adds})
         qty = max(1, int(inc.get("qty") or 1))
         found = False
         for i, line in enumerate(lines):
             if not isinstance(line, dict):
                 continue
-            lk = line_key(
-                line.get("article_id"),
-                str(line.get("note") or ""),
-                line.get("additions"),
-                line.get("discount"),
-            )
+            if line.get("article_id") is None and not _is_voucher_sale(line):
+                continue
+            lk = selection_key(line)
             if lk == key:
                 lines[i] = {
                     **line,

@@ -15,7 +15,7 @@
       <template v-else>
         <header class="sheet-header">
           <h3>Drucker wählen</h3>
-          <p class="muted">Station oder Kasse für den Zahlungsbeleg</p>
+          <p class="muted">Station oder Kasse auswählen</p>
         </header>
         <div class="target-list">
           <button

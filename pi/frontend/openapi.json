@@ -4053,9 +4053,47 @@
       },
       "LineGroupEntry": {
         "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "article",
+              "voucher_sale"
+            ],
+            "title": "Kind",
+            "default": "article"
+          },
           "article_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Article Id"
+          },
+          "voucher_definition_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Definition Uuid"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "note": {
             "type": "string",
@@ -4097,7 +4135,6 @@
         },
         "type": "object",
         "required": [
-          "article_id",
           "total_qty",
           "unit_cents",
           "line_total_cents"
@@ -4106,9 +4143,36 @@
       },
       "LineSelection": {
         "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "article",
+              "voucher_sale"
+            ],
+            "title": "Kind",
+            "default": "article"
+          },
           "article_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Article Id"
+          },
+          "voucher_definition_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Definition Uuid"
           },
           "note": {
             "type": "string",
@@ -4140,7 +4204,6 @@
         },
         "type": "object",
         "required": [
-          "article_id",
           "qty"
         ],
         "title": "LineSelection"
@@ -4227,6 +4290,22 @@
             },
             "type": "array",
             "title": "Voucher Redemptions"
+          },
+          "voucher_printer_station_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Printer Station Uuid"
+          },
+          "voucher_print_via_bluetooth": {
+            "type": "boolean",
+            "title": "Voucher Print Via Bluetooth",
+            "default": false
           }
         },
         "type": "object",
@@ -4342,6 +4421,20 @@
             },
             "type": "object",
             "title": "Ingredients"
+          },
+          "voucher_escpos_payloads": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Voucher Escpos Payloads"
+          },
+          "voucher_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Voucher Names"
           }
         },
         "type": "object",

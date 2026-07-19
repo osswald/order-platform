@@ -1472,8 +1472,18 @@ export interface components {
         };
         /** LineGroupEntry */
         LineGroupEntry: {
+            /**
+             * Kind
+             * @default article
+             * @enum {string}
+             */
+            kind: "article" | "voucher_sale";
             /** Article Id */
-            article_id: number;
+            article_id?: number | null;
+            /** Voucher Definition Uuid */
+            voucher_definition_uuid?: string | null;
+            /** Name */
+            name?: string | null;
             /**
              * Note
              * @default
@@ -1491,8 +1501,16 @@ export interface components {
         };
         /** LineSelection */
         LineSelection: {
+            /**
+             * Kind
+             * @default article
+             * @enum {string}
+             */
+            kind: "article" | "voucher_sale";
             /** Article Id */
-            article_id: number;
+            article_id?: number | null;
+            /** Voucher Definition Uuid */
+            voucher_definition_uuid?: string | null;
             /**
              * Note
              * @default
@@ -1528,6 +1546,13 @@ export interface components {
             payments?: components["schemas"]["PaymentIn"][];
             /** Voucher Redemptions */
             voucher_redemptions?: components["schemas"]["VoucherRedemptionIn"][];
+            /** Voucher Printer Station Uuid */
+            voucher_printer_station_uuid?: string | null;
+            /**
+             * Voucher Print Via Bluetooth
+             * @default false
+             */
+            voucher_print_via_bluetooth: boolean;
         };
         /** LocalOrderCreatedResponse */
         LocalOrderCreatedResponse: {
@@ -1561,6 +1586,10 @@ export interface components {
             ingredients?: {
                 [key: string]: components["schemas"]["ArticleStockPatch"];
             };
+            /** Voucher Escpos Payloads */
+            voucher_escpos_payloads?: string[];
+            /** Voucher Names */
+            voucher_names?: string[];
         };
         /** OkResponse */
         OkResponse: {

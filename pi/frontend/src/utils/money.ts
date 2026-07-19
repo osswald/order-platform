@@ -10,13 +10,13 @@ const amountFormatter = new Intl.NumberFormat(MONEY_LOCALE, {
 })
 
 export interface MoneyLine {
-  article_id?: number
+  article_id?: number | null
   qty?: number
   note?: string
   additions?: Array<{ article_id: number; qty?: number }>
   discount?: DiscountIn | null
   kind?: string
-  voucher_definition_uuid?: string
+  voucher_definition_uuid?: string | null
   unit_cents?: number | null
 }
 
