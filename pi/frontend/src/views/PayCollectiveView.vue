@@ -26,6 +26,7 @@ import { useEventContext } from '@/composables/useEventContext'
 import { api } from '@/api'
 import type { AccountSummaryResponse } from '@/types/api'
 import SplitPaySettleScreen from '@/components/SplitPaySettleScreen.vue'
+import { collectiveOpenLocation } from '@/utils/collectiveReturnNav'
 
 type CollectiveSummary = AccountSummaryResponse & { name?: string }
 
@@ -47,7 +48,7 @@ async function loadSummary(): Promise<CollectiveSummary | { line_groups: [] }> {
 }
 
 function goBack() {
-  router.push({ name: 'collective-open' })
+  router.push(collectiveOpenLocation(route.query))
 }
 </script>
 

@@ -62,7 +62,11 @@ def _settle(c, order_id, *, selections, payments, voucher_redemptions=None):
 
 
 def _sel(article_id, qty, note="", additions=None):
-    return {"article_id": article_id, "note": note, "qty": qty, "additions": additions or []}
+    return {"kind": "article", "article_id": article_id, "note": note, "qty": qty, "additions": additions or []}
+
+
+def _vsel(voucher_definition_uuid, qty):
+    return {"kind": "voucher_sale", "voucher_definition_uuid": voucher_definition_uuid, "qty": qty}
 
 
 # --- Open creation ---
@@ -277,7 +281,9 @@ def test_order_settle_voucher_redemption(client):
         oid,
         selections=[_sel(20, 5)],
         payments=[{"type": "cash", "amount_cents": 500}],
-        voucher_redemptions=[{"voucher_definition_uuid": "vd-20", "article_id": 0, "note": "", "qty": 1, "additions": []}],
+        voucher_redemptions=[
+            {"voucher_definition_uuid": "vd-20", "article_id": 0, "note": "", "qty": 1, "additions": []}
+        ],
     )
     assert settle.status_code == 200, settle.text
     data = settle.json()
@@ -299,7 +305,7 @@ def test_order_settle_voucher_redemption(client):
 # --- Voucher sale lines ---
 
 
-def test_voucher_sale_line_allowed_open_and_slips_print_at_settle(client):
+def test_voucher_sale_line_allowed_open_and_slips_print_at_create(client):
     c, Session = client
     _swap_bundle(Session, bundle_copy(voucher_bundle()))
 
@@ -307,7 +313,14 @@ def test_voucher_sale_line_allowed_open_and_slips_print_at_settle(client):
         c,
         lines=[
             {"article_id": 20, "qty": 1, "note": "", "additions": []},
-            {"kind": "voucher_sale", "voucher_definition_uuid": "vd-20", "qty": 1, "unit_cents": 2000, "note": "", "additions": []},
+            {
+                "kind": "voucher_sale",
+                "voucher_definition_uuid": "vd-20",
+                "qty": 1,
+                "unit_cents": 2000,
+                "note": "",
+                "additions": [],
+            },
         ],
     )
     assert r.status_code == 200, r.text
@@ -315,20 +328,34 @@ def test_voucher_sale_line_allowed_open_and_slips_print_at_settle(client):
 
     db = Session()
     try:
-        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 0
+        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 1
     finally:
         db.close()
 
     summary = c.get(f"/v1/orders/{oid}/summary")
     assert summary.status_code == 200
-    assert summary.json()["total_cents"] == 2500
+    data = summary.json()
+    assert data["total_cents"] == 2500
+    kinds = {g.get("kind", "article") for g in data["line_groups"]}
+    assert "voucher_sale" in kinds
+    assert "article" in kinds
+    voucher_group = next(g for g in data["line_groups"] if g.get("kind") == "voucher_sale")
+    assert voucher_group["voucher_definition_uuid"] == "vd-20"
+    assert voucher_group["total_qty"] == 1
+    assert voucher_group["unit_cents"] == 2000
 
-    settle = _settle(c, oid, selections=[_sel(20, 1)], payments=[{"type": "cash", "amount_cents": 2500}])
+    settle = _settle(
+        c,
+        oid,
+        selections=[_sel(20, 1), _vsel("vd-20", 1)],
+        payments=[{"type": "cash", "amount_cents": 2500}],
+    )
     assert settle.status_code == 200, settle.text
     assert settle.json()["remaining_cents"] == 0
 
     db = Session()
     try:
+        # Settlement must not reprint voucher slips.
         assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 1
         order = db.query(LocalOrder).filter(LocalOrder.id == oid).one()
         assert order.payment_status == "paid"
@@ -336,7 +363,7 @@ def test_voucher_sale_line_allowed_open_and_slips_print_at_settle(client):
         db.close()
 
 
-def test_voucher_sale_order_rejects_partial_settle(client):
+def test_voucher_sale_order_allows_partial_article_settle(client):
     c, Session = client
     _swap_bundle(Session, bundle_copy(voucher_bundle()))
 
@@ -344,14 +371,77 @@ def test_voucher_sale_order_rejects_partial_settle(client):
         c,
         lines=[
             {"article_id": 20, "qty": 2, "note": "", "additions": []},
-            {"kind": "voucher_sale", "voucher_definition_uuid": "vd-20", "qty": 1, "unit_cents": 2000, "note": "", "additions": []},
+            {
+                "kind": "voucher_sale",
+                "voucher_definition_uuid": "vd-20",
+                "qty": 1,
+                "unit_cents": 2000,
+                "note": "",
+                "additions": [],
+            },
         ],
     )
     assert r.status_code == 200, r.text
     oid = r.json()["local_order_id"]
 
     settle = _settle(c, oid, selections=[_sel(20, 1)], payments=[{"type": "cash", "amount_cents": 500}])
-    assert settle.status_code == 400
+    assert settle.status_code == 200, settle.text
+    assert settle.json()["paid_cents"] == 500
+    assert settle.json()["remaining_cents"] == 2500  # 1 article + voucher
+
+    db = Session()
+    try:
+        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 1
+        order = db.query(LocalOrder).filter(LocalOrder.id == oid).one()
+        assert order.payment_status == "open"
+        payload = json.loads(order.payload_json)
+        voucher_lines = [ln for ln in payload["lines"] if ln.get("kind") == "voucher_sale"]
+        assert len(voucher_lines) == 1
+        assert voucher_lines[0]["qty"] == 1
+    finally:
+        db.close()
+
+
+def test_partial_voucher_settle_without_reprint(client):
+    c, Session = client
+    _swap_bundle(Session, bundle_copy(voucher_bundle()))
+
+    r = _register_order(
+        c,
+        lines=[
+            {
+                "kind": "voucher_sale",
+                "voucher_definition_uuid": "vd-20",
+                "qty": 2,
+                "unit_cents": 2000,
+                "note": "",
+                "additions": [],
+            },
+        ],
+    )
+    assert r.status_code == 200, r.text
+    oid = r.json()["local_order_id"]
+
+    db = Session()
+    try:
+        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 2
+    finally:
+        db.close()
+
+    settle = _settle(c, oid, selections=[_vsel("vd-20", 1)], payments=[{"type": "cash", "amount_cents": 2000}])
+    assert settle.status_code == 200, settle.text
+    assert settle.json()["paid_cents"] == 2000
+    assert settle.json()["remaining_cents"] == 2000
+
+    db = Session()
+    try:
+        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 2
+        order = db.query(LocalOrder).filter(LocalOrder.id == oid).one()
+        assert order.payment_status == "open"
+        payload = json.loads(order.payload_json)
+        assert payload["lines"][0]["qty"] == 1
+    finally:
+        db.close()
 
 
 # --- Collective bill assignment ---
@@ -408,7 +498,7 @@ def test_assign_partial_selection_to_existing_bill(client):
     assert summary.json()["total_cents"] == 500
 
 
-def test_assign_collective_rejected_for_voucher_sale_order(client):
+def test_assign_collective_allows_voucher_sale_order(client):
     c, Session = client
     _swap_bundle(Session, bundle_copy(voucher_bundle()))
 
@@ -416,15 +506,60 @@ def test_assign_collective_rejected_for_voucher_sale_order(client):
         c,
         lines=[
             {"article_id": 20, "qty": 1, "note": "", "additions": []},
-            {"kind": "voucher_sale", "voucher_definition_uuid": "vd-20", "qty": 1, "unit_cents": 2000, "note": "", "additions": []},
+            {
+                "kind": "voucher_sale",
+                "voucher_definition_uuid": "vd-20",
+                "qty": 1,
+                "unit_cents": 2000,
+                "note": "",
+                "additions": [],
+            },
         ],
     )
     oid = r.json()["local_order_id"]
     assign = c.post(
         f"/v1/orders/{oid}/assign-collective",
-        json={"event_id": 1, "selections": [_sel(20, 1)], "new_name": "Verein"},
+        json={
+            "event_id": 1,
+            "selections": [_sel(20, 1), _vsel("vd-20", 1)],
+            "new_name": "Verein",
+        },
     )
-    assert assign.status_code == 400
+    assert assign.status_code == 200, assign.text
+    data = assign.json()
+
+    db = Session()
+    try:
+        # Assignment must not create additional voucher print jobs.
+        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 1
+        original = db.query(LocalOrder).filter(LocalOrder.id == oid).one()
+        assert original.payment_status == "paid"  # fully drained
+        bill_orders = db.query(LocalOrder).filter(LocalOrder.collective_bill_id == data["collective_bill_id"]).all()
+        assert len(bill_orders) == 1
+        bill_payload = json.loads(bill_orders[0].payload_json)
+        kinds = {ln.get("kind") or "article" for ln in bill_payload["lines"]}
+        assert "voucher_sale" in kinds
+        assert any(ln.get("article_id") == 20 for ln in bill_payload["lines"])
+    finally:
+        db.close()
+
+    # Collective settle of voucher lines also must not reprint.
+    bills = c.get("/v1/collective-bills/open", params={"event_id": 1})
+    bill_id = bills.json()["collective_bills"][0]["id"]
+    settle = c.post(
+        f"/v1/collective-bills/{bill_id}/settle-partial",
+        json={
+            "event_id": 1,
+            "payments": [{"type": "cash", "amount_cents": 2500}],
+            "selections": [_sel(20, 1), _vsel("vd-20", 1)],
+        },
+    )
+    assert settle.status_code == 200, settle.text
+    db = Session()
+    try:
+        assert db.query(PrintJob).filter(PrintJob.job_kind == "voucher").count() == 1
+    finally:
+        db.close()
 
 
 # --- Register open-orders list ---

@@ -31,6 +31,9 @@ export function setupRouterGuards(router: Router): void {
     if (to.meta.requiresWaiter && !store.waiter.value) {
       return { name: 'login', query: { redirect: to.fullPath } }
     }
+    if (to.meta.requiresOperator && !store.waiter.value && !store.registerSession.value) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
     if (to.meta.requiresRegister) {
       const uuid = String(to.params.registerUuid || '')
       const session = store.registerSession.value

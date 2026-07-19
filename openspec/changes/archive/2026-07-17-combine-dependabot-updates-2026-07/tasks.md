@@ -26,5 +26,5 @@
 ## 4. Open PR and close superseded Dependabot PRs
 
 - [x] 4.1 Push branch and open PR titled "Combine 12 open Dependabot dependency updates" referencing #121–#124, #126–#133
-- [ ] 4.2 Merge after CI passes
-- [ ] 4.3 Close any Dependabot PRs GitHub does not auto-close, commenting with the combined PR link
+- [x] 4.2 Merge after CI passes
+- [x] 4.3 Close any Dependabot PRs GitHub does not auto-close, commenting with the combined PR link
