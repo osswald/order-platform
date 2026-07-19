@@ -130,7 +130,7 @@ const routes: RouteRecordRaw[] = [
     path: '/collective/open',
     name: 'collective-open',
     component: () => import('../views/OpenCollectiveBillsView.vue'),
-    meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true },
+    meta: { requiresBundle: true, requiresEvent: true, requiresOperator: true },
   },
   {
     path: '/stock',
@@ -214,7 +214,7 @@ const routes: RouteRecordRaw[] = [
     path: '/pay/collective',
     name: 'pay-collective',
     component: () => import('../views/PayCollectiveView.vue'),
-    meta: { requiresBundle: true, requiresEvent: true, requiresWaiter: true, fullscreen: true },
+    meta: { requiresBundle: true, requiresEvent: true, requiresOperator: true, fullscreen: true },
   },
 ]
 
