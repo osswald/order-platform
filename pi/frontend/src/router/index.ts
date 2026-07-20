@@ -6,6 +6,12 @@ import '@/types/router'
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: () => ({ name: 'events' }) },
   {
+    path: '/connection-setup',
+    name: 'connection-setup',
+    component: () => import('../views/ConnectionSetupView.vue'),
+    meta: { title: 'Pi-Verbindung', fullscreen: true },
+  },
+  {
     path: '/setup',
     name: 'setup',
     component: () => import('../views/SetupPairingView.vue'),

@@ -8,6 +8,10 @@ RUN uv sync --frozen --no-dev
 COPY pi/backend/alembic.ini .
 COPY pi/backend/alembic ./alembic
 COPY pi/backend/app ./app
+ARG APP_VERSION
+ARG APP_BUILD_TIME
+ENV APP_VERSION=$APP_VERSION
+ENV APP_BUILD_TIME=$APP_BUILD_TIME
 ENV PATH="/repo/pi/backend/.venv/bin:$PATH"
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -86,6 +86,9 @@ jobs:
           file: ./pi/backend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
+            APP_BUILD_TIME=${{ steps.version.outputs.build_time }}
           tags: |
             ${{ steps.image_tags.outputs.backend }}
 

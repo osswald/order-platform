@@ -4,6 +4,22 @@
     <p class="muted">Konfiguration laden und Änderungen an die Cloud senden.</p>
 
     <div class="card">
+      <h2 class="card-title">Pi-API Basis-URL</h2>
+      <p class="muted small">Adresse des Pi-Backends (ohne Pfad). Nach Änderung Verbindung testen.</p>
+      <label>
+        URL
+        <input v-model="apiBaseInput" type="url" autocomplete="off" placeholder="http://192.168.192.10" />
+      </label>
+      <div class="row actions">
+        <button type="button" class="btn" :disabled="apiBusy" @click="testApiBase">Verbindung testen</button>
+        <button type="button" class="btn primary" :disabled="apiBusy || !apiTestedOk" @click="saveApiBaseUrl">
+          Speichern
+        </button>
+      </div>
+      <p v-if="apiMessage" :class="apiMessageOk ? 'ok' : 'err'">{{ apiMessage }}</p>
+    </div>
+
+    <div class="card">
       <div class="row">
         <button type="button" class="btn primary" :disabled="busy" @click="doPull">Konfiguration laden</button>
       </div>
@@ -37,17 +53,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { getApiBase } from '@/api'
 import { useSyncOperations } from '@/composables/useSyncOperations'
 import { useBundle } from '@/composables/useBundle'
 import { formatDateTime, parseApiDate } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/types/api'
+import { probeApiBase } from '@/utils/probeApiBase'
 
 const router = useRouter()
-const { syncStatus, loadSyncStatus, pullConfiguration, pushOutbox } = useSyncOperations()
+const { syncStatus, loadSyncStatus, pullConfiguration, pushOutbox, saveApiBase } = useSyncOperations()
 const { busy, lastSyncAt, syncError, showToast } = useBundle()
 const pushing = ref(false)
 const pushMsg = ref('')
 const pushOk = ref(true)
+const apiBaseInput = ref('')
+const apiBusy = ref(false)
+const apiTestedOk = ref(false)
+const apiMessage = ref('')
+const apiMessageOk = ref(true)
 
 const formatCycle = formatDateTime
 
@@ -78,12 +101,40 @@ function relativeFromNow(iso: string | null | undefined) {
 }
 
 onMounted(async () => {
+  apiBaseInput.value = getApiBase()
   try {
     await loadSyncStatus()
   } catch {
     /* Pi unreachable */
   }
 })
+
+async function testApiBase() {
+  apiBusy.value = true
+  apiMessage.value = ''
+  apiTestedOk.value = false
+  try {
+    const result = await probeApiBase(apiBaseInput.value)
+    if (result.reachable) {
+      apiTestedOk.value = true
+      apiMessage.value = 'Verbindung OK.'
+      apiMessageOk.value = true
+    } else {
+      apiMessage.value =
+        result.reason === 'network' ? 'Pi nicht erreichbar.' : result.message || 'Verbindung fehlgeschlagen.'
+      apiMessageOk.value = false
+    }
+  } finally {
+    apiBusy.value = false
+  }
+}
+
+function saveApiBaseUrl() {
+  if (!apiTestedOk.value) return
+  saveApiBase(apiBaseInput.value.trim())
+  apiMessage.value = `Gespeichert: ${getApiBase()}`
+  apiMessageOk.value = true
+}
 
 async function doPull() {
   try {
@@ -123,5 +174,23 @@ function goBack() {
 }
 .err {
   color: var(--danger);
+}
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+label {
+  display: block;
+  margin-top: 0.5rem;
+}
+label input {
+  width: 100%;
+  margin-top: 0.35rem;
 }
 </style>

@@ -59,7 +59,8 @@
       Admin beenden
     </button>
 
-    <p class="muted small version-line">Vendiqo Pi {{ label }}</p>
+    <p class="muted small version-line">App {{ frontendLabel }}</p>
+    <p class="muted small version-line">Pi {{ backendLabel ?? '—' }}</p>
   </div>
 </template>
 
@@ -73,7 +74,14 @@ import { useAppVersion } from '@/composables/useAppVersion'
 import { useBundle } from '@/composables/useBundle'
 import type { SetupStatusResponse } from '@/types/api'
 
-const { label } = useAppVersion()
+type HealthResponse = {
+  status: string
+  version: string
+  build_time?: string | null
+}
+
+const { label: frontendLabel } = useAppVersion()
+const backendLabel = ref<string | null>(null)
 const router = useRouter()
 const { clearAdminSession } = useAdminSession()
 const { bundle } = useBundle()
@@ -89,6 +97,14 @@ onMounted(async () => {
     setupStatus.value = await api<SetupStatusResponse>('/v1/setup/status')
   } catch {
     /* Pi unreachable */
+  }
+  try {
+    const health = await api<HealthResponse>('/health')
+    const base = `v${health.version}`
+    backendLabel.value =
+      health.build_time && health.build_time !== 'dev' ? `${base} (${health.build_time})` : base
+  } catch {
+    backendLabel.value = null
   }
 })
 

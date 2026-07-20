@@ -1,0 +1,10 @@
+# Install on the production VPS Caddy snippets directory (see hosted-pi-manager CADDY_SNIPPETS_DIR).
+# Replace FRONTEND_CONTAINER with the running play-review frontend container name, e.g.
+# `docker ps --filter name=play-review-pi-frontend` → play-review-pi-frontend-1
+
+play-review.demo.vendiqo.ch {
+	import security_headers
+	reverse_proxy FRONTEND_CONTAINER:80 {
+		header_down -Server
+	}
+}
