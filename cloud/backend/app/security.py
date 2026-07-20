@@ -2,12 +2,16 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError, PyJWTError
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 
 from .env import is_production
+
+# Stable alias for callers/tests (was jose.JWTError).
+JWTError = PyJWTError
 
 pwd_context = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
@@ -94,10 +98,10 @@ def _encode_token(
 def _decode_token(token: str, expected_type: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
+    except PyJWTError:
         raise
     if payload.get("typ") != expected_type:
-        raise JWTError("Invalid token type")
+        raise InvalidTokenError("Invalid token type")
     return payload
 
 

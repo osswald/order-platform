@@ -1,15 +1,17 @@
 """Access vs refresh JWT separation (security #2)."""
 
+import jwt
 import pytest
 from app.security import (
+    ALGORITHM,
     TOKEN_TYPE_ACCESS,
     TOKEN_TYPE_REFRESH,
+    JWTError,
     create_access_token,
     create_refresh_token,
     decode_access_token,
     decode_refresh_token,
 )
-from jose import JWTError
 
 
 def test_access_token_includes_typ_claim():
@@ -17,6 +19,7 @@ def test_access_token_includes_typ_claim():
     payload = decode_access_token(token)
     assert payload["typ"] == TOKEN_TYPE_ACCESS
     assert payload["sub"] == "u@example.com"
+    assert jwt.get_unverified_header(token)["alg"] == ALGORITHM == "HS256"
 
 
 def test_refresh_token_includes_typ_claim():
@@ -24,6 +27,7 @@ def test_refresh_token_includes_typ_claim():
     payload = decode_refresh_token(token)
     assert payload["typ"] == TOKEN_TYPE_REFRESH
     assert payload["sub"] == "u@example.com"
+    assert jwt.get_unverified_header(token)["alg"] == ALGORITHM == "HS256"
 
 
 def test_refresh_token_rejected_as_access_token():
