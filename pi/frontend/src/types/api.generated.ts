@@ -1368,6 +1368,10 @@ export interface components {
         HealthResponse: {
             /** Status */
             status: string;
+            /** Version */
+            version: string;
+            /** Build Time */
+            build_time?: string | null;
         };
         /** KitchenOrderTicket */
         KitchenOrderTicket: {

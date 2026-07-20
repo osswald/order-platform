@@ -3763,11 +3763,27 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "build_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Time"
           }
         },
         "type": "object",
         "required": [
-          "status"
+          "status",
+          "version"
         ],
         "title": "HealthResponse"
       },
