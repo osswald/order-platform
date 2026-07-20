@@ -1,0 +1,13 @@
+{
+  "name": "vendiqo-play-store-screenshots",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test pngMeta.test.mjs",
+    "capture": "node capture.mjs",
+    "verify": "node verify.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.52.0"
+  }
+}
