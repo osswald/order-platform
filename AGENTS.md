@@ -43,7 +43,7 @@ cd /workspace/pi && docker compose up -d --build
 
 ### Node version (Cloud VM gotcha)
 
-CI and the frontends target **Node 20**. The Cloud VM ships a default `node` (`/exec-daemon/node`) that is Node 22, whose newer ICU changes the Swiss locale group separator (`1'234.56` → `1’234.56`) and fails `pi/frontend/src/utils/money.test.ts`. Node 20 is installed via nvm and made the default for login shells (prepended to `~/.bashrc`), so a fresh terminal already resolves `node -v` → `v20`. If you hit that money-format test failure, confirm you are on Node 20 (`node -v`), not the daemon's Node 22.
+CI and the frontends target **Node 24** (Active LTS). Use Node 24 locally (`node -v` → `v24.x`) so typings, Vite, and Docker bases match. The Cloud VM may ship a different default `node` under `/exec-daemon/node`; install Node 24 via nvm and make it the default for login shells (prepended to `~/.bashrc`). Pi Swiss money-format tests accept ICU apostrophe variants for `de-CH` grouping, but staying on the supported major still avoids toolchain drift.
 
 ### Running tests
 

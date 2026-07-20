@@ -118,8 +118,14 @@ describe('discountsEnabled', () => {
 })
 
 describe('formatAmount', () => {
+  /**
+   * de-CH uses an apostrophe-style thousands separator. ICU may emit ASCII `'`
+   * (U+0027) or a typographic apostrophe (e.g. U+2019) depending on Node/ICU.
+   */
+  const swissGroupedAmount = /^1['\u2019\u02BC]234\.56$/
+
   it('formats Swiss locale without currency symbol', () => {
-    expect(formatAmount(123456)).toBe("1'234.56")
+    expect(formatAmount(123456)).toMatch(swissGroupedAmount)
     expect(formatAmount(0)).toBe('0.00')
   })
 })

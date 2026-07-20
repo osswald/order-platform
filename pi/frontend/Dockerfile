@@ -1,5 +1,5 @@
 # Build context: repository root (see pi/docker-compose.yml).
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app/pi/frontend
 COPY pi/frontend/package.json pi/frontend/package-lock.json* ./
 RUN npm install

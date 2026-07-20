@@ -1,7 +1,8 @@
 import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent } from '@/types/api'
 import { lineIdentityKeyFromItem } from './bundleHelpers'
 
-/** Swiss number format: 1'234.56 (apostrophe thousands, dot decimals). */
+/** Swiss number format: 1'234.56 (apostrophe-style thousands, dot decimals).
+ * ICU may use ASCII `'` or a typographic apostrophe depending on Node version. */
 export const MONEY_LOCALE = 'de-CH'
 
 const amountFormatter = new Intl.NumberFormat(MONEY_LOCALE, {
