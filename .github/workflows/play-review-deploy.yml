@@ -19,9 +19,12 @@ jobs:
           host: ${{ secrets.PLAY_REVIEW_DEPLOY_HOST }}
           username: ${{ secrets.PLAY_REVIEW_DEPLOY_USER }}
           key: ${{ secrets.PLAY_REVIEW_DEPLOY_SSH_KEY }}
-          script_stop: true
           script: |
             set -euo pipefail
             cd "${{ secrets.PLAY_REVIEW_DEPLOY_PATH }}"
-            git pull --ff-only
+            git fetch --ff-only origin main
+            # Remove untracked bootstrap copies that block merge; ignored
+            # files such as cloud/play-review/.env are kept.
+            git clean -fd
+            git merge --ff-only origin/main
             ./scripts/deploy-play-review.sh
