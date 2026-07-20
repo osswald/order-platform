@@ -2,7 +2,15 @@ import type { Router } from 'vue-router'
 import * as store from '@/store'
 import '@/types/router'
 
-const ROUTES_WITHOUT_BUNDLE = new Set(['events', 'admin-unlock', 'admin', 'admin-sync', 'admin-unpair'])
+const ROUTES_WITHOUT_BUNDLE = new Set([
+  'events',
+  'connection-setup',
+  'setup',
+  'admin-unlock',
+  'admin',
+  'admin-sync',
+  'admin-unpair',
+])
 
 export function setupRouterGuards(router: Router): void {
   router.beforeEach(async (to) => {

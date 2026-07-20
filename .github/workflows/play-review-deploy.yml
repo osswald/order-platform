@@ -1,0 +1,27 @@
+name: Play review deploy
+
+on:
+  workflow_run:
+    workflows: [Pi Docker images]
+    types: [completed]
+    branches: [main, master]
+
+permissions: {}
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.PLAY_REVIEW_DEPLOY_HOST }}
+          username: ${{ secrets.PLAY_REVIEW_DEPLOY_USER }}
+          key: ${{ secrets.PLAY_REVIEW_DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PLAY_REVIEW_DEPLOY_PATH }}"
+            git pull --ff-only
+            ./scripts/deploy-play-review.sh

@@ -74,6 +74,7 @@ import { useBundleRefresh } from '@/composables/useBundleRefresh'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 import { useSetupStatus } from '@/composables/useSetupStatus'
 import { useToast } from '@/composables/useToast'
+import { probeApiBase } from '@/utils/probeApiBase'
 import { useWaiterSession } from '@/composables/useWaiterSession'
 import {
   startWaiterPrintFailurePolling,
@@ -159,8 +160,17 @@ onMounted(async () => {
     applyAndroidSafeAreaInsets()
     requestAnimationFrame(applyAndroidSafeAreaInsets)
   }
+
+  if (route.name !== 'connection-setup') {
+    const probe = await probeApiBase()
+    if (!probe.reachable) {
+      await router.replace({ name: 'connection-setup' })
+      return
+    }
+  }
+
   const status = await fetchSetupStatus()
-  if (!status?.configured && route.name !== 'setup') {
+  if (!status?.configured && route.name !== 'setup' && route.name !== 'connection-setup') {
     router.replace({ name: 'setup' })
   }
   if (!bundleReady()) {

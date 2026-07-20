@@ -14,7 +14,9 @@ def test_api_context_overrides_deps_get_db(client):
 def test_health_endpoint(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json().get("status") == "ok"
+    body = r.json()
+    assert body.get("status") == "ok"
+    assert "version" in body
 
 
 def test_bundle_and_meta_without_pairing(client):

@@ -1,0 +1,60 @@
+# Persistent Google Play review Pi at https://play-review.demo.vendiqo.ch
+#
+# Prerequisites on VPS:
+# - Docker + compose v2
+# - External network `cloud_app-net` (same as production Caddy)
+# - Caddy snippet installed (see caddy/play-review.caddy)
+# - `.env` with edge credentials (copy from .env.example)
+
+services:
+  pi-backend:
+    image: ${PI_BACKEND_IMAGE:-ghcr.io/osswald/order-platform:pi-backend-amd64-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:////data/pi.db
+      EDGE_CONFIG_FILE: /data/edge.env
+      CLOUD_BASE_URL: ${CLOUD_BASE_URL:-https://api.vendiqo.ch}
+      EDGE_CLIENT_ID: ${EDGE_CLIENT_ID}
+      EDGE_SECRET: ${EDGE_SECRET}
+      HOSTED_PI: "1"
+      PRINTER_MODE: emulated
+      SYNC_ENABLED: "1"
+      SYNC_PUSH_ENABLED: "0"
+      SYNC_INTERVAL_SECONDS: "60"
+      APP_NAME: pi-backend
+    volumes:
+      - pi-data:/data
+    networks:
+      - pi-net
+
+  pi-frontend:
+    image: ${PI_FRONTEND_IMAGE:-ghcr.io/osswald/order-platform:pi-frontend-amd64-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - pi-backend
+    healthcheck:
+      # /health once nginx proxies it; /v1/setup/status works on current published images
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1/health || wget -q -O /dev/null http://127.0.0.1/v1/setup/status || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - pi-net
+      - caddy-net
+
+volumes:
+  pi-data:
+
+networks:
+  pi-net:
+    driver: bridge
+  caddy-net:
+    external: true
+    name: ${CADDY_NETWORK:-cloud_app-net}

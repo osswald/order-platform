@@ -19,7 +19,7 @@ vi.mock('@/composables/useAdminSession', () => ({
 }))
 
 vi.mock('@/composables/useAppVersion', () => ({
-  useAppVersion: () => ({ label: 'test' }),
+  useAppVersion: () => ({ label: 'v1.0.0 (test)' }),
 }))
 
 vi.mock('@/composables/useBundle', () => ({
@@ -53,9 +53,14 @@ describe('AdminHubView', () => {
     push.mockReset()
     replace.mockReset()
     isAndroidApp.mockReturnValue(false)
-    vi.mocked(api).mockResolvedValue({
-      configured: true,
-      can_unpair: true,
+    vi.mocked(api).mockImplementation(async (path: string) => {
+      if (path === '/health') {
+        return { status: 'ok', version: '2.0.0', build_time: '202607201100' }
+      }
+      return {
+        configured: true,
+        can_unpair: true,
+      }
     })
   })
 
@@ -90,5 +95,23 @@ describe('AdminHubView', () => {
     const wrapper = mountHub()
     await flushPromises()
     expect(wrapper.text()).toContain('Gerät entkoppeln')
+  })
+
+  it('shows frontend and backend version labels', async () => {
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('App v1.0.0 (test)')
+    expect(wrapper.text()).toContain('Pi v2.0.0 (202607201100)')
+  })
+
+  it('shows dash for backend version when health fails', async () => {
+    vi.mocked(api).mockImplementation(async (path: string) => {
+      if (path === '/health') throw new Error('offline')
+      return { configured: true, can_unpair: false }
+    })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('App v1.0.0 (test)')
+    expect(wrapper.text()).toContain('Pi —')
   })
 })

@@ -65,7 +65,6 @@ android {
             isMinifyEnabled = false
             buildConfigField("String", "DEV_FRONTEND_URL", "\"\"")
             val releaseSigning = signingConfigs.getByName("release")
-            versionNameSuffix = "0.1"
             if (releaseSigning.storeFile?.exists() == true) {
                 signingConfig = releaseSigning
             }

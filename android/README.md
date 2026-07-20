@@ -69,7 +69,7 @@ Three ways to change the URL:
    ./gradlew assembleDebug -PVITE_API_BASE=http://192.168.192.20
    ```
 
-2. **After install** — Admin → **Pi-API Basis-URL** → save (stored in `localStorage` on the device).
+2. **After install** — if the Pi is not at the default address, use **Pi-Verbindung** on first launch, or Admin → **Synchronisation** → **Pi-API Basis-URL** (test connection, then save; stored in `localStorage`).
 
 3. **Remote WebView URL** (optional) — load the Pi PWA from nginx instead of bundled assets:
 
@@ -149,6 +149,24 @@ npm run build -- --mode android
 ```
 
 Then run `./gradlew assembleDebug` again (copies `dist/` into assets).
+
+## Google Play Store
+
+Distribution uses **Option B**: one Play Store APK for all venues. Default API base is the venue LAN IP; if the Pi is unreachable, the bundled app shows **Pi-Verbindung** setup. Google Play reviewers use **Play-Review-Demo verwenden** → `https://play-review.demo.vendiqo.ch`.
+
+See [docs/play-store.md](../docs/play-store.md) for Play Console setup, GitHub secrets, and the review backend.
+
+### Release AAB
+
+```sh
+./gradlew bundleRelease
+```
+
+Output: `app/build/outputs/bundle/release/app-release.aab`
+
+`versionName` and `versionCode` come from the repo root [`VERSION`](../VERSION) file (`versionCode = major×10000 + minor×100 + patch`). Each Play upload needs a higher `VERSION` (merge a PR with `release:patch|minor|major`).
+
+CI: GitHub Actions workflow **Android release** (manual dispatch) builds and uploads to a chosen Play track when signing secrets are configured.
 
 ## Project layout
 
