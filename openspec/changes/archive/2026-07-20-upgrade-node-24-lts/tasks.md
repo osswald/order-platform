@@ -19,5 +19,5 @@
 - [x] 4.1 Run Pi frontend tests and production build on Node 24
 - [x] 4.2 Run cloud frontend tests, typecheck, and production build on Node 24
 - [x] 4.3 Run `./scripts/lint.sh`
-- [ ] 4.4 Archive openspec
-- [ ] 4.5 Open PR from `main`, apply `release:patch` when ready to ship, merge after CI green
+- [x] 4.4 Archive openspec
+- [x] 4.5 Open PR from `main`, apply `release:patch` when ready to ship, merge after CI green
