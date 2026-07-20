@@ -76,7 +76,6 @@ jobs:
           path: android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload to Google Play
-        if: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON != '' }}
         uses: r0adkll/upload-google-play-action@v1.1.3
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
