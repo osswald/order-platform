@@ -1,5 +1,5 @@
 # Build context must be the repository root (see cloud/docker-compose.prod.yml and CI workflows).
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app/cloud/frontend
 
 ARG VITE_API_BASE_URL=https://api.vendiqo.ch

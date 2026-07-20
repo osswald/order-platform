@@ -1,5 +1,5 @@
 # Build context: repository root (see cloud/docker-compose.yml).
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app/cloud/frontend
 COPY cloud/frontend/package*.json ./
 RUN npm ci
