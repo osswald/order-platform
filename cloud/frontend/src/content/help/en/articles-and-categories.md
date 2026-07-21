@@ -13,7 +13,7 @@ For each article define at least:
 - **Price** in the organisation currency
 - **Availability** — use the **Active** checkbox; inactive articles stay in the catalogue but cannot be selected for new station assignments or addition links. Already linked additions and station assignments keep working on Pi.
 
-Add-ons and variants extend articles with configurable extras.
+Add-ons and variants extend articles with configurable extras. On the article detail page, **Save** persists the article together with its linked additions and ingredients (when those sections apply). After create or update you remain on the detail so you can continue editing.
 
 ## Relation to events
 

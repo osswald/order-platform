@@ -13,7 +13,7 @@ Für jeden Artikel definieren Sie mindestens:
 - **Preis** in der Organisationswährung
 - **Verfügbarkeit** — über die Checkbox **Aktiv**; inaktive Artikel bleiben im Katalog, können aber nicht neu Stationen oder Zusatz-Verknüpfungen zugewiesen werden. Bereits verknüpfte Zusätze und Stationszuweisungen funktionieren auf dem Pi weiter.
 
-Zusatzoptionen (Additions, Varianten) erweitern Artikel um konfigurierbare Extras.
+Zusatzoptionen (Additions, Varianten) erweitern Artikel um konfigurierbare Extras. Auf der Artikel-Detailseite speichert **Speichern** den Artikel zusammen mit verknüpften Zusätzen und Zutaten (sofern diese Abschnitte gelten). Nach Erstellen oder Aktualisieren bleiben Sie auf der Detailseite, um weiter zu bearbeiten.
 
 ## Bezug zu Veranstaltungen
 
