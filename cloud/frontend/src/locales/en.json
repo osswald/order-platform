@@ -189,10 +189,13 @@
     "ingredientColumn": "Ingredient",
     "amountColumn": "Amount",
     "noIngredientsLinked": "No ingredients linked yet.",
-    "saveIngredients": "Save ingredients",
-    "ingredientsSaved": "Ingredients saved.",
     "labelCharCount": "{count}/21 characters",
-    "labelMaxLength": "Maximum 21 characters"
+    "labelMaxLength": "Maximum 21 characters",
+    "saveError": "Could not save article.",
+    "saveAdditionsError": "Article saved, but additions could not be saved.",
+    "saveIngredientsError": "Article saved, but ingredients could not be saved.",
+    "created": "Article created.",
+    "updated": "Article updated."
   },
   "ingredients": {
     "title": "Ingredients",
