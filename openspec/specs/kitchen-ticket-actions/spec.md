@@ -16,11 +16,11 @@ Kitchen order tickets SHALL show **Teildruck** and **Komplettdruck** action cont
 - **AND** the ticket footer SHALL display a Komplettdruck control whose label text is visible
 - **AND** both controls SHALL fit within the ticket’s visible bounds (not clipped to empty outline/fill only)
 
-#### Scenario: Action row allows buttons to shrink below intrinsic label width
+#### Scenario: Action buttons use full ticket width
 
-- **WHEN** ticket action buttons are laid out in a two-column row inside a constrained ticket width
-- **THEN** the layout SHALL permit each action button to shrink below its intrinsic nowrap content width (e.g. via `minmax(0, …)` tracks and `min-width: 0` on the buttons)
-- **AND** long labels MAY wrap onto multiple lines rather than forcing horizontal overflow
+- **WHEN** ticket action buttons are shown in the ticket footer
+- **THEN** the actions SHALL be stacked vertically (not side-by-side in a narrow two-column grid)
+- **AND** each action button SHALL use the full ticket content width so long labels such as Komplettdruck remain readable on WebKit/Safari
 
 ### Requirement: Ticket print action behavior unchanged
 

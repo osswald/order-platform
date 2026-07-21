@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import type { KitchenOrderTicket, KitchenTicketLineEntry } from '@/types/api'
 import {
   kitchenTicketActionBtnStyle,
-  kitchenTicketActionsGridTemplateColumns,
+  kitchenTicketActionsLayoutStyle,
 } from '@/utils/kitchenTicketActionStyles'
 import KitchenTicketColumn from './KitchenTicketColumn.vue'
 
@@ -49,10 +49,10 @@ function mountColumn(opts: {
 }
 
 describe('KitchenTicketColumn', () => {
-  it('renders Teildruck and Komplettdruck labels', () => {
+  it('renders Teildruck and Komplettdruck labels inside action spans', () => {
     const wrapper = mountColumn()
-    expect(wrapper.text()).toContain('Teildruck')
-    expect(wrapper.text()).toContain('Komplettdruck')
+    expect(wrapper.find('.partial-btn .action-label').text()).toBe('Teildruck')
+    expect(wrapper.find('.complete-btn .action-label').text()).toBe('Komplettdruck')
   })
 
   it('disables Teildruck without selection and enables it when a line is selected', () => {
@@ -73,13 +73,13 @@ describe('KitchenTicketColumn', () => {
     expect(wrapper.emitted('completePrint')).toHaveLength(1)
   })
 
-  it('applies Safari-safe shrink/wrap styles on the ticket action row', () => {
+  it('stacks Safari-safe full-width action buttons', () => {
     const wrapper = mountColumn()
     const actionsStyle = wrapper.find('.ticket-actions').attributes('style') || ''
-    expect(actionsStyle).toContain(kitchenTicketActionsGridTemplateColumns)
+    expect(actionsStyle).toContain(kitchenTicketActionsLayoutStyle.flexDirection)
 
     const btnStyle = wrapper.find('.action-btn').attributes('style') || ''
+    expect(btnStyle).toContain(`width: ${kitchenTicketActionBtnStyle.width}`)
     expect(btnStyle).toContain(`min-width: ${kitchenTicketActionBtnStyle.minWidth}`)
-    expect(btnStyle).toContain(`white-space: ${kitchenTicketActionBtnStyle.whiteSpace}`)
   })
 })

@@ -12,7 +12,7 @@ import {
 import { lineSelectionLabel } from '@/utils/kitchenLineSelection'
 import {
   kitchenTicketActionBtnStyle,
-  kitchenTicketActionsGridTemplateColumns,
+  kitchenTicketActionsLayoutStyle,
 } from '@/utils/kitchenTicketActionStyles'
 
 const props = defineProps<{
@@ -106,7 +106,7 @@ function locationLabel() {
       </li>
     </ul>
 
-    <footer class="ticket-actions" :style="{ gridTemplateColumns: kitchenTicketActionsGridTemplateColumns }">
+    <footer class="ticket-actions" :style="kitchenTicketActionsLayoutStyle">
       <button
         type="button"
         class="btn action-btn partial-btn"
@@ -114,7 +114,7 @@ function locationLabel() {
         :disabled="busy || !hasSelection"
         @click="emit('partialPrint')"
       >
-        Teildruck
+        <span class="action-label">Teildruck</span>
       </button>
       <button
         type="button"
@@ -123,7 +123,7 @@ function locationLabel() {
         :disabled="busy"
         @click="emit('completePrint')"
       >
-        Komplettdruck
+        <span class="action-label">Komplettdruck</span>
       </button>
     </footer>
   </article>
@@ -137,11 +137,12 @@ function locationLabel() {
   box-sizing: border-box;
   width: 100%;
   max-width: var(--ticket-width, 300px);
-  height: fit-content;
+  height: auto;
   border: 1px solid var(--border);
   border-radius: 0.9rem;
   background: var(--card);
-  overflow: hidden;
+  /* Avoid overflow:hidden — Safari multi-column clips ticket footers */
+  overflow: visible;
 }
 
 .ticket-column.busy {
@@ -151,6 +152,7 @@ function locationLabel() {
 
 .urgency-bar {
   height: 5px;
+  border-radius: 0.85rem 0.85rem 0 0;
 }
 
 .urgency-green {
@@ -247,23 +249,31 @@ function locationLabel() {
 }
 
 .ticket-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 0.45rem;
   padding: 0.6rem;
   border-top: 1px solid var(--border);
 }
 
 .action-btn {
+  display: block;
+  width: 100%;
   min-width: 0;
   min-height: 44px;
-  padding-left: 0.4rem;
-  padding-right: 0.4rem;
+  padding: 0.55rem 0.65rem;
   font-weight: 700;
   font-size: 0.92rem;
+  line-height: 1.25;
+  text-align: center;
   white-space: normal;
   appearance: none;
   -webkit-appearance: none;
+}
+
+.action-label {
+  display: block;
+  color: inherit;
 }
 
 .partial-btn {
@@ -274,6 +284,6 @@ function locationLabel() {
 
 .complete-btn {
   background: var(--primary);
-  color: white;
+  color: #fff;
 }
 </style>

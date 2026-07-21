@@ -79,7 +79,12 @@ onUnmounted(() => {
 }
 
 .order-slot {
+  display: inline-block;
+  width: 100%;
+  vertical-align: top;
   break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
   margin-bottom: var(--order-gap);
 }
 
