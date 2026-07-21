@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { KitchenOrderTicket, KitchenTicketLineEntry } from '@/types/api'
+import {
+  kitchenTicketActionBtnStyle,
+  kitchenTicketActionsGridTemplateColumns,
+} from '@/utils/kitchenTicketActionStyles'
 import KitchenTicketColumn from './KitchenTicketColumn.vue'
 
 function line(overrides: Partial<KitchenTicketLineEntry> = {}): KitchenTicketLineEntry {
@@ -72,12 +73,13 @@ describe('KitchenTicketColumn', () => {
     expect(wrapper.emitted('completePrint')).toHaveLength(1)
   })
 
-  it('keeps Safari-safe shrink/wrap rules on the ticket action row', () => {
-    const vuePath = join(dirname(fileURLToPath(import.meta.url)), 'KitchenTicketColumn.vue')
-    const src = readFileSync(vuePath, 'utf8')
-    expect(src).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)/)
-    expect(src).toMatch(/\.action-btn\s*\{[^}]*min-width:\s*0/s)
-    expect(src).toMatch(/\.action-btn\s*\{[^}]*white-space:\s*normal/s)
-    expect(src).toMatch(/\.action-btn\s*\{[^}]*(-webkit-)?appearance:\s*none/s)
+  it('applies Safari-safe shrink/wrap styles on the ticket action row', () => {
+    const wrapper = mountColumn()
+    const actionsStyle = wrapper.find('.ticket-actions').attributes('style') || ''
+    expect(actionsStyle).toContain(kitchenTicketActionsGridTemplateColumns)
+
+    const btnStyle = wrapper.find('.action-btn').attributes('style') || ''
+    expect(btnStyle).toContain(`min-width: ${kitchenTicketActionBtnStyle.minWidth}`)
+    expect(btnStyle).toContain(`white-space: ${kitchenTicketActionBtnStyle.whiteSpace}`)
   })
 })

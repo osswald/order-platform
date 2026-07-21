@@ -10,6 +10,10 @@ import {
   type KitchenUrgencyLevel,
 } from '@/utils/kitchenMonitorHelpers'
 import { lineSelectionLabel } from '@/utils/kitchenLineSelection'
+import {
+  kitchenTicketActionBtnStyle,
+  kitchenTicketActionsGridTemplateColumns,
+} from '@/utils/kitchenTicketActionStyles'
 
 const props = defineProps<{
   ticket: KitchenOrderTicket
@@ -102,11 +106,23 @@ function locationLabel() {
       </li>
     </ul>
 
-    <footer class="ticket-actions">
-      <button type="button" class="btn action-btn partial-btn" :disabled="busy || !hasSelection" @click="emit('partialPrint')">
+    <footer class="ticket-actions" :style="{ gridTemplateColumns: kitchenTicketActionsGridTemplateColumns }">
+      <button
+        type="button"
+        class="btn action-btn partial-btn"
+        :style="kitchenTicketActionBtnStyle"
+        :disabled="busy || !hasSelection"
+        @click="emit('partialPrint')"
+      >
         Teildruck
       </button>
-      <button type="button" class="btn action-btn complete-btn" :disabled="busy" @click="emit('completePrint')">
+      <button
+        type="button"
+        class="btn action-btn complete-btn"
+        :style="kitchenTicketActionBtnStyle"
+        :disabled="busy"
+        @click="emit('completePrint')"
+      >
         Komplettdruck
       </button>
     </footer>
