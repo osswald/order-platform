@@ -23,6 +23,7 @@
         class="event-detail-status-stepper"
         :selectable-status-options="selectableStatusOptions"
         :edit-mode="editMode"
+        :persist-status="editMode ? persistEventStatus : undefined"
       />
       <div class="detail-header-row">
         <h2>{{ editMode ? t('events.editTitle') : t('events.createTitle') }}</h2>
@@ -45,6 +46,7 @@
         :alternative-printers-enabled="form.alternativePrintersEnabled"
         :kitchen-monitors-enabled="form.kitchenMonitorsEnabled"
         :stammdaten-dirty="stammdatenDirty"
+        :status-saving="statusSaveBusy"
       >
         <template #stammdaten>
           <HostedPiCard v-if="form.status === 'config'" :event-id="activeId" />
@@ -192,6 +194,11 @@ import { eventListHeaders } from '../utils/orgScopedListTableHeaders'
 import { validateForm } from '../utils/formRules.js'
 import { statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
+import {
+  resolveEventStammdatenSaveNavigation,
+  stammdatenBaselineAfterStatusSave,
+  statusOnlyUpdatePayload,
+} from '../utils/eventDetailSave'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
 import VqDataTable from './VqDataTable.vue'
 import { formatDateTime as formatDateTimeLocale } from '../utils/localeFormat'
@@ -283,6 +290,7 @@ const stammdatenFormRef = ref(null)
 const eventConfigurationRef = ref<InstanceType<typeof EventConfiguration> | null>(null)
 const stammdatenBaseline = ref('')
 const originalStatus = ref('config')
+const statusSaveBusy = ref(false)
 
 function stammdatenSnapshot() {
   const types = Array.isArray(form.value.paymentTypes) ? [...form.value.paymentTypes] : []
@@ -591,6 +599,39 @@ async function copyEvent() {
   }
 }
 
+async function persistEventStatus(nextStatus: string): Promise<boolean> {
+  if (!editMode.value || activeId.value == null || statusSaveBusy.value) return false
+  statusSaveBusy.value = true
+  try {
+    await apiJson<EventRead>(`/events/${activeId.value}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(statusOnlyUpdatePayload(nextStatus)),
+    })
+    originalStatus.value = nextStatus
+    form.value = { ...form.value, status: nextStatus }
+    if (stammdatenBaseline.value) {
+      stammdatenBaseline.value = stammdatenBaselineAfterStatusSave(
+        stammdatenBaseline.value,
+        nextStatus,
+      )
+    }
+    const idx = events.value.findIndex((e) => Number(e.id) === Number(activeId.value))
+    if (idx >= 0) {
+      events.value[idx] = { ...events.value[idx], status: nextStatus }
+    }
+    message.value = t('events.messages.statusUpdated')
+    messageType.value = 'success'
+    return true
+  } catch {
+    message.value = t('events.messages.statusSaveFailed')
+    messageType.value = 'error'
+    return false
+  } finally {
+    statusSaveBusy.value = false
+  }
+}
+
 async function saveEvent() {
   if (props.activeOrganisationId == null) {
     message.value = t('common.noOrganisation')
@@ -621,24 +662,32 @@ async function saveEvent() {
   }
 
   try {
-    const path = editMode.value ? `/events/${activeId.value}` : '/events/'
-    const method = editMode.value ? 'PUT' : 'POST'
-    await apiJson(path, {
+    const wasEdit = editMode.value
+    const path = wasEdit ? `/events/${activeId.value}` : '/events/'
+    const method = wasEdit ? 'PUT' : 'POST'
+    const saved = await apiJson<EventRead>(path, {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     })
-    const wasEdit = editMode.value
-    if (wasEdit) {
-      stammdatenBaseline.value = stammdatenSnapshot()
-      await eventConfigurationRef.value?.loadConfiguration?.()
-    }
     await fetchEvents()
     message.value = wasEdit ? t('events.messages.updated') : t('events.messages.created')
     messageType.value = 'success'
-    await goToList()
+
+    const nav = resolveEventStammdatenSaveNavigation(
+      wasEdit ? 'edit' : 'create',
+      wasEdit ? undefined : saved.id,
+    )
+    if (nav.kind === 'goToDetail') {
+      await goToDetail(nav.id)
+      await applyEventToForm(saved)
+    } else {
+      stammdatenBaseline.value = stammdatenSnapshot()
+      originalStatus.value = form.value.status || 'config'
+      await eventConfigurationRef.value?.loadConfiguration?.()
+    }
   } catch {
     message.value = t('events.messages.saveFailed')
     messageType.value = 'error'

@@ -817,6 +817,8 @@
       "updated": "Veranstaltung aktualisiert.",
       "created": "Veranstaltung erstellt.",
       "saveFailed": "Fehler beim Speichern der Veranstaltung.",
+      "statusUpdated": "Status gespeichert.",
+      "statusSaveFailed": "Status konnte nicht gespeichert werden.",
       "deleted": "Veranstaltung gelöscht.",
       "deleteFailed": "Veranstaltung konnte nicht gelöscht werden."
     },

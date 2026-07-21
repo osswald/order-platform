@@ -106,4 +106,67 @@ describe('useDirtyAutosave', () => {
     expect(saveFn).not.toHaveBeenCalled()
     expect(api.errorMessage.value).toBe('validation failed')
   })
+
+  it('resumes save when enabled flips false→true while dirty without a further edit', async () => {
+    const state = ref({ count: 1 })
+    const enabled = ref(true)
+    const saveFn = vi.fn(async () => true)
+    const api = mountAutosave({
+      getSnapshot: () => state.value,
+      saveFn,
+      watchSource: state,
+      enabled,
+      debounceMs: 200,
+    })
+
+    api.markSaved()
+    enabled.value = false
+    await nextTick()
+
+    state.value = { count: 2 }
+    await nextTick()
+    expect(api.isDirty.value).toBe(true)
+
+    vi.advanceTimersByTime(200)
+    await flushPromises()
+    expect(saveFn).not.toHaveBeenCalled()
+
+    enabled.value = true
+    await nextTick()
+    vi.advanceTimersByTime(200)
+    await flushPromises()
+
+    expect(saveFn).toHaveBeenCalledTimes(1)
+    expect(api.status.value).toBe('saved')
+  })
+
+  it('still debounces and coalesces rapid edits while enabled', async () => {
+    const state = ref({ count: 1 })
+    const saveFn = vi.fn(async () => true)
+    const api = mountAutosave({
+      getSnapshot: () => state.value,
+      saveFn,
+      watchSource: state,
+      enabled: true,
+      debounceMs: 200,
+    })
+
+    api.markSaved()
+    state.value = { count: 2 }
+    await nextTick()
+    state.value = { count: 3 }
+    await nextTick()
+    state.value = { count: 4 }
+    await nextTick()
+
+    vi.advanceTimersByTime(199)
+    await flushPromises()
+    expect(saveFn).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    await flushPromises()
+
+    expect(saveFn).toHaveBeenCalledTimes(1)
+    expect(api.status.value).toBe('saved')
+  })
 })

@@ -4,7 +4,7 @@ Eine Veranstaltung durchläuft typischerweise die Status **Konfiguration → Liv
 
 - Name, Zeitraum und Währung festlegen
 - Zahlungsarten aktivieren (Bar, TWINT, Karte usw.)
-- Status steuert, ob das Event auf den Pi-Geräten sichtbar ist
+- Status über die Statusleiste weiterschalten (Bestätigen speichert den Status sofort; übrige Stammdaten weiterhin über Speichern)
 
 Im Status **Konfiguration** können Sie optional eine gehostete Cloud-Pi-Sandbox für Tests nutzen.
 
