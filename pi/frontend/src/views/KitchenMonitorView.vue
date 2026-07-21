@@ -212,7 +212,7 @@ async function onCompletePrint(ticket: KitchenOrderTicket) {
   flex: 1;
   min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 .kitchen-body--products {

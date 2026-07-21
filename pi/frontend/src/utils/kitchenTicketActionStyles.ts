@@ -1,11 +1,19 @@
-/** Safari-safe layout contract for kitchen ticket Teildruck/Komplettdruck. */
-export const kitchenTicketActionsGridTemplateColumns = 'minmax(0, 1fr) minmax(0, 1fr)'
+/** Safari-safe layout for kitchen ticket Teildruck/Komplettdruck. */
+export const kitchenTicketActionsLayoutStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.45rem',
+} as const
 
 export const kitchenTicketActionBtnStyle = {
+  width: '100%',
   minWidth: '0',
+  boxSizing: 'border-box',
   whiteSpace: 'normal',
-  paddingLeft: '0.4rem',
-  paddingRight: '0.4rem',
   appearance: 'none',
   WebkitAppearance: 'none',
+  font: 'inherit',
+  fontWeight: '700',
+  fontSize: '0.92rem',
+  lineHeight: '1.25',
 } as const
