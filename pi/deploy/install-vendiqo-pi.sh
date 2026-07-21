@@ -5,7 +5,9 @@ APP_DIR="/opt/vendiqo/pi"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 install -d -m 0755 "$APP_DIR"
+install -d -m 0755 "$APP_DIR/ota-state"
 install -m 0644 "$SCRIPT_DIR/../docker-compose.prod.yml" "$APP_DIR/docker-compose.prod.yml"
+install -m 0755 "$SCRIPT_DIR/pi-ota-update.sh" "$APP_DIR/pi-ota-update.sh"
 if [ -f "$SCRIPT_DIR/pi.prod.env" ]; then
   install -m 0644 "$SCRIPT_DIR/pi.prod.env" "$APP_DIR/.env"
 fi
@@ -29,3 +31,4 @@ systemctl daemon-reload
 systemctl enable vendiqo-pi.service vendiqo-pi-update.timer
 
 echo "Vendiqo Pi files installed. Reboot, then open http://192.168.192.10 to pair."
+echo "OTA: pi-ota-update.sh (freeze on prod events, OnBootSec=5min via vendiqo-pi-update.timer)."

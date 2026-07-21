@@ -1,11 +1,11 @@
 [Unit]
 Description=Update Vendiqo Raspberry Pi edge containers
 Requires=docker.service
-After=network-online.target docker.service
+After=network-online.target docker.service vendiqo-pi.service
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/vendiqo/pi
-ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml pull
-ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
+EnvironmentFile=-/opt/vendiqo/pi/.env
+ExecStart=/opt/vendiqo/pi/pi-ota-update.sh

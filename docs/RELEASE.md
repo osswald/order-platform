@@ -87,7 +87,7 @@ Then pull and restart:
 sudo bash pi/deploy/apply-ghcr-images.sh
 ```
 
-Leave defaults to follow `*-latest` (auto-update timer on production Pis).
+Leave defaults to follow `*-latest` (auto-update timer on production Pis). While any synced event is `prod`, the Pi OTA script freezes pull/apply (see `pi/README.md` — Event-safe OTA). Out of scope for OTA hardening: CI soak before promoting `:*-latest`.
 
 ## Local version bump script
 

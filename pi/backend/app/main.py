@@ -8,9 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import models_operational  # noqa: F401
 from .bootstrap import ensure_default_synced_bundle
-from .database import run_migrations
+from .database import SessionLocal, run_migrations
 from .edge_config import is_edge_configured, write_edge_config
 from .models import SyncedBundle  # noqa: F401
+from .ota_freeze import sync_ota_freeze_from_db
 from .print_worker import print_worker_loop
 from .routers import edge_api, health, setup, shift_session
 from .sync_worker import sync_worker_loop
@@ -43,6 +44,11 @@ async def lifespan(app: FastAPI):
     run_migrations()
     _bootstrap_hosted_edge_config()
     ensure_default_synced_bundle()
+    try:
+        with SessionLocal() as db:
+            sync_ota_freeze_from_db(db)
+    except Exception as exc:
+        log.warning("OTA freeze sync on startup failed: %s", exc)
 
     stop_print_worker = asyncio.Event()
     print_task = asyncio.create_task(print_worker_loop(stop_print_worker))

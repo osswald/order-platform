@@ -176,7 +176,32 @@ sudo bash pi/deploy/apply-ghcr-images.sh
 
 (from a git checkout on the Pi, or copy `pi/deploy/pi.prod.env` and `pi/docker-compose.prod.yml` to `/opt/vendiqo/pi/` then `sudo docker compose -f /opt/vendiqo/pi/docker-compose.prod.yml pull && sudo systemctl restart vendiqo-pi`).
 
-New `pi-backend` images are built when `pi/backend/**` changes are pushed to `main` (workflow `pi-docker.yml`). The update timer on the Pi pulls `:pi-backend-latest` about every 15 minutes, or restart `vendiqo-pi.service` immediately after a manual pull.
+New `pi-backend` images are built when `pi/backend/**` changes are pushed to `main` (workflow `pi-docker.yml`).
+
+### Event-safe OTA (`pi-ota-update.sh`)
+
+Production Pis do **not** pull on boot. `vendiqo-pi.service` starts last-known-good local images; `vendiqo-pi-update.timer` runs `pi-ota-update.sh` **5 minutes after boot** and about every **15 minutes** afterward.
+
+The OTA script:
+
+1. **Freezes** pull/apply while any synced config-bundle event has status `prod` (flag written by the Pi backend under `/opt/vendiqo/pi/ota-state/freeze`).
+2. Checks free disk space (default **2 GiB**, `OTA_MIN_FREE_BYTES`); if low, prunes dangling images and re-checks before skipping.
+3. Pre-pulls while the live stack keeps serving, health-checks new images in side containers, then does a short `compose up -d`.
+4. On unhealthy new images or failed post-apply `/health`, keeps/rolls back to the previous images and **blacklists** those digests (no time expiry) until a newer digest appears.
+5. Prunes dangling images after a successful apply.
+
+**Emergency override** (SSH): set `FORCE_UPDATE=1` in `/opt/vendiqo/pi/.env` to bypass freeze and blacklist (free-space gate still applies; lower `OTA_MIN_FREE_BYTES` if needed). Clear blacklist by editing/removing `/opt/vendiqo/pi/ota-state/blacklist`.
+
+**Field upgrade** (existing Pi):
+
+```bash
+sudo bash pi/deploy/install-vendiqo-pi.sh   # from a checkout, or copy deploy assets manually
+sudo systemctl daemon-reload
+sudo systemctl restart vendiqo-pi.service
+sudo systemctl restart vendiqo-pi-update.timer
+```
+
+Follow-up (out of scope here): CI promote-to-`latest` soak before fleet-wide auto-apply.
 
 ## Host deploy assets
 
@@ -184,13 +209,14 @@ Files under `pi/deploy/` are installed into the Raspberry Pi OS image:
 
 | File | Purpose |
 |------|---------|
-| `install-vendiqo-pi.sh` | Copies compose/systemd/network files into a running Pi or image. |
+| `install-vendiqo-pi.sh` | Copies compose/systemd/network/OTA files into a running Pi or image. |
+| `pi-ota-update.sh` | Gated minimize-outage container update (freeze, free-space, health, blacklist, prune). |
 | `pi.prod.env` | GHCR image tags for `/opt/vendiqo/pi/.env` (optional; defaults are in `docker-compose.prod.yml`). |
 | `apply-ghcr-images.sh` | Updates `/opt/vendiqo/pi` on a running Pi and restarts the stack. |
 | `networkmanager-vendiqo-eth0.nmconnection` | Static Ethernet config for `192.168.192.10/24` on `eth0`. |
-| `vendiqo-pi.service` | Starts the production Docker Compose stack on boot. |
-| `vendiqo-pi-update.service` | Pulls and restarts updated containers. |
-| `vendiqo-pi-update.timer` | Runs container update periodically. |
+| `vendiqo-pi.service` | Starts the production Docker Compose stack on boot (local images only). |
+| `vendiqo-pi-update.service` | Runs `pi-ota-update.sh`. |
+| `vendiqo-pi-update.timer` | `OnBootSec=5min`, then every ~15 minutes. |
 
 ## SD card image build
 
