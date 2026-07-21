@@ -345,8 +345,8 @@ The Vue PWA under `pi/frontend/` talks only to the Pi backend. There is no brows
 | Collective bills | `/collective/open` | Open Sammelrechnungen |
 | Pay table / collective | `/pay/table`, `/pay/collective` | Split-pay and settlement |
 | Cash registers | `/registers`, `/register/:uuid/*` | Register POS and customer display |
-| Kitchen monitor | `/kitchen/:printerSlug` | Kitchen display |
-| Pickup screen | `/pickup` | Pickup display |
+| Kitchen monitor | `/kitchen/:printerSlug?event=<id>` | Kitchen display (event id required for cold open/reload) |
+| Pickup screen | `/pickup?event=<id>` | Pickup display |
 | Stock | `/stock` | Stock levels |
 | Receipts | `/receipts` | Receipt history and reprints |
 | Android printer | `/android/printer` | Bluetooth printer setup (Android app) |

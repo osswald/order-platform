@@ -34,7 +34,18 @@ export function setupRouterGuards(router: Router): void {
       }
     }
     if (to.meta.requiresEvent && store.selectedEventId.value == null) {
-      return { name: 'events' }
+      const rawEvent = to.query.event
+      const eventParam = Array.isArray(rawEvent) ? rawEvent[0] : rawEvent
+      const eventId = eventParam != null && eventParam !== '' ? Number(eventParam) : NaN
+      if (
+        Number.isFinite(eventId)
+        && store.bundleReady()
+        && (store.bundle.value?.events || []).some((e) => Number(e.id) === eventId)
+      ) {
+        store.selectedEventId.value = eventId
+      } else {
+        return { name: 'events' }
+      }
     }
     if (to.meta.requiresWaiter && !store.waiter.value) {
       return { name: 'login', query: { redirect: to.fullPath } }

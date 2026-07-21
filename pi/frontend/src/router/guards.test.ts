@@ -38,6 +38,18 @@ function buildRouter() {
         meta: { requiresBundle: true, requiresEvent: true, requiresRegister: true },
       },
       {
+        path: '/kitchen/:printerSlug/:view?',
+        name: 'kitchen',
+        component: { template: '<div/>' },
+        meta: { requiresBundle: true, requiresEvent: true, fullscreen: true },
+      },
+      {
+        path: '/register/:registerUuid/display',
+        name: 'register-display',
+        component: { template: '<div/>' },
+        meta: { requiresBundle: true, requiresEvent: true, fullscreen: true },
+      },
+      {
         path: '/admin',
         component: { template: '<router-view />' },
         meta: { requiresAdmin: true },
@@ -151,6 +163,57 @@ describe('setupRouterGuards', () => {
     const router = buildRouter()
     await router.push('/order')
     expect(router.currentRoute.value.name).toBe('events')
+  })
+
+  it('allows kitchen with valid event query and no operator session', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = null
+    store.waiter.value = null
+    store.registerSession.value = null
+    const router = buildRouter()
+    await router.push('/kitchen/grill?event=1')
+    expect(router.currentRoute.value.name).toBe('kitchen')
+    expect(store.selectedEventId.value).toBe(1)
+  })
+
+  it('redirects kitchen to events when event query is missing', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = null
+    const router = buildRouter()
+    await router.push('/kitchen/grill')
+    expect(router.currentRoute.value.name).toBe('events')
+    expect(store.selectedEventId.value).toBeNull()
+  })
+
+  it('redirects kitchen to events when event query is unknown', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = null
+    const router = buildRouter()
+    await router.push('/kitchen/grill?event=999')
+    expect(router.currentRoute.value.name).toBe('events')
+    expect(store.selectedEventId.value).toBeNull()
+  })
+
+  it('restores kitchen event from query without writing waiter session storage', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = null
+    localStorage.removeItem(store.WAITER_SESSION_KEY)
+    localStorage.removeItem(store.REGISTER_SESSION_KEY)
+    const router = buildRouter()
+    await router.push('/kitchen/grill?event=1')
+    expect(router.currentRoute.value.name).toBe('kitchen')
+    expect(store.selectedEventId.value).toBe(1)
+    expect(localStorage.getItem(store.WAITER_SESSION_KEY)).toBeNull()
+    expect(localStorage.getItem(store.REGISTER_SESSION_KEY)).toBeNull()
+  })
+
+  it('allows register-display with valid event query and no operator session', async () => {
+    store.bundle.value = defaultBundle()
+    store.selectedEventId.value = null
+    const router = buildRouter()
+    await router.push('/register/register-1/display?event=1')
+    expect(router.currentRoute.value.name).toBe('register-display')
+    expect(store.selectedEventId.value).toBe(1)
   })
 
   it('redirects to registers when register session mismatches', async () => {
