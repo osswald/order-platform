@@ -10,7 +10,11 @@ from ..event_config_validation import build_station_article_tree, replace_event_
 from ..models import User
 from ..schemas.events import EventConfigurationIn, EventConfigurationRead
 from ..tenancy import TenantContext, get_current_tenant
-from .events_helpers import get_event_for_configuration, serialize_event_configuration
+from .events_helpers import (
+    get_event_for_configuration,
+    get_event_for_station_article_tree,
+    serialize_event_configuration,
+)
 
 router = APIRouter()
 
@@ -42,7 +46,10 @@ def put_event_configuration(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    # Mutate path only needs event identity/flags; skip layout-cell graph on the first load.
+    event = get_event_for_configuration(
+        db, current_user, event_id, tenant.hire_company_id, include_layout_cells=False
+    )
     try:
         replace_event_configuration(
             db,
@@ -69,5 +76,5 @@ def read_event_station_article_tree(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_station_article_tree(db, current_user, event_id, tenant.hire_company_id)
     return {"nodes": build_station_article_tree(db, event)}

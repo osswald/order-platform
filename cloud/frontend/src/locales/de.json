@@ -975,6 +975,8 @@
       "selectVouchers": "Gutscheine wählen",
       "stationArticlesOnly": "Artikel (nur Stationen-Artikel)",
       "filterArticles": "Artikel filtern…",
+      "noStationArticlesForCell": "Keine Stationen-Artikel verfügbar. Weisen Sie zuerst Artikel unter Stationen zu.",
+      "stationArticleTreeLoadFailed": "Artikel konnten nicht geladen werden.",
       "apply": "Übernehmen",
       "deleteCell": "Button löschen",
       "deleteCellConfirm": "Layout-Button wirklich löschen?",

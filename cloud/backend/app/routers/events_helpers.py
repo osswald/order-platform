@@ -1,7 +1,7 @@
 """Shared helpers for event routers."""
 
 from fastapi import status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..appliance_naming import appliance_display_name
 from ..currency import event_country_code, event_currency
@@ -31,6 +31,38 @@ from ..schemas.events import (
 from ..tenancy import readable_events_query
 from ..twint_qr import has_twint_qr
 from ..vouchers import cell_voucher_uuids_for_read
+
+
+def event_configuration_load_options(*, include_layout_cells: bool = True):
+    """Eager-load options for configuration reads.
+
+    Collection relationships use selectinload to avoid a cartesian JOIN product
+    from stacking multiple joinedload() collections on one query.
+    """
+    layout_load = (
+        selectinload(Event.app_layouts)
+        .selectinload(EventAppLayout.cells)
+        .selectinload(EventAppLayoutCell.articles)
+        if include_layout_cells
+        else selectinload(Event.app_layouts)
+    )
+    return (
+        joinedload(Event.organisation),
+        selectinload(Event.stations).selectinload(EventStation.articles),
+        selectinload(Event.stations).selectinload(EventStation.printer_rules),
+        selectinload(Event.event_waiters),
+        layout_load,
+        selectinload(Event.cash_registers),
+        selectinload(Event.voucher_definitions),
+        selectinload(Event.kitchen_monitor_printers),
+    )
+
+
+def event_station_article_tree_load_options():
+    """Minimal load for station-article-tree (stations → articles only)."""
+    return (
+        selectinload(Event.stations).selectinload(EventStation.articles),
+    )
 
 
 def event_response(event: Event) -> dict:
@@ -66,23 +98,26 @@ def get_event_for_configuration(
     *,
     include_layout_cells: bool = True,
 ) -> Event:
-    layout_load = (
-        joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles)
-        if include_layout_cells
-        else joinedload(Event.app_layouts)
-    )
     event = (
         readable_events_query(db, current_user, hire_company_id)
-        .options(
-            joinedload(Event.organisation),
-            joinedload(Event.stations).joinedload(EventStation.articles),
-            joinedload(Event.event_waiters),
-            layout_load,
-            joinedload(Event.cash_registers),
-            joinedload(Event.voucher_definitions),
-            joinedload(Event.kitchen_monitor_printers),
-            joinedload(Event.stations).joinedload(EventStation.printer_rules),
-        )
+        .options(*event_configuration_load_options(include_layout_cells=include_layout_cells))
+        .filter(Event.id == event_id)
+        .first()
+    )
+    if not event:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    return event
+
+
+def get_event_for_station_article_tree(
+    db: Session,
+    current_user: User,
+    event_id: int,
+    hire_company_id: int,
+) -> Event:
+    event = (
+        readable_events_query(db, current_user, hire_company_id)
+        .options(*event_station_article_tree_load_options())
         .filter(Event.id == event_id)
         .first()
     )

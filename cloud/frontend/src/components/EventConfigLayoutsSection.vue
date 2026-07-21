@@ -142,6 +142,20 @@
               class="tree-filter"
             />
             <v-progress-linear v-if="treeLoading" indeterminate color="primary" class="tree-loading" />
+            <p
+              v-else-if="treeError"
+              data-testid="cell-article-tree-error"
+              class="error"
+            >
+              {{ treeError }}
+            </p>
+            <p
+              v-else-if="!filteredCellTreeItems.length"
+              data-testid="cell-article-tree-empty"
+              class="muted empty-hint"
+            >
+              {{ $t('events.config.noStationArticlesForCell') }}
+            </p>
             <v-treeview
               v-else
               v-model:selected="cellTreeSelection"
@@ -153,6 +167,7 @@
               select-strategy="leaf"
               open-all
               density="compact"
+              class="cell-article-tree"
             />
           </div>
         </v-card-text>
@@ -181,10 +196,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
-import { filterTreeNodes, mapTreeNodes } from '../utils/articleCategoryTree'
+import { filterTreeNodes, mapTreeNodes, buildArticleCategoryTree } from '../utils/articleCategoryTree'
 import { layoutCellHasContent } from '../utils/eventConfigLayoutsPayload'
 import { newUuid } from '@/utils/newUuid'
-import type { ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
+import type { ArticleRead, ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
 import type {
   EventCellEditState,
   EventLayoutCellLocal,
@@ -201,11 +216,14 @@ const props = withDefaults(
     organisationId?: number | null
     vouchersEnabled?: boolean
     voucherDefinitions?: EventVoucherDefinitionLocal[]
+    /** Station-assigned org articles for the cell picker; when set, skips the tree API. */
+    eventArticles?: ArticleRead[] | null
   }>(),
   {
     organisationId: null,
     vouchersEnabled: false,
     voucherDefinitions: () => [],
+    eventArticles: undefined,
   },
 )
 
@@ -236,6 +254,7 @@ const cellTreeNodesRaw = ref<StationArticleTreeNode[]>([])
 const cellTreeSelection = ref<string[]>([])
 const cellTreeFilter = ref('')
 const treeLoading = ref(false)
+const treeError = ref('')
 const cellDialogHadContent = ref(false)
 
 const fixedAmountVoucherOptions = computed(() =>
@@ -520,6 +539,7 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
   cellEditRow.value = row
   cellEditCol.value = col
   cellTreeFilter.value = ''
+  treeError.value = ''
   const lo = layouts.value[layoutIndex]
   const c = displayCell(lo, row, col)
   cellDialogHadContent.value = layoutCellHasContent(c)
@@ -533,6 +553,13 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
   }
   cellTreeSelection.value = articleIdsToTreeSelection(c.article_ids)
   cellDialogVisible.value = true
+
+  if (props.eventArticles != null) {
+    treeLoading.value = false
+    cellTreeNodesRaw.value = buildArticleCategoryTree(props.eventArticles)
+    return
+  }
+
   treeLoading.value = true
   cellTreeNodesRaw.value = []
   try {
@@ -541,7 +568,8 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
     )
     cellTreeNodesRaw.value = data.nodes || []
   } catch {
-    /* tree optional */
+    cellTreeNodesRaw.value = []
+    treeError.value = t('events.config.stationArticleTreeLoadFailed')
   } finally {
     treeLoading.value = false
   }
@@ -726,6 +754,16 @@ defineExpose({
 
 .tree-loading {
   margin-top: 0.5rem;
+}
+
+.cell-article-tree {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.empty-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
 }
 
 .dialog-actions {
