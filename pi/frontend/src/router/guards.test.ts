@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { setupRouterGuards } from './guards'
 import * as store from '@/store'
+import { REGISTER_SESSION_KEY, WAITER_SESSION_KEY } from '@/store/sessions'
 import { defaultBundle } from '@tests/fixtures/bundle'
 import { resetStore } from '@tests/helpers/resetStore'
 
@@ -197,14 +198,14 @@ describe('setupRouterGuards', () => {
   it('restores kitchen event from query without writing waiter session storage', async () => {
     store.bundle.value = defaultBundle()
     store.selectedEventId.value = null
-    localStorage.removeItem(store.WAITER_SESSION_KEY)
-    localStorage.removeItem(store.REGISTER_SESSION_KEY)
+    localStorage.removeItem(WAITER_SESSION_KEY)
+    localStorage.removeItem(REGISTER_SESSION_KEY)
     const router = buildRouter()
     await router.push('/kitchen/grill?event=1')
     expect(router.currentRoute.value.name).toBe('kitchen')
     expect(store.selectedEventId.value).toBe(1)
-    expect(localStorage.getItem(store.WAITER_SESSION_KEY)).toBeNull()
-    expect(localStorage.getItem(store.REGISTER_SESSION_KEY)).toBeNull()
+    expect(localStorage.getItem(WAITER_SESSION_KEY)).toBeNull()
+    expect(localStorage.getItem(REGISTER_SESSION_KEY)).toBeNull()
   })
 
   it('allows register-display with valid event query and no operator session', async () => {
