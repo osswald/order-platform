@@ -177,16 +177,6 @@
           </template>
           <template #no-data>{{ $t('articles.noAdditionsLinked') }}</template>
         </VqDataTable>
-        <v-btn
-          color="primary"
-          type="button"
-          style="margin-top: 0.75rem"
-          :disabled="!activeId"
-          @click="saveAdditions"
-        >
-          {{ $t('articles.saveAdditions') }}
-        </v-btn>
-        <p v-if="additionsMessage" :class="additionsMessageType">{{ additionsMessage }}</p>
       </div>
 
       <div v-if="showIngredientsSection" class="ingredients-section">
@@ -239,16 +229,6 @@
           </template>
           <template #no-data>{{ $t('articles.noIngredientsLinked') }}</template>
         </VqDataTable>
-        <v-btn
-          color="primary"
-          type="button"
-          style="margin-top: 0.75rem"
-          :disabled="!activeId"
-          @click="saveIngredients"
-        >
-          {{ $t('articles.saveIngredients') }}
-        </v-btn>
-        <p v-if="ingredientsMessage" :class="ingredientsMessageType">{{ ingredientsMessage }}</p>
       </div>
 
       <div class="actions">
@@ -355,6 +335,7 @@ import { useClientPagination } from '../composables/useClientPagination'
 import { invalidateOrgCatalog } from '../composables/useOrgCatalog'
 import { matchesActiveOrganisation, organisationAccountsEnabled, organisationIngredientsEnabled } from '../utils/orgScope'
 import { filterArticleList } from '../utils/articleListFilters'
+import { runArticleSaveSequence } from '../utils/articleDetailSave'
 import { labelFromNameIfEmpty } from '../utils/articleLabelFromName'
 import { articleListHeaders } from '../utils/orgScopedListTableHeaders'
 import { rules, validateForm } from '../utils/formRules.js'
@@ -406,13 +387,9 @@ const typeFilter = ref<'articles' | 'additions' | 'all'>('articles')
 const statusFilter = ref<'active' | 'inactive' | 'all'>('active')
 const additionsLocal = ref<AdditionLinkLocal[]>([])
 const additionPickIds = ref<number[]>([])
-const additionsMessage = ref('')
-const additionsMessageType = ref('')
 const ingredientsLocal = ref<IngredientLinkLocal[]>([])
 const ingredientCatalog = ref<IngredientRead[]>([])
 const ingredientPickIds = ref<number[]>([])
-const ingredientsMessage = ref('')
-const ingredientsMessageType = ref('')
 
 const tableHeaders = computed((): DataTableHeader[] => articleListHeaders(t))
 
@@ -457,6 +434,8 @@ const statusFilterOptions = computed(() => [
 ])
 
 const form = ref<ArticleForm>(emptyForm())
+/** Article id last applied from route; used to avoid clearing Save success when sync re-runs. */
+const loadedDetailId = ref<number | null>(null)
 
 const activeOrganisation = computed(() => {
   if (props.activeOrganisationId == null) return null
@@ -681,10 +660,9 @@ function clearFormState() {
   form.value = emptyForm()
   additionsLocal.value = []
   additionPickIds.value = []
-  additionsMessage.value = ''
   ingredientsLocal.value = []
   ingredientPickIds.value = []
-  ingredientsMessage.value = ''
+  loadedDetailId.value = null
   if (categoryOptions.value.length > 0) {
     form.value.articleCategoryId = categoryOptions.value[0].value
   }
@@ -707,8 +685,8 @@ async function applyArticleToForm(article: ArticleRead) {
     isActive: article.is_active !== false,
     articleCategoryId: article.article_category_id || null,
   }
-  message.value = ''
   syncFormCurrencyFromContext(article)
+  loadedDetailId.value = Number(article.id)
   if (!article.is_addition) {
     await loadAdditions(article.id)
   } else {
@@ -742,6 +720,9 @@ async function syncRouteToForm() {
   if (id == null) {
     goToList()
     return
+  }
+  if (loadedDetailId.value !== Number(id)) {
+    message.value = ''
   }
   let row = articles.value.find((a) => Number(a.id) === Number(id))
   if (!row) {
@@ -812,34 +793,25 @@ function removeAdditionLink(row: AdditionLinkLocal) {
   additionsLocal.value = additionsLocal.value.filter((l) => l.addition_article_id !== row.addition_article_id)
 }
 
-async function saveAdditions() {
-  if (!activeId.value) return
-  additionsMessage.value = ''
-  try {
-    const data = await apiJson<ArticleAdditionsRead>(`/articles/${activeId.value}/additions`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: additionsLocal.value.map((l, idx) => ({
-          addition_article_id: l.addition_article_id,
-          sort_order: l.sort_order ?? idx,
-          preselected: l.preselected,
-        })),
-      }),
-    })
-    additionsLocal.value = (data.items || []).map((row, idx) => ({
-      addition_article_id: Number(row.addition_article_id),
-      name: String(row.name ?? ''),
-      price: Number(row.price ?? 0),
-      sort_order: Number(row.sort_order ?? idx),
-      preselected: Boolean(row.preselected),
-    }))
-    additionsMessage.value = t('articles.additionsSaved')
-    additionsMessageType.value = 'success'
-  } catch (e: unknown) {
-    additionsMessage.value = isApiError(e) ? e.message || t('common.saveFailed') : t('common.saveFailed')
-    additionsMessageType.value = 'error'
-  }
+async function persistAdditions(articleId: number) {
+  const data = await apiJson<ArticleAdditionsRead>(`/articles/${articleId}/additions`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: additionsLocal.value.map((l, idx) => ({
+        addition_article_id: l.addition_article_id,
+        sort_order: l.sort_order ?? idx,
+        preselected: l.preselected,
+      })),
+    }),
+  })
+  additionsLocal.value = (data.items || []).map((row, idx) => ({
+    addition_article_id: Number(row.addition_article_id),
+    name: String(row.name ?? ''),
+    price: Number(row.price ?? 0),
+    sort_order: Number(row.sort_order ?? idx),
+    preselected: Boolean(row.preselected),
+  }))
 }
 
 async function fetchIngredientCatalog() {
@@ -892,34 +864,36 @@ function removeIngredientLink(row: IngredientLinkLocal) {
   ingredientsLocal.value = ingredientsLocal.value.filter((l) => l.ingredient_id !== row.ingredient_id)
 }
 
-async function saveIngredients() {
-  if (!activeId.value) return
-  ingredientsMessage.value = ''
-  try {
-    const data = await apiJson<ArticleIngredientsRead>(`/articles/${activeId.value}/ingredients`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: ingredientsLocal.value.map((l, idx) => ({
-          ingredient_id: l.ingredient_id,
-          amount: l.amount > 0 ? l.amount : 1,
-          sort_order: l.sort_order ?? idx,
-        })),
-      }),
-    })
-    ingredientsLocal.value = (data.items || []).map((row, idx) => ({
-      ingredient_id: Number(row.ingredient_id),
-      name: String(row.name ?? ''),
-      unit: row.unit ?? null,
-      amount: Number(row.amount ?? 1),
-      sort_order: Number(row.sort_order ?? idx),
-    }))
-    ingredientsMessage.value = t('articles.ingredientsSaved')
-    ingredientsMessageType.value = 'success'
-  } catch (e: unknown) {
-    ingredientsMessage.value = isApiError(e) ? e.message || t('common.saveFailed') : t('common.saveFailed')
-    ingredientsMessageType.value = 'error'
-  }
+async function persistIngredients(articleId: number) {
+  const data = await apiJson<ArticleIngredientsRead>(`/articles/${articleId}/ingredients`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: ingredientsLocal.value.map((l, idx) => ({
+        ingredient_id: l.ingredient_id,
+        amount: l.amount > 0 ? l.amount : 1,
+        sort_order: l.sort_order ?? idx,
+      })),
+    }),
+  })
+  ingredientsLocal.value = (data.items || []).map((row, idx) => ({
+    ingredient_id: Number(row.ingredient_id),
+    name: String(row.name ?? ''),
+    unit: row.unit ?? null,
+    amount: Number(row.amount ?? 1),
+    sort_order: Number(row.sort_order ?? idx),
+  }))
+}
+
+function saveStepErrorMessage(failedStep: 'article' | 'additions' | 'ingredients', error: unknown): string {
+  const fallback =
+    failedStep === 'article'
+      ? t('articles.saveError')
+      : failedStep === 'additions'
+        ? t('articles.saveAdditionsError')
+        : t('articles.saveIngredientsError')
+  if (isApiError(error) && error.message) return error.message
+  return getErrorMessage(error, fallback)
 }
 
 async function saveArticle() {
@@ -929,6 +903,9 @@ async function saveArticle() {
     return
   }
   if (!(await validateForm(formRef))) return
+  message.value = ''
+
+  const wasCreate = !editMode.value
   const payload = {
     name: form.value.name,
     label: form.value.label,
@@ -943,26 +920,52 @@ async function saveArticle() {
     article_category_id: form.value.articleCategoryId,
   }
 
-  try {
-    const path = editMode.value ? `/articles/${activeId.value}` : '/articles/'
-    const method = editMode.value ? 'PUT' : 'POST'
-    await apiJson(path, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-    const wasEdit = editMode.value
-    await fetchArticles()
-    invalidateOrgCatalog(props.activeOrganisationId)
-    message.value = wasEdit ? t('articles.updated') : t('articles.created')
-    messageType.value = 'success'
-    await goToList()
-  } catch {
-    message.value = t('articles.saveError')
+  const result = await runArticleSaveSequence({
+    mode: wasCreate ? 'create' : 'edit',
+    isAddition: form.value.isAddition,
+    ingredientsEnabled: organisationIngredientsEnabled(
+      organisationsList.value,
+      props.activeOrganisationId,
+    ),
+    saveArticle: async () => {
+      const path = wasCreate ? '/articles/' : `/articles/${activeId.value}`
+      const method = wasCreate ? 'POST' : 'PUT'
+      const saved = await apiJson<ArticleRead>(path, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      return { id: Number(saved.id) }
+    },
+    saveAdditions: persistAdditions,
+    saveIngredients: persistIngredients,
+  })
+
+  if (!result.ok) {
+    message.value = saveStepErrorMessage(result.failedStep, result.error)
     messageType.value = 'error'
+    return
   }
+
+  await fetchArticles()
+  invalidateOrgCatalog(props.activeOrganisationId)
+
+  if (wasCreate) {
+    loadedDetailId.value = result.articleId
+    message.value = t('articles.created')
+    messageType.value = 'success'
+    await goToDetail(result.destination.articleId)
+    const created = articles.value.find((a) => Number(a.id) === Number(result.articleId))
+    if (created) {
+      await applyArticleToForm(created)
+    }
+    message.value = t('articles.created')
+    messageType.value = 'success'
+    return
+  }
+
+  message.value = t('articles.updated')
+  messageType.value = 'success'
 }
 
 async function deleteArticle(id: number | string) {
