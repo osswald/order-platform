@@ -8,10 +8,11 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/vendiqo/pi
-ExecStartPre=/usr/bin/docker compose -f docker-compose.prod.yml pull
+# Start last-known-good local images only. Delayed OTA (pull/apply) runs via
+# vendiqo-pi-update.timer (OnBootSec=5min) using pi-ota-update.sh.
 ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
-TimeoutStartSec=0
+TimeoutStartSec=120
 
 [Install]
 WantedBy=multi-user.target

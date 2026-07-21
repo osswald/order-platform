@@ -13,8 +13,10 @@ services:
       APP_NAME: pi-backend
       SYNC_ENABLED: ${SYNC_ENABLED:-1}
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-60}
+      OTA_STATE_DIR: ${OTA_STATE_DIR:-/ota-state}
     volumes:
       - pi-data:/data
+      - ${OTA_STATE_HOST_DIR:-/opt/vendiqo/pi/ota-state}:/ota-state
     networks:
       - pi-net
 

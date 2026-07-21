@@ -140,6 +140,7 @@ for required in \
   "$DEPLOY_DIR/vendiqo-pi.service" \
   "$DEPLOY_DIR/vendiqo-pi-update.service" \
   "$DEPLOY_DIR/vendiqo-pi-update.timer" \
+  "$DEPLOY_DIR/pi-ota-update.sh" \
   "$NMCONN"
 do
   if [ ! -f "$required" ]; then
@@ -169,6 +170,7 @@ SDM_PLUGIN_ARGS=(
   --plugin docker-install
   --plugin "network:nmconn=${NMCONN}"
   --plugin "copyfile:from=${PI_DIR}/docker-compose.prod.yml|to=/opt/vendiqo/pi|mkdirif|chmod=644"
+  --plugin "copyfile:from=${DEPLOY_DIR}/pi-ota-update.sh|to=/opt/vendiqo/pi|chmod=755"
   --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi.service|to=/etc/systemd/system|chmod=644"
   --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi-update.service|to=/etc/systemd/system|chmod=644"
   --plugin "copyfile:from=${DEPLOY_DIR}/vendiqo-pi-update.timer|to=/etc/systemd/system|chmod=644"

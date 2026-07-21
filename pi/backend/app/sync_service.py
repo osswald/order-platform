@@ -22,6 +22,7 @@ from .cloud_client import (
 from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .operational_restore import needs_operational_restore, restore_operational_snapshot
+from .ota_freeze import write_ota_freeze_from_bundle
 from .stock import apply_stock_to_bundle, save_bundle
 
 # Serialize pull/push with the background sync worker (SQLite).
@@ -117,6 +118,7 @@ async def pull_bundle(db: Session) -> dict[str, Any]:
         row.json_body = body
         row.updated_at = now
     db.commit()
+    write_ota_freeze_from_bundle(data if isinstance(data, dict) else None)
     purged = reconcile_bundle_lifecycle(db, old_bundle, data)
     event_count = len(data.get("events", []))
     return {"ok": True, "event_count": event_count, "bundle": data, "purged_event_ids": purged}
