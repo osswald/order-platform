@@ -10,6 +10,10 @@ import {
   type KitchenUrgencyLevel,
 } from '@/utils/kitchenMonitorHelpers'
 import { lineSelectionLabel } from '@/utils/kitchenLineSelection'
+import {
+  kitchenTicketActionBtnStyle,
+  kitchenTicketActionsGridTemplateColumns,
+} from '@/utils/kitchenTicketActionStyles'
 
 const props = defineProps<{
   ticket: KitchenOrderTicket
@@ -102,11 +106,23 @@ function locationLabel() {
       </li>
     </ul>
 
-    <footer class="ticket-actions">
-      <button type="button" class="btn action-btn partial-btn" :disabled="busy || !hasSelection" @click="emit('partialPrint')">
+    <footer class="ticket-actions" :style="{ gridTemplateColumns: kitchenTicketActionsGridTemplateColumns }">
+      <button
+        type="button"
+        class="btn action-btn partial-btn"
+        :style="kitchenTicketActionBtnStyle"
+        :disabled="busy || !hasSelection"
+        @click="emit('partialPrint')"
+      >
         Teildruck
       </button>
-      <button type="button" class="btn action-btn complete-btn" :disabled="busy" @click="emit('completePrint')">
+      <button
+        type="button"
+        class="btn action-btn complete-btn"
+        :style="kitchenTicketActionBtnStyle"
+        :disabled="busy"
+        @click="emit('completePrint')"
+      >
         Komplettdruck
       </button>
     </footer>
@@ -232,16 +248,22 @@ function locationLabel() {
 
 .ticket-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.45rem;
   padding: 0.6rem;
   border-top: 1px solid var(--border);
 }
 
 .action-btn {
+  min-width: 0;
   min-height: 44px;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
   font-weight: 700;
   font-size: 0.92rem;
+  white-space: normal;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .partial-btn {
