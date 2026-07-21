@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
   kitchenTicketActionBtnStyle,
-  kitchenTicketActionsGridTemplateColumns,
+  kitchenTicketActionsLayoutStyle,
 } from './kitchenTicketActionStyles'
 
 describe('kitchenTicketActionStyles', () => {
-  it('uses shrink-friendly two-column tracks', () => {
-    expect(kitchenTicketActionsGridTemplateColumns).toBe('minmax(0, 1fr) minmax(0, 1fr)')
+  it('stacks actions vertically so long labels get full ticket width', () => {
+    expect(kitchenTicketActionsLayoutStyle.display).toBe('flex')
+    expect(kitchenTicketActionsLayoutStyle.flexDirection).toBe('column')
   })
 
-  it('allows action buttons to shrink and wrap', () => {
+  it('resets WebKit button chrome and uses full-width labels', () => {
+    expect(kitchenTicketActionBtnStyle.width).toBe('100%')
     expect(kitchenTicketActionBtnStyle.minWidth).toBe('0')
     expect(kitchenTicketActionBtnStyle.whiteSpace).toBe('normal')
     expect(kitchenTicketActionBtnStyle.appearance).toBe('none')
