@@ -68,23 +68,32 @@ export function useAdminOperations() {
     })
   })
 
+  function absoluteUrl(path: string) {
+    if (typeof window === 'undefined') return path
+    return `${window.location.origin}${path}`
+  }
+
+  function eventQuery() {
+    return opsEventId.value == null ? undefined : { event: String(opsEventId.value) }
+  }
+
   const displayUrl = computed(() => {
     if (!opsRegisterUuid.value) return ''
     const path = router.resolve({
       name: 'register-display',
       params: { registerUuid: opsRegisterUuid.value },
+      query: eventQuery(),
     }).href
-    if (typeof window === 'undefined') return path
-    return `${window.location.origin}${path}`
+    return absoluteUrl(path)
   })
 
   function kitchenUrlForSlug(slug: string) {
     const path = router.resolve({
       name: 'kitchen',
       params: { printerSlug: slug },
+      query: eventQuery(),
     }).href
-    if (typeof window === 'undefined') return path
-    return `${window.location.origin}${path}`
+    return absoluteUrl(path)
   }
 
   watch(events, (list: EdgeBundleEvent[]) => {
@@ -154,7 +163,7 @@ export function useAdminOperations() {
 
   function openPickup() {
     selectedEventId.value = opsEventId.value
-    router.push({ name: 'pickup' })
+    router.push({ name: 'pickup', query: eventQuery() })
   }
 
   async function copyDisplayUrl() {
