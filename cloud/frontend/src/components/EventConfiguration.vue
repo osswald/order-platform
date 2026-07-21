@@ -73,6 +73,7 @@
             :organisation-id="organisationId"
             :vouchers-enabled="vouchersEnabled"
             :voucher-definitions="vouchersLocal"
+            :event-articles="catalogLoading ? undefined : eventArticleCatalog"
             @layout-removed="onLayoutRemoved"
           />
         </template>

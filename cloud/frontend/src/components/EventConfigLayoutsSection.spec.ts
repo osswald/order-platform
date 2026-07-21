@@ -338,4 +338,184 @@ describe('EventConfigLayoutsSection', () => {
 
     expect(layouts[0].cells).toEqual([])
   })
+
+  it('shows empty state when event articles prop has no station articles', async () => {
+    apiJsonMock.mockResolvedValue({
+      app_layouts: [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 1,
+          grid_height: 1,
+          cells: [],
+        },
+      ],
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        eventArticles: [],
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': { template: '<div class="v-treeview-stub" />' },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="cell-article-tree-empty"]').exists()).toBe(true)
+    expect(apiJsonMock.mock.calls.some((c) => String(c[0]).includes('station-article-tree'))).toBe(
+      false,
+    )
+  })
+
+  it('shows error when station-article-tree fetch fails without eventArticles', async () => {
+    apiJsonMock.mockImplementation(async (path: string) => {
+      if (path === '/events/42/configuration') {
+        return {
+          app_layouts: [
+            {
+              uuid: 'layout-1',
+              name: 'Main',
+              is_default: true,
+              grid_width: 1,
+              grid_height: 1,
+              cells: [],
+            },
+          ],
+        }
+      }
+      if (path === '/events/42/station-article-tree') {
+        throw new Error('network')
+      }
+      return {}
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': { template: '<div class="v-treeview-stub" />' },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="cell-article-tree-error"]').exists()).toBe(true)
+  })
+
+  it('renders station articles from eventArticles prop in the cell dialog', async () => {
+    apiJsonMock.mockResolvedValue({
+      app_layouts: [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 1,
+          grid_height: 1,
+          cells: [],
+        },
+      ],
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        eventArticles: [
+          {
+            id: 10,
+            name: 'Bratwurst',
+            label: 'BW',
+            price: 8,
+            article_category_id: 1,
+            article_category_name: 'Food',
+            is_addition: false,
+            is_active: true,
+            organisation_id: 1,
+            organisation_name: 'Org',
+            organisation_currency: 'CHF',
+          },
+        ],
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': {
+            props: ['items'],
+            template: '<div class="v-treeview-stub">{{ items?.[0]?.title }} {{ items?.[0]?.children?.[0]?.title }}</div>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="cell-article-tree-empty"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cell-article-tree-error"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Food')
+    expect(wrapper.text()).toContain('BW — Bratwurst')
+  })
 })

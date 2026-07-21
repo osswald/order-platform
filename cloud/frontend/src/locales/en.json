@@ -128,7 +128,10 @@
       "noSelectedArticlesMatch": "No selected articles match the filter.",
       "filterArticles": "Filter articles…",
       "addArticleToStation": "Add {article} to station",
-      "removeArticleFromStation": "Remove {article} from station"
+      "removeArticleFromStation": "Remove {article} from station",
+      "stationArticlesOnly": "Articles (station articles only)",
+      "noStationArticlesForCell": "No station articles available. Assign articles under Stations first.",
+      "stationArticleTreeLoadFailed": "Could not load articles."
     }
   },
   "common": {
