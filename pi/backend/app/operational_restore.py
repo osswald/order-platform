@@ -9,7 +9,6 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .bundle_cache import event_from_bundle
 from .domain.sessions import ensure_order_session
 from .models import (
     EventOrderCounter,
@@ -20,11 +19,65 @@ from .models import (
     OutboxEntry,
 )
 from .models_operational import CashSession, CashSessionLedger, PaymentBatch
-from .print_worker import group_lines_by_station
-from .printer_routing import printer_in_kitchen_monitor, subgroup_lines_by_printer
 from .stock import apply_stock_to_bundle, save_bundle
 
 log = logging.getLogger(__name__)
+
+
+def _sellable_line_qty(payload: dict) -> int:
+    total = 0
+    for ln in (payload or {}).get("lines") or []:
+        if not isinstance(ln, dict) or ln.get("article_id") is None:
+            continue
+        total += max(0, int(ln.get("qty") or 0))
+    return total
+
+
+def _has_pending_outbox_for_order(db: Session, *, event_id: int, client_order_id: str) -> bool:
+    rows = (
+        db.query(OutboxEntry)
+        .filter(OutboxEntry.event_id == event_id, OutboxEntry.status.in_(("pending", "error")))
+        .all()
+    )
+    for row in rows:
+        try:
+            existing = json.loads(row.payload_json or "{}")
+        except json.JSONDecodeError:
+            continue
+        if str(existing.get("client_order_id") or "") == client_order_id:
+            return True
+    return False
+
+
+def _local_kitchen_all_done(db: Session, order: LocalOrder) -> bool:
+    tickets = db.query(KitchenTicket).filter(KitchenTicket.local_order_id == order.id).all()
+    if not tickets:
+        return False
+    return all(str(t.status or "") == "done" for t in tickets)
+
+
+def _should_skip_order_restore(
+    db: Session,
+    *,
+    local: LocalOrder | None,
+    cloud_payload: dict,
+) -> bool:
+    """Return True when local settlement/progress must win over cloud open state."""
+    if local is None:
+        return False
+    if str(local.payment_status or "") == "paid":
+        return True
+    if str(local.payment_status or "") != "open":
+        return False
+    if _has_pending_outbox_for_order(db, event_id=int(local.event_id), client_order_id=local.client_order_id):
+        return True
+    try:
+        local_payload = json.loads(local.payload_json or "{}")
+    except json.JSONDecodeError:
+        local_payload = {}
+    if _sellable_line_qty(local_payload) < _sellable_line_qty(cloud_payload):
+        return True
+    return False
 
 
 def _parse_dt(val: str | None) -> datetime | None:
@@ -274,8 +327,10 @@ def _restore_kitchen_tickets(
     *,
     order: LocalOrder,
     tickets: list[dict],
-    ev: dict | None,
 ) -> int:
+    if _local_kitchen_all_done(db, order):
+        return 0
+
     restored = 0
     db.query(KitchenTicketLine).filter(
         KitchenTicketLine.ticket_id.in_(
@@ -285,77 +340,36 @@ def _restore_kitchen_tickets(
     db.query(KitchenTicket).filter(KitchenTicket.local_order_id == order.id).delete(synchronize_session=False)
     db.flush()
 
-    if tickets:
-        for t in tickets:
-            if not isinstance(t, dict):
-                continue
-            ticket = KitchenTicket(
-                local_order_id=order.id,
-                order_submission_id=order.id,
-                event_id=order.event_id,
-                station_uuid=str(t.get("station_uuid") or ""),
-                printer_appliance_id=t.get("printer_appliance_id"),
-                status=str(t.get("status") or "open"),
-            )
-            db.add(ticket)
-            db.flush()
-            for line in t.get("lines") or []:
-                if not isinstance(line, dict):
-                    continue
-                line_payload = line.get("line_payload") or {}
-                db.add(
-                    KitchenTicketLine(
-                        ticket_id=ticket.id,
-                        line_index=int(line.get("line_index") or 0),
-                        line_payload_json=json.dumps(line_payload),
-                        qty_total=int(line.get("qty_total") or 1),
-                        qty_printed=int(line.get("qty_printed") or 0),
-                    )
-                )
-            restored += 1
-        return restored
+    if not tickets:
+        return 0
 
-    if not ev:
-        return 0
-    payload = json.loads(order.payload_json or "{}")
-    lines = payload.get("lines") or []
-    if not lines:
-        return 0
-    order_ctx = {
-        "table_number": payload.get("table_number"),
-        "pickup_code": payload.get("pickup_code"),
-    }
-    groups = group_lines_by_station(ev, lines)
-    for station_uuid, station_lines in groups.items():
-        if not station_lines or station_uuid is None:
+    for t in tickets:
+        if not isinstance(t, dict):
             continue
-        for printer_id, printer_lines in subgroup_lines_by_printer(ev, station_uuid, station_lines, order_ctx).items():
-            if not printer_lines or not printer_in_kitchen_monitor(ev, printer_id):
+        ticket = KitchenTicket(
+            local_order_id=order.id,
+            order_submission_id=order.id,
+            event_id=order.event_id,
+            station_uuid=str(t.get("station_uuid") or ""),
+            printer_appliance_id=t.get("printer_appliance_id"),
+            status=str(t.get("status") or "open"),
+        )
+        db.add(ticket)
+        db.flush()
+        for line in t.get("lines") or []:
+            if not isinstance(line, dict):
                 continue
-            ticket = KitchenTicket(
-                local_order_id=order.id,
-                order_submission_id=order.id,
-                event_id=order.event_id,
-                station_uuid=str(station_uuid),
-                printer_appliance_id=printer_id,
-                status="open",
-            )
-            db.add(ticket)
-            db.flush()
-            for idx, line in enumerate(printer_lines):
-                if not isinstance(line, dict):
-                    continue
-                qty = max(1, int(line.get("qty") or 1))
-                db.add(
-                    KitchenTicketLine(
-                        ticket_id=ticket.id,
-                        line_index=idx,
-                        line_payload_json=json.dumps(dict(line)),
-                        qty_total=qty,
-                        qty_printed=0,
-                    )
+            line_payload = line.get("line_payload") or {}
+            db.add(
+                KitchenTicketLine(
+                    ticket_id=ticket.id,
+                    line_index=int(line.get("line_index") or 0),
+                    line_payload_json=json.dumps(line_payload),
+                    qty_total=int(line.get("qty_total") or 1),
+                    qty_printed=int(line.get("qty_printed") or 0),
                 )
-            restored += 1
+            )
+        restored += 1
     return restored
 
 
@@ -426,6 +440,11 @@ def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | Non
             if not cid:
                 continue
             payload = {**payload, "client_order_id": cid}
+            local = db.query(LocalOrder).filter(LocalOrder.client_order_id == cid).first()
+            if _should_skip_order_restore(db, local=local, cloud_payload=payload):
+                # Keep local open orders from ghost cleanup; paid locals are ignored there anyway.
+                keep_cids.add(cid)
+                continue
             order = _restore_order(
                 db,
                 event_id=event_id,
@@ -436,12 +455,10 @@ def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | Non
             keep_cids.add(cid)
             payloads.append(payload)
             summary["restored_orders"] += 1
-            ev = event_from_bundle(bundle, event_id)
             summary["restored_kitchen_tickets"] += _restore_kitchen_tickets(
                 db,
                 order=order,
                 tickets=kitchen_by_cid.get(cid) or [],
-                ev=ev,
             )
 
         summary["purged_ghost_orders"] += _ghost_cleanup_orders(db, event_id=event_id, keep_client_ids=keep_cids)
