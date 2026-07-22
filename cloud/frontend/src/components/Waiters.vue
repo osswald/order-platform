@@ -78,7 +78,7 @@
         @click:row="onWaiterRowClick"
       >
         <template #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteWaiter(item.id)">{{ $t('common.delete') }}</v-btn>
+          <v-btn color="error" @click.stop="deleteWaiter(item.id)">{{ $t('common.delete') }}</v-btn>
         </template>
       </VqDataTable>
     </template>

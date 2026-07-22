@@ -9,7 +9,7 @@
     <div v-for="(vd, vi) in vouchers" :key="'vd-' + vi" class="config-card">
       <div class="config-card-header">
         <span>{{ vd.name || $t('events.config.unnamedVoucher') }}</span>
-        <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeVoucher(vi)" />
+        <v-btn icon="mdi-delete" color="error" type="button" @click="removeVoucher(vi)" />
       </div>
       <div class="form-field">
         <FormLabel required>{{ $t('events.config.name') }}</FormLabel>

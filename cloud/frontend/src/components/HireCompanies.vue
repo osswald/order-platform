@@ -87,7 +87,7 @@
           {{ item.country?.name || $t('common.emDash') }}
         </template>
         <template #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteCompany(item.id)">{{ $t('common.delete') }}</v-btn>
+          <v-btn color="error" @click.stop="deleteCompany(item.id)">{{ $t('common.delete') }}</v-btn>
         </template>
       </VqDataTable>
     </template>

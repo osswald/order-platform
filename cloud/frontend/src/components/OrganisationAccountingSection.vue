@@ -70,7 +70,7 @@
               {{ item.is_default_for_article_categories ? t('common.yes') : t('common.no') }}
             </template>
             <template #item.actions="{ item }">
-              <v-btn color="error" variant="text" @click.stop="deleteAccount(item.id)">
+              <v-btn color="error" @click.stop="deleteAccount(item.id)">
                 {{ t('common.delete') }}
               </v-btn>
             </template>
@@ -185,7 +185,7 @@
           </v-form>
         </v-card-text>
         <v-card-actions>
-          <v-btn variant="text" type="button" @click="accountDialogVisible = false">
+          <v-btn type="button" @click="accountDialogVisible = false">
             {{ t('common.cancel') }}
           </v-btn>
           <v-btn color="primary" type="button" :loading="accountSaving" @click="saveAccount">

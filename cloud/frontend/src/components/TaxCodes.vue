@@ -76,7 +76,6 @@
             <v-btn
               v-if="isAdmin && form.rates.length > 1"
               icon="mdi-close"
-              variant="text"
               type="button"
               @click="removeRateRow(index)"
             />
@@ -133,7 +132,7 @@
           {{ formatCurrentRate(item) }}
         </template>
         <template v-if="isAdmin" #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteTaxCodeRow(item.id)">
+          <v-btn color="error" @click.stop="deleteTaxCodeRow(item.id)">
             {{ $t('common.delete') }}
           </v-btn>
         </template>

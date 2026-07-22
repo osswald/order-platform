@@ -27,12 +27,14 @@ export function vuetifyStubs() {
       props: ['modelValue', 'label', 'type', 'rules'],
     },
     VBtn: {
-      template: '<button type="button" v-bind="$attrs"><slot /></button>',
-      props: ['loading', 'color', 'block', 'size', 'variant'],
+      template:
+        '<button type="button" :data-color="color" :data-variant="variant" :data-icon="icon" v-bind="$attrs"><slot /></button>',
+      props: ['loading', 'color', 'block', 'size', 'variant', 'icon'],
     },
     'v-btn': {
-      template: '<button type="button" v-bind="$attrs"><slot /></button>',
-      props: ['loading', 'color', 'block', 'size', 'variant'],
+      template:
+        '<button type="button" :data-color="color" :data-variant="variant" :data-icon="icon" v-bind="$attrs"><slot /></button>',
+      props: ['loading', 'color', 'block', 'size', 'variant', 'icon'],
     },
     VDataTable: {
       template: '<div data-testid="v-data-table"><slot /></div>',

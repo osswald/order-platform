@@ -79,7 +79,6 @@
         <template #item.actions="{ item }">
           <v-btn
             color="error"
-            variant="text"
             :disabled="item.article_count > 0"
             @click.stop="deleteCategory(item.id)"
           >
