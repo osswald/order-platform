@@ -9,7 +9,6 @@
     <v-btn
       :to="articleRoute"
       icon="mdi-help-circle-outline"
-      variant="text"
       :aria-label="ariaLabel"
       :size="size"
     />
@@ -18,7 +17,6 @@
   <template v-else-if="variant === 'dialog'">
     <v-btn
       icon="mdi-help-circle-outline"
-      variant="text"
       :aria-label="ariaLabel"
       :size="size"
       @click="dialogOpen = true"
@@ -32,7 +30,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="dialogOpen = false">{{ $t('common.close') }}</v-btn>
+          <v-btn @click="dialogOpen = false">{{ $t('common.close') }}</v-btn>
           <v-btn color="primary" :to="articleRoute" @click="dialogOpen = false">
             {{ $t('help.fullGuide') }}
           </v-btn>

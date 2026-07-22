@@ -10,7 +10,6 @@
         <span>{{ st.name || $t('events.config.unnamedStation') }}</span>
         <v-btn
           icon="mdi-delete"
-          variant="text"
           color="error"
           type="button"
           :aria-label="$t('events.config.remove')"
@@ -44,7 +43,7 @@
       <div v-if="alternativePrintersEnabled" class="printer-rules-block">
         <div class="printer-rules-header">
           <label>{{ $t('events.config.printerRules') }}</label>
-          <v-btn size="small" variant="text" type="button" @click="addPrinterRule(idx)">
+          <v-btn size="small" type="button" @click="addPrinterRule(idx)">
             {{ $t('events.config.addRule') }}
           </v-btn>
         </div>
@@ -57,7 +56,6 @@
             <span>{{ $t('events.config.ruleN', { n: ruleIdx + 1 }) }}</span>
             <v-btn
               icon="mdi-delete"
-              variant="text"
               color="error"
               type="button"
               :aria-label="$t('events.config.removeRule')"

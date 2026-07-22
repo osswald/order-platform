@@ -86,7 +86,6 @@
         <template #item.actions="{ item }">
           <v-btn
             color="error"
-            variant="text"
             :disabled="item.usage_count > 0"
             @click.stop="deleteIngredient(item.id)"
           >

@@ -29,10 +29,10 @@
             <span class="color-swatch" :style="{ background: item.color }" :title="item.color" />
           </template>
           <template #item.actions="{ item }">
-            <v-btn variant="text" size="small" type="button" @click="openEdit(item)">
+            <v-btn size="small" type="button" @click="openEdit(item)">
               {{ t('common.edit') }}
             </v-btn>
-            <v-btn color="error" variant="text" size="small" type="button" @click="deleteColor(item.key)">
+            <v-btn color="error" size="small" type="button" @click="deleteColor(item.key)">
               {{ t('common.delete') }}
             </v-btn>
           </template>
@@ -75,7 +75,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" type="button" @click="dialogOpen = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn type="button" @click="dialogOpen = false">{{ t('common.cancel') }}</v-btn>
           <v-btn color="primary" type="button" @click="applyDraft">
             {{ t('organisations.colorPalette.confirmDraft') }}
           </v-btn>

@@ -39,6 +39,16 @@ describe('LoginPage', () => {
     return wrapper
   }
 
+  it('uses outlined primary intent for the submit CTA', async () => {
+    const wrapper = await mountLogin()
+    const submit = wrapper.findAll('button').find((btn) => btn.attributes('data-color') === 'primary')
+    expect(submit).toBeTruthy()
+    const variant = submit!.attributes('data-variant')
+    expect(variant === undefined || variant === '' || variant === 'outlined').toBe(true)
+    expect(variant).not.toBe('text')
+    expect(variant).not.toBe('flat')
+  })
+
   it('does not call fetch when validation fails', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
     const wrapper = await mountLogin()

@@ -2,7 +2,7 @@
   <div class="event-stats-page vq-page">
     <div class="page-header">
       <div>
-        <v-btn variant="text" prepend-icon="mdi-arrow-left" type="button" @click="goBack">
+        <v-btn prepend-icon="mdi-arrow-left" type="button" @click="goBack">
           {{ t('events.stats.back') }}
         </v-btn>
         <h1>{{ t('events.stats.title') }}</h1>

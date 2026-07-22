@@ -75,7 +75,7 @@
           {{ item.is_active ? $t('common.yes') : $t('common.no') }}
         </template>
         <template #item.actions="{ item }">
-          <v-btn v-if="isAdmin" color="error" variant="text" @click.stop="deletePaymentType(item.id)">
+          <v-btn v-if="isAdmin" color="error" @click.stop="deletePaymentType(item.id)">
             {{ $t('common.delete') }}
           </v-btn>
         </template>

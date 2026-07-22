@@ -154,7 +154,6 @@
             <v-btn
               v-if="item.status !== 'config'"
               icon="mdi-chart-bar"
-              variant="text"
               size="small"
               :title="t('events.stats.openStats')"
               @click.stop="openStats(item.id)"
