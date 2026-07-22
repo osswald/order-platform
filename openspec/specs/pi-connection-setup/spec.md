@@ -21,7 +21,7 @@ The Pi frontend SHALL probe reachability of the current API base on startup befo
 
 ### Requirement: Probe fails fast when Pi is unreachable
 
-The Pi connectivity probe SHALL abort within a short client-side timeout (target about 2.5 seconds) when the API base does not respond, so the connection setup flow appears quickly instead of waiting for the platform TCP timeout.
+The Pi connectivity probe SHALL abort within a short client-side timeout (target about 2.5 seconds) when the API base does not respond, so the connection setup flow appears quickly instead of waiting for the platform TCP timeout. The timeout SHALL work on Android System WebViews that lack `AbortSignal.timeout` (portable `AbortController` fallback).
 
 #### Scenario: Unreachable default LAN Pi shows setup promptly
 
@@ -53,13 +53,14 @@ The connection setup flow SHALL allow the user to enter a Pi API base URL, test 
 
 ### Requirement: Play review demo shortcut
 
-The connection setup flow SHALL offer a one-tap action labeled **Demo** that sets the API base to `https://play-review.demo.vendiqo.ch` and runs the connectivity test.
+The connection setup flow SHALL offer a one-tap action labeled **Demo** that sets the API base to `https://play-review.demo.vendiqo.ch`, runs the connectivity test, and on success persists the base and continues (same outcome as a successful manual test + save).
 
 #### Scenario: Review demo shortcut
 
 - **WHEN** the user taps **Demo**
 - **THEN** the app SHALL set the API base field to `https://play-review.demo.vendiqo.ch` and run the connectivity test
-- **AND** on success the user SHALL be able to save and continue (same save gate as a manual test)
+- **AND** on success the app SHALL persist the URL via `setApiBase()` and continue startup against the demo host
+- **AND** on failure the app SHALL show an error and SHALL NOT persist or navigate away
 
 ### Requirement: Persisted URL survives restarts
 

@@ -84,6 +84,10 @@ async function testConnection() {
 async function usePlayReviewDemo() {
   apiUrl.value = PLAY_REVIEW_DEMO_API_BASE
   await testConnection()
+  // Play Console / reviewer instructions say tap Demo then continue — save on success.
+  if (testedOk.value) {
+    await save()
+  }
 }
 
 async function save() {
