@@ -1,0 +1,27 @@
+name: Play review cleanup
+
+on:
+  schedule:
+    # Nightly ~03:00 UTC — clear demo orders / emulated receipts (test→prod purge semantics)
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup Play review via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.PLAY_REVIEW_DEPLOY_HOST }}
+          username: ${{ secrets.PLAY_REVIEW_DEPLOY_USER }}
+          key: ${{ secrets.PLAY_REVIEW_DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PLAY_REVIEW_DEPLOY_PATH }}"
+            git fetch --ff-only origin main
+            git clean -fd
+            git merge --ff-only origin/main
+            ./scripts/cleanup-play-review.sh

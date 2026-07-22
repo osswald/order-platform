@@ -217,6 +217,24 @@ def update_event(
     return event_response(event)
 
 
+@router.post("/{event_id}/purge-operational")
+def purge_event_operational(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    """Clear operational data for an event without changing status (same as test→prod purge)."""
+    event = readable_events_query(db, current_user, tenant.hire_company_id).filter(Event.id == event_id).first()
+    if not event:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    previous_status = event.status
+    purge_event_operational_data(db, event)
+    commit_or_raise(db)
+    db.refresh(event)
+    return {"ok": True, "event_id": event.id, "status": event.status, "previous_status": previous_status}
+
+
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_event(
     event_id: int,

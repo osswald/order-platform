@@ -172,6 +172,51 @@ def test_status_test_to_prod_purges_all_operational_data():
     assert transactions.json()["total"] == 0
 
 
+def test_purge_operational_endpoint_clears_data_keeps_status():
+    org_a_id, _ = _setup_two_tenants()
+    headers = {"Authorization": f"Bearer {_token()}"}
+    now = _utc_now()
+    created = client.post(
+        "/events/",
+        headers=headers,
+        json={
+            "name": "Purge API Fest",
+            "status": "config",
+            "start": (now + timedelta(days=1)).isoformat(),
+            "end": (now + timedelta(days=2)).isoformat(),
+            "organisation_id": org_a_id,
+            "payment_mode": "pay_later",
+            "payment_types": ["cash"],
+        },
+    )
+    assert created.status_code == 200, created.text
+    event_id = created.json()["id"]
+
+    to_test = client.put(f"/events/{event_id}", headers=headers, json={"status": "test"})
+    assert to_test.status_code == 200, to_test.text
+
+    db = SessionLocal()
+    try:
+        _seed_event_operational_data(db, event_id=event_id, organisation_id=org_a_id, appliance_id=9002)
+        assert db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event_id).count() == 1
+    finally:
+        db.close()
+
+    purged = client.post(f"/events/{event_id}/purge-operational", headers=headers)
+    assert purged.status_code == 200, purged.text
+    assert purged.json()["ok"] is True
+    assert purged.json()["status"] == "test"
+
+    db = SessionLocal()
+    try:
+        assert db.query(EdgeSubmittedOrder).filter(EdgeSubmittedOrder.event_id == event_id).count() == 0
+        assert db.query(EdgeOrderItem).filter(EdgeOrderItem.event_id == event_id).count() == 0
+        event = db.query(Event).filter(Event.id == event_id).one()
+        assert event.status == "test"
+    finally:
+        db.close()
+
+
 def test_create_event_and_status_transition():
     org_a_id, _ = _setup_two_tenants()
     headers = {"Authorization": f"Bearer {_token()}"}

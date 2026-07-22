@@ -57,6 +57,13 @@ def purge_event_local_data(db: Session, event_id: int) -> None:
     # cannot accidentally re-flush stale instances.
     db.expunge_all()
 
+    # Emulated receipts are not event-scoped; clear after expunge so ORM cannot
+    # resurrect rows that were still in the identity map (same as test print wipe).
+    if "emulated_receipts" in existing:
+        db.execute(text("DELETE FROM emulated_receipts"))
+        db.flush()
+        db.expunge_all()
+
 
 def purge_all_operational_data(db: Session) -> None:
     existing = set(inspect(db.get_bind()).get_table_names())
@@ -82,6 +89,7 @@ def purge_all_operational_data(db: Session) -> None:
         "event_order_counters",
         "event_pickup_counters",
         "register_display_states",
+        "emulated_receipts",
     ):
         if table in existing:
             db.execute(text(f"DELETE FROM {table}"))
@@ -161,6 +169,9 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
         if "payment_batches" in existing:
             db.execute(text("DELETE FROM payment_batches WHERE event_id = :e"), {"e": event_id})
 
+    if purged and "emulated_receipts" in existing:
+        db.execute(text("DELETE FROM emulated_receipts"))
+
     db.commit()
     db.expire_all()
     return purged
@@ -170,3 +181,25 @@ def purge_on_unpair(db: Session) -> None:
     purge_all_operational_data(db)
     purge_master_cache(db)
     db.commit()
+
+
+def purge_bundle_events_operational(db: Session, bundle: dict | None) -> list[int]:
+    """Purge local operational data for every event in the bundle (no status change).
+
+    Used by hosted Play-review cleanup; mirrors per-event test→prod purge including
+    emulated receipts.
+    """
+    purged: list[int] = []
+    for event_id in _event_map(bundle):
+        purge_event_local_data(db, event_id)
+        purged.append(event_id)
+    if not purged:
+        # Still clear print artifacts when the bundle has no events yet.
+        existing = set(inspect(db.get_bind()).get_table_names())
+        if "emulated_receipts" in existing:
+            db.execute(text("DELETE FROM emulated_receipts"))
+            db.flush()
+            db.expunge_all()
+    db.commit()
+    db.expire_all()
+    return purged

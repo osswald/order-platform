@@ -31,7 +31,7 @@
       </form>
 
       <button type="button" class="btn demo-btn" :disabled="testing" @click="usePlayReviewDemo">
-        Play-Review-Demo verwenden
+        Demo
       </button>
 
       <p v-if="message" class="message" :class="messageType">{{ message }}</p>

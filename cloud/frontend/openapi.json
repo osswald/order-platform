@@ -4083,6 +4083,68 @@
         }
       }
     },
+    "/events/{event_id}/purge-operational": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Purge Event Operational",
+        "description": "Clear operational data for an event without changing status (same as test\u2192prod purge).",
+        "operationId": "purge_event_operational_events__event_id__purge_operational_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/configuration": {
       "get": {
         "tags": [
