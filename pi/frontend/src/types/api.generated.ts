@@ -893,6 +893,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/purge-operational": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Purge Operational
+         * @description Purge demo operational data without changing event status (test→prod semantics).
+         */
+        post: operations["purge_operational_v1_ops_purge_operational_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shift-session/active": {
         parameters: {
             query?: never;
@@ -1965,6 +1985,16 @@ export interface components {
             failed: number;
             /** Results */
             results?: components["schemas"]["StationTestPrintResult"][];
+        };
+        /** PurgeOperationalResponse */
+        PurgeOperationalResponse: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            /** Purged Event Ids */
+            purged_event_ids?: number[];
         };
         /** RegisterDisplayBody */
         RegisterDisplayBody: {
@@ -3993,6 +4023,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncPushResponse"];
+                };
+            };
+        };
+    };
+    purge_operational_v1_ops_purge_operational_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-cleanup-secret"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurgeOperationalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

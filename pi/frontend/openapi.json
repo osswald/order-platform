@@ -2376,6 +2376,56 @@
         }
       }
     },
+    "/v1/ops/purge-operational": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Purge Operational",
+        "description": "Purge demo operational data without changing event status (test\u2192prod semantics).",
+        "operationId": "purge_operational_v1_ops_purge_operational_post",
+        "parameters": [
+          {
+            "name": "x-cleanup-secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Cleanup-Secret"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurgeOperationalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/shift-session/active": {
       "get": {
         "tags": [
@@ -5547,6 +5597,24 @@
           "failed"
         ],
         "title": "PrinterTestStationPrintsResponse"
+      },
+      "PurgeOperationalResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "purged_event_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Purged Event Ids"
+          }
+        },
+        "type": "object",
+        "title": "PurgeOperationalResponse"
       },
       "RegisterDisplayBody": {
         "properties": {
