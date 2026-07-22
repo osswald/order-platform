@@ -29,4 +29,4 @@
 ## 5. Wrap-up
 
 - [x] 5.1 Run `./scripts/lint.sh` on touched areas / full as appropriate
-- [ ] 5.2 Open PR from feature branch; note that ops `/health` fix unblocks existing APKs, timeout/label need new Android release
+- [x] 5.2 Open PR from feature branch; note that ops `/health` fix unblocks existing APKs, timeout/label need new Android release
