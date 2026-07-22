@@ -1,0 +1,22 @@
+name: Play review guards
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/play-review-deploy.yml"
+      - ".github/workflows/play-review-cleanup.yml"
+      - ".github/workflows/play-review-guards.yml"
+      - "scripts/test-play-review-workflow-guards.sh"
+      - "scripts/deploy-play-review.sh"
+      - "scripts/cleanup-play-review.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Play review workflow guards
+        run: ./scripts/test-play-review-workflow-guards.sh

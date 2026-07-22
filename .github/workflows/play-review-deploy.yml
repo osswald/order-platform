@@ -6,29 +6,19 @@ on:
     types: [completed]
     branches: [main, master]
   workflow_dispatch:
-  pull_request:
-    paths:
-      - ".github/workflows/play-review-deploy.yml"
-      - ".github/workflows/play-review-cleanup.yml"
-      - "scripts/test-play-review-workflow-guards.sh"
 
 permissions: {}
 
 jobs:
-  guards:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - name: Play review workflow guards
         run: ./scripts/test-play-review-workflow-guards.sh
 
-  deploy:
-    needs: guards
-    # Skip SSH on PRs that only validate workflow guards.
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
-    runs-on: ubuntu-latest
-    steps:
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.2.2
         with:
