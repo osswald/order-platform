@@ -7,6 +7,7 @@ Create Date: 2026-07-22
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "007_backfill_user_home_verleiher"
@@ -19,6 +20,15 @@ def upgrade() -> None:
     # Mirror of app.database._backfill_user_home_verleiher for deploy-time alembic runs.
     # Idempotent: only fills NULL hire_company_id for member / organisation_admin with a
     # single Verleiher across organisation links. Platform admins and true orphans skipped.
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    names = set(inspector.get_table_names())
+    if not {"users", "organisations", "organisation_users"}.issubset(names):
+        return
+    user_cols = {c["name"] for c in inspector.get_columns("users")}
+    if "hire_company_id" not in user_cols or "role" not in user_cols:
+        return
+
     op.execute(
         """
         UPDATE users
