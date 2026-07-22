@@ -21,7 +21,8 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.PLAY_REVIEW_DEPLOY_PATH }}"
-            git fetch --ff-only origin main
+            # Plain fetch: older VPS git has no fetch --ff-only; merge enforces FF.
+            git fetch origin main
             git clean -fd
             git merge --ff-only origin/main
             ./scripts/cleanup-play-review.sh
