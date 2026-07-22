@@ -176,7 +176,7 @@ sudo bash pi/deploy/apply-ghcr-images.sh
 
 (from a git checkout on the Pi, or copy `pi/deploy/pi.prod.env` and `pi/docker-compose.prod.yml` to `/opt/vendiqo/pi/` then `sudo docker compose -f /opt/vendiqo/pi/docker-compose.prod.yml pull && sudo systemctl restart vendiqo-pi`).
 
-New `pi-backend` images are built when `pi/backend/**` changes are pushed to `main` (workflow `pi-docker.yml`).
+New `pi-backend` images are built when `pi/backend/**` changes are pushed to `main` (workflow `pi-docker.yml`). CI builds each architecture on a native runner (`ubuntu-latest` + `ubuntu-24.04-arm`) and merges digests into multi-arch manifests — arm64 is not QEMU-emulated (that previously published empty venv entrypoints).
 
 ### Event-safe OTA (`pi-ota-update.sh`)
 

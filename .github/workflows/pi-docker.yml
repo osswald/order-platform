@@ -1,5 +1,7 @@
 # Build Pi edge images for linux/arm64 (Raspberry Pi) and linux/amd64 (hosted cloud Pi).
-# Configure repository variable IMAGE_NAME if you want a custom image name.
+# Each arch builds natively (ubuntu-latest / ubuntu-24.04-arm), then digests are merged
+# into multi-arch manifests. Avoids QEMU-emulated arm64 uv sync, which previously
+# published empty .venv entrypoints and crash-looped Pis with exec format error.
 name: Pi Docker images
 
 on:
@@ -11,6 +13,7 @@ on:
       - "pi/frontend/**"
       - "VERSION"
       - "scripts/vite-version-env.mjs"
+      - "scripts/test-pi-docker-build-guards.sh"
       - ".github/workflows/pi-docker.yml"
   pull_request:
     paths:
@@ -18,17 +21,46 @@ on:
       - "pi/frontend/**"
       - "VERSION"
       - "scripts/vite-version-env.mjs"
+      - "scripts/test-pi-docker-build-guards.sh"
       - ".github/workflows/pi-docker.yml"
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-push:
+  guards:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Dockerfile / workflow guards
+        run: ./scripts/test-pi-docker-build-guards.sh
+
+  build:
+    needs: guards
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            file: ./pi/backend/Dockerfile
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - image: backend
+            file: ./pi/backend/Dockerfile
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - image: frontend
+            file: ./pi/frontend/Dockerfile.prod
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - image: frontend
+            file: ./pi/frontend/Dockerfile.prod
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
 
@@ -43,8 +75,119 @@ jobs:
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "build_time=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      - name: Prepare platform pair
+        run: |
+          platform_pair="${{ matrix.platform }}"
+          platform_pair="${platform_pair//\//-}"
+          echo "PLATFORM_PAIR=${platform_pair}" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=${{ env.REGISTRY }}/${{ github.repository }}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend build args
+        id: backend_args
+        if: matrix.image == 'backend'
+        run: |
+          {
+            echo "args<<EOF"
+            echo "APP_VERSION=${{ steps.version.outputs.value }}"
+            echo "APP_BUILD_TIME=${{ steps.version.outputs.build_time }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Frontend build args
+        id: frontend_args
+        if: matrix.image == 'frontend'
+        run: |
+          {
+            echo "args<<EOF"
+            echo "VITE_APP_VERSION=${{ steps.version.outputs.value }}"
+            echo "VITE_BUILD_TIME=${{ steps.version.outputs.build_time }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build (PR load) or push by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: ${{ matrix.platform }}
+          build-args: ${{ matrix.image == 'backend' && steps.backend_args.outputs.args || steps.frontend_args.outputs.args }}
+          cache-from: type=gha,scope=pi-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=pi-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          # PRs: load into the runner daemon for smoke tests. Pushes: digest-only
+          # (tags are applied in the merge job via imagetools).
+          load: ${{ github.event_name == 'pull_request' }}
+          push: false
+          tags: ${{ github.event_name == 'pull_request' && format('pi-{0}-ci:local', matrix.image) || '' }}
+          outputs: ${{ github.event_name != 'pull_request' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE_NAME) || '' }}
+
+      - name: Smoke-test backend entrypoints
+        if: matrix.image == 'backend' && github.event_name == 'pull_request'
+        run: |
+          docker run --rm --entrypoint sh "pi-backend-ci:local" -c '
+            set -e
+            test -s /repo/pi/backend/.venv/bin/uvicorn
+            python -c "import uvicorn; print(uvicorn.__version__)"
+            python -m uvicorn --help >/dev/null
+          '
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-pi-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve app version
+        id: version
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid VERSION: $version" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-pi-${{ matrix.image }}-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -56,51 +199,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image tags
-        id: image_tags
+      - name: Create multi-arch manifest
         env:
           SHA: ${{ github.sha }}
           VERSION: ${{ steps.version.outputs.value }}
-          PUBLISH: ${{ github.event_name != 'pull_request' }}
         run: |
+          set -euo pipefail
           repo="${{ env.REGISTRY }}/${{ github.repository }}"
-          backend_tags="${repo}:pi-backend-latest"$'\n'"${repo}:pi-backend-amd64-latest"$'\n'"${repo}:pi-backend-${SHA}"
-          frontend_tags="${repo}:pi-frontend-latest"$'\n'"${repo}:pi-frontend-amd64-latest"$'\n'"${repo}:pi-frontend-${SHA}"
-          if [[ "$PUBLISH" == "true" ]]; then
-            backend_tags+=$'\n'"${repo}:pi-backend-${VERSION}"$'\n'"${repo}:pi-backend-amd64-${VERSION}"
-            frontend_tags+=$'\n'"${repo}:pi-frontend-${VERSION}"$'\n'"${repo}:pi-frontend-amd64-${VERSION}"
-          fi
-          {
-            echo "backend<<EOF"
-            printf '%s\n' "$backend_tags"
-            echo "EOF"
-            echo "frontend<<EOF"
-            printf '%s\n' "$frontend_tags"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Build and push backend
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./pi/backend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          build-args: |
-            APP_VERSION=${{ steps.version.outputs.value }}
-            APP_BUILD_TIME=${{ steps.version.outputs.build_time }}
-          tags: |
-            ${{ steps.image_tags.outputs.backend }}
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./pi/frontend/Dockerfile.prod
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          build-args: |
-            VITE_APP_VERSION=${{ steps.version.outputs.value }}
-            VITE_BUILD_TIME=${{ steps.version.outputs.build_time }}
-          tags: |
-            ${{ steps.image_tags.outputs.frontend }}
+          image="${{ matrix.image }}"
+          tags=(
+            "${repo}:pi-${image}-latest"
+            "${repo}:pi-${image}-amd64-latest"
+            "${repo}:pi-${image}-${SHA}"
+            "${repo}:pi-${image}-${VERSION}"
+            "${repo}:pi-${image}-amd64-${VERSION}"
+          )
+          tag_args=()
+          for tag in "${tags[@]}"; do
+            tag_args+=(--tag "$tag")
+          done
+          sources=()
+          for digest_file in /tmp/digests/*; do
+            sources+=("${repo}@sha256:$(basename "$digest_file")")
+          done
+          docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "${repo}:pi-${image}-latest"
