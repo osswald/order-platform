@@ -42,7 +42,6 @@
       <template #item.actions="{ index }">
         <v-btn
           icon="mdi-delete"
-          variant="text"
           color="error"
           type="button"
           @click="removeWaiterByIndex(index)"

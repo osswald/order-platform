@@ -21,7 +21,7 @@
             density="compact"
             @update:model-value="(v) => onDefaultLayoutChange(li, v)"
           />
-          <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeLayout(li)" />
+          <v-btn icon="mdi-delete" color="error" type="button" @click="removeLayout(li)" />
         </div>
       </div>
       <div class="field-row">
@@ -176,7 +176,6 @@
             v-if="cellDialogHadContent"
             data-testid="delete-layout-cell-btn"
             color="error"
-            variant="text"
             type="button"
             @click="deleteCellDialog"
           >

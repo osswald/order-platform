@@ -168,7 +168,6 @@
           <template #item.actions="{ item }">
             <v-btn
               icon="mdi-delete"
-              variant="text"
               color="error"
               size="small"
               type="button"
@@ -220,7 +219,6 @@
           <template #item.actions="{ item }">
             <v-btn
               icon="mdi-delete"
-              variant="text"
               color="error"
               size="small"
               type="button"

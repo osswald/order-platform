@@ -12,7 +12,6 @@
         <span>{{ kitchenMonitorLabel(row) }}</span>
         <v-btn
           icon="mdi-delete"
-          variant="text"
           color="error"
           type="button"
           :aria-label="$t('events.config.remove')"

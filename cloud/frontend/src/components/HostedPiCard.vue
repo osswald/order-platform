@@ -32,7 +32,6 @@
           <v-btn
             v-if="instance?.url && instance?.status === 'running'"
             color="primary"
-            variant="flat"
             type="button"
             @click="openInstance"
           >
@@ -46,13 +45,13 @@
 
       <template v-else-if="instance?.status === 'failed'">
         <p class="hosted-pi-error">{{ instance.last_error || t('hostedPi.startFailed') }}</p>
-        <v-btn color="primary" variant="flat" type="button" :disabled="loading" @click="onStart">
+        <v-btn color="primary" type="button" :disabled="loading" @click="onStart">
           {{ t('hostedPi.restart') }}
         </v-btn>
       </template>
 
       <template v-else>
-        <v-btn color="primary" variant="flat" type="button" :disabled="loading" @click="onStart">
+        <v-btn color="primary" type="button" :disabled="loading" @click="onStart">
           {{ t('hostedPi.start') }}
         </v-btn>
       </template>

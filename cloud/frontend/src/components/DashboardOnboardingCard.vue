@@ -6,7 +6,6 @@
         <p class="muted small">{{ t('dashboard.onboarding.subtitle', progress) }}</p>
       </div>
       <v-btn
-        variant="text"
         type="button"
         size="small"
         :disabled="acting"
@@ -56,7 +55,6 @@
             <v-btn
               v-if="!task.done"
               icon="mdi-check"
-              variant="text"
               size="x-small"
               :title="t('dashboard.onboarding.markDone')"
               :disabled="actingTaskId === task.id"
@@ -64,7 +62,6 @@
             />
             <v-btn
               icon="mdi-close"
-              variant="text"
               size="x-small"
               :title="t('dashboard.onboarding.dismissTask')"
               :disabled="actingTaskId === task.id"

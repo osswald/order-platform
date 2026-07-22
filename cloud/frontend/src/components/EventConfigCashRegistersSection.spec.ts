@@ -52,4 +52,24 @@ describe('EventConfigCashRegistersSection', () => {
     const wrapper = mountSection(registers)
     expect(wrapper.text()).not.toContain('Kassenschublade')
   })
+
+  it('uses outlined danger icon for config-card remove', () => {
+    const registers: EventCashRegisterLocal[] = [
+      {
+        name: 'Hauptkasse',
+        pickup_code_prefix: 'A',
+        pin: '0000',
+        layout_uuid: 'layout-1',
+        receipt_printer_appliance_id: null,
+        cash_drawer_command: 'none',
+      },
+    ]
+    const wrapper = mountSection(registers)
+    const removeBtn = wrapper.find('button[data-icon="mdi-delete"]')
+    expect(removeBtn.exists()).toBe(true)
+    expect(removeBtn.attributes('data-color')).toBe('error')
+    const variant = removeBtn.attributes('data-variant')
+    expect(variant === undefined || variant === '' || variant === 'outlined').toBe(true)
+    expect(variant).not.toBe('text')
+  })
 })

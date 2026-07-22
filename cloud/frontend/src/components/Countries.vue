@@ -65,7 +65,7 @@
         @click:row="onCountryRowClick"
       >
         <template v-if="isAdmin" #item.actions="{ item }">
-          <v-btn color="error" variant="text" @click.stop="deleteCountryRowFromTable(item)">
+          <v-btn color="error" @click.stop="deleteCountryRowFromTable(item)">
             {{ $t('common.delete') }}
           </v-btn>
         </template>

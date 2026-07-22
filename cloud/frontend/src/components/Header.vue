@@ -4,7 +4,6 @@
       <v-btn
         v-if="isMobile"
         icon="mdi-menu"
-        variant="text"
         :aria-label="$t('common.menu')"
         class="menu-toggle"
         @click="toggleNav"

@@ -6,7 +6,7 @@
     <div v-for="(reg, ri) in cashRegisters" :key="'reg-' + ri" class="config-card">
       <div class="config-card-header">
         <span>{{ reg.name || $t('events.config.unnamedCashRegister') }}</span>
-        <v-btn icon="mdi-delete" variant="text" color="error" type="button" @click="removeCashRegister(ri)" />
+        <v-btn icon="mdi-delete" color="error" type="button" @click="removeCashRegister(ri)" />
       </div>
       <div class="field-row">
         <div class="form-field">
