@@ -20,7 +20,8 @@ function timeoutSignal(ms: number): { signal: AbortSignal; cancel: () => void } 
   }
   const controller = new AbortController()
   const timer = setTimeout(() => {
-    controller.abort(new DOMException('Signal timed out', 'TimeoutError'))
+    // abort() without reason — widest WebView compatibility
+    controller.abort()
   }, ms)
   return {
     signal: controller.signal,
@@ -28,13 +29,41 @@ function timeoutSignal(ms: number): { signal: AbortSignal; cancel: () => void } 
   }
 }
 
+function probeViaAndroidBridge(apiBase: string): ProbeResult | null {
+  if (typeof window === 'undefined') return null
+  const bridge = window.AndroidNetwork
+  if (!bridge || typeof bridge.probeHealth !== 'function') return null
+  try {
+    const raw = bridge.probeHealth(apiBase)
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (data && typeof data === 'object' && (data as { ok?: unknown }).ok === true) {
+      return { reachable: true }
+    }
+    const reason = (data as { reason?: unknown })?.reason
+    const message = (data as { message?: unknown })?.message
+    return {
+      reachable: false,
+      reason: reason === 'http' ? 'http' : 'network',
+      message: typeof message === 'string' ? message : undefined,
+    }
+  } catch {
+    // Fall through to fetch (bridge unavailable / malformed payload).
+    return null
+  }
+}
+
 export async function probeApiBase(base?: string): Promise<ProbeResult> {
   const apiBase = normalizeBase(base ?? getApiBase())
+  const fromBridge = probeViaAndroidBridge(apiBase)
+  if (fromBridge) return fromBridge
+
   const { signal, cancel } = timeoutSignal(PROBE_TIMEOUT_MS)
   try {
     const res = await fetch(`${apiBase}/health`, {
       method: 'GET',
       signal,
+      // Avoid credentialed CORS mode; Pi waiter API does not use cookies.
+      credentials: 'omit',
     })
     if (res.ok) return { reachable: true }
     return { reachable: false, reason: 'http', message: `HTTP ${res.status}` }

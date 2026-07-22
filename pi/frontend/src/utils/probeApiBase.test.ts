@@ -6,10 +6,12 @@ describe('probeApiBase', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.stubGlobal('fetch', vi.fn())
+    delete (window as Window & { AndroidNetwork?: unknown }).AndroidNetwork
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    delete (window as Window & { AndroidNetwork?: unknown }).AndroidNetwork
   })
 
   it('returns reachable when health responds ok', async () => {
@@ -19,6 +21,7 @@ describe('probeApiBase', () => {
     expect(fetch).toHaveBeenCalledWith('http://192.168.192.10/health', {
       method: 'GET',
       signal: expect.any(AbortSignal),
+      credentials: 'omit',
     })
   })
 
@@ -69,6 +72,7 @@ describe('probeApiBase', () => {
     expect(fetch).toHaveBeenCalledWith('http://10.0.0.5/health', {
       method: 'GET',
       signal: expect.any(AbortSignal),
+      credentials: 'omit',
     })
     expect(getApiBase()).toBe('http://10.0.0.5')
   })
@@ -98,7 +102,6 @@ describe('probeApiBase', () => {
     vi.useFakeTimers()
     try {
       const pending = probeApiBase('https://play-review.demo.vendiqo.ch')
-      // Must reach fetch (not throw while building options).
       expect(fetch).toHaveBeenCalled()
       await Promise.resolve()
       const early = await Promise.race([
@@ -113,5 +116,37 @@ describe('probeApiBase', () => {
       vi.useRealTimers()
       AbortSignal.timeout = originalTimeout
     }
+  })
+
+  it('uses AndroidNetwork bridge when available and skips fetch', async () => {
+    const probeHealth = vi.fn(() => JSON.stringify({ ok: true, status: 'ok' }))
+    ;(window as Window & { AndroidNetwork?: { probeHealth: (u: string) => string } }).AndroidNetwork = {
+      probeHealth,
+    }
+    const result = await probeApiBase('https://play-review.demo.vendiqo.ch')
+    expect(result).toEqual({ reachable: true })
+    expect(probeHealth).toHaveBeenCalledWith('https://play-review.demo.vendiqo.ch')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('maps AndroidNetwork bridge failure to probe result', async () => {
+    ;(window as Window & { AndroidNetwork?: { probeHealth: (u: string) => string } }).AndroidNetwork = {
+      probeHealth: () => JSON.stringify({ ok: false, reason: 'http', message: 'HTTP 503' }),
+    }
+    const result = await probeApiBase('https://play-review.demo.vendiqo.ch')
+    expect(result).toEqual({ reachable: false, reason: 'http', message: 'HTTP 503' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('falls back to fetch when AndroidNetwork bridge throws', async () => {
+    ;(window as Window & { AndroidNetwork?: { probeHealth: (u: string) => string } }).AndroidNetwork = {
+      probeHealth: () => {
+        throw new Error('bridge down')
+      },
+    }
+    vi.mocked(fetch).mockResolvedValue(new Response('{"status":"ok"}', { status: 200 }))
+    const result = await probeApiBase('https://play-review.demo.vendiqo.ch')
+    expect(result).toEqual({ reachable: true })
+    expect(fetch).toHaveBeenCalled()
   })
 })

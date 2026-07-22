@@ -13,7 +13,7 @@
           Pi-API Basis-URL
           <input
             v-model="apiUrl"
-            type="url"
+            type="text"
             inputmode="url"
             autocomplete="off"
             required

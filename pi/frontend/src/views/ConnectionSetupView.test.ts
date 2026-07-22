@@ -43,7 +43,7 @@ describe('ConnectionSetupView', () => {
   it('prefills current api base', async () => {
     const wrapper = mountView()
     await flushPromises()
-    const input = wrapper.get('input[type="url"]')
+    const input = wrapper.get('input[inputmode="url"]')
     expect((input.element as HTMLInputElement).value).toBe('http://192.168.192.10')
   })
 
@@ -55,7 +55,7 @@ describe('ConnectionSetupView', () => {
     await demoBtn.trigger('click')
     await flushPromises()
     expect(probeApiBase).toHaveBeenCalledWith('https://play-review.demo.vendiqo.ch')
-    const input = wrapper.get('input[type="url"]')
+    const input = wrapper.get('input[inputmode="url"]')
     expect((input.element as HTMLInputElement).value).toBe('https://play-review.demo.vendiqo.ch')
     expect(setApiBase).toHaveBeenCalledWith('https://play-review.demo.vendiqo.ch')
     expect(replace).toHaveBeenCalledWith({ name: 'events' })

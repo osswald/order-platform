@@ -28,6 +28,10 @@ interface Window {
   AndroidInsets?: {
     getSystemBarInsetsJson?: () => string
   }
+  /** Native health probe — bypasses WebView CORS for connection setup / Demo. */
+  AndroidNetwork?: {
+    probeHealth?: (baseUrl: string) => string
+  }
 }
 
 declare module '@vendiqo/frontend-shared/useAppVersion' {

@@ -86,10 +86,12 @@ class MainActivity : ComponentActivity() {
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         printerBridge = BluetoothPrinterBridge(this)
         terminalBridge = StripeTerminalBridge(this)
+        val networkBridge = AndroidNetworkBridge()
         requestTerminalPermissionsIfNeeded()
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
         webView.addJavascriptInterface(terminalBridge, "AndroidTerminal")
         webView.addJavascriptInterface(insetsBridge, "AndroidInsets")
+        webView.addJavascriptInterface(networkBridge, "AndroidNetwork")
 
         onBackPressedDispatcher.addCallback(
             this,
