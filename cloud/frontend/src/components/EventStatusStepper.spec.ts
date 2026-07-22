@@ -23,12 +23,14 @@ function mountStepper(
     { value: 'test', label: 'Testbetrieb' },
   ],
   editMode = true,
+  persistStatus?: (status: string) => Promise<boolean>,
 ) {
   return mount(EventStatusStepper, {
     props: {
       modelValue,
       selectableStatusOptions,
       editMode,
+      ...(persistStatus ? { persistStatus } : {}),
     },
     global: {
       stubs: {
@@ -46,7 +48,7 @@ function mountStepper(
         'v-divider': { template: '<hr />' },
         'v-dialog': {
           template: '<div v-if="modelValue" class="v-dialog"><slot /></div>',
-          props: ['modelValue', 'maxWidth'],
+          props: ['modelValue', 'maxWidth', 'persistent'],
         },
         'v-card': { template: '<div class="v-card"><slot /></div>' },
         'v-card-title': { template: '<div class="v-card-title"><slot /></div>' },
@@ -55,8 +57,8 @@ function mountStepper(
         'v-spacer': { template: '<span />' },
         'v-btn': {
           template:
-            '<button type="button" class="v-btn" :data-action="action" @click="$emit(\'click\')"><slot /></button>',
-          props: ['variant', 'color', 'type', 'action'],
+            '<button type="button" class="v-btn" :disabled="disabled" :data-loading="loading" @click="$emit(\'click\')"><slot /></button>',
+          props: ['variant', 'color', 'type', 'action', 'disabled', 'loading'],
           emits: ['click'],
         },
       },
@@ -125,7 +127,49 @@ describe('EventStatusStepper', () => {
     const confirmBtn = wrapper.findAll('.v-btn').find((btn) => btn.text() === 'Fortfahren')
     expect(confirmBtn).toBeDefined()
     await confirmBtn!.trigger('click')
+    await nextTick()
     expect(wrapper.emitted('update:modelValue')).toEqual([['test']])
+  })
+
+  it('waits for persistStatus and emits only on success', async () => {
+    const persistStatus = vi.fn(async () => true)
+    const wrapper = mountStepper(
+      'config',
+      [
+        { value: 'config', label: 'Konfiguration' },
+        { value: 'test', label: 'Testbetrieb' },
+      ],
+      true,
+      persistStatus,
+    )
+    await wrapper.findAll('.v-stepper-item')[1].trigger('click')
+    await nextTick()
+    const confirmBtn = wrapper.findAll('.v-btn').find((btn) => btn.text() === 'Fortfahren')
+    await confirmBtn!.trigger('click')
+    await nextTick()
+    expect(persistStatus).toHaveBeenCalledWith('test')
+    expect(wrapper.emitted('update:modelValue')).toEqual([['test']])
+  })
+
+  it('does not emit when persistStatus fails', async () => {
+    const persistStatus = vi.fn(async () => false)
+    const wrapper = mountStepper(
+      'config',
+      [
+        { value: 'config', label: 'Konfiguration' },
+        { value: 'test', label: 'Testbetrieb' },
+      ],
+      true,
+      persistStatus,
+    )
+    await wrapper.findAll('.v-stepper-item')[1].trigger('click')
+    await nextTick()
+    const confirmBtn = wrapper.findAll('.v-btn').find((btn) => btn.text() === 'Fortfahren')
+    await confirmBtn!.trigger('click')
+    await nextTick()
+    expect(persistStatus).toHaveBeenCalledWith('test')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.find('.v-dialog').exists()).toBe(false)
   })
 
   it('does not emit when confirmation is cancelled', async () => {

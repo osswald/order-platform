@@ -127,6 +127,7 @@
         :receipt-status="receiptSaveStatus"
         :stock-status="stockSaveStatus"
         :stammdaten-dirty="stammdatenDirty"
+        :status-saving="statusSaving"
         :configuration-error="configAutosaveError"
         :receipt-error="receiptSaveError"
         :stock-error="stockSaveError"
@@ -216,6 +217,7 @@ const props = withDefaults(
     alternativePrintersEnabled?: boolean
     kitchenMonitorsEnabled?: boolean
     stammdatenDirty?: boolean
+    statusSaving?: boolean
   }>(),
   {
     organisationId: null,
@@ -228,6 +230,7 @@ const props = withDefaults(
     alternativePrintersEnabled: false,
     kitchenMonitorsEnabled: false,
     stammdatenDirty: false,
+    statusSaving: false,
   },
 )
 

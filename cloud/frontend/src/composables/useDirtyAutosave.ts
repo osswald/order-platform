@@ -172,6 +172,15 @@ export function useDirtyAutosave({
     }
   })
 
+  const enabledNow = computed(() => isEnabled())
+  watch(enabledNow, (now, was) => {
+    if (!now || was || !savedSnapshot.value || !isDirty.value) return
+    if (status.value !== 'saving' && status.value !== 'error') {
+      status.value = 'dirty'
+    }
+    scheduleSave()
+  })
+
   onBeforeUnmount(() => {
     clearDebounce()
   })
