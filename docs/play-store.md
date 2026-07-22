@@ -107,8 +107,10 @@ Use **All or some functionality is restricted**. English instructions:
 ```
 1. Install the app from the internal testing link.
 2. On first launch, when asked for Pi connection, tap "Demo"
-   (or enter https://play-review.demo.vendiqo.ch manually and test connection).
+   (this connects to https://play-review.demo.vendiqo.ch and continues automatically;
+   or enter that URL manually, tap "Verbindung testen", then "Speichern und fortfahren").
 3. Log in as waiter: Martina Meier / PIN: 0000
+
    (also: Martin Müller / 0000)
 4. Open an event, place a test order, pay with cash.
 5. Bluetooth printer and Tap to Pay require hardware; not required for review.

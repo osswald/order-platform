@@ -77,4 +77,41 @@ describe('probeApiBase', () => {
     expect(PLAY_REVIEW_DEMO_API_BASE).toBe('https://play-review.demo.vendiqo.ch')
     expect(PROBE_TIMEOUT_MS).toBe(2500)
   })
+
+  it('still times out when AbortSignal.timeout is unavailable', async () => {
+    const originalTimeout = AbortSignal.timeout
+    // Older Android WebViews may lack AbortSignal.timeout.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (AbortSignal as any).timeout
+    vi.mocked(fetch).mockImplementation((_url, init) => {
+      return new Promise((_resolve, reject) => {
+        const signal = init?.signal
+        if (!signal) {
+          reject(new Error('missing abort signal'))
+          return
+        }
+        signal.addEventListener('abort', () => {
+          reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+        })
+      })
+    })
+    vi.useFakeTimers()
+    try {
+      const pending = probeApiBase('https://play-review.demo.vendiqo.ch')
+      // Must reach fetch (not throw while building options).
+      expect(fetch).toHaveBeenCalled()
+      await Promise.resolve()
+      const early = await Promise.race([
+        pending.then((r) => ({ done: true as const, r })),
+        Promise.resolve({ done: false as const }),
+      ])
+      expect(early.done).toBe(false)
+      await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS)
+      const result = await pending
+      expect(result).toEqual({ reachable: false, reason: 'network' })
+    } finally {
+      vi.useRealTimers()
+      AbortSignal.timeout = originalTimeout
+    }
+  })
 })

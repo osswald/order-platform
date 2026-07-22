@@ -47,7 +47,7 @@ describe('ConnectionSetupView', () => {
     expect((input.element as HTMLInputElement).value).toBe('http://192.168.192.10')
   })
 
-  it('sets play review demo url when Demo shortcut clicked', async () => {
+  it('sets play review demo url, saves, and continues when Demo succeeds', async () => {
     const wrapper = mountView()
     await flushPromises()
     const demoBtn = wrapper.get('button.demo-btn')
@@ -57,6 +57,19 @@ describe('ConnectionSetupView', () => {
     expect(probeApiBase).toHaveBeenCalledWith('https://play-review.demo.vendiqo.ch')
     const input = wrapper.get('input[type="url"]')
     expect((input.element as HTMLInputElement).value).toBe('https://play-review.demo.vendiqo.ch')
+    expect(setApiBase).toHaveBeenCalledWith('https://play-review.demo.vendiqo.ch')
+    expect(replace).toHaveBeenCalledWith({ name: 'events' })
+  })
+
+  it('does not save when Demo probe fails', async () => {
+    probeApiBase.mockResolvedValue({ reachable: false, reason: 'network' })
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('button.demo-btn').trigger('click')
+    await flushPromises()
+    expect(setApiBase).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Pi nicht erreichbar')
   })
 
   it('saves api base after successful test', async () => {
