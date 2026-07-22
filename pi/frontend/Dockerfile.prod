@@ -1,6 +1,6 @@
 # Build context must be the repository root (see .github/workflows/pi-docker.yml).
-# Vite build output is static; compile on BUILDPLATFORM (amd64 in CI) to avoid QEMU
-# illegal-instruction failures during npm ci on emulated linux/arm64.
+# Vite build output is static; compile on BUILDPLATFORM so npm runs on the native
+# CI runner CPU (amd64 or arm64), not under QEMU.
 FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 WORKDIR /app/pi/frontend
 
