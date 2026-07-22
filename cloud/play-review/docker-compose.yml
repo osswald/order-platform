@@ -22,6 +22,7 @@ services:
       SYNC_ENABLED: "1"
       SYNC_PUSH_ENABLED: "0"
       SYNC_INTERVAL_SECONDS: "60"
+      PLAY_REVIEW_CLEANUP_SECRET: ${PLAY_REVIEW_CLEANUP_SECRET:-}
       APP_NAME: pi-backend
     volumes:
       - pi-data:/data
@@ -35,12 +36,8 @@ services:
     depends_on:
       - pi-backend
     healthcheck:
-      # /health once nginx proxies it; /v1/setup/status works on current published images
-      test:
-        [
-          "CMD-SHELL",
-          "wget -q -O /dev/null http://127.0.0.1/health || wget -q -O /dev/null http://127.0.0.1/v1/setup/status || exit 1",
-        ]
+      # Require nginx → backend /health (JSON), not SPA fallback
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/health | grep -q '\"status\"' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 12

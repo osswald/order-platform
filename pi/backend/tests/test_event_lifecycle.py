@@ -8,6 +8,7 @@ from app.database import Base, init_test_schema
 from app.event_lifecycle import purge_event_local_data, reconcile_bundle_lifecycle
 from app.models import (
     CollectiveBill,
+    EmulatedReceipt,
     EventOrderCounter,
     LocalOrder,
     OutboxEntry,
@@ -76,6 +77,14 @@ def _seed_event_data(session, event_id: int = 1):
     )
     session.add(CollectiveBill(uuid=f"cb-{event_id}", event_id=event_id, name="Team"))
     session.add(EventOrderCounter(event_id=event_id, next_number=5))
+    session.add(
+        EmulatedReceipt(
+            job_kind="receipt",
+            station_name="Bar",
+            escpos_payload="e30=",
+            preview_text="demo",
+        )
+    )
     session.commit()
 
 
@@ -88,6 +97,18 @@ def test_purge_event_local_data(db):
     assert db.query(PrintJob).count() == 0
     assert db.query(CollectiveBill).count() == 0
     assert db.query(EventOrderCounter).count() == 0
+    assert db.query(EmulatedReceipt).count() == 0
+
+
+def test_reconcile_test_to_prod_purges_emulated_receipts(db):
+    _seed_event_data(db, 1)
+    assert db.query(EmulatedReceipt).count() == 1
+    old_bundle = {"events": [{"id": 1, "status": "test"}]}
+    new_bundle = {"events": [{"id": 1, "status": "prod"}]}
+    purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
+    assert purged == [1]
+    assert _submission_count(db) == 0
+    assert db.query(EmulatedReceipt).count() == 0
 
 
 def test_reconcile_test_to_prod_purges(db):

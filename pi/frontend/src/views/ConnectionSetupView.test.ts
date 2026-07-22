@@ -47,10 +47,12 @@ describe('ConnectionSetupView', () => {
     expect((input.element as HTMLInputElement).value).toBe('http://192.168.192.10')
   })
 
-  it('sets play review demo url when shortcut clicked', async () => {
+  it('sets play review demo url when Demo shortcut clicked', async () => {
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.get('button.demo-btn').trigger('click')
+    const demoBtn = wrapper.get('button.demo-btn')
+    expect(demoBtn.text()).toBe('Demo')
+    await demoBtn.trigger('click')
     await flushPromises()
     expect(probeApiBase).toHaveBeenCalledWith('https://play-review.demo.vendiqo.ch')
     const input = wrapper.get('input[type="url"]')

@@ -6,8 +6,9 @@ Operator checklist for publishing **Vendiqo Waiter** (`ch.vendiqo.app`) and main
 
 - **One Play Store APK** for all venues; default Pi URL `http://192.168.192.10`.
 - If the Pi is unreachable, the app shows **Pi-Verbindung** setup (URL test + save).
-- **Play review demo** shortcut → `https://play-review.demo.vendiqo.ch`.
-- Review backend resets (clean demo event) on every Pi image deploy to `main`.
+- **Demo** shortcut → `https://play-review.demo.vendiqo.ch`.
+- Review backend resets (full `pi-data` wipe) on every Pi image deploy to `main`.
+- Nightly cleanup clears demo orders/emulated receipts using the same purge as event **test → prod** (no status change, no volume wipe).
 
 ---
 
@@ -58,6 +59,7 @@ Operator checklist for publishing **Vendiqo Waiter** (`ch.vendiqo.app`) and main
 | `PLAY_REVIEW_DEPLOY_USER` | SSH user |
 | `PLAY_REVIEW_DEPLOY_SSH_KEY` | Private key for deploy |
 | `PLAY_REVIEW_DEPLOY_PATH` | Repo path on VPS (e.g. `/opt/vendiqo/order-platform`) |
+| `PLAY_REVIEW_CLEANUP_SECRET` | Shared secret for nightly Pi `/v1/ops/purge-operational` (also in VPS `cloud/play-review/.env`) |
 
 Encode keystore: `base64 -i order-platform-upload.jks | pbcopy`
 
@@ -80,15 +82,23 @@ Encode keystore: `base64 -i order-platform-upload.jks | pbcopy`
 
 ### 1.7 VPS review stack
 
-- [x] Copy `cloud/play-review/.env.example` → `.env` on VPS; set `EDGE_CLIENT_ID`, `EDGE_SECRET`.
+- [x] Copy `cloud/play-review/.env.example` → `.env` on VPS; set `EDGE_CLIENT_ID`, `EDGE_SECRET`, `PLAY_REVIEW_CLEANUP_SECRET`.
 - [x] Install Caddy snippet into `cloud/hosted-snippets/play-review.caddy` (project `play-review`).
-- [x] Run deploy / `docker compose … up -d` — verified `https://play-review.demo.vendiqo.ch/v1/setup/status` (`configured: true`).
+- [x] Run deploy / `docker compose … up -d` — verified `https://play-review.demo.vendiqo.ch/health` returns JSON `{"status":"ok",...}` with CORS for Android WebView.
 
-Redeploy / reset demo:
+Redeploy / full reset demo:
 
 ```sh
 ssh root@178.105.186.26 'cd /root/order-platform && ./scripts/deploy-play-review.sh'
 ```
+
+Nightly operational cleanup (test→prod-style purge; keeps pairing):
+
+```sh
+ssh root@178.105.186.26 'cd /root/order-platform && ./scripts/cleanup-play-review.sh'
+```
+
+Or rely on `.github/workflows/play-review-cleanup.yml` (daily ~03:00 UTC).
 
 ### 1.8 App access (Play Console → App content → Sign-in details)
 
@@ -96,7 +106,7 @@ Use **All or some functionality is restricted**. English instructions:
 
 ```
 1. Install the app from the internal testing link.
-2. On first launch, when asked for Pi connection, tap "Play-Review-Demo verwenden"
+2. On first launch, when asked for Pi connection, tap "Demo"
    (or enter https://play-review.demo.vendiqo.ch manually and test connection).
 3. Log in as waiter: Martina Meier / PIN: 0000
    (also: Martin Müller / 0000)
@@ -112,6 +122,7 @@ Use **All or some functionality is restricted**. English instructions:
 |----------|---------|--------|
 | `pi-docker.yml` | Push to `main` | Build Pi images |
 | `play-review-deploy.yml` | After Pi Docker on `main` | SSH deploy + demo reset |
+| `play-review-cleanup.yml` | Daily schedule (~03:00 UTC) | SSH test→prod-style operational purge |
 | `android-release.yml` | Manual dispatch | Build AAB → Play track |
 
 ### First Android upload
@@ -131,8 +142,9 @@ Use **All or some functionality is restricted**. English instructions:
 
 | Issue | Check |
 |-------|--------|
-| Review host down | `curl -fsS https://play-review.demo.vendiqo.ch/health` |
-| Stale demo orders | Re-run `./scripts/deploy-play-review.sh` (wipes `pi-data`) |
+| Review host down | `curl -fsS https://play-review.demo.vendiqo.ch/health` must return JSON (`"status":"ok"`), not HTML |
+| Demo button fails in Android | Confirm CORS: `curl -sSI -H 'Origin: https://appassets.androidplatform.net' https://play-review.demo.vendiqo.ch/health` includes `Access-Control-Allow-Origin` |
+| Stale demo orders / receipts | `./scripts/cleanup-play-review.sh` (or wait for nightly); full wipe: `./scripts/deploy-play-review.sh` |
 | App stuck on connection setup | Venue Wi‑Fi; correct Pi IP in Admin → Synchronisation |
 | Play upload fails signing | GitHub secrets; keystore matches Play upload certificate |
 

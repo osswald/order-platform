@@ -152,7 +152,7 @@ Then run `./gradlew assembleDebug` again (copies `dist/` into assets).
 
 ## Google Play Store
 
-Distribution uses **Option B**: one Play Store APK for all venues. Default API base is the venue LAN IP; if the Pi is unreachable, the bundled app shows **Pi-Verbindung** setup. Google Play reviewers use **Play-Review-Demo verwenden** → `https://play-review.demo.vendiqo.ch`.
+Distribution uses **Option B**: one Play Store APK for all venues. Default API base is the venue LAN IP; if the Pi is unreachable, the bundled app shows **Pi-Verbindung** setup. Google Play reviewers use **Demo** → `https://play-review.demo.vendiqo.ch`.
 
 See [docs/play-store.md](../docs/play-store.md) for Play Console setup, GitHub secrets, and the review backend.
 

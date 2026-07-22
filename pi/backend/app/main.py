@@ -13,7 +13,7 @@ from .edge_config import is_edge_configured, write_edge_config
 from .models import SyncedBundle  # noqa: F401
 from .ota_freeze import sync_ota_freeze_from_db
 from .print_worker import print_worker_loop
-from .routers import edge_api, health, setup, shift_session
+from .routers import edge_api, health, ops, setup, shift_session
 from .sync_worker import sync_worker_loop
 
 logging.basicConfig(level=logging.INFO)
@@ -91,4 +91,5 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(setup.router, tags=["setup"])
 app.include_router(edge_api.router, tags=["edge"])
+app.include_router(ops.router, tags=["ops"])
 app.include_router(shift_session.router, tags=["shift"])
