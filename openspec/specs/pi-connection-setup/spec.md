@@ -23,6 +23,15 @@ The Pi frontend SHALL probe reachability of the current API base on startup befo
 
 The Pi connectivity probe SHALL abort within a short client-side timeout (target about 2.5 seconds) when the API base does not respond, so the connection setup flow appears quickly instead of waiting for the platform TCP timeout. The timeout SHALL work on Android System WebViews that lack `AbortSignal.timeout` (portable `AbortController` fallback).
 
+### Requirement: Android app probes without WebView CORS
+
+When running inside the Android WebView app, the connectivity probe SHALL use a native HTTP bridge (`AndroidNetwork.probeHealth`) so Demo / connection setup does not depend on cross-origin `fetch` CORS from `https://appassets.androidplatform.net`. Non-Android clients SHALL continue to probe via `fetch` to `/health`.
+
+#### Scenario: Android Demo uses native probe
+
+- **WHEN** the user taps **Demo** in the Android app and `window.AndroidNetwork.probeHealth` is available
+- **THEN** the app SHALL call the native bridge for `https://play-review.demo.vendiqo.ch` and SHALL NOT require a successful WebView `fetch` for the probe to succeed
+
 #### Scenario: Unreachable default LAN Pi shows setup promptly
 
 - **WHEN** the app starts with default API base `http://192.168.192.10` and no Pi answers within the probe timeout

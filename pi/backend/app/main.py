@@ -82,8 +82,11 @@ app = FastAPI(title=os.getenv("APP_NAME", "pi-backend"), lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
+    # Non-credentialed CORS: Android WebView (appassets.androidplatform.net) and
+    # browsers can read responses with Access-Control-Allow-Origin: *.
+    # Waiter API auth does not use cookies; allow_credentials would force origin reflection.
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
