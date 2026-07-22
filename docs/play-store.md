@@ -145,7 +145,7 @@ Use **All or some functionality is restricted**. English instructions:
 | Issue | Check |
 |-------|--------|
 | Review host down | `curl -fsS https://play-review.demo.vendiqo.ch/health` must return JSON (`"status":"ok"`), not HTML |
-| Demo button fails in Android | Confirm CORS: `curl -sSI -H 'Origin: https://appassets.androidplatform.net' https://play-review.demo.vendiqo.ch/health` includes `Access-Control-Allow-Origin` |
+| Demo / Speichern stays disabled | Install latest internal build (≥1.6.24): Android uses native `AndroidNetwork.probeHealth` (no WebView CORS). Confirm host: `curl -fsS https://play-review.demo.vendiqo.ch/health` is JSON `status=ok`. |
 | Stale demo orders / receipts | `./scripts/cleanup-play-review.sh` (or wait for nightly); full wipe: `./scripts/deploy-play-review.sh` |
 | App stuck on connection setup | Venue Wi‑Fi; correct Pi IP in Admin → Synchronisation |
 | Play upload fails signing | GitHub secrets; keystore matches Play upload certificate |
