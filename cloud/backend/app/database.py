@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .env import is_production
-from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_PLATFORM_ADMIN
+from .roles import DEFAULT_HIRE_COMPANY_NAME, ROLE_MEMBER, ROLE_ORGANISATION_ADMIN, ROLE_PLATFORM_ADMIN
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
@@ -288,6 +288,7 @@ def apply_schema_patches() -> None:
     _patch_organisation_stripe_connect()
     _patch_organisation_currency()
     _patch_tenant_admin_role()
+    _backfill_user_home_verleiher()
     _ensure_countries_table()
     _seed_countries()
     _patch_country_reference_columns()
@@ -567,6 +568,50 @@ def _patch_tenant_admin_role() -> None:
         return
     with engine.begin() as conn:
         conn.execute(text("UPDATE users SET role = 'tenant_admin' WHERE role = 'org_admin'"))
+
+
+def _backfill_user_home_verleiher() -> None:
+    """Set hire_company_id from organisation membership for member / organisation_admin."""
+    try:
+        inspector = inspect(engine)
+        names = set(inspector.get_table_names())
+        if not {"users", "organisations", "organisation_users"}.issubset(names):
+            return
+        col_names = {c["name"] for c in inspector.get_columns("users")}
+    except Exception:
+        return
+    if "hire_company_id" not in col_names or "role" not in col_names:
+        return
+
+    is_sqlite = engine.dialect.name == "sqlite"
+    superuser_false = (
+        "COALESCE(is_superuser, 0) = 0" if is_sqlite else "COALESCE(is_superuser, FALSE) IS FALSE"
+    )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                f"""
+                UPDATE users
+                SET hire_company_id = (
+                    SELECT o.hire_company_id
+                    FROM organisation_users ou
+                    JOIN organisations o ON o.id = ou.organisation_id
+                    WHERE ou.user_id = users.id
+                    LIMIT 1
+                )
+                WHERE hire_company_id IS NULL
+                  AND role IN ('{ROLE_MEMBER}', '{ROLE_ORGANISATION_ADMIN}')
+                  AND {superuser_false}
+                  AND id IN (
+                    SELECT ou.user_id
+                    FROM organisation_users ou
+                    JOIN organisations o ON o.id = ou.organisation_id
+                    GROUP BY ou.user_id
+                    HAVING COUNT(DISTINCT o.hire_company_id) = 1
+                  )
+                """
+            )
+        )
 
 
 def _ensure_event_station_printer_rules_table() -> None:

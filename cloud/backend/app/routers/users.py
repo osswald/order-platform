@@ -184,11 +184,11 @@ def _apply_role_on_create(
     if role == ROLE_ORGANISATION_ADMIN:
         db_user.role = ROLE_ORGANISATION_ADMIN
         db_user.is_superuser = False
-        db_user.hire_company_id = None
+        db_user.hire_company_id = tenant_hire_company_id
         return
     db_user.role = ROLE_MEMBER
     db_user.is_superuser = False
-    db_user.hire_company_id = None
+    db_user.hire_company_id = tenant_hire_company_id
 
 
 def _admin_org_ids(acting_user: User) -> list[int]:
@@ -276,9 +276,17 @@ def create_user(
         has_orgs=bool(user_in.organisation_ids),
     )
     sync_user_role_fields(db_user)
+    _ensure_home_verleiher(db_user, tenant.hire_company_id)
     commit_or_raise(db, on_integrity=_raise_email_already_registered)
     out = db.query(User).options(joinedload(User.organisations)).filter(User.id == db_user.id).first()
     return user_to_read(out)
+
+
+def _ensure_home_verleiher(user: User, tenant_hire_company_id: int) -> None:
+    """Fill home Verleiher for member / organisation_admin when missing (e.g. legacy rows)."""
+    role = user_role(user)
+    if role in (ROLE_MEMBER, ROLE_ORGANISATION_ADMIN) and user.hire_company_id is None:
+        user.hire_company_id = tenant_hire_company_id
 
 
 @router.put("/{user_id}", response_model=UserRead)
@@ -323,6 +331,7 @@ def update_user(
         )
         _apply_event_admin_pin(u, update_data["event_admin_pin"], has_orgs=bool(org_ids))
     sync_user_role_fields(u)
+    _ensure_home_verleiher(u, tenant.hire_company_id)
     commit_or_raise(db, on_integrity=_raise_email_already_registered)
     out = db.query(User).options(joinedload(User.organisations)).filter(User.id == user_id).first()
     return user_to_read(out)

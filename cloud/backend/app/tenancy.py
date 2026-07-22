@@ -307,7 +307,7 @@ def ensure_organisation_ids_in_admin_scope(
 
 
 def sync_user_role_fields(user: User) -> None:
-    from .roles import ROLE_ORGANISATION_ADMIN, ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
+    from .roles import ROLE_PLATFORM_ADMIN, ROLE_TENANT_ADMIN
     from .user_access import user_role
 
     role = user_role(user)
@@ -317,9 +317,6 @@ def sync_user_role_fields(user: User) -> None:
         user.hire_company_id = None
     elif role == ROLE_TENANT_ADMIN:
         user.is_superuser = False
-    elif role == ROLE_ORGANISATION_ADMIN:
-        user.is_superuser = False
-        user.hire_company_id = None
     else:
+        # member / organisation_admin: keep hire_company_id as home Verleiher
         user.is_superuser = False
-        user.hire_company_id = None
