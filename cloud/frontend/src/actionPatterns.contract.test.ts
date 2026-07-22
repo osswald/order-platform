@@ -18,11 +18,6 @@ function listVueFiles(dir: string): string[] {
   return out
 }
 
-/** Strip HTML/Vue comments so commented examples do not fail the contract. */
-function stripComments(source: string): string {
-  return source.replace(/<!--[\s\S]*?-->/g, '')
-}
-
 /**
  * Collect free-form `<v-btn>` opening tags, respecting quotes so `>` inside
  * attribute values (e.g. `v-if="a > 1"`) does not truncate the tag.
@@ -62,8 +57,7 @@ function iterVBtnTags(source: string): string[] {
 }
 
 function findForbiddenVBtnVariants(source: string): string[] {
-  const cleaned = stripComments(source)
-  return iterVBtnTags(cleaned)
+  return iterVBtnTags(source)
     .filter((tag) => /\bvariant\s*=\s*["']text["']/.test(tag) || /\bvariant\s*=\s*["']flat["']/.test(tag))
     .map((tag) => tag.replace(/\s+/g, ' ').slice(0, 120))
 }
