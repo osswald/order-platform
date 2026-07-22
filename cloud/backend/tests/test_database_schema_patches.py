@@ -226,7 +226,7 @@ def test_run_migrations_bootstraps_pre_alembic_database():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "006_edge_order_items_ordered_at"
+    assert _alembic_current_revision() == "007_backfill_user_home_verleiher"
     inspector = inspect(engine)
     assert "stripe_webhook_events" in inspector.get_table_names()
 
@@ -238,5 +238,5 @@ def test_run_migrations_applies_fresh_database_from_scratch():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "006_edge_order_items_ordered_at"
+    assert _alembic_current_revision() == "007_backfill_user_home_verleiher"
     assert "users" in inspect(engine).get_table_names()
