@@ -18,16 +18,22 @@
       </v-stepper-header>
     </v-stepper>
 
-    <v-dialog v-model="dialogOpen" max-width="32rem">
+    <v-dialog v-model="dialogOpen" max-width="32rem" :persistent="saving">
       <v-card>
         <v-card-title>{{ t('events.statusConfirm.title') }}</v-card-title>
         <v-card-text>{{ confirmMessage }}</v-card-text>
         <v-card-actions class="dialog-actions">
           <v-spacer />
-          <v-btn variant="outlined" type="button" @click="cancelTransition">
+          <v-btn variant="outlined" type="button" :disabled="saving" @click="cancelTransition">
             {{ t('common.cancel') }}
           </v-btn>
-          <v-btn color="primary" type="button" @click="confirmTransition">
+          <v-btn
+            color="primary"
+            type="button"
+            :loading="saving"
+            :disabled="saving"
+            @click="confirmTransition"
+          >
             {{ t('events.statusConfirm.confirm') }}
           </v-btn>
         </v-card-actions>
@@ -50,6 +56,8 @@ const props = withDefaults(
     modelValue: string
     selectableStatusOptions: SelectOption<string>[]
     editMode?: boolean
+    /** When set, confirm waits for this before updating modelValue. Return false to keep previous status. */
+    persistStatus?: (status: string) => Promise<boolean>
   }>(),
   {
     editMode: false,
@@ -65,6 +73,7 @@ const { mobile: isMobile } = useDisplay()
 
 const dialogOpen = ref(false)
 const pendingStatus = ref<EventStatusKey | null>(null)
+const saving = ref(false)
 
 const currentIndex = computed(() => eventStatusIndex(props.modelValue))
 
@@ -98,7 +107,7 @@ const confirmMessage = computed(() => {
 })
 
 function isClickable(step: EventStatusKey): boolean {
-  if (!props.editMode) return false
+  if (!props.editMode || saving.value) return false
   return nextAllowedStatus.value === step
 }
 
@@ -109,15 +118,33 @@ function onStepClick(step: EventStatusKey) {
 }
 
 function cancelTransition() {
+  if (saving.value) return
   dialogOpen.value = false
   pendingStatus.value = null
 }
 
-function confirmTransition() {
-  if (pendingStatus.value) {
-    emit('update:modelValue', pendingStatus.value)
+async function confirmTransition() {
+  if (!pendingStatus.value || saving.value) return
+  const next = pendingStatus.value
+  saving.value = true
+  try {
+    if (props.persistStatus) {
+      const ok = await props.persistStatus(next)
+      if (!ok) {
+        cancelTransitionAfterSave()
+        return
+      }
+    }
+    emit('update:modelValue', next)
+    cancelTransitionAfterSave()
+  } finally {
+    saving.value = false
   }
-  cancelTransition()
+}
+
+function cancelTransitionAfterSave() {
+  dialogOpen.value = false
+  pendingStatus.value = null
 }
 </script>
 

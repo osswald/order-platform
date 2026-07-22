@@ -132,6 +132,10 @@
       "stationArticlesOnly": "Articles (station articles only)",
       "noStationArticlesForCell": "No station articles available. Assign articles under Stations first.",
       "stationArticleTreeLoadFailed": "Could not load articles."
+    },
+    "messages": {
+      "statusUpdated": "Status saved.",
+      "statusSaveFailed": "Could not save status."
     }
   },
   "common": {

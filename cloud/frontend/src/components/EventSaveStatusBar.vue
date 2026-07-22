@@ -37,34 +37,38 @@ const props = defineProps({
   receiptStatus: { type: String, default: 'idle' },
   stockStatus: { type: String, default: 'idle' },
   stammdatenDirty: { type: Boolean, default: false },
+  statusSaving: { type: Boolean, default: false },
   configurationError: { type: String, default: '' },
   receiptError: { type: String, default: '' },
   stockError: { type: String, default: '' },
 })
 
 const aggregate = computed(() => {
+  if (props.statusSaving) {
+    return { kind: 'saving' as const }
+  }
   const statuses = [
     props.configurationStatus,
     props.receiptStatus,
     props.stockStatus,
   ]
   if (props.stammdatenDirty) {
-    return { kind: 'dirty' }
+    return { kind: 'dirty' as const }
   }
   if (statuses.some((s) => s === 'saving')) {
-    return { kind: 'saving' }
+    return { kind: 'saving' as const }
   }
   const errors = [props.configurationError, props.receiptError, props.stockError].filter(Boolean)
   if (statuses.some((s) => s === 'error') || errors.length) {
-    return { kind: 'error', message: errors[0] || '' }
+    return { kind: 'error' as const, message: errors[0] || '' }
   }
   if (statuses.some((s) => s === 'dirty')) {
-    return { kind: 'dirty' }
+    return { kind: 'dirty' as const }
   }
   if (statuses.some((s) => s === 'saved')) {
-    return { kind: 'saved' }
+    return { kind: 'saved' as const }
   }
-  return { kind: 'idle' }
+  return { kind: 'idle' as const }
 })
 
 const label = computed(() => {

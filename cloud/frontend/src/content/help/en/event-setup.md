@@ -4,7 +4,7 @@ An event typically moves through the statuses **Configuration → Live → Compl
 
 - Set name, date range, and currency
 - Enable payment types (cash, TWINT, card, etc.)
-- Status controls whether the event is visible on Pi devices
+- Advance status via the status stepper (confirm saves status immediately; other master-data fields still use Save)
 
 In **Configuration** status you can optionally use a hosted cloud Pi sandbox for testing.
 
