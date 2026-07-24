@@ -42,6 +42,14 @@ PAPER_WIDTH_PRESETS: dict[str, int] = {
     "53mm": 30,
 }
 
+# Printable logo width in dots (not scaled from character columns).
+# 58 mm Bluetooth heads are typically ~384 dots — same as the 80 mm default canvas.
+LOGO_WIDTH_PRESETS: dict[str, int] = {
+    "80mm": 384,
+    "58mm": 384,
+    "53mm": 360,
+}
+
 
 def escpos_env_line_width() -> int:
     raw = os.getenv("ESCPOS_LINE_WIDTH", "48").strip()
@@ -58,16 +66,20 @@ def resolve_line_width(paper_width: str | None = None) -> int:
     return escpos_env_line_width()
 
 
-def resolve_logo_max_width(line_width: int) -> int:
-    return max(128, int(DEFAULT_MAX_IMAGE_WIDTH * line_width / 48))
-
-
 def escpos_logo_max_width() -> int:
     raw = os.getenv("ESCPOS_LOGO_MAX_WIDTH", str(DEFAULT_MAX_IMAGE_WIDTH)).strip()
     try:
         return max(128, int(raw))
     except ValueError:
         return DEFAULT_MAX_IMAGE_WIDTH
+
+
+def resolve_logo_max_width(paper_width: str | None = None) -> int:
+    """Logo raster max width in dots for a paper preset (or ESCPOS_LOGO_MAX_WIDTH)."""
+    key = (paper_width or "").strip()
+    if key in LOGO_WIDTH_PRESETS:
+        return LOGO_WIDTH_PRESETS[key]
+    return escpos_logo_max_width()
 
 
 def new_slip() -> Dummy:
@@ -411,9 +423,14 @@ def write_logo_bytes(
     image_bytes: bytes,
     *,
     max_width: int | None = None,
-    center: bool = True,
+    center: bool = False,
 ) -> None:
-    """Rasterize image bytes for ESC/POS (PNG/JPEG/etc.). Skips on failure."""
+    """Rasterize image bytes for ESC/POS (PNG/JPEG/etc.). Skips on failure.
+
+    Do not center via python-escpos profile media width (TM-T88IV = 512 dots): that
+    pads rasters and right-shifts logos on ~384-dot 58 mm Bluetooth printers.
+    Horizontal placement is already handled by `_prepare_receipt_logo`.
+    """
     if not image_bytes:
         return
     width = max_width if max_width is not None else escpos_logo_max_width()
