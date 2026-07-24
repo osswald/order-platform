@@ -4,12 +4,19 @@
 Define how dependency updates (Dependabot PRs) are batched, verified, and merged, and how they interact with releases.
 
 ## Requirements
+### Requirement: Dependabot opens grouped updates per ecosystem directory
+`.github/dependabot.yml` MUST configure a `groups:` entry with `patterns: ["*"]` for each package-ecosystem directory (npm frontends, uv backends / hosted-pi-manager, github-actions) so weekly runs open one PR per directory instead of one PR per package.
+
+#### Scenario: Weekly Dependabot run with groups enabled
+- **WHEN** Dependabot finds multiple dependency updates in `/cloud/frontend` (or another configured directory)
+- **THEN** those updates are opened as a single grouped pull request for that directory
+
 ### Requirement: Dependabot updates land as combined, CI-verified batches
-When multiple Dependabot PRs are open, the maintainers SHALL combine them into a single branch cut from the latest `main`, and the combined branch MUST pass the full CI matrix (backend tests, frontend tests, typecheck, lint) before merge. Individual Dependabot PRs MUST be closed or auto-closed once the combined PR merges.
+When multiple Dependabot PRs are open (for example before grouping, or across directories), the maintainers SHALL combine them into a single branch cut from the latest `main`, and the combined branch MUST pass the full CI matrix (backend tests, frontend tests, typecheck, lint) before merge. Individual Dependabot PRs MUST be closed or auto-closed once the combined PR merges.
 
 #### Scenario: Combining open Dependabot PRs
 - **WHEN** more than one Dependabot PR is open against `main`
-- **THEN** the updates are applied together on one combined branch using the package managers (npm / requirements ranges), producing one consistent lockfile per workspace
+- **THEN** the updates are applied together on one combined branch using the package managers (npm / uv), producing one consistent lockfile per workspace
 - **THEN** the combined PR references the superseded Dependabot PR numbers
 
 #### Scenario: Overlap with an in-flight migration PR
