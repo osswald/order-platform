@@ -170,9 +170,12 @@ def _issue_session_tokens(user: User, response: Response) -> tuple[str, str]:
     return access_token, refresh_token
 
 
+MIN_PASSWORD_LENGTH = 10
+
+
 class PasswordChange(BaseModel):
     current_password: str
-    new_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=MIN_PASSWORD_LENGTH)
 
 
 @router.post("/token", response_model=Token)

@@ -1,11 +1,30 @@
+"""Rate limiting helpers for SlowAPI."""
+
 import os
 
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+
+def client_ip_key(request: Request) -> str:
+    """Client identity for rate limits.
+
+    When ``RATE_LIMIT_TRUST_PROXY`` is true (production behind Caddy), use the
+    leftmost ``X-Forwarded-For`` hop as the original client. Otherwise use the
+    direct peer address.
+    """
+    if os.getenv("RATE_LIMIT_TRUST_PROXY", "false").lower() == "true":
+        forwarded = (request.headers.get("X-Forwarded-For") or "").strip()
+        if forwarded:
+            client = forwarded.split(",")[0].strip()
+            if client:
+                return client
+    return get_remote_address(request)
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=client_ip_key,
     default_limits=[],
     storage_uri=os.getenv("RATE_LIMIT_STORAGE_URI", "memory://"),
 )
@@ -22,4 +41,4 @@ def edge_client_key(request: Request) -> str:
     client_id = (request.headers.get("X-Edge-Client-Id") or "").strip()
     if client_id:
         return f"edge:{client_id}"
-    return get_remote_address(request)
+    return client_ip_key(request)

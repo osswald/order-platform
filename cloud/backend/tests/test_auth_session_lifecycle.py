@@ -87,7 +87,7 @@ def test_change_password_invalidates_existing_access_token():
 
     changed = client.post(
         "/auth/change-password",
-        json={"current_password": "secret", "new_password": "newsecret"},
+        json={"current_password": "secret", "new_password": "newsecret1"},
         headers={"Authorization": f"Bearer {access}"},
     )
     assert changed.status_code == 200

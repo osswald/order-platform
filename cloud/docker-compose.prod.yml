@@ -26,6 +26,7 @@ services:
       APP_ENV: production
       ENABLE_OPENAPI: "false"
       REFRESH_COOKIE_SECURE: "true"
+      RATE_LIMIT_TRUST_PROXY: "true"
       HOSTED_PI_MANAGER_URL: http://hosted-pi-manager:8090
       HOSTED_PI_MANAGER_SECRET: ${HOSTED_PI_MANAGER_SECRET}
       HOSTED_PI_BASE_DOMAIN: ${HOSTED_PI_BASE_DOMAIN:-demo.vendiqo.ch}

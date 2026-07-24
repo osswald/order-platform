@@ -75,12 +75,16 @@ Production Caddy (or equivalent edge) configuration for the admin UI host SHALL 
 - **AND** `script-src` does not include arbitrary https: hosts or unsafe-eval
 
 ### Requirement: Password change rejects empty secrets
-Changing a user password SHALL require a new password with length at least the configured minimum policy (baseline: greater than zero characters). The system MUST NOT accept an empty new password string.
+Changing a user password SHALL require a new password with length of at least **10** characters. Creating a user SHALL require an initial password with the same minimum length. The system MUST NOT accept an empty or shorter-than-minimum new password string.
 
 #### Scenario: Empty new password rejected
 - **WHEN** an authenticated user submits a password change with an empty new password
 - **THEN** the request is rejected with a validation or client error
 - **AND** the stored password hash is unchanged
+
+#### Scenario: Short new password rejected
+- **WHEN** an authenticated user submits a password change with a new password shorter than 10 characters
+- **THEN** the request is rejected with a validation or client error
 
 ### Requirement: Security regression tests remain mapped
 Security-sensitive behaviors covered by this capability and by `cloud-session-jwt` / tenancy isolation SHALL remain covered by automated tests. Existing `security #N` anchors (JWT types, SECRET_KEY, session lifecycle, tenant IDOR) MUST continue to pass; new Critical/High audit fixes SHALL add or extend tests before code changes land.

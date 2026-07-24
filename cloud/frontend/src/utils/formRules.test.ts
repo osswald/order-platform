@@ -56,3 +56,11 @@ describe('rules.passwordMatch', () => {
     expect(matcher('secret')).toBe(true)
   })
 })
+
+describe('rules.minPasswordLength', () => {
+  it('enforces minimum password length', () => {
+    const min10 = rules.minPasswordLength(10)
+    expect(min10('short')).toBe('Passwort muss mindestens 10 Zeichen haben')
+    expect(min10('longenough1')).toBe(true)
+  })
+})

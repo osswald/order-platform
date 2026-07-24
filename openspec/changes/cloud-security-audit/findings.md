@@ -25,9 +25,9 @@
 | F4 | High | stripe | Client-controlled Connect return/refresh URLs | **Fixed** — env-only URLs |
 | F5 | Medium | terminal | Client metadata can overwrite PaymentIntent system keys | **Fixed** — system keys applied last |
 | F6 | Medium | terminal | GET PaymentIntent not bound to event_id metadata | **Fixed** + tests |
-| F7 | Medium | auth | Password policy ≈ non-empty | **Backlog** — stronger min length / complexity |
+| F7 | Medium | auth | Password policy ≈ non-empty | **Fixed** — min length 10 on user create + change-password |
 | F8 | Medium | deploy | `REFRESH_COOKIE_SECURE` defaults false | **Fixed** — Secure forced when `APP_ENV=production`; compose sets true |
-| F9 | Medium | deploy | Rate limits key on peer (Caddy), not client IP | **Backlog** — trusted `X-Forwarded-For` from Caddy (or equivalent) |
+| F9 | Medium | deploy | Rate limits key on peer (Caddy), not client IP | **Fixed** — `RATE_LIMIT_TRUST_PROXY` + leftmost `X-Forwarded-For` |
 | F10 | Medium | edge | Pairing verifies against all active sessions (CPU) | **Accepted** — OK at current pairing scale |
 | F11 | Medium | tenancy | Waiter PINs returned in API / default `0000` | **Accepted** — venue PIN model |
 | F12 | Medium | hosted-pi | Docker socket + edge secrets on disk | **Accepted** — orchestration model; protect host + manager secret |
@@ -37,7 +37,7 @@
 | F16 | Low | tenancy | Broad member write within linked orgs | **Accepted** — members are trusted org operators |
 | F17 | Low | xss | Help `v-html` (static MD, html:false) | **Accepted** — static bundled content only |
 | F18 | Low | deploy | CSP `style-src 'unsafe-inline'` | **Accepted** — Vuetify / admin UI |
-| F19 | Low | hosted-pi | Manager secret `!=` timing | **Backlog** — `hmac.compare_digest` |
+| F19 | Low | hosted-pi | Manager secret `!=` timing | **Fixed** — `hmac.compare_digest` |
 | F20 | Medium | terminal | Compromised edge can create arbitrary-amount PIs | **Accepted** — POS model; revoke/unpair mitigates |
 | F21 | Info | stripe | Webhooks signature + idempotency OK | No action |
 | F22 | Info | edge | Pairing lifecycle controls present | Tests added for Terminal foreign-event; EDGE_PAIR 429 still optional |
@@ -46,10 +46,8 @@
 
 | Disposition | IDs |
 |-------------|-----|
-| **Backlog** (follow-on work) | F7, F9, F19 |
+| **Backlog → fixed in follow-up commits** | F7, F9, F19 |
 | **Accepted** residual risk | F10, F11, F12, F15, F16, F17, F18, F20 |
-
-Suggested follow-on change names (optional): `password-policy`, `rate-limit-forwarded-for`, `hosted-pi-compare-digest`.
 
 ## Spec coverage matrix (task 8.1)
 

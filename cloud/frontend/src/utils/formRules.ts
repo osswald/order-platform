@@ -43,6 +43,11 @@ export const rules = {
 
   passwordMatch: (other: unknown) => (value: unknown) =>
     value === other || t('validation.passwordMismatch'),
+
+  minPasswordLength: (min = 10) => (value: unknown) => {
+    if (isEmpty(value)) return t('validation.required')
+    return String(value).length >= min || t('validation.passwordTooShort')
+  },
 }
 
 interface FormValidateResult {

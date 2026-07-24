@@ -53,7 +53,7 @@
           :placeholder="$t('users.passwordPlaceholder')"
           hide-details="auto"
           required
-          :rules="[rules.required]"
+          :rules="[rules.required, rules.minPasswordLength()]"
           :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
           @click:append-inner="showPassword = !showPassword"
         />
