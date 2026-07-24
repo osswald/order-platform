@@ -28,6 +28,7 @@ class EventBase(BaseModel):
     alternative_printers_enabled: bool = False
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
+    bluetooth_printing_enabled: bool = False
     instant_collective_bill_name: str | None = None
     instant_collective_bill_uuid: str | None = None
 
@@ -63,6 +64,7 @@ class EventCreate(BaseModel):
     alternative_printers_enabled: bool = False
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
+    bluetooth_printing_enabled: bool = False
     instant_collective_bill_name: str | None = None
     instant_collective_bill_uuid: str | None = None
 
@@ -102,6 +104,7 @@ class EventUpdate(BaseModel):
     alternative_printers_enabled: bool | None = None
     kitchen_monitors_enabled: bool | None = None
     offer_payment_receipt: bool | None = None
+    bluetooth_printing_enabled: bool | None = None
     instant_collective_bill_name: str | None = None
 
 

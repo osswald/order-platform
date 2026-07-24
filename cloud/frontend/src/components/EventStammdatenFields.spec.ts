@@ -13,6 +13,7 @@ const baseForm: EventStammdatenForm = {
   paymentTypes: ['cash'],
   instantCollectiveBillName: '',
   offerPaymentReceipt: false,
+  bluetoothPrintingEnabled: false,
   cashRegistersEnabled: false,
   shiftSettlementEnabled: false,
   vouchersEnabled: false,
@@ -51,5 +52,11 @@ describe('EventStammdatenFields', () => {
   it('hides payment types when payment mode is instant', () => {
     const wrapper = mountFields({ paymentMode: 'instant' })
     expect(wrapper.text()).not.toContain('Zahlungsarten')
+  })
+
+  it('shows Bluetooth printing toggle next to payment receipt offer', () => {
+    const wrapper = mountFields()
+    expect(wrapper.text()).toContain('Bluetooth-Druck aktivieren')
+    expect(wrapper.text()).toContain('Zahlungsbeleg nach Bezahlung anbieten')
   })
 })

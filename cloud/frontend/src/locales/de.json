@@ -875,6 +875,8 @@
       "paymentTypesHint": "Bei Abrechnung wählt der Kellner eine Art (Popup erscheintnur bei mehreren Zahlungsarten).",
       "offerPaymentReceipt": "Zahlungsbeleg nach Bezahlung anbieten",
       "offerPaymentReceiptHint": "Nach Bezahlung fragt die App, ob ein Zahlungsbeleg gedruckt werden soll.",
+      "bluetoothPrinting": "Bluetooth-Druck aktivieren",
+      "bluetoothPrintingHint": "Erlaubt Kellner-Geräten (Android), Zahlungsbelege, Gutscheine und Schichtabrechnungen über einen gekoppelten Bluetooth-Drucker zu drucken.",
       "config": "Config",
       "cashRegisters": "Kassen",
       "cashRegistersHint": "Aktiviert Kassen. Kassen sind stationäre Geräte, an denen Bestellungen aufgenommen werden können.",

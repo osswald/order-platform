@@ -11919,6 +11919,11 @@
             "title": "Offer Payment Receipt",
             "default": false
           },
+          "bluetooth_printing_enabled": {
+            "type": "boolean",
+            "title": "Bluetooth Printing Enabled",
+            "default": false
+          },
           "twint_qr_data_url": {
             "anyOf": [
               {
@@ -12438,6 +12443,11 @@
             "title": "Offer Payment Receipt",
             "default": false
           },
+          "bluetooth_printing_enabled": {
+            "type": "boolean",
+            "title": "Bluetooth Printing Enabled",
+            "default": false
+          },
           "instant_collective_bill_name": {
             "anyOf": [
               {
@@ -12664,6 +12674,11 @@
           "offer_payment_receipt": {
             "type": "boolean",
             "title": "Offer Payment Receipt",
+            "default": false
+          },
+          "bluetooth_printing_enabled": {
+            "type": "boolean",
+            "title": "Bluetooth Printing Enabled",
             "default": false
           },
           "instant_collective_bill_name": {
@@ -13288,6 +13303,17 @@
               }
             ],
             "title": "Offer Payment Receipt"
+          },
+          "bluetooth_printing_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bluetooth Printing Enabled"
           },
           "instant_collective_bill_name": {
             "anyOf": [

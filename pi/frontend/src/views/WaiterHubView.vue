@@ -41,7 +41,7 @@
         Belege / Nachdruck
       </button>
       <button
-        v-if="androidApp"
+        v-if="androidApp && bluetoothPrinting"
         type="button"
         class="btn hub-btn"
         @click="router.push({ name: 'android-printer' })"
@@ -66,11 +66,13 @@ import { useEventContext } from '@/composables/useEventContext'
 import { maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
 import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
 import { isEventTest } from '@/utils/eventStatus'
+import { bluetoothPrintingEnabled } from '@/utils/paymentReceiptPrompt'
 
 const router = useRouter()
 const { event, waiter, setWaiter, selectedEventId } = useEventContext()
 const { failedCount, loadFailedJobs } = useStationPrintFailures()
 const androidApp = computed(() => isAndroidApp())
+const bluetoothPrinting = computed(() => bluetoothPrintingEnabled(event.value))
 const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
 
 onMounted(() => {

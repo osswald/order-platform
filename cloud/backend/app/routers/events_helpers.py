@@ -86,6 +86,7 @@ def event_response(event: Event) -> dict:
         "alternative_printers_enabled": bool(getattr(event, "alternative_printers_enabled", False)),
         "kitchen_monitors_enabled": bool(getattr(event, "kitchen_monitors_enabled", False)),
         "offer_payment_receipt": bool(getattr(event, "offer_payment_receipt", False)),
+        "bluetooth_printing_enabled": bool(getattr(event, "bluetooth_printing_enabled", False)),
         **instant_collective_bill_fields(event),
     }
 

@@ -194,6 +194,7 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         alternative_printers_enabled=bool(getattr(source, "alternative_printers_enabled", False)),
         kitchen_monitors_enabled=bool(getattr(source, "kitchen_monitors_enabled", False)),
         offer_payment_receipt=bool(getattr(source, "offer_payment_receipt", False)),
+        bluetooth_printing_enabled=bool(getattr(source, "bluetooth_printing_enabled", False)),
     )
     apply_instant_collective_bill_settings(
         new_event,

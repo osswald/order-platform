@@ -2462,6 +2462,11 @@ export interface components {
              * @default false
              */
             offer_payment_receipt: boolean;
+            /**
+             * Bluetooth Printing Enabled
+             * @default false
+             */
+            bluetooth_printing_enabled: boolean;
             /** Twint Qr Data Url */
             twint_qr_data_url?: string | null;
             /**
@@ -2699,6 +2704,11 @@ export interface components {
              * @default false
              */
             offer_payment_receipt: boolean;
+            /**
+             * Bluetooth Printing Enabled
+             * @default false
+             */
+            bluetooth_printing_enabled: boolean;
             /** Instant Collective Bill Name */
             instant_collective_bill_name?: string | null;
             /** Instant Collective Bill Uuid */
@@ -2805,6 +2815,11 @@ export interface components {
              * @default false
              */
             offer_payment_receipt: boolean;
+            /**
+             * Bluetooth Printing Enabled
+             * @default false
+             */
+            bluetooth_printing_enabled: boolean;
             /** Instant Collective Bill Name */
             instant_collective_bill_name?: string | null;
             /** Instant Collective Bill Uuid */
@@ -2995,6 +3010,8 @@ export interface components {
             kitchen_monitors_enabled?: boolean | null;
             /** Offer Payment Receipt */
             offer_payment_receipt?: boolean | null;
+            /** Bluetooth Printing Enabled */
+            bluetooth_printing_enabled?: boolean | null;
             /** Instant Collective Bill Name */
             instant_collective_bill_name?: string | null;
         };

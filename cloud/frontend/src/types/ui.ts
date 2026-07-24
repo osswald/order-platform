@@ -11,6 +11,7 @@ export interface EventStammdatenForm {
   paymentTypes: string[]
   instantCollectiveBillName: string
   offerPaymentReceipt: boolean
+  bluetoothPrintingEnabled: boolean
   cashRegistersEnabled: boolean
   shiftSettlementEnabled: boolean
   vouchersEnabled: boolean

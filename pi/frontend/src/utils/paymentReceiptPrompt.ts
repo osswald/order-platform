@@ -93,6 +93,11 @@ export function offerPaymentReceiptEnabled(event: EdgeBundleEvent | null | undef
   return Boolean(event?.offer_payment_receipt)
 }
 
+/** Event allows waiter Bluetooth ESC/POS (payment receipts, vouchers, shift). */
+export function bluetoothPrintingEnabled(event: EdgeBundleEvent | null | undefined): boolean {
+  return Boolean(event?.bluetooth_printing_enabled)
+}
+
 export interface OfferPaymentReceiptOptions {
   paymentId: number | string
   event: EdgeBundleEvent
@@ -119,7 +124,8 @@ export async function offerPaymentReceipt({
   }
   if (!wantPrint) return
 
-  const btReady = isAndroidApp() && isBluetoothPrinterConfigured()
+  const btReady =
+    isAndroidApp() && isBluetoothPrinterConfigured() && bluetoothPrintingEnabled(event)
   if (btReady) {
     await printBluetooth(paymentId, showToast, { reprint })
     return
