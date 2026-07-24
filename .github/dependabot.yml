@@ -5,33 +5,57 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      cloud-frontend:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /pi/frontend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      pi-frontend:
+        patterns:
+          - "*"
 
   - package-ecosystem: uv
     directory: /cloud/backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      cloud-backend:
+        patterns:
+          - "*"
 
   - package-ecosystem: uv
     directory: /pi/backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      pi-backend:
+        patterns:
+          - "*"
 
   - package-ecosystem: uv
     directory: /cloud/hosted-pi-manager
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      hosted-pi-manager:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
