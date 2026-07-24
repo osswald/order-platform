@@ -1,9 +1,19 @@
 """Receipt paper width presets for Bluetooth payment receipts."""
 
+import base64
 import re
+from io import BytesIO
 
-from app.escpos_render import PAPER_WIDTH_PRESETS, resolve_line_width, resolve_logo_max_width
+import pytest
+from app.escpos_render import (
+    PAPER_WIDTH_PRESETS,
+    new_slip,
+    resolve_line_width,
+    resolve_logo_max_width,
+    write_logo_bytes,
+)
 from app.print_worker import build_payment_receipt_text
+from PIL import Image
 
 
 def _decode_receipt(raw: bytes) -> str:
@@ -36,6 +46,20 @@ def _payload_with_long_item():
     }
 
 
+def _gs_v0_raster_width_dots(raw: bytes) -> int:
+    idx = raw.find(b"\x1dv0")
+    assert idx >= 0, "expected GS v 0 raster in payload"
+    width_bytes = raw[idx + 4] | (raw[idx + 5] << 8)
+    return width_bytes * 8
+
+
+def _wide_logo_png_bytes() -> bytes:
+    img = Image.new("RGB", (800, 40), (0, 0, 0))
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def test_resolve_line_width_presets():
     assert resolve_line_width("80mm") == 48
     assert resolve_line_width("58mm") == 32
@@ -44,9 +68,60 @@ def test_resolve_line_width_presets():
     assert resolve_line_width("invalid") == resolve_line_width(None)
 
 
-def test_resolve_logo_max_width_scales_with_line_width():
-    assert resolve_logo_max_width(48) == 384
-    assert resolve_logo_max_width(30) == 240
+def test_resolve_logo_max_width_paper_presets():
+    assert resolve_logo_max_width("80mm") == 384
+    assert resolve_logo_max_width("58mm") == 384
+    assert resolve_logo_max_width("53mm") == 360
+
+
+def test_resolve_logo_max_width_default_uses_env(monkeypatch):
+    monkeypatch.setenv("ESCPOS_LOGO_MAX_WIDTH", "400")
+    assert resolve_logo_max_width(None) == 400
+    assert resolve_logo_max_width("") == 400
+    assert resolve_logo_max_width("invalid") == 400
+
+
+@pytest.mark.parametrize(
+    "paper_width,expected_dots",
+    [
+        ("80mm", 384),
+        ("58mm", 384),
+        ("53mm", 360),
+    ],
+)
+def test_write_logo_raster_width_matches_paper_preset(paper_width, expected_dots):
+    logo = _wide_logo_png_bytes()
+    printer = new_slip()
+    write_logo_bytes(printer, logo, max_width=resolve_logo_max_width(paper_width))
+    dots = _gs_v0_raster_width_dots(printer.output)
+    assert dots == expected_dots
+    assert dots != 512
+
+
+def test_payment_receipt_logo_raster_not_padded_to_profile_width():
+    logo_b64 = base64.b64encode(_wide_logo_png_bytes()).decode("ascii")
+    event = {
+        "id": "evt-1",
+        "name": "Event",
+        "configuration": {
+            "printing": {
+                "logo_base64": logo_b64,
+                "payment_receipt": {"logo_enabled": True},
+            }
+        },
+    }
+    arts = {"1": {"id": 1, "name": "Item", "price": 5.0, "additions": []}}
+    raw = build_payment_receipt_text(
+        _payload_with_long_item(),
+        "Event",
+        articles=arts,
+        currency="CHF",
+        paper_width="58mm",
+        event=event,
+    )
+    dots = _gs_v0_raster_width_dots(raw)
+    assert dots == 384
+    assert dots != 512
 
 
 def test_payment_receipt_narrow_lines_fit_paper_width():

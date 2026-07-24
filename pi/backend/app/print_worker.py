@@ -436,7 +436,7 @@ def build_payment_receipt_text(
     line_size = profile.get("size_order_lines") or "normal"
     title = _event_title_for_print(event, event_name)
     width = line_width if line_width is not None else resolve_line_width(paper_width)
-    logo_width = resolve_logo_max_width(width)
+    logo_width = resolve_logo_max_width(paper_width)
 
     def render(printer: Dummy) -> None:
         write_logo_from_event(
@@ -544,7 +544,7 @@ def build_shift_close_receipt_text(
     line_size = profile.get("size_order_lines") or "normal"
     title = _event_title_for_print(event, event_name)
     width = line_width if line_width is not None else resolve_line_width(paper_width)
-    logo_width = resolve_logo_max_width(width)
+    logo_width = resolve_logo_max_width(paper_width)
 
     opening = int(session_payload.get("opening_balance_cents") or 0)
     counted = int(session_payload.get("counted_cash_cents") or 0)

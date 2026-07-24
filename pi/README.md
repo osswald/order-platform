@@ -309,7 +309,7 @@ Kitchen tickets are forward-synced on create/print (`kitchen_tickets` outbox chu
 
 Each order is split by station. The cloud bundle contains `printer_hosts` mapping station/register UUIDs to ESC/POS printer hosts.
 
-Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG). Logos are flattened onto a white background (including transparent PNGs), converted to black-on-white for thermal print, scaled to fit the paper width, and centered.
+Receipts are rendered with [python-escpos](https://github.com/python-escpos/python-escpos) into byte payloads (`escpos_payload`); the Pi backend sends those bytes over TCP (or returns them for Android Bluetooth). Optional event logos: `configuration.printing.logo_base64` in the synced bundle (PNG/JPEG). Logos are flattened onto a white background (including transparent PNGs), converted to black-on-white for thermal print, scaled to the paper-preset printable width in dots, and centered on that canvas (not padded to the 80 mm Epson profile width).
 
 Station, customer pickup, and voucher slips share one ESC/POS layout: event title and localized time (header row), context row (`Station:` + `Best #` / `Bon #`, or `GUTSCHEIN` + copy index), a **large centered hero** (table number, pickup code, or voucher value), and line items. **Station kitchen slips** never print prices or totals (quantities and names only) and omit the cloud **Fußzeile**; they end with the **Kellner- or Kassenname**. **Customer pickup** slips (`customer_receipt`) print line prices and a total row when **Preise anzeigen** is enabled in cloud (tab *Kunde / Abholbeleg*), and print the cloud **Fußzeile** (`bottom_line`) or the legacy fallback «Bitte an der Ausgabe abholen.» when empty. **Voucher** slips use the voucher footer («Einloesung bei Zahlung.» or custom `bottom_line`).
 
@@ -322,7 +322,7 @@ Optional in `pi/.env`:
 - `ESCPOS_LINE_WIDTH` — characters per line for **network** slips and station payment prints when no `paper_width` is sent (default `48`, 80 mm Font A). Bluetooth payment receipts use the device setting instead (`80mm`→48, `58mm`→32, `53mm`→30).
 - `ESCPOS_TIMEZONE` — IANA zone for `ordered_at` display (default `Europe/Zurich`)
 - `ESCPOS_HERO_SCALE` — table/pickup/voucher hero magnification (default `8`)
-- `ESCPOS_LOGO_MAX_WIDTH` — logo raster width in dots (default `384`, 80mm)
+- `ESCPOS_LOGO_MAX_WIDTH` — logo raster width in dots when no `paper_width` preset applies (default `384`). Bluetooth presets use fixed widths: `80mm`/`58mm` → 384, `53mm` → 360.
 
 **Zeilenvorschub vor Schnitt** is configured per **Drucker** appliance in cloud admin (**Geräte** → Drucker → *Zeilenvorschub vor Schnitt*, 0–10; default 1). The Pi syncs this via `printer_hosts` in the event bundle.
 
