@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
+CSRF_HEADERS = {"Origin": "http://localhost:5173"}
+
 
 def _create_user(email: str, password: str) -> None:
     db = SessionLocal()
@@ -49,11 +51,11 @@ def test_logout_invalidates_access_and_refresh():
 
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {access}"}).status_code == 200
 
-    logout = client.post("/auth/logout")
+    logout = client.post("/auth/logout", headers=CSRF_HEADERS)
     assert logout.status_code == 200
 
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {access}"}).status_code == 401
-    refresh = client.post("/auth/refresh")
+    refresh = client.post("/auth/refresh", headers=CSRF_HEADERS)
     assert refresh.status_code == 401
 
 
@@ -64,17 +66,17 @@ def test_refresh_rotates_and_invalidates_previous_refresh():
     old_cookies = _cookie_snapshot(login)
     _set_client_cookies(old_cookies)
 
-    first = client.post("/auth/refresh")
+    first = client.post("/auth/refresh", headers=CSRF_HEADERS)
     assert first.status_code == 200
     new_cookies = _cookie_snapshot(first)
 
     stale_client = TestClient(app)
     stale_client.cookies.update(old_cookies)
-    second_old = stale_client.post("/auth/refresh")
+    second_old = stale_client.post("/auth/refresh", headers=CSRF_HEADERS)
     assert second_old.status_code == 401
 
     _set_client_cookies(new_cookies)
-    assert client.post("/auth/refresh").status_code == 200
+    assert client.post("/auth/refresh", headers=CSRF_HEADERS).status_code == 200
 
 
 def test_change_password_invalidates_existing_access_token():
@@ -101,7 +103,7 @@ def test_refresh_rate_limit_returns_429():
 
     statuses = []
     for _ in range(35):
-        r = client.post("/auth/refresh")
+        r = client.post("/auth/refresh", headers=CSRF_HEADERS)
         statuses.append(r.status_code)
         if r.status_code == 200:
             _set_client_cookies(_cookie_snapshot(r))

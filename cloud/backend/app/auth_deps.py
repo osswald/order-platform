@@ -1,4 +1,4 @@
-from fastapi import Depends, status
+from fastapi import Depends, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,9 @@ from .models import User
 from .security import decode_access_token
 from .user_access import is_platform_admin
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
+
+ACCESS_TOKEN_COOKIE = "access_token"
 
 
 def _unauthorized() -> None:
@@ -18,9 +20,16 @@ def _unauthorized() -> None:
     raise exc
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    raw = token or request.cookies.get(ACCESS_TOKEN_COOKIE)
+    if not raw:
+        _unauthorized()
     try:
-        payload = decode_access_token(token)
+        payload = decode_access_token(raw)
     except Exception:
         _unauthorized()
     email = payload.get("sub")

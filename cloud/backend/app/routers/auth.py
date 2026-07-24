@@ -111,28 +111,53 @@ def _build_me_response(user: User, hire_companies: list[HireCompanyBrief]) -> Me
     )
 
 
-def _refresh_cookie_params() -> dict:
+def _cookie_secure() -> bool:
+    if os.getenv("APP_ENV", "").lower() == "production":
+        return True
+    return os.getenv("REFRESH_COOKIE_SECURE", "false").lower() == "true"
+
+
+def _session_cookie_params(*, max_age: int) -> dict:
     return {
-        "max_age": int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")) * 24 * 3600,
-        "secure": os.getenv("REFRESH_COOKIE_SECURE", "false").lower() == "true",
+        "max_age": max_age,
+        "secure": _cookie_secure(),
         "httponly": True,
         "samesite": "lax",
         "path": "/",
     }
 
 
+def _refresh_cookie_params() -> dict:
+    return _session_cookie_params(
+        max_age=int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")) * 24 * 3600,
+    )
+
+
+def _access_cookie_params() -> dict:
+    return _session_cookie_params(
+        max_age=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")) * 60,
+    )
+
+
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(key="refresh_token", value=refresh_token, **_refresh_cookie_params())
 
 
-def _clear_refresh_cookie(response: Response) -> None:
-    params = _refresh_cookie_params()
-    response.delete_cookie(
-        key="refresh_token",
-        path=params["path"],
-        secure=params["secure"],
-        samesite=params["samesite"],
-    )
+def _set_access_cookie(response: Response, access_token: str) -> None:
+    response.set_cookie(key="access_token", value=access_token, **_access_cookie_params())
+
+
+def _clear_session_cookies(response: Response) -> None:
+    for key, params in (
+        ("refresh_token", _refresh_cookie_params()),
+        ("access_token", _access_cookie_params()),
+    ):
+        response.delete_cookie(
+            key=key,
+            path=params["path"],
+            secure=params["secure"],
+            samesite=params["samesite"],
+        )
 
 
 def _issue_session_tokens(user: User, response: Response) -> tuple[str, str]:
@@ -140,6 +165,7 @@ def _issue_session_tokens(user: User, response: Response) -> tuple[str, str]:
     access_token_expires = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")))
     access_token = create_access_token(data=claims, expires_delta=access_token_expires)
     refresh_token = create_refresh_token(data=claims)
+    _set_access_cookie(response, access_token)
     _set_refresh_cookie(response, refresh_token)
     return access_token, refresh_token
 
@@ -257,7 +283,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
                     invalidate_user_sessions(user, db)
         except Exception:
             pass
-    _clear_refresh_cookie(response)
+    _clear_session_cookies(response)
     return MessageResponse(msg="logged out")
 
 
@@ -275,5 +301,5 @@ def change_password(
         raise api_error("current_password_incorrect", status.HTTP_400_BAD_REQUEST)
     user.hashed_password = get_password_hash(password_in.new_password)
     invalidate_user_sessions(user, db)
-    _clear_refresh_cookie(response)
+    _clear_session_cookies(response)
     return MessageResponse(msg="password changed")

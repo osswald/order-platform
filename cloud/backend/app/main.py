@@ -9,6 +9,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from .csrf import CookieCsrfMiddleware
+from .csrf import allowed_origins as csrf_allowed_origins
 from .database import SessionLocal, apply_schema_patches, run_migrations
 from .i18n import resolve_locale_from_accept_language
 from .i18n.context import set_request_locale
@@ -49,6 +51,8 @@ allowed_origins = [
     for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     if origin.strip()
 ]
+# Keep CSRF allowlist in sync with CORS at import time.
+csrf_allowed_origins[:] = allowed_origins
 
 
 def _bootstrap_admin_user() -> None:
@@ -117,7 +121,9 @@ async def lifespan(_app: FastAPI):
             pass
 
 
-_enable_openapi = os.getenv("ENABLE_OPENAPI", "true").lower() == "true"
+_app_env = os.getenv("APP_ENV", "").lower()
+_openapi_default = "false" if _app_env == "production" else "true"
+_enable_openapi = os.getenv("ENABLE_OPENAPI", _openapi_default).lower() == "true"
 _openapi_url = "/openapi.json" if _enable_openapi else None
 _docs_url = "/docs" if _enable_openapi else None
 _redoc_url = "/redoc" if _enable_openapi else None
@@ -133,6 +139,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(CookieCsrfMiddleware)
 
 
 @app.middleware("http")

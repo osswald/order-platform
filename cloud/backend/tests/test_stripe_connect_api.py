@@ -82,9 +82,16 @@ def test_create_account_link(mock_link, mock_create_account, monkeypatch):
     r = client.post(
         f"/stripe/connect/organisations/{org_id}/account-link",
         headers=_auth_headers(),
-        json={},
+        json={
+            "return_url": "https://evil.example/phish",
+            "refresh_url": "https://evil.example/phish2",
+        },
     )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["url"] == "https://connect.stripe.com/setup/test"
     assert body["stripe_account_id"] == "acct_new123"
+    mock_link.assert_called_once()
+    kwargs = mock_link.call_args.kwargs
+    assert kwargs["return_url"] == "https://app.test/return"
+    assert kwargs["refresh_url"] == "https://app.test/refresh"

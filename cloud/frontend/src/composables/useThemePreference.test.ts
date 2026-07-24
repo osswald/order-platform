@@ -14,6 +14,8 @@ vi.mock('vuetify', () => ({
 
 vi.mock('../api', () => ({
   apiJson: vi.fn(),
+  isAuthSessionActive: () =>
+    localStorage.getItem('auth_session') === '1' || !!localStorage.getItem('user_id'),
 }))
 
 import { apiJson } from '../api'
@@ -79,7 +81,7 @@ describe('useThemePreference', () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     } as unknown as MediaQueryList)
-    localStorage.setItem('access_token', 'token')
+    localStorage.setItem('auth_session', '1')
     vi.mocked(apiJson).mockResolvedValue({ theme_preference: 'dark' })
 
     await updateThemePreference('dark')

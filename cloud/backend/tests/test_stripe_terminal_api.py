@@ -120,3 +120,48 @@ def test_terminal_create_payment_intent(mock_create_intent):
     body = r.json()
     assert body["id"] == "pi_test123"
     assert body["amount_cents"] == 500
+
+
+@patch("app.routers.stripe_terminal.stripe_client.create_terminal_payment_intent")
+def test_terminal_payment_intent_system_metadata_wins(mock_create_intent):
+    headers, event_id = _edge_terminal_fixture()
+    intent = MagicMock()
+    intent.id = "pi_meta"
+    intent.client_secret = "cs"
+    intent.status = "requires_payment_method"
+    intent.amount = 100
+    intent.currency = "chf"
+    mock_create_intent.return_value = intent
+
+    r = client.post(
+        "/edge/v1/terminal/payment-intents",
+        headers=headers,
+        json={
+            "event_id": event_id,
+            "amount_cents": 100,
+            "metadata": {"event_id": "99999", "organisation_id": "0"},
+        },
+    )
+    assert r.status_code == 200, r.text
+    meta = mock_create_intent.call_args.kwargs["metadata"]
+    assert meta["event_id"] == str(event_id)
+    assert meta["organisation_id"] != "0"
+
+
+@patch("app.routers.stripe_terminal.stripe_client.retrieve_terminal_payment_intent")
+def test_terminal_read_rejects_foreign_event_metadata(mock_retrieve):
+    headers, event_id = _edge_terminal_fixture()
+    intent = MagicMock()
+    intent.id = "pi_other"
+    intent.client_secret = "cs"
+    intent.status = "succeeded"
+    intent.amount = 100
+    intent.currency = "chf"
+    intent.metadata = {"event_id": "99999"}
+    mock_retrieve.return_value = intent
+
+    r = client.get(
+        f"/edge/v1/terminal/payment-intents/pi_other?event_id={event_id}",
+        headers=headers,
+    )
+    assert r.status_code == 404

@@ -4,6 +4,8 @@ export {
   apiUrl,
   apiFetch,
   clearAuthStorage,
+  isAuthSessionActive,
+  markAuthSessionActive,
   refreshAccessToken,
   buildApiHeaders,
   createApiError,

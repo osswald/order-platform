@@ -59,8 +59,9 @@ def _status_response(organisation: Organisation) -> StripeConnectStatus:
     )
 
 
-def _account_link_url(value: str | None, env_name: str) -> str:
-    url = (value or os.getenv(env_name) or "").strip()
+def _account_link_url(env_name: str) -> str:
+    """Resolve Connect return/refresh URLs from env only (ignore client-supplied URLs)."""
+    url = (os.getenv(env_name) or "").strip()
     if not url:
         raise api_error("env_required", status.HTTP_422_UNPROCESSABLE_CONTENT, env_name=env_name)
     return url
@@ -101,8 +102,8 @@ def create_connect_account_link(
 
         link = stripe_client.create_account_link(
             account_id=organisation.stripe_account_id,
-            return_url=_account_link_url(body.return_url, "STRIPE_CONNECT_RETURN_URL"),
-            refresh_url=_account_link_url(body.refresh_url, "STRIPE_CONNECT_REFRESH_URL"),
+            return_url=_account_link_url("STRIPE_CONNECT_RETURN_URL"),
+            refresh_url=_account_link_url("STRIPE_CONNECT_REFRESH_URL"),
         )
     except Exception as exc:
         raise stripe_error(exc) from exc

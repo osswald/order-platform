@@ -4,6 +4,9 @@ import type { ApiError } from '@/types/api'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
+/** Non-secret UX flag: session is active (tokens live in HttpOnly cookies). */
+export const AUTH_SESSION_KEY = 'auth_session'
+
 export function apiBaseUrl(): string {
   return API_BASE
 }
@@ -13,9 +16,13 @@ export function apiUrl(path: string): string {
   return `${API_BASE}${p}`
 }
 
-/** Remove tokens and session keys after failed auth (stale token, missing refresh cookie). */
+export function markAuthSessionActive(): void {
+  localStorage.setItem(AUTH_SESSION_KEY, '1')
+}
+
 export function clearAuthStorage(): void {
   localStorage.removeItem('access_token')
+  localStorage.removeItem(AUTH_SESSION_KEY)
   localStorage.removeItem('user_email')
   localStorage.removeItem('is_admin')
   localStorage.removeItem('user_role')
@@ -27,32 +34,12 @@ export function clearAuthStorage(): void {
   localStorage.removeItem('active_organisation_id')
 }
 
-export function buildApiHeaders(initHeaders?: HeadersInit): Headers {
-  const headers = new Headers(initHeaders || {})
-  if (!headers.has('Accept-Language')) {
-    headers.set('Accept-Language', currentLocale())
-  }
-  const token = localStorage.getItem('access_token')
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
-  const hireCompanyId = localStorage.getItem('active_hire_company_id')
-  if (hireCompanyId && !headers.has('X-Hire-Company-Id')) {
-    headers.set('X-Hire-Company-Id', hireCompanyId)
-  }
-  return headers
+export function isAuthSessionActive(): boolean {
+  return localStorage.getItem(AUTH_SESSION_KEY) === '1' || !!localStorage.getItem('user_id')
 }
 
-export async function refreshAccessToken(): Promise<boolean> {
-  const res = await fetch(apiUrl('/auth/refresh'), {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Accept-Language': currentLocale() },
-  })
-  if (!res.ok) return false
-  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
-  if (!data?.access_token) return false
-  localStorage.setItem('access_token', String(data.access_token))
+function applySessionFlags(data: Record<string, unknown>): void {
+  markAuthSessionActive()
   localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
   if (data.role) localStorage.setItem('user_role', String(data.role))
   if (data.hire_company_id != null) {
@@ -68,6 +55,31 @@ export async function refreshAccessToken(): Promise<boolean> {
   if (data.user_id != null) {
     localStorage.setItem('user_id', String(data.user_id))
   }
+}
+
+export function buildApiHeaders(initHeaders?: HeadersInit): Headers {
+  const headers = new Headers(initHeaders || {})
+  if (!headers.has('Accept-Language')) {
+    headers.set('Accept-Language', currentLocale())
+  }
+  // Access JWT is HttpOnly; do not read or set Authorization from localStorage.
+  const hireCompanyId = localStorage.getItem('active_hire_company_id')
+  if (hireCompanyId && !headers.has('X-Hire-Company-Id')) {
+    headers.set('X-Hire-Company-Id', hireCompanyId)
+  }
+  return headers
+}
+
+export async function refreshAccessToken(): Promise<boolean> {
+  const res = await fetch(apiUrl('/auth/refresh'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Accept-Language': currentLocale() },
+  })
+  if (!res.ok) return false
+  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
+  if (!data) return false
+  applySessionFlags(data)
   return true
 }
 
@@ -91,7 +103,7 @@ interface FetchWithAuthOptions extends RequestInit {
   _retry?: boolean
 }
 
-/** Raw fetch with Bearer token, cookies for refresh, and one 401 retry after refresh. */
+/** Credentialed fetch (HttpOnly cookies) with one 401 retry after refresh. */
 export async function apiFetch(path: string, options: FetchWithAuthOptions = {}): Promise<Response> {
   const { _retry, ...rest } = options
   const url = path.startsWith('http') ? path : apiUrl(path)
