@@ -19,6 +19,8 @@ vi.mock('../api', () => ({
   apiFetch: vi.fn(),
   apiJson: vi.fn(),
   clearAuthStorage: vi.fn(),
+  isAuthSessionActive: () =>
+    localStorage.getItem('auth_session') === '1' || !!localStorage.getItem('user_id'),
 }))
 
 import { useAuthSession } from './useAuthSession'
@@ -36,7 +38,7 @@ describe('useAuthSession', () => {
   })
 
   it('canAccessUsers is true for tenant admin', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('user_role', 'tenant_admin')
     localStorage.setItem('user_hire_company_id', '1')
 
@@ -46,7 +48,7 @@ describe('useAuthSession', () => {
   })
 
   it('canAccessUsers is false for plain member', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('user_role', 'member')
 
     const { canAccessUsers } = useAuthSession()
@@ -54,7 +56,7 @@ describe('useAuthSession', () => {
   })
 
   it('initializes activeOrganisationId from localStorage', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('active_organisation_id', '5')
 
     const { activeOrganisationId } = useAuthSession()
@@ -62,7 +64,7 @@ describe('useAuthSession', () => {
   })
 
   it('setActiveOrganisation persists to localStorage and hard-reloads current path', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('user_role', 'tenant_admin')
     mockRoute.path = '/dashboard'
 
@@ -75,7 +77,7 @@ describe('useAuthSession', () => {
   })
 
   it('setActiveOrganisation on detail route reloads parent list path', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('user_role', 'tenant_admin')
     mockRoute.name = 'events-detail'
     mockRoute.path = '/events/123'
@@ -88,7 +90,7 @@ describe('useAuthSession', () => {
   })
 
   it('setActiveHireCompany persists and hard-reloads for platform admin', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('user_role', 'platform_admin')
     localStorage.setItem('is_admin', 'true')
     mockRoute.path = '/events'
@@ -101,7 +103,7 @@ describe('useAuthSession', () => {
   })
 
   it('setActiveHireCompany is a no-op for tenant admin', () => {
-    localStorage.setItem('access_token', 'test-token')
+    localStorage.setItem('auth_session', '1')
     localStorage.setItem('user_role', 'tenant_admin')
 
     const { setActiveHireCompany } = useAuthSession()

@@ -82,7 +82,7 @@ class UserRead(BaseModel):
 class UserCreate(BaseModel):
     name: str | None = Field(None, max_length=255)
     email: EmailStr
-    password: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=10)
     role: str = ROLE_MEMBER
     hire_company_id: int | None = None
     organisation_ids: list[int] = Field(default_factory=list)

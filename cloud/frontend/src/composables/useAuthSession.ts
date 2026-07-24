@@ -1,6 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiFetch, apiJson, clearAuthStorage } from '@/api'
+import { apiFetch, apiJson, clearAuthStorage, isAuthSessionActive } from '@/api'
 import { normalizeOrganisationId } from '@/utils/orgId'
 import {
   readLegacyOrganisationQuery,
@@ -23,7 +23,7 @@ export function useAuthSession() {
   const route = useRoute()
   const router = useRouter()
 
-  const isLoggedIn = ref(!!localStorage.getItem('access_token'))
+  const isLoggedIn = ref(isAuthSessionActive())
   const authReady = ref(!isLoggedIn.value)
   const userEmail = ref(localStorage.getItem('user_email') || '')
   const userRole = ref(localStorage.getItem('user_role') || ROLE_MEMBER)
@@ -107,6 +107,8 @@ export function useAuthSession() {
   }
 
   function applySessionData(data: AuthMeResponse) {
+    localStorage.setItem('auth_session', '1')
+    localStorage.removeItem('access_token')
     isPlatformAdmin.value = !!data.is_admin
     userRole.value = data.role || (data.is_admin ? ROLE_PLATFORM : ROLE_MEMBER)
     isTenantAdmin.value = !!data.is_tenant_admin
@@ -137,8 +139,7 @@ export function useAuthSession() {
   }
 
   async function syncSession(): Promise<boolean> {
-    const token = localStorage.getItem('access_token')
-    if (!token) {
+    if (!isAuthSessionActive()) {
       isPlatformAdmin.value = false
       isTenantAdmin.value = false
       isOrganisationAdmin.value = false
@@ -177,8 +178,7 @@ export function useAuthSession() {
   }
 
   async function fetchAccessibleOrganisations() {
-    const token = localStorage.getItem('access_token')
-    if (!token) {
+    if (!isAuthSessionActive()) {
       accessibleOrganisations.value = []
       syncActiveOrganisation()
       return
@@ -273,7 +273,7 @@ export function useAuthSession() {
     authReady.value = true
 
     window.addEventListener('storage', () => {
-      isLoggedIn.value = !!localStorage.getItem('access_token')
+      isLoggedIn.value = isAuthSessionActive()
       userEmail.value = localStorage.getItem('user_email') || ''
       isPlatformAdmin.value = localStorage.getItem('is_admin') === 'true'
       userRole.value = localStorage.getItem('user_role') || ROLE_MEMBER

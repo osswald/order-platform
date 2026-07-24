@@ -86,7 +86,8 @@
   "validation": {
     "required": "Pflichtfeld",
     "invalidEmail": "Ungültige E-Mail-Adresse",
-    "passwordMismatch": "Passwörter stimmen nicht überein"
+    "passwordMismatch": "Passwörter stimmen nicht überein",
+    "passwordTooShort": "Passwort muss mindestens 10 Zeichen haben"
   },
   "eventStatus": {
     "config": "Konfiguration",
