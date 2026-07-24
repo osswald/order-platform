@@ -102,6 +102,7 @@ def create_event(
         alternative_printers_enabled=bool(event_in.alternative_printers_enabled),
         kitchen_monitors_enabled=bool(event_in.kitchen_monitors_enabled),
         offer_payment_receipt=bool(event_in.offer_payment_receipt),
+        bluetooth_printing_enabled=bool(event_in.bluetooth_printing_enabled),
     )
     apply_instant_collective_bill_settings(
         event,
@@ -209,6 +210,8 @@ def update_event(
         event.kitchen_monitors_enabled = bool(event_in.kitchen_monitors_enabled)
     if event_in.offer_payment_receipt is not None:
         event.offer_payment_receipt = bool(event_in.offer_payment_receipt)
+    if event_in.bluetooth_printing_enabled is not None:
+        event.bluetooth_printing_enabled = bool(event_in.bluetooth_printing_enabled)
     if event.end < event.start:
         raise api_error("end_must_be_after_start", status.HTTP_422_UNPROCESSABLE_CONTENT)
 

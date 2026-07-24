@@ -11,8 +11,10 @@ vi.mock('./androidPrinter', () => ({
   printPaymentReceipt: vi.fn(),
 }))
 
-import { api } from '@/api'
+import { api, isAndroidApp } from '@/api'
+import { isBluetoothPrinterConfigured, printPaymentReceipt } from './androidPrinter'
 import {
+  bluetoothPrintingEnabled,
   cancelReceiptPrompt,
   confirmReceiptPrintNo,
   confirmReceiptPrintYes,
@@ -26,6 +28,19 @@ describe('offerPaymentReceiptEnabled', () => {
   it('returns false when event disables receipts', () => {
     expect(offerPaymentReceiptEnabled({ offer_payment_receipt: false } as unknown as EdgeBundleEvent)).toBe(false)
     expect(offerPaymentReceiptEnabled({ offer_payment_receipt: true } as unknown as EdgeBundleEvent)).toBe(true)
+  })
+})
+
+describe('bluetoothPrintingEnabled', () => {
+  it('is off by default and on when event enables Bluetooth', () => {
+    expect(bluetoothPrintingEnabled(null)).toBe(false)
+    expect(bluetoothPrintingEnabled({} as unknown as EdgeBundleEvent)).toBe(false)
+    expect(
+      bluetoothPrintingEnabled({ bluetooth_printing_enabled: false } as unknown as EdgeBundleEvent),
+    ).toBe(false)
+    expect(
+      bluetoothPrintingEnabled({ bluetooth_printing_enabled: true } as unknown as EdgeBundleEvent),
+    ).toBe(true)
   })
 })
 
@@ -45,6 +60,10 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
   beforeEach(() => {
     vi.mocked(api).mockReset()
     vi.mocked(api).mockResolvedValue({ print_job_id: 1 })
+    vi.mocked(isAndroidApp).mockReturnValue(false)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(false)
+    vi.mocked(printPaymentReceipt).mockReset()
+    vi.mocked(printPaymentReceipt).mockResolvedValue(undefined)
     receiptPromptOpen.value = false
   })
 
@@ -116,6 +135,46 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     expect(api).toHaveBeenCalledWith('/v1/payments/11/receipt/print', {
       method: 'POST',
       body: JSON.stringify({ station_uuid: 'st-only' }),
+    })
+  })
+
+  it('uses Bluetooth when event enables it and a printer is paired', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(printPaymentReceipt).mockResolvedValue(undefined)
+    const btEvent = {
+      ...event,
+      bluetooth_printing_enabled: true,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({ paymentId: 55, event: btEvent, showToast })
+    confirmReceiptPrintYes()
+    await promise
+    expect(printPaymentReceipt).toHaveBeenCalledWith(55, { reprint: false })
+    expect(api).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith('Beleg gedruckt.', 'ok')
+  })
+
+  it('skips Bluetooth when event flag is off even if a printer is paired', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    const noBtEvent = {
+      ...event,
+      bluetooth_printing_enabled: false,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({
+      paymentId: 56,
+      event: noBtEvent,
+      showToast,
+      preferredTargetUuid: 'reg-1',
+    })
+    confirmReceiptPrintYes()
+    await promise
+    expect(printPaymentReceipt).not.toHaveBeenCalled()
+    expect(api).toHaveBeenCalledWith('/v1/payments/56/receipt/print', {
+      method: 'POST',
+      body: JSON.stringify({ station_uuid: 'reg-1' }),
     })
   })
 })

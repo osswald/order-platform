@@ -3,6 +3,7 @@ import { api, isAndroidApp } from '@/api'
 import type { EdgeBundleEvent, ShiftSessionRead } from '@/types/api'
 import { isApiError } from '@/types/api'
 import { isBluetoothPrinterConfigured, printEscposBase64 } from '@/utils/androidPrinter'
+import { bluetoothPrintingEnabled } from '@/utils/paymentReceiptPrompt'
 import { getReceiptCharset } from '@/utils/receiptCharset'
 import { getReceiptPaperWidth } from '@/utils/receiptPaperWidth'
 
@@ -138,13 +139,21 @@ export async function ensureShiftForSubject(ctx: ShiftSubjectContext): Promise<S
   return promptShiftOpen(ctx)
 }
 
-async function printShiftReceipt(sessionId: number, countedCents: number): Promise<void> {
+async function printShiftReceipt(
+  sessionId: number,
+  countedCents: number,
+  event: EdgeBundleEvent | null | undefined,
+): Promise<void> {
   const body = {
     counted_cash_cents: countedCents,
     paper_width: getReceiptPaperWidth(),
     charset: getReceiptCharset(),
   }
-  if (isAndroidApp() && isBluetoothPrinterConfigured()) {
+  if (
+    isAndroidApp() &&
+    isBluetoothPrinterConfigured() &&
+    bluetoothPrintingEnabled(event)
+  ) {
     const data = await api<{ escpos_payload: string }>(`/v1/shift-session/${sessionId}/receipt`, {
       method: 'POST',
       body: JSON.stringify(body),
@@ -161,12 +170,16 @@ async function printShiftReceipt(sessionId: number, countedCents: number): Promi
   })
 }
 
-export async function closeShiftFlow(sessionId: number, countedCents: number): Promise<void> {
+export async function closeShiftFlow(
+  sessionId: number,
+  countedCents: number,
+  event: EdgeBundleEvent | null | undefined = null,
+): Promise<void> {
   await api(`/v1/shift-session/${sessionId}/close`, {
     method: 'POST',
     body: JSON.stringify({ counted_cash_cents: countedCents }),
   })
-  await printShiftReceipt(sessionId, countedCents)
+  await printShiftReceipt(sessionId, countedCents, event)
 }
 
 export async function maybeEndShiftOnSwitch(ctx: ShiftSubjectContext): Promise<boolean> {
@@ -189,6 +202,6 @@ export async function maybeEndShiftOnSwitch(ctx: ShiftSubjectContext): Promise<b
     window.alert('Ungültiger Betrag')
     return false
   }
-  await closeShiftFlow(active.id, cents)
+  await closeShiftFlow(active.id, cents, event)
   return true
 }

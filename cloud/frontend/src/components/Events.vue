@@ -281,6 +281,7 @@ const emptyForm = (): EventStammdatenForm => ({
   alternativePrintersEnabled: false,
   kitchenMonitorsEnabled: false,
   offerPaymentReceipt: false,
+  bluetoothPrintingEnabled: false,
   instantCollectiveBillName: '',
 })
 
@@ -309,6 +310,7 @@ function stammdatenSnapshot() {
     alternativePrintersEnabled: Boolean(form.value.alternativePrintersEnabled),
     kitchenMonitorsEnabled: Boolean(form.value.kitchenMonitorsEnabled),
     offerPaymentReceipt: Boolean(form.value.offerPaymentReceipt),
+    bluetoothPrintingEnabled: Boolean(form.value.bluetoothPrintingEnabled),
   })
 }
 
@@ -499,6 +501,7 @@ async function applyEventToForm(event: EventRead) {
     alternativePrintersEnabled: Boolean(event.alternative_printers_enabled),
     kitchenMonitorsEnabled: Boolean(event.kitchen_monitors_enabled),
     offerPaymentReceipt: Boolean(event.offer_payment_receipt),
+    bluetoothPrintingEnabled: Boolean(event.bluetooth_printing_enabled),
     instantCollectiveBillName: event.instant_collective_bill_name || '',
   }
   originalStatus.value = event.status || 'config'
@@ -655,6 +658,7 @@ async function saveEvent() {
     alternative_printers_enabled: Boolean(form.value.alternativePrintersEnabled),
     kitchen_monitors_enabled: Boolean(form.value.kitchenMonitorsEnabled),
     offer_payment_receipt: Boolean(form.value.offerPaymentReceipt),
+    bluetooth_printing_enabled: Boolean(form.value.bluetoothPrintingEnabled),
   }
   if (!editMode.value) {
     (payload as EventCreate).organisation_id = props.activeOrganisationId

@@ -303,6 +303,7 @@ class EdgeEventBundle(BaseModel):
     alternative_printers_enabled: bool = False
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
+    bluetooth_printing_enabled: bool = False
     twint_qr_data_url: str | None = None
     start: datetime
     end: datetime
@@ -448,6 +449,7 @@ def read_edge_bundle(
                 alternative_printers_enabled=bool(getattr(ev, "alternative_printers_enabled", False)),
                 kitchen_monitors_enabled=bool(getattr(ev, "kitchen_monitors_enabled", False)),
                 offer_payment_receipt=bool(getattr(ev, "offer_payment_receipt", False)),
+                bluetooth_printing_enabled=bool(getattr(ev, "bluetooth_printing_enabled", False)),
                 twint_qr_data_url=twint_qr_data_url_for_event(ev),
                 start=ev.start,
                 end=ev.end,

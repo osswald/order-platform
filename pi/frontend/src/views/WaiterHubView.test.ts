@@ -10,7 +10,7 @@ const waiterRef = ref({ uuid: 'w-1', name: 'Anna' })
 const selectedEventIdRef = ref(1)
 
 vi.mock('@/api', () => ({
-  isAndroidApp: () => false,
+  isAndroidApp: vi.fn(() => false),
 }))
 
 vi.mock('@/composables/useEventContext', () => ({
@@ -33,6 +33,7 @@ vi.mock('@/composables/useShiftSession', () => ({
   maybeEndShiftOnSwitch: vi.fn(async () => true),
 }))
 
+import { isAndroidApp } from '@/api'
 import WaiterHubView from './WaiterHubView.vue'
 
 function baseEvent(status: string): EdgeBundleEvent {
@@ -64,6 +65,7 @@ describe('WaiterHubView', () => {
     eventRef.value = baseEvent('test')
     waiterRef.value = { uuid: 'w-1', name: 'Anna' }
     selectedEventIdRef.value = 1
+    vi.mocked(isAndroidApp).mockReturnValue(false)
   })
 
   it('shows TESTBETRIEB pill when event status is test', async () => {
@@ -79,5 +81,18 @@ describe('WaiterHubView', () => {
     const wrapper = mountHub()
     await flushPromises()
     expect(wrapper.find('.test-pill').exists()).toBe(false)
+  })
+
+  it('shows Bluetooth tile on Android only when event enables Bluetooth printing', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    eventRef.value = { ...baseEvent('test'), bluetooth_printing_enabled: true } as EdgeBundleEvent
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Bluetooth Drucker')
+
+    eventRef.value = { ...baseEvent('test'), bluetooth_printing_enabled: false } as EdgeBundleEvent
+    const wrapperOff = mountHub()
+    await flushPromises()
+    expect(wrapperOff.text()).not.toContain('Bluetooth Drucker')
   })
 })

@@ -16,6 +16,7 @@ vi.mock('./bundleHelpers', () => ({
 
 vi.mock('./paymentReceiptPrompt', () => ({
   pickReceiptStation: vi.fn(),
+  bluetoothPrintingEnabled: vi.fn((event) => Boolean(event?.bluetooth_printing_enabled)),
 }))
 
 import { isAndroidApp } from '@/api'
@@ -43,14 +44,28 @@ describe('resolveWaiterVoucherPrintPlan', () => {
     expect(plan).toEqual({ mode: 'none' })
   })
 
-  it('uses Bluetooth when configured on Android', async () => {
+  it('uses Bluetooth when event enables it and printer is configured on Android', async () => {
     vi.mocked(isAndroidApp).mockReturnValue(true)
     vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
-    const plan = await resolveWaiterVoucherPrintPlan({} as EdgeBundleEvent, {
-      hasVoucherSales: true,
-    })
+    const plan = await resolveWaiterVoucherPrintPlan(
+      { bluetooth_printing_enabled: true } as EdgeBundleEvent,
+      { hasVoucherSales: true },
+    )
     expect(plan).toEqual({ mode: 'bluetooth' })
     expect(pickReceiptStation).not.toHaveBeenCalled()
+  })
+
+  it('skips Bluetooth when event flag is off even if printer is paired', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(receiptPrintTargets).mockReturnValue([
+      { uuid: 'st-1', label: 'Bar', kind: 'station' },
+    ])
+    const plan = await resolveWaiterVoucherPrintPlan(
+      { bluetooth_printing_enabled: false } as EdgeBundleEvent,
+      { hasVoucherSales: true },
+    )
+    expect(plan).toEqual({ mode: 'network', stationUuid: 'st-1' })
   })
 
   it('auto-selects the only network printer when Bluetooth is absent', async () => {

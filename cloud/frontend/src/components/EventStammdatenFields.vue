@@ -94,6 +94,18 @@
         </div>
         <small class="toggle-hint">{{ t('events.stammdaten.offerPaymentReceiptHint') }}</small>
       </div>
+      <div class="toggle-block">
+        <div class="toggle-row">
+          <label for="bluetooth-printing-enabled">{{ t('events.stammdaten.bluetoothPrinting') }}</label>
+          <v-switch
+            id="bluetooth-printing-enabled"
+            v-model="form.bluetoothPrintingEnabled"
+            hide-details
+            density="compact"
+          />
+        </div>
+        <small class="toggle-hint">{{ t('events.stammdaten.bluetoothPrintingHint') }}</small>
+      </div>
       <TwintQrField
         v-if="showTwintQrSection"
         :edit-mode="editMode"

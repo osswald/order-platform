@@ -6,7 +6,7 @@ import {
   printEscposBase64,
 } from './androidPrinter'
 import { receiptPrintTargets } from './bundleHelpers'
-import { pickReceiptStation } from './paymentReceiptPrompt'
+import { bluetoothPrintingEnabled, pickReceiptStation } from './paymentReceiptPrompt'
 
 type ShowToastFn = (message: string, type?: ToastState['type']) => void
 
@@ -17,7 +17,7 @@ export type VoucherPrintPlan =
 
 /**
  * Decide how waiter voucher slips should be delivered before order submit.
- * Bluetooth (if configured) wins; otherwise pick a network printer; if none, warn and continue.
+ * Bluetooth (if event-enabled and configured) wins; otherwise pick a network printer; if none, warn and continue.
  */
 export async function resolveWaiterVoucherPrintPlan(
   event: EdgeBundleEvent | null | undefined,
@@ -31,7 +31,11 @@ export async function resolveWaiterVoucherPrintPlan(
 ): Promise<VoucherPrintPlan> {
   if (!hasVoucherSales) return { mode: 'none' }
 
-  if (isAndroidApp() && isBluetoothPrinterConfigured()) {
+  if (
+    isAndroidApp() &&
+    isBluetoothPrinterConfigured() &&
+    bluetoothPrintingEnabled(event)
+  ) {
     return { mode: 'bluetooth' }
   }
 
