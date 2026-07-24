@@ -487,6 +487,29 @@ html.android-app .app-main--fullscreen {
   height: 100%;
 }
 
+/* Emulated-printer shell: definite height so fullscreen % fill resolves */
+html.android-app .hosted-demo-shell {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.android-app .hosted-demo-app {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.android-app .hosted-demo-shell--wide {
+  height: 100%;
+  min-height: 0;
+}
+
+html.android-app .hosted-demo-shell--wide .hosted-demo-app {
+  height: 100%;
+  min-height: 0;
+}
+
 /* Fullscreen POS: safe area on screen root; headers stay compact */
 html.android-app .order-screen,
 html.android-app .split-pay-screen {
