@@ -63,7 +63,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     vi.mocked(isAndroidApp).mockReturnValue(false)
     vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(false)
     vi.mocked(printPaymentReceipt).mockReset()
-    vi.mocked(printPaymentReceipt).mockResolvedValue(undefined)
+    vi.mocked(printPaymentReceipt).mockResolvedValue({ ok: true })
     receiptPromptOpen.value = false
   })
 
@@ -141,7 +141,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
   it('uses Bluetooth when event enables it and a printer is paired', async () => {
     vi.mocked(isAndroidApp).mockReturnValue(true)
     vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
-    vi.mocked(printPaymentReceipt).mockResolvedValue(undefined)
+    vi.mocked(printPaymentReceipt).mockResolvedValue({ ok: true })
     const btEvent = {
       ...event,
       bluetooth_printing_enabled: true,

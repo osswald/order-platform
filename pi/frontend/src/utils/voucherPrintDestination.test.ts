@@ -48,7 +48,7 @@ describe('resolveWaiterVoucherPrintPlan', () => {
     vi.mocked(isAndroidApp).mockReturnValue(true)
     vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
     const plan = await resolveWaiterVoucherPrintPlan(
-      { bluetooth_printing_enabled: true } as EdgeBundleEvent,
+      { bluetooth_printing_enabled: true } as unknown as EdgeBundleEvent,
       { hasVoucherSales: true },
     )
     expect(plan).toEqual({ mode: 'bluetooth' })
@@ -62,7 +62,7 @@ describe('resolveWaiterVoucherPrintPlan', () => {
       { uuid: 'st-1', label: 'Bar', kind: 'station' },
     ])
     const plan = await resolveWaiterVoucherPrintPlan(
-      { bluetooth_printing_enabled: false } as EdgeBundleEvent,
+      { bluetooth_printing_enabled: false } as unknown as EdgeBundleEvent,
       { hasVoucherSales: true },
     )
     expect(plan).toEqual({ mode: 'network', stationUuid: 'st-1' })
