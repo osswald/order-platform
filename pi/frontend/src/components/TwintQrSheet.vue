@@ -51,7 +51,7 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   background: var(--card);
-  padding: 1rem 1rem calc(1rem + var(--safe-bottom));
+  padding: calc(1rem + var(--safe-top)) 1rem calc(1rem + var(--safe-bottom));
 }
 
 .sheet-header h3 {
