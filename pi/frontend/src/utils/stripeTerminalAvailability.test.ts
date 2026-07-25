@@ -7,22 +7,58 @@ vi.mock('../api', () => ({
 
 vi.mock('./androidTerminal', () => ({
   isAndroidTerminalAvailable: vi.fn(() => false),
+  checkTapToPayDeviceSupport: vi.fn(() => ({ status: 'unknown' })),
 }))
 
 import { api } from '@/api'
-import { isAndroidTerminalAvailable } from './androidTerminal'
+import { checkTapToPayDeviceSupport, isAndroidTerminalAvailable } from './androidTerminal'
 import {
   checkCloudReachable,
   isStripeTerminalAndroidReady,
   stripeTerminalDisabledHint,
   stripeTerminalPickerEntry,
 } from './stripeTerminalAvailability'
+import type { TapToPaySupportStatus } from './androidTerminal'
 
 describe('stripeTerminalDisabledHint', () => {
+  const supported: TapToPaySupportStatus = { status: 'supported' }
+
   it('returns German hints for missing prerequisites', () => {
-    expect(stripeTerminalDisabledHint(false, true)).toBe('Nur in der Android-App verfügbar.')
-    expect(stripeTerminalDisabledHint(true, false)).toBe('Cloud-Verbindung erforderlich.')
-    expect(stripeTerminalDisabledHint(true, true)).toBeNull()
+    expect(stripeTerminalDisabledHint(false, true, supported)).toBe(
+      'Nur in der Android-App verfügbar.',
+    )
+    expect(stripeTerminalDisabledHint(true, false, supported)).toBe(
+      'Cloud-Verbindung erforderlich.',
+    )
+    expect(stripeTerminalDisabledHint(true, true, supported)).toBeNull()
+  })
+
+  it('prioritizes android and cloud over device support', () => {
+    expect(
+      stripeTerminalDisabledHint(false, false, { status: 'unsupported' }),
+    ).toBe('Nur in der Android-App verfügbar.')
+    expect(
+      stripeTerminalDisabledHint(true, false, { status: 'unsupported' }),
+    ).toBe('Cloud-Verbindung erforderlich.')
+  })
+
+  it('disables with device hint when unsupported', () => {
+    expect(
+      stripeTerminalDisabledHint(true, true, { status: 'unsupported', error: 'no nfc' }),
+    ).toBe('Gerät unterstützt keine Kartenzahlung (Tap to Pay).')
+  })
+
+  it('disables with location hint when support check fails', () => {
+    expect(
+      stripeTerminalDisabledHint(true, true, {
+        status: 'check_failed',
+        error: 'Standortberechtigung für Kartenzahlung erforderlich.',
+      }),
+    ).toBe('Standortberechtigung für Kartenzahlung erforderlich.')
+  })
+
+  it('does not disable for unknown device support (older APK)', () => {
+    expect(stripeTerminalDisabledHint(true, true, { status: 'unknown' })).toBeNull()
   })
 })
 
@@ -78,6 +114,7 @@ describe('stripeTerminalPickerEntry', () => {
   beforeEach(() => {
     vi.mocked(api).mockReset()
     vi.mocked(isAndroidTerminalAvailable).mockReturnValue(false)
+    vi.mocked(checkTapToPayDeviceSupport).mockReturnValue({ status: 'unknown' })
   })
 
   it('disables entry when android is not ready', async () => {
@@ -86,6 +123,39 @@ describe('stripeTerminalPickerEntry', () => {
       value: 'stripe_terminal',
       disabled: true,
       hint: 'Nur in der Android-App verfügbar.',
+    })
+  })
+
+  it('disables entry when device does not support Tap to Pay', async () => {
+    vi.mocked(isAndroidTerminalAvailable).mockReturnValue(true)
+    vi.mocked(api).mockResolvedValue({ reachable: true })
+    vi.mocked(checkTapToPayDeviceSupport).mockReturnValue({ status: 'unsupported' })
+    await expect(stripeTerminalPickerEntry()).resolves.toEqual({
+      value: 'stripe_terminal',
+      disabled: true,
+      hint: 'Gerät unterstützt keine Kartenzahlung (Tap to Pay).',
+    })
+  })
+
+  it('enables entry when android, cloud, and device support are ready', async () => {
+    vi.mocked(isAndroidTerminalAvailable).mockReturnValue(true)
+    vi.mocked(api).mockResolvedValue({ reachable: true })
+    vi.mocked(checkTapToPayDeviceSupport).mockReturnValue({ status: 'supported' })
+    await expect(stripeTerminalPickerEntry()).resolves.toEqual({
+      value: 'stripe_terminal',
+      disabled: false,
+      hint: undefined,
+    })
+  })
+
+  it('keeps entry enabled for older APK without supportsTapToPay', async () => {
+    vi.mocked(isAndroidTerminalAvailable).mockReturnValue(true)
+    vi.mocked(api).mockResolvedValue({ reachable: true })
+    vi.mocked(checkTapToPayDeviceSupport).mockReturnValue({ status: 'unknown' })
+    await expect(stripeTerminalPickerEntry()).resolves.toEqual({
+      value: 'stripe_terminal',
+      disabled: false,
+      hint: undefined,
     })
   })
 })

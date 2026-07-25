@@ -18,6 +18,7 @@ import com.stripe.stripeterminal.external.models.ConfirmPaymentIntentConfigurati
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration
 import com.stripe.stripeterminal.external.models.ConnectionStatus
 import com.stripe.stripeterminal.external.models.ConnectionTokenException
+import com.stripe.stripeterminal.external.models.DeviceType
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration
 import com.stripe.stripeterminal.external.models.PaymentIntent
 import com.stripe.stripeterminal.external.models.Reader
@@ -35,6 +36,39 @@ class StripeTerminalBridge(private val activity: Activity) {
 
     @JavascriptInterface
     fun isAvailable(): String = ok("available" to Terminal.isInitialized())
+
+    /**
+     * Runtime check whether this device can use Stripe Tap to Pay.
+     * Returns JSON: `{ ok, supported?, error? }`.
+     * Missing location permission → `ok: false` (not `supported: false`).
+     */
+    @JavascriptInterface
+    fun supportsTapToPay(): String {
+        if (!hasLocationPermission()) {
+            return error("Standortberechtigung für Kartenzahlung erforderlich.")
+        }
+        return try {
+            ensureTerminalInitialized()
+            val config =
+                DiscoveryConfiguration.TapToPayDiscoveryConfiguration(isSimulated = BuildConfig.DEBUG)
+            val result =
+                Terminal.getInstance().supportsReadersOfType(DeviceType.TAP_TO_PAY_DEVICE, config)
+            if (result.isSupported) {
+                ok("supported" to true)
+            } else {
+                val message =
+                    result.error?.message
+                        ?: "Gerät unterstützt keine Kartenzahlung (Tap to Pay)."
+                JSONObject()
+                    .put("ok", true)
+                    .put("supported", false)
+                    .put("error", message)
+                    .toString()
+            }
+        } catch (e: Exception) {
+            error(e.message ?: "Tap-to-Pay-Unterstützung konnte nicht geprüft werden.")
+        }
+    }
 
     @JavascriptInterface
     fun collectPayment(connectionTokenSecret: String, paymentIntentClientSecret: String): String {

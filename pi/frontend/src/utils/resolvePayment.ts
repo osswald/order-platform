@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { EdgeBundleEvent, PaymentIn } from '@/types/api'
-import { collectTerminalPayment } from './androidTerminal'
+import { checkTapToPayDeviceSupport, collectTerminalPayment } from './androidTerminal'
 import { pickPaymentType, type PickPaymentHooks } from './pickPaymentType'
 import { buildPayment, buildStripeTerminalPayment } from './paymentTypes'
 import {
@@ -24,7 +24,8 @@ export async function resolvePaymentsForAmount(
 
   const androidReady = isStripeTerminalAndroidReady()
   const { reachable: cloudReady } = await checkCloudReachable(true)
-  const hint = stripeTerminalDisabledHint(androidReady, cloudReady)
+  const deviceSupport = androidReady ? checkTapToPayDeviceSupport() : { status: 'unknown' as const }
+  const hint = stripeTerminalDisabledHint(androidReady, cloudReady, deviceSupport)
   if (hint) {
     throw new Error(hint)
   }

@@ -7,6 +7,7 @@ vi.mock('./pickPaymentType', () => ({
 
 vi.mock('./androidTerminal', () => ({
   collectTerminalPayment: vi.fn(),
+  checkTapToPayDeviceSupport: vi.fn(() => ({ status: 'supported' })),
 }))
 
 vi.mock('./stripeTerminalAvailability', async (importOriginal) => {
@@ -19,7 +20,7 @@ vi.mock('./stripeTerminalAvailability', async (importOriginal) => {
 })
 
 import { pickPaymentType } from './pickPaymentType'
-import { collectTerminalPayment } from './androidTerminal'
+import { checkTapToPayDeviceSupport, collectTerminalPayment } from './androidTerminal'
 import {
   checkCloudReachable,
   isStripeTerminalAndroidReady,
@@ -34,6 +35,8 @@ describe('resolvePaymentsForAmount', () => {
     vi.mocked(collectTerminalPayment).mockReset()
     vi.mocked(checkCloudReachable).mockReset()
     vi.mocked(isStripeTerminalAndroidReady).mockReset()
+    vi.mocked(checkTapToPayDeviceSupport).mockReset()
+    vi.mocked(checkTapToPayDeviceSupport).mockReturnValue({ status: 'supported' })
     terminalPaymentBusy.value = false
   })
 
@@ -59,6 +62,16 @@ describe('resolvePaymentsForAmount', () => {
     vi.mocked(checkCloudReachable).mockResolvedValue({ reachable: false, reason: null })
     await expect(resolvePaymentsForAmount(event, 500)).rejects.toThrow(
       'Cloud-Verbindung erforderlich.',
+    )
+  })
+
+  it('throws when device does not support Tap to Pay', async () => {
+    vi.mocked(pickPaymentType).mockResolvedValue('stripe_terminal')
+    vi.mocked(isStripeTerminalAndroidReady).mockReturnValue(true)
+    vi.mocked(checkCloudReachable).mockResolvedValue({ reachable: true, reason: null })
+    vi.mocked(checkTapToPayDeviceSupport).mockReturnValue({ status: 'unsupported' })
+    await expect(resolvePaymentsForAmount(event, 500)).rejects.toThrow(
+      'Gerät unterstützt keine Kartenzahlung (Tap to Pay).',
     )
   })
 
