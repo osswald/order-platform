@@ -6,6 +6,26 @@ import { ref } from 'vue'
 const push = vi.fn()
 const replace = vi.fn()
 const isAndroidApp = vi.fn(() => false)
+const getAndroidAppInfo = vi.fn((): ReturnType<typeof import('@/utils/androidAppInfo').getAndroidAppInfo> => ({
+  status: 'unavailable',
+}))
+const checkTapToPayAdminStatus = vi.fn(
+  (_force?: boolean): ReturnType<typeof import('@/utils/taptoPayStatus').checkTapToPayAdminStatus> => ({
+    code: 'unavailable',
+  }),
+)
+const tapToPayAdminStatusLabel = vi.fn((status: { code: string }) => {
+  const labels: Record<string, string> = {
+    checking: 'prüfen…',
+    ready: 'bereit',
+    ready_simulated: 'bereit (simuliert)',
+    location_missing: 'Standort fehlt',
+    unsupported: 'nicht unterstützt',
+    error: 'Fehler',
+    unavailable: 'nicht verfügbar',
+  }
+  return labels[status.code] ?? 'nicht verfügbar'
+})
 
 vi.mock('@/api', () => ({
   api: vi.fn(),
@@ -26,6 +46,15 @@ vi.mock('@/composables/useBundle', () => ({
   useBundle: () => ({
     bundle: ref({ events: [{ id: 1, name: 'Test Event' }] }),
   }),
+}))
+
+vi.mock('@/utils/androidAppInfo', () => ({
+  getAndroidAppInfo: () => getAndroidAppInfo(),
+}))
+
+vi.mock('@/utils/taptoPayStatus', () => ({
+  checkTapToPayAdminStatus: (force?: boolean) => checkTapToPayAdminStatus(force),
+  tapToPayAdminStatusLabel: (status: { code: string }) => tapToPayAdminStatusLabel(status),
 }))
 
 import { api } from '@/api'
@@ -53,6 +82,11 @@ describe('AdminHubView', () => {
     push.mockReset()
     replace.mockReset()
     isAndroidApp.mockReturnValue(false)
+    getAndroidAppInfo.mockReset()
+    getAndroidAppInfo.mockReturnValue({ status: 'unavailable' })
+    checkTapToPayAdminStatus.mockReset()
+    checkTapToPayAdminStatus.mockReturnValue({ code: 'unavailable' })
+    tapToPayAdminStatusLabel.mockClear()
     vi.mocked(api).mockImplementation(async (path: string) => {
       if (path === '/health') {
         return { status: 'ok', version: '2.0.0', build_time: '202607201100' }
@@ -113,5 +147,45 @@ describe('AdminHubView', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('App v1.0.0 (test)')
     expect(wrapper.text()).toContain('Pi —')
+  })
+
+  it('hides Android version and Tap to Pay lines off Android', async () => {
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Android ')
+    expect(wrapper.text()).not.toContain('Tap to Pay:')
+    expect(checkTapToPayAdminStatus).not.toHaveBeenCalled()
+  })
+
+  it('shows Android version line only when bridge returns a version', async () => {
+    isAndroidApp.mockReturnValue(true)
+    getAndroidAppInfo.mockReturnValue({
+      status: 'ok',
+      versionName: '1.5.10',
+      versionCode: 10510,
+    })
+    checkTapToPayAdminStatus.mockReturnValue({ code: 'ready' })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Android v1.5.10')
+  })
+
+  it('shows Tap to Pay checking then ready on Android Admin open', async () => {
+    isAndroidApp.mockReturnValue(true)
+    getAndroidAppInfo.mockReturnValue({ status: 'unavailable' })
+    checkTapToPayAdminStatus.mockReturnValue({ code: 'ready' })
+    const wrapper = mountHub()
+    expect(wrapper.text()).toContain('Tap to Pay: prüfen…')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tap to Pay: bereit')
+    expect(checkTapToPayAdminStatus).toHaveBeenCalledWith(true)
+  })
+
+  it('shows location_missing Tap to Pay status', async () => {
+    isAndroidApp.mockReturnValue(true)
+    checkTapToPayAdminStatus.mockReturnValue({ code: 'location_missing' })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tap to Pay: Standort fehlt')
   })
 })

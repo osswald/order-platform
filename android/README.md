@@ -133,8 +133,15 @@ The app exposes `window.AndroidTerminal` as a JavaScript bridge ([`MainActivity.
 
 Bridge methods:
 
-- `supportsTapToPay()` — Stripe Terminal `supportsReadersOfType` check; the PWA disables **Karte** when the device is unsupported
+- `supportsTapToPay()` — Stripe Terminal `supportsReadersOfType` check; returns
+  `{ ok, supported?, code?, simulated?, error? }` with codes
+  `ready` / `ready_simulated` / `location_missing` / `unsupported` / `error`.
+  The PWA disables **Karte** when the device is unsupported, and Pi Admin shows
+  the readiness line (device-only — does not prove a payment will succeed).
 - `collectPayment(connectionToken, clientSecret)` — discover/connect on-device Tap to Pay reader and confirm the PaymentIntent
+
+`window.AndroidApp.getAppInfo()` returns `{ ok, versionName, versionCode }` from the APK
+(`BuildConfig`). Pi Admin shows **Android v…** next to the PWA and Pi version lines.
 
 The Pi backend proxies Stripe Terminal API calls to the cloud edge API. See [docs/stripe-connect-terminal.md](../docs/stripe-connect-terminal.md) for the full Connect + Terminal setup and test flow.
 
@@ -179,6 +186,7 @@ CI: GitHub Actions workflow **Android release** (manual dispatch) builds and upl
 | Path | Purpose |
 |------|---------|
 | `app/src/main/java/ch/vendiqo/app/MainActivity.kt` | WebView shell, insets, load URL |
+| `app/src/main/java/ch/vendiqo/app/AndroidAppBridge.kt` | JS bridge for APK version (`AndroidApp`) |
 | `app/src/main/java/ch/vendiqo/app/BluetoothPrinterBridge.kt` | JS bridge for ESC/POS |
 | `app/src/main/java/ch/vendiqo/app/StripeTerminalBridge.kt` | JS bridge for Stripe Tap to Pay (`AndroidTerminal`) |
 | `app/src/main/assets/public/` | Bundled frontend (generated, gitignored) |

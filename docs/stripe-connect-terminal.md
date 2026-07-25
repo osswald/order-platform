@@ -137,6 +137,18 @@ Hints under a disabled button (priority order):
 - «Standortberechtigung für Kartenzahlung erforderlich.» (cannot evaluate support)
 - «Gerät unterstützt keine Kartenzahlung (Tap to Pay).»
 
+## Pi Admin: versions and Tap to Pay readiness
+
+On the Pi Admin hub (Android only), below the existing **App** (PWA) and **Pi**
+(backend) version lines:
+
+- **Android** — native APK `versionName` from `AndroidApp.getAppInfo()`
+- **Tap to Pay** — device readiness from `AndroidTerminal.supportsTapToPay()` run
+  when Admin loads (re-checked each open). Labels: bereit / bereit (simuliert) /
+  Standort fehlt / nicht unterstützt / Fehler. This is **device-only** readiness
+  (hardware + location + SDK init); it does **not** verify org Stripe Connect
+  onboarding or that a real card charge will succeed.
+
 ## Android Tap to Pay flow
 
 1. Cloud admin connects the event organisation to Stripe and enables

@@ -87,9 +87,11 @@ class MainActivity : ComponentActivity() {
         printerBridge = BluetoothPrinterBridge(this)
         terminalBridge = StripeTerminalBridge(this)
         val networkBridge = AndroidNetworkBridge()
+        val appBridge = AndroidAppBridge()
         requestTerminalPermissionsIfNeeded()
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
         webView.addJavascriptInterface(terminalBridge, "AndroidTerminal")
+        webView.addJavascriptInterface(appBridge, "AndroidApp")
         webView.addJavascriptInterface(insetsBridge, "AndroidInsets")
         webView.addJavascriptInterface(networkBridge, "AndroidNetwork")
 
