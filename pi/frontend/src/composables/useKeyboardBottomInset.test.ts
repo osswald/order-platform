@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defineComponent, nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { useKeyboardBottomInset } from './useKeyboardBottomInset'

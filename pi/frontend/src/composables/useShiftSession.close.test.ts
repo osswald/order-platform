@@ -38,6 +38,8 @@ function shiftEvent(): EdgeBundleEvent {
   return {
     id: 1,
     name: 'Fest',
+    currency: 'CHF',
+    payment_mode: 'pay_later',
     shift_settlement_enabled: true,
   } as EdgeBundleEvent
 }

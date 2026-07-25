@@ -39,7 +39,7 @@ describe('PayTableActionsSheet', () => {
         open: true,
         eventId: 1,
         fromTable: 2,
-        selections: [{ article_id: 1, qty: 1 }],
+        selections: [{ kind: 'article', article_id: 1, note: '', qty: 1 }],
       },
       attachTo: document.body,
       global: { stubs: { teleport: true } },
