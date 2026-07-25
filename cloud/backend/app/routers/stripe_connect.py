@@ -39,6 +39,8 @@ class StripeConnectStatus(BaseModel):
 
 
 class StripeAccountLinkRequest(BaseModel):
+    """Accepted for backwards compatibility; the URLs are ignored in favour of env config."""
+
     return_url: str | None = Field(None, min_length=1)
     refresh_url: str | None = Field(None, min_length=1)
 
@@ -59,8 +61,8 @@ def _status_response(organisation: Organisation) -> StripeConnectStatus:
     )
 
 
-def _account_link_url(value: str | None, env_name: str) -> str:
-    url = (value or os.getenv(env_name) or "").strip()
+def _account_link_url(env_name: str) -> str:
+    url = (os.getenv(env_name) or "").strip()
     if not url:
         raise api_error("env_required", status.HTTP_422_UNPROCESSABLE_CONTENT, env_name=env_name)
     return url
@@ -95,14 +97,15 @@ def create_connect_account_link(
                 hire_company_id=organisation.hire_company_id,
                 name=organisation.name,
                 country=organisation.country.code if organisation.country else "CH",
+                currency=organisation.currency,
             )
             organisation.stripe_account_id = account.id
             update_organisation_from_stripe_account(organisation, account)
 
         link = stripe_client.create_account_link(
             account_id=organisation.stripe_account_id,
-            return_url=_account_link_url(body.return_url, "STRIPE_CONNECT_RETURN_URL"),
-            refresh_url=_account_link_url(body.refresh_url, "STRIPE_CONNECT_REFRESH_URL"),
+            return_url=_account_link_url("STRIPE_CONNECT_RETURN_URL"),
+            refresh_url=_account_link_url("STRIPE_CONNECT_REFRESH_URL"),
         )
     except Exception as exc:
         raise stripe_error(exc) from exc

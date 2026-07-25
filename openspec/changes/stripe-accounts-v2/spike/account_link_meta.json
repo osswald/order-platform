@@ -1,0 +1,21 @@
+{
+  "object": "v2.core.account_link",
+  "account": "acct_1TwrwwBlfNu9f1Sp",
+  "created": "2026-07-24T22:52:25.000Z",
+  "expires_at": "2026-07-24T22:57:25.000Z",
+  "use_case": {
+    "account_onboarding": {
+      "collection_options": {
+        "fields": "currently_due",
+        "future_requirements": "omit"
+      },
+      "configurations": [
+        "merchant"
+      ],
+      "refresh_url": "http://localhost:5173/settings/stripe/refresh",
+      "return_url": "http://localhost:5173/settings/stripe/return"
+    },
+    "type": "account_onboarding"
+  },
+  "livemode": false
+}

@@ -1,0 +1,35 @@
+{
+  "id": "acct_1TwrwwBlfNu9f1Sp",
+  "dashboard": "full",
+  "defaults": {
+    "currency": "chf",
+    "locales": [],
+    "profile": {
+      "business_url": "www.be.ch",
+      "doing_business_as": "Vendiqo Spike Org GmbH",
+      "product_description": null
+    },
+    "responsibilities": {
+      "fees_collector": "stripe",
+      "losses_collector": "stripe",
+      "requirements_collector": "stripe"
+    }
+  },
+  "configuration": {
+    "merchant": {
+      "capabilities": {
+        "card_payments": {
+          "status": "active"
+        },
+        "stripe_balance": {
+          "payouts": {
+            "status": "active"
+          }
+        }
+      }
+    }
+  },
+  "requirements": {
+    "entries": []
+  }
+}

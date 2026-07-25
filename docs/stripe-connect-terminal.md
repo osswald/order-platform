@@ -16,6 +16,68 @@ credentials.
   secret key. They call Pi-local endpoints, which proxy to cloud edge endpoints
   using existing `X-Edge-Client-Id` / `X-Edge-Secret` credentials.
 
+## Account model (Accounts v2)
+
+Connected accounts are created with the **Accounts v2** API
+(`POST /v2/core/accounts`, via `StripeClient.v2.core.accounts`). Accounts v1
+`Account.create(type="express")` is not used — new Stripe platforms reject it,
+and we do not rely on the temporary `feat_accounts_v1_support` Dashboard flag.
+
+Create payload (see `cloud/backend/app/stripe_client.py`):
+
+| Field | Value |
+|-------|-------|
+| `dashboard` | `full` — required alongside `fees_collector`/`losses_collector` = `stripe`; `express` is rejected for this combination |
+| `identity.country` / `entity_type` | organisation country (default `CH`), `company` |
+| `defaults.currency` | organisation currency, lowercased |
+| `defaults.responsibilities` | `fees_collector` and `losses_collector` = `stripe` |
+| `configuration.merchant.capabilities.card_payments.requested` | `true` |
+| `metadata` | `organisation_id`, `hire_company_id` |
+
+Onboarding uses **v2 Account Links** (`use_case.type = account_onboarding`,
+`configurations: ["merchant"]`). Return and refresh URLs always come from
+environment configuration; values in the request body are ignored.
+
+Because `requirements_collector` is `stripe`, KYC must be completed in the
+Stripe-hosted Account Link flow — the platform cannot accept terms of service
+or submit person/bank details through the API.
+
+Organisation readiness flags are mapped from the retrieved account:
+
+| Organisation column | Accounts v2 source |
+|---------------------|--------------------|
+| `stripe_charges_enabled` | `configuration.merchant.capabilities.card_payments.status == "active"` |
+| `stripe_payouts_enabled` | `configuration.merchant.capabilities.stripe_balance.payouts.status == "active"` |
+| `stripe_details_submitted` | no `requirements.entries` awaiting the user with a `currently_due`/`past_due` deadline |
+
+`account.updated` webhooks still deliver an Accounts v1 shaped snapshot; the same
+mapper falls back to the top-level `charges_enabled` / `payouts_enabled` /
+`details_submitted` fields for those payloads.
+
+Existing organisations that already hold an Accounts v1 `stripe_account_id` keep
+it — onboarding links are minted against that id. To force re-creation on v2,
+clear `stripe_account_id` for the organisation.
+
+**Dashboard prerequisites:** Connect must be enabled on the platform account, and
+`dashboard: full` means connected organisations manage payouts in the full Stripe
+Dashboard rather than an Express dashboard.
+
+## Platform fee
+
+Terminal charges are **direct charges** on the connected account, and the platform
+takes an `application_fee_amount` of **0.2%** (20 basis points) of the
+PaymentIntent amount, rounded half-up to the nearest minor unit. The fee is
+deducted before funds settle to the organisation; the organisation still pays
+Stripe processing fees separately (`fees_collector = stripe`).
+
+- Configurable via `STRIPE_PLATFORM_FEE_BPS` (default `20`, `0` disables).
+- Fees below one minor unit are omitted, since Stripe requires a positive amount.
+- Only `stripe_terminal` PaymentIntents are charged; cash, TWINT, and SumUp are not.
+
+**Follow-up:** there is no Terminal refund path yet. When one is added, it must
+refund the application fee proportionally (`refund_application_fee`), otherwise a
+full refund leaves the organisation short by the fee.
+
 ## Cloud endpoints
 
 Cloud admin onboarding (`tenant admin`):
@@ -129,6 +191,7 @@ STRIPE_SECRET_KEY=rk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_CONNECT_RETURN_URL=https://admin.vendiqo.ch/settings/stripe/return
 STRIPE_CONNECT_REFRESH_URL=https://admin.vendiqo.ch/settings/stripe/refresh
+STRIPE_PLATFORM_FEE_BPS=20
 ```
 
 Use a restricted Stripe key with Connect, Account Links, Terminal Connection Tokens,

@@ -2,8 +2,29 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
 from app.models import Country
 from sqlalchemy.orm import Session
+
+STRIPE_FIXTURES = Path(__file__).parent / "fixtures" / "stripe"
+
+
+def stripe_account_payload(name: str) -> dict[str, Any]:
+    """Load a captured Stripe Accounts v2 retrieve payload."""
+    return json.loads((STRIPE_FIXTURES / f"{name}.json").read_text())
+
+
+def stripe_object(value: Any) -> Any:
+    """Mimic the Stripe SDK, which returns nested objects rather than plain dicts."""
+    if isinstance(value, dict):
+        return SimpleNamespace(**{key: stripe_object(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return [stripe_object(item) for item in value]
+    return value
 
 
 def country_id_by_code(db: Session, code: str = "CH") -> int:
