@@ -162,13 +162,15 @@ const routes = [
   },
 ]
 
+import { isAuthSessionActive } from '@/api'
+
 export const router = createRouter({
   history: createWebHistory(),
   routes,
 })
 
 router.beforeEach((to, _from, next) => {
-  const isLoggedIn = !!localStorage.getItem('access_token')
+  const isLoggedIn = isAuthSessionActive()
 
   if (to.meta.guest) {
     if (isLoggedIn) {

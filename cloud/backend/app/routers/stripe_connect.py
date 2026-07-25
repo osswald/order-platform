@@ -62,6 +62,7 @@ def _status_response(organisation: Organisation) -> StripeConnectStatus:
 
 
 def _account_link_url(env_name: str) -> str:
+    """Resolve Connect return/refresh URLs from env only (ignore client-supplied URLs)."""
     url = (os.getenv(env_name) or "").strip()
     if not url:
         raise api_error("env_required", status.HTTP_422_UNPROCESSABLE_CONTENT, env_name=env_name)

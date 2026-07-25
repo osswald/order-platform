@@ -1,6 +1,6 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useTheme } from 'vuetify'
-import { apiJson } from '@/api'
+import { apiJson, isAuthSessionActive } from '@/api'
 import type { AuthMeResponse } from '@/types/api'
 import {
   isThemePreference,
@@ -58,7 +58,7 @@ export function syncThemeFromAuthMe(data: AuthMeResponse) {
 
 export async function updateThemePreference(next: ThemePreference) {
   setThemePreference(next)
-  if (!localStorage.getItem('access_token')) return
+  if (!isAuthSessionActive()) return
   await apiJson<AuthMeResponse>('/auth/me', {
     method: 'PATCH',
     headers: {

@@ -65,7 +65,7 @@ def test_create_member_without_orgs_keeps_home_verleiher_and_lists():
         headers=headers,
         json={
             "email": "new-member@home.example.com",
-            "password": "secret",
+            "password": "secretsecret",
             "name": "New Member",
             "role": ROLE_MEMBER,
             "organisation_ids": [],
@@ -90,7 +90,7 @@ def test_create_organisation_admin_without_orgs_keeps_home_verleiher_and_lists()
         headers=headers,
         json={
             "email": "new-oa@home.example.com",
-            "password": "secret",
+            "password": "secretsecret",
             "name": "New OA",
             "role": ROLE_ORGANISATION_ADMIN,
             "organisation_ids": [],
@@ -115,7 +115,7 @@ def test_organisation_admin_create_without_orgs_still_rejected():
         headers=headers,
         json={
             "email": "blocked@home.example.com",
-            "password": "secret",
+            "password": "secretsecret",
             "role": ROLE_MEMBER,
             "organisation_ids": [],
         },
@@ -132,7 +132,7 @@ def test_clear_organisations_keeps_home_verleiher_and_lists():
         headers=headers,
         json={
             "email": "clear-me@home.example.com",
-            "password": "secret",
+            "password": "secretsecret",
             "role": ROLE_MEMBER,
             "organisation_ids": [ctx["org_id"]],
         },
@@ -162,7 +162,7 @@ def test_demote_tenant_admin_to_member_keeps_home_verleiher():
         headers=headers,
         json={
             "email": "demote-member@home.example.com",
-            "password": "secret",
+            "password": "secretsecret",
             "role": ROLE_TENANT_ADMIN,
             "organisation_ids": [],
         },
@@ -193,7 +193,7 @@ def test_demote_tenant_admin_to_organisation_admin_keeps_home_verleiher():
         headers=headers,
         json={
             "email": "demote-oa@home.example.com",
-            "password": "secret",
+            "password": "secretsecret",
             "role": ROLE_TENANT_ADMIN,
             "organisation_ids": [],
         },

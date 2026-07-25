@@ -111,13 +111,16 @@ def create_terminal_payment_intent(
 ) -> TerminalPaymentIntentRead:
     event, organisation = _terminal_organisation_for_event(db, ctx, body.event_id)
     currency = (body.currency or organisation_currency(organisation, event_currency(event, "CHF"))).upper()
-    metadata = {
-        "event_id": str(event.id),
-        "organisation_id": str(organisation.id),
-        "appliance_id": str(ctx.appliance.id),
-        "hire_company_id": str(organisation.hire_company_id),
-        **{str(k): str(v) for k, v in body.metadata.items() if v is not None},
-    }
+    metadata = {str(k): str(v) for k, v in body.metadata.items() if v is not None}
+    # System keys last so clients cannot overwrite tenancy/audit fields (F5).
+    metadata.update(
+        {
+            "event_id": str(event.id),
+            "organisation_id": str(organisation.id),
+            "appliance_id": str(ctx.appliance.id),
+            "hire_company_id": str(organisation.hire_company_id),
+        }
+    )
     if body.client_order_id:
         metadata["client_order_id"] = body.client_order_id
     try:
@@ -150,4 +153,11 @@ def read_terminal_payment_intent(
         )
     except Exception as exc:
         raise stripe_error(exc) from exc
+    intent_meta = _stripe_attr(intent, "metadata") or {}
+    if isinstance(intent_meta, dict):
+        meta_event_id = str(intent_meta.get("event_id") or "")
+    else:
+        meta_event_id = str(getattr(intent_meta, "event_id", "") or "")
+    if meta_event_id != str(event_id):
+        raise api_error("payment_intent_event_mismatch", status.HTTP_404_NOT_FOUND)
     return _intent_response(intent)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -12,14 +13,17 @@ from .event_sales import (
     _build_articles_pricing_map,
     _build_name_maps,
     _collect_article_ids_from_orders,
-    _line_for_pricing,
     _normalize_additions,
     _resolve_waiter_name,
     format_payload_lines,
-    line_total_cents,
     payment_type_label,
 )
 from .models import EdgeSubmittedOrder, Event
+
+logger = logging.getLogger(__name__)
+
+# Payload conversion failures we tolerate per line; anything else is a real bug.
+_LINE_PAYLOAD_ERRORS = (KeyError, TypeError, ValueError)
 
 
 def _payload_dict(order: EdgeSubmittedOrder) -> dict:
@@ -55,12 +59,26 @@ def _format_payment_methods(payments: list | None) -> str:
     return ", ".join(parts)
 
 
-def _line_cents_from_payload(payload: dict, arts: dict) -> int:
-    total = 0
-    for ln in payload.get("lines") or []:
-        if isinstance(ln, dict):
-            total += line_total_cents(_line_for_pricing(ln), arts)
-    return total
+def _renderable_lines(raw_lines: list | None, arts: dict) -> tuple[list[dict], int, int]:
+    """Format the lines that can be priced, and report the total and how many were dropped.
+
+    Edge payloads are free-form JSON, so a line may miss `article_id` or carry values the
+    pricing helpers cannot convert. Such a line contributes neither details nor value
+    instead of failing the whole page.
+    """
+    formatted: list[dict] = []
+    skipped = 0
+    for line in raw_lines or []:
+        try:
+            entries = format_payload_lines([line], arts)
+        except _LINE_PAYLOAD_ERRORS:
+            entries = []
+        if not entries:
+            skipped += 1
+            continue
+        formatted.extend(entries)
+    total = sum(int(entry.get("line_cents") or 0) for entry in formatted)
+    return formatted, total, skipped
 
 
 def _line_match_key(line: dict) -> tuple[int, str, str]:
@@ -68,6 +86,14 @@ def _line_match_key(line: dict) -> tuple[int, str, str]:
     note = str(line.get("note") or "")
     adds = _normalize_additions(line.get("additions"))
     return (aid, note, _additions_signature(adds))
+
+
+def _diff_line_entry(line: dict) -> tuple[tuple[int, str, str], int] | None:
+    """Match key and quantity for snapshot diffing, or None when the line cannot be read."""
+    try:
+        return _line_match_key(line), max(1, int(line.get("qty") or 1))
+    except _LINE_PAYLOAD_ERRORS:
+        return None
 
 
 def _transfer_note_from_destination(dest: dict) -> str:
@@ -90,7 +116,8 @@ def _moved_lines_from_payload(payload: dict, arts: dict) -> list[dict]:
         raw_lines = [ln for ln in (ev.get("lines") or []) if isinstance(ln, dict)]
         if not raw_lines:
             continue
-        for entry in format_payload_lines(raw_lines, arts):
+        moved, _total, _skipped = _renderable_lines(raw_lines, arts)
+        for entry in moved:
             out.append({**entry, "transfer_note": note, "is_moved": True})
     return out
 
@@ -105,24 +132,26 @@ def _infer_moved_lines_from_snapshots(
         return []
     curr_payload = _payload_dict(order)
     prev_payload = _payload_dict(prior)
-    prev_map: dict[tuple[int, str, str], dict] = {}
-    for ln in prev_payload.get("lines") or []:
-        if not isinstance(ln, dict) or ln.get("article_id") is None:
-            continue
-        key = _line_match_key(ln)
-        prev_map[key] = ln
-    curr_map: dict[tuple[int, str, str], dict] = {}
-    for ln in curr_payload.get("lines") or []:
-        if not isinstance(ln, dict) or ln.get("article_id") is None:
-            continue
-        key = _line_match_key(ln)
-        curr_map[key] = ln
+
+    def diffable(payload: dict) -> dict[tuple[int, str, str], tuple[dict, int]]:
+        out: dict[tuple[int, str, str], tuple[dict, int]] = {}
+        for ln in payload.get("lines") or []:
+            if not isinstance(ln, dict) or ln.get("article_id") is None:
+                continue
+            entry = _diff_line_entry(ln)
+            if entry is None:
+                continue
+            key, qty = entry
+            out[key] = (ln, qty)
+        return out
+
+    prev_map = diffable(prev_payload)
+    curr_map = diffable(curr_payload)
 
     removed_raw: list[dict] = []
-    for key, prev_ln in prev_map.items():
-        prev_qty = max(1, int(prev_ln.get("qty") or 1))
-        curr_ln = curr_map.get(key)
-        curr_qty = max(1, int(curr_ln.get("qty") or 1)) if curr_ln else 0
+    for key, (prev_ln, prev_qty) in prev_map.items():
+        curr = curr_map.get(key)
+        curr_qty = curr[1] if curr else 0
         if curr_qty < prev_qty:
             removed_raw.append({**prev_ln, "qty": prev_qty - curr_qty})
 
@@ -130,10 +159,8 @@ def _infer_moved_lines_from_snapshots(
         return []
 
     note = "Verschoben (Ziel unbekannt, ältere Sync-Daten)"
-    return [
-        {**entry, "transfer_note": note, "is_moved": True}
-        for entry in format_payload_lines(removed_raw, arts)
-    ]
+    removed, _total, _skipped = _renderable_lines(removed_raw, arts)
+    return [{**entry, "transfer_note": note, "is_moved": True} for entry in removed]
 
 
 def _moved_lines_for_order(
@@ -204,15 +231,18 @@ def _transaction_row(
             "lines": [],
             "moved_lines": [],
         }
-    raw_lines = payload.get("lines") or []
-    line_count = sum(
-        1
-        for ln in raw_lines
-        if isinstance(ln, dict) and ln.get("article_id") is not None
-    )
-    lines: list[dict] = []
-    if kind in ("bestellung", "teilzahlung") and raw_lines:
-        lines = format_payload_lines(raw_lines, arts)
+    client_order_id = str(payload.get("client_order_id") or order.client_order_id)
+    renderable, line_cents, skipped = _renderable_lines(payload.get("lines"), arts)
+    if skipped:
+        logger.warning(
+            "Skipping %d unrenderable order line(s) for event %s order %s (client_order_id=%s)",
+            skipped,
+            order.event_id,
+            order.id,
+            client_order_id,
+        )
+    line_count = len(renderable)
+    lines = renderable if kind in ("bestellung", "teilzahlung") else []
 
     moved_lines = _moved_lines_for_order(order, prior_by_order_id, arts)
     moved_line_cents = sum(int(m.get("line_cents") or 0) for m in moved_lines)
@@ -230,12 +260,12 @@ def _transaction_row(
         "id": order.id,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "kind": kind,
-        "client_order_id": str(payload.get("client_order_id") or order.client_order_id),
+        "client_order_id": client_order_id,
         "table_number": int(table_number) if table_number is not None else None,
         "collective_bill_name": str(payload.get("collective_bill_name") or "").strip() or None,
         "waiter_name": _resolve_waiter_name(payload, waiter_uuid, waiter_id_int, name_maps),
         "payment_status": str(payload.get("payment_status") or "open"),
-        "line_cents": _line_cents_from_payload(payload, arts),
+        "line_cents": line_cents,
         "moved_line_cents": moved_line_cents,
         "paid_cents": sum(
             int(p.get("amount_cents") or 0)

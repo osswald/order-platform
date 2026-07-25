@@ -65,7 +65,7 @@
               autocomplete="new-password"
               hide-details="auto"
               required
-              :rules="[rules.required]"
+              :rules="[rules.required, rules.minPasswordLength()]"
               @click:append-inner="showNew = !showNew"
             />
           </div>

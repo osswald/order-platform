@@ -130,7 +130,8 @@ async function submit() {
     }
 
     const data = await res.json()
-    localStorage.setItem('access_token', data.access_token)
+    localStorage.setItem('auth_session', '1')
+    localStorage.removeItem('access_token')
     localStorage.setItem('user_email', email.value)
     localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false')
     if (data.role) localStorage.setItem('user_role', data.role)
