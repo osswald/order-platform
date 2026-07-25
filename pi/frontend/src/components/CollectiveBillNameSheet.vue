@@ -20,12 +20,14 @@
         class="text-input"
         maxlength="128"
         placeholder="z. B. Personal"
+        @input="onNameInput"
+        @compositionend="onNameInput"
         @keydown.enter.prevent="submit"
       />
       <button
         type="button"
         class="btn primary confirm-btn"
-        :disabled="!name.trim() || busy"
+        :disabled="!canConfirm"
         @click="submit"
       >
         {{ confirmLabel }}
@@ -66,6 +68,13 @@ const sheetStyle = computed(() => ({
   '--keyboard-bottom': `${keyboardBottomInset.value}px`,
 }))
 
+/** Prefer live input value so Android IME composition still enables the CTA. */
+const canConfirm = computed(() => {
+  if (props.busy) return false
+  const live = inputEl.value?.value ?? name.value
+  return Boolean(live.trim())
+})
+
 watch(
   () => props.open,
   async (v) => {
@@ -77,13 +86,21 @@ watch(
   },
 )
 
+function onNameInput(ev: Event) {
+  const t = ev.target
+  if (t instanceof HTMLInputElement) {
+    name.value = t.value
+  }
+}
+
 function onCancel() {
   emit('close')
 }
 
 function submit() {
-  const trimmed = name.value.trim()
+  const trimmed = (inputEl.value?.value ?? name.value).trim()
   if (!trimmed || props.busy) return
+  name.value = trimmed
   emit('confirm', trimmed)
 }
 </script>

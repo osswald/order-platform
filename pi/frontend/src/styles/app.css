@@ -119,6 +119,14 @@ h2 {
   color: #fff;
 }
 
+/* Primary disabled must not stay “blue CTA” — opacity alone is too subtle on Android. */
+.btn.primary:disabled {
+  opacity: 1;
+  background: #334155;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
 .btn.danger {
   border-color: var(--danger);
   color: var(--danger);
