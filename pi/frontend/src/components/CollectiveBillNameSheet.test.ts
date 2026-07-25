@@ -22,11 +22,13 @@ describe('CollectiveBillNameSheet', () => {
     wrapper.unmount()
   })
 
-  it('disables confirm when name is empty', async () => {
+  it('disables confirm when name is empty and enables when a name is entered', async () => {
     const wrapper = mountSheet()
     await flushPromises()
     const btn = wrapper.find('button.confirm-btn')
     expect(btn.attributes('disabled')).toBeDefined()
+    await wrapper.find('input.text-input').setValue('Personal')
+    expect(wrapper.find('button.confirm-btn').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 
