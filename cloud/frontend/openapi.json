@@ -17151,7 +17151,8 @@
           }
         },
         "type": "object",
-        "title": "StripeAccountLinkRequest"
+        "title": "StripeAccountLinkRequest",
+        "description": "Accepted for backwards compatibility; the URLs are ignored in favour of env config."
       },
       "StripeAccountLinkResponse": {
         "properties": {

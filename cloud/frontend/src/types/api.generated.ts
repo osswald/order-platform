@@ -4329,7 +4329,10 @@ export interface components {
             /** Average Order Value Cents */
             average_order_value_cents: number;
         };
-        /** StripeAccountLinkRequest */
+        /**
+         * StripeAccountLinkRequest
+         * @description Accepted for backwards compatibility; the URLs are ignored in favour of env config.
+         */
         StripeAccountLinkRequest: {
             /** Return Url */
             return_url?: string | null;

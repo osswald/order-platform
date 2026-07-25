@@ -22,7 +22,11 @@ from tests.helpers import country_id_by_code
 client = TestClient(app)
 
 
-def _edge_terminal_fixture() -> tuple[dict[str, str], int]:
+def _edge_terminal_fixture(
+    *,
+    stripe_account_id: str | None = "acct_terminal_test",
+    stripe_charges_enabled: bool = True,
+) -> tuple[dict[str, str], int]:
     suffix = uuid4().hex
     db = SessionLocal()
     try:
@@ -34,8 +38,8 @@ def _edge_terminal_fixture() -> tuple[dict[str, str], int]:
             country_id=country_id_by_code(db, "CH"),
             hire_company_id=hc.id,
             currency="CHF",
-            stripe_account_id="acct_terminal_test",
-            stripe_charges_enabled=True,
+            stripe_account_id=stripe_account_id,
+            stripe_charges_enabled=stripe_charges_enabled,
         )
         db.add(org)
         db.flush()
@@ -120,6 +124,63 @@ def test_terminal_create_payment_intent(mock_create_intent):
     body = r.json()
     assert body["id"] == "pi_test123"
     assert body["amount_cents"] == 500
+
+
+def test_terminal_payment_intent_requires_connected_account():
+    headers, event_id = _edge_terminal_fixture(stripe_account_id=None)
+    r = client.post(
+        "/edge/v1/terminal/payment-intents",
+        headers=headers,
+        json={"event_id": event_id, "amount_cents": 500},
+    )
+    assert r.status_code == 409, r.text
+
+
+def test_terminal_payment_intent_requires_charges_enabled():
+    headers, event_id = _edge_terminal_fixture(stripe_charges_enabled=False)
+    r = client.post(
+        "/edge/v1/terminal/payment-intents",
+        headers=headers,
+        json={"event_id": event_id, "amount_cents": 500},
+    )
+    assert r.status_code == 409, r.text
+
+
+def _create_terminal_intent(monkeypatch, amount_cents: int) -> MagicMock:
+    """Drive the edge endpoint through the real Stripe client wrapper."""
+    headers, event_id = _edge_terminal_fixture()
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    intent = MagicMock()
+    intent.id = "pi_fee_test"
+    intent.client_secret = "cs_test"
+    intent.status = "requires_payment_method"
+    intent.amount = amount_cents
+    intent.currency = "chf"
+
+    with patch("app.stripe_client.stripe.PaymentIntent.create", return_value=intent) as mock_create:
+        r = client.post(
+            "/edge/v1/terminal/payment-intents",
+            headers=headers,
+            json={"event_id": event_id, "amount_cents": amount_cents},
+        )
+    assert r.status_code == 200, r.text
+    return mock_create
+
+
+def test_terminal_payment_intent_charges_platform_fee(monkeypatch):
+    mock_create = _create_terminal_intent(monkeypatch, 1000)
+
+    kwargs = mock_create.call_args.kwargs
+    assert kwargs["application_fee_amount"] == 2
+    assert kwargs["amount"] == 1000
+    assert kwargs["payment_method_types"] == ["card_present"]
+    assert kwargs["stripe_account"] == "acct_terminal_test"
+
+
+def test_terminal_payment_intent_omits_fee_when_it_rounds_to_zero(monkeypatch):
+    mock_create = _create_terminal_intent(monkeypatch, 100)
+
+    assert "application_fee_amount" not in mock_create.call_args.kwargs
 
 
 @patch("app.routers.stripe_terminal.stripe_client.create_terminal_payment_intent")

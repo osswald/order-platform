@@ -39,6 +39,8 @@ class StripeConnectStatus(BaseModel):
 
 
 class StripeAccountLinkRequest(BaseModel):
+    """Accepted for backwards compatibility; the URLs are ignored in favour of env config."""
+
     return_url: str | None = Field(None, min_length=1)
     refresh_url: str | None = Field(None, min_length=1)
 
@@ -96,6 +98,7 @@ def create_connect_account_link(
                 hire_company_id=organisation.hire_company_id,
                 name=organisation.name,
                 country=organisation.country.code if organisation.country else "CH",
+                currency=organisation.currency,
             )
             organisation.stripe_account_id = account.id
             update_organisation_from_stripe_account(organisation, account)
