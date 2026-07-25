@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import type { EdgeBundleEvent } from '@/types/api'
 import { api, isAndroidApp } from '@/api'
 import {
+  checkBluetoothPrinterReachability,
   isBluetoothPrinterConfigured,
   printPaymentReceipt,
 } from './androidPrinter'
@@ -57,15 +58,16 @@ async function printToStation(
   paymentId: number | string,
   stationUuid: string,
   showToast?: ShowToastFn,
-): Promise<void> {
+): Promise<boolean> {
   receiptPromptBusy.value = true
   try {
     await printPaymentReceiptToStation(paymentId, stationUuid)
     showToast?.('Beleg an Drucker gesendet.', 'ok')
+    return true
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Drucken fehlgeschlagen.'
     showToast?.(message, 'err')
-    throw e
+    return false
   } finally {
     receiptPromptBusy.value = false
   }
@@ -75,15 +77,16 @@ async function printBluetooth(
   paymentId: number | string,
   showToast?: ShowToastFn,
   { reprint = false }: { reprint?: boolean } = {},
-): Promise<void> {
+): Promise<boolean> {
   receiptPromptBusy.value = true
   try {
     await printPaymentReceipt(paymentId, { reprint })
     showToast?.('Beleg gedruckt.', 'ok')
+    return true
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Drucken fehlgeschlagen.'
     showToast?.(message, 'err')
-    throw e
+    return false
   } finally {
     receiptPromptBusy.value = false
   }
@@ -96,6 +99,67 @@ export function offerPaymentReceiptEnabled(event: EdgeBundleEvent | null | undef
 /** Event allows waiter Bluetooth ESC/POS (payment receipts, vouchers, shift). */
 export function bluetoothPrintingEnabled(event: EdgeBundleEvent | null | undefined): boolean {
   return Boolean(event?.bluetooth_printing_enabled)
+}
+
+/**
+ * Whether waiter flows should attempt Bluetooth for this event/device.
+ * - `use`: probe says reachable — print via Bluetooth
+ * - `try`: configured but older APK without probe — try Bluetooth, then fall back
+ * - `skip`: not configured, flag off, or probe says unreachable
+ */
+export type BluetoothPrintGate = 'use' | 'try' | 'skip'
+
+export function resolveBluetoothPrintGate(
+  event: EdgeBundleEvent | null | undefined,
+): BluetoothPrintGate {
+  if (!isAndroidApp() || !isBluetoothPrinterConfigured() || !bluetoothPrintingEnabled(event)) {
+    return 'skip'
+  }
+  const reachability = checkBluetoothPrinterReachability()
+  if (reachability === 'reachable') return 'use'
+  if (reachability === 'unknown') return 'try'
+  return 'skip'
+}
+
+export function bluetoothPrinterConfiguredForEvent(
+  event: EdgeBundleEvent | null | undefined,
+): boolean {
+  return (
+    isAndroidApp() && isBluetoothPrinterConfigured() && bluetoothPrintingEnabled(event)
+  )
+}
+
+async function printViaNetworkTargets(
+  paymentId: number | string,
+  event: EdgeBundleEvent,
+  showToast?: ShowToastFn,
+  preferredTargetUuid: string | null = null,
+): Promise<void> {
+  const targets = receiptPrintTargets(event)
+  if (!targets.length) {
+    showToast?.('Kein Drucker konfiguriert.', 'err')
+    return
+  }
+
+  const preferred = String(preferredTargetUuid || '').trim()
+  if (preferred && targets.some((t) => t.uuid === preferred)) {
+    await printToStation(paymentId, preferred, showToast)
+    return
+  }
+
+  if (targets.length === 1) {
+    await printToStation(paymentId, targets[0].uuid, showToast)
+    return
+  }
+
+  let stationUuid: string | null = null
+  try {
+    stationUuid = await pickReceiptStation(targets)
+  } catch {
+    return
+  }
+  if (!stationUuid) return
+  await printToStation(paymentId, stationUuid, showToast)
 }
 
 export interface OfferPaymentReceiptOptions {
@@ -124,38 +188,30 @@ export async function offerPaymentReceipt({
   }
   if (!wantPrint) return
 
-  const btReady =
-    isAndroidApp() && isBluetoothPrinterConfigured() && bluetoothPrintingEnabled(event)
-  if (btReady) {
-    await printBluetooth(paymentId, showToast, { reprint })
-    return
+  const gate = resolveBluetoothPrintGate(event)
+  if (gate === 'use' || gate === 'try') {
+    const printed = await printBluetooth(paymentId, showToast, { reprint })
+    if (printed) return
+    // Fall through to stations after handled Bluetooth failure.
+  } else if (bluetoothPrinterConfiguredForEvent(event)) {
+    showToast?.('Bluetooth-Drucker nicht erreichbar.', 'err')
   }
 
-  const targets = receiptPrintTargets(event)
-  if (!targets.length) {
-    showToast?.('Kein Drucker konfiguriert.', 'err')
-    return
-  }
+  await printViaNetworkTargets(paymentId, event, showToast, preferredTargetUuid)
+}
 
-  const preferred = String(preferredTargetUuid || '').trim()
-  if (preferred && targets.some((t) => t.uuid === preferred)) {
-    await printToStation(paymentId, preferred, showToast)
-    return
-  }
-
-  if (targets.length === 1) {
-    await printToStation(paymentId, targets[0].uuid, showToast)
-    return
-  }
-
-  let stationUuid: string | null = null
+/**
+ * Offer a payment receipt after settle/pay without ever rejecting.
+ * Callers use this so receipt failures cannot block navigation / `settled`.
+ */
+export async function offerPaymentReceiptAfterSettle(
+  options: OfferPaymentReceiptOptions,
+): Promise<void> {
   try {
-    stationUuid = await pickReceiptStation(targets)
+    await offerPaymentReceipt(options)
   } catch {
-    return
+    // Swallow — print errors are toasted inside offerPaymentReceipt.
   }
-  if (!stationUuid) return
-  await printToStation(paymentId, stationUuid, showToast)
 }
 
 export function confirmReceiptPrintYes(): void {

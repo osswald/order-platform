@@ -125,7 +125,9 @@ adb shell am start -n ch.vendiqo.app/.MainActivity --ez use_dev_frontend true
 
 Printer selection is stored only on the device.
 
-After a payment, the app asks whether to print a **Zahlungsbeleg**. If a Bluetooth printer is paired, printing uses the phone; **station printers are only offered when no Bluetooth printer is selected**. Pair a printer under Kellner hub → **Bluetooth Drucker** before service.
+After a payment, the app asks whether to print a **Zahlungsbeleg**. If a Bluetooth printer is selected and **reachable** (short RFCOMM probe via `AndroidPrinter.checkSelectedPrinter`), printing uses the phone. If the printer is offline, out of range, or print fails, the app offers **station / register printers** instead. Settle / pay navigation continues even when receipt printing fails. Pair a printer under Kellner hub → **Bluetooth Drucker** before service.
+
+Bridge methods on `window.AndroidPrinter` include `listPairedPrinters`, `getSelectedPrinter` / `setSelectedPrinter`, `checkSelectedPrinter` (reachability probe, ~3s timeout), and `printEscposBase64`.
 
 ## Stripe Tap to Pay
 

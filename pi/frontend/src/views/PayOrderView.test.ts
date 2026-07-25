@@ -41,10 +41,12 @@ vi.mock('../utils/resolvePayment', () => ({
 }))
 
 vi.mock('../utils/paymentReceiptPrompt', () => ({
-  offerPaymentReceipt: vi.fn(),
+  offerPaymentReceiptAfterSettle: vi.fn(),
 }))
 
 import { api } from '@/api'
+import { offerPaymentReceiptAfterSettle } from '@/utils/paymentReceiptPrompt'
+import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
 import PayOrderView from './PayOrderView.vue'
 
 describe('PayOrderView', () => {
@@ -52,14 +54,22 @@ describe('PayOrderView', () => {
     vi.mocked(api).mockReset()
     push.mockReset()
     replace.mockReset()
-    vi.mocked(api).mockResolvedValue({
-      open_orders: [
-        {
-          local_order_id: 42,
-          line_total_cents: 500,
-          lines: [{ article_id: 10, qty: 1, unit_cents: 500 }],
-        },
-      ],
+    vi.mocked(offerPaymentReceiptAfterSettle).mockReset()
+    vi.mocked(offerPaymentReceiptAfterSettle).mockResolvedValue(undefined)
+    vi.mocked(resolvePaymentsForAmount).mockResolvedValue([{ type: 'cash', amount_cents: 500 }])
+    vi.mocked(api).mockImplementation(async (path: string) => {
+      if (String(path).includes('/pay')) {
+        return { payment_id: 99 }
+      }
+      return {
+        open_orders: [
+          {
+            local_order_id: 42,
+            line_total_cents: 500,
+            lines: [{ article_id: 10, qty: 1, unit_cents: 500 }],
+          },
+        ],
+      }
     })
   })
 
@@ -81,5 +91,29 @@ describe('PayOrderView', () => {
     expect(wrapper.text()).toContain('Zu zahlen:')
     expect(wrapper.text()).toContain('CHF 5.00')
     expect(wrapper.find('[data-testid="keypad"]').exists()).toBe(true)
+  })
+
+  it('navigates to hub after successful pay (receipt via AfterSettle)', async () => {
+    const wrapper = mount(PayOrderView, {
+      global: {
+        stubs: {
+          MoneyKeypad: {
+            template: '<div data-testid="keypad" />',
+            props: ['modelValue'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const payBtn = wrapper.findAll('button').find((b) => b.text().includes('Bezahlen'))
+    expect(payBtn).toBeTruthy()
+    await payBtn!.trigger('click')
+    await flushPromises()
+
+    expect(offerPaymentReceiptAfterSettle).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentId: 99 }),
+    )
+    expect(replace).toHaveBeenCalledWith({ name: 'hub' })
   })
 })
