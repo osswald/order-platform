@@ -61,6 +61,8 @@
 
     <p class="muted small version-line">App {{ frontendLabel }}</p>
     <p class="muted small version-line">Pi {{ backendLabel ?? '—' }}</p>
+    <p v-if="androidVersionLabel" class="muted small version-line">Android {{ androidVersionLabel }}</p>
+    <p v-if="androidApp" class="muted small version-line">Tap to Pay: {{ tapToPayLabel }}</p>
   </div>
 </template>
 
@@ -72,6 +74,11 @@ import AdminTopicButton from '@/components/AdminTopicButton.vue'
 import { useAdminSession } from '@/composables/useAdminSession'
 import { useAppVersion } from '@/composables/useAppVersion'
 import { useBundle } from '@/composables/useBundle'
+import { getAndroidAppInfo } from '@/utils/androidAppInfo'
+import {
+  checkTapToPayAdminStatus,
+  tapToPayAdminStatusLabel,
+} from '@/utils/taptoPayStatus'
 import type { SetupStatusResponse } from '@/types/api'
 
 type HealthResponse = {
@@ -82,6 +89,8 @@ type HealthResponse = {
 
 const { label: frontendLabel } = useAppVersion()
 const backendLabel = ref<string | null>(null)
+const androidVersionLabel = ref<string | null>(null)
+const tapToPayLabel = ref('prüfen…')
 const router = useRouter()
 const { clearAdminSession } = useAdminSession()
 const { bundle } = useBundle()
@@ -106,6 +115,18 @@ onMounted(async () => {
   } catch {
     backendLabel.value = null
   }
+
+  if (!isAndroidApp()) return
+
+  const appInfo = getAndroidAppInfo()
+  if (appInfo.status === 'ok') {
+    androidVersionLabel.value = `v${appInfo.versionName}`
+  }
+
+  // Yield so the template can paint the neutral "prüfen…" state before the sync native check.
+  await Promise.resolve()
+  const status = checkTapToPayAdminStatus(true)
+  tapToPayLabel.value = tapToPayAdminStatusLabel(status)
 })
 
 function endAdmin() {
@@ -127,5 +148,8 @@ function endAdmin() {
 .version-line {
   margin: 1.5rem 0 0;
   text-align: center;
+}
+.version-line + .version-line {
+  margin-top: 0.25rem;
 }
 </style>

@@ -25,6 +25,10 @@ interface AndroidBridgeResult {
 interface Window {
   AndroidPrinter?: Record<string, (...args: unknown[]) => unknown>
   AndroidTerminal?: Record<string, (...args: unknown[]) => unknown>
+  /** Native APK metadata (versionName / versionCode). */
+  AndroidApp?: {
+    getAppInfo?: () => string | Record<string, unknown>
+  }
   AndroidInsets?: {
     getSystemBarInsetsJson?: () => string
   }
