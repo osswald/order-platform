@@ -1,0 +1,46 @@
+## MODIFIED Requirements
+
+### Requirement: Pi uses Bluetooth only when event flag is enabled
+
+On Android waiter devices, the Pi PWA SHALL use a configured Bluetooth printer for payment receipts, voucher slips, and shift settlement receipts only when the selected event has `bluetooth_printing_enabled` true **and** the selected Bluetooth printer is reachable. When the flag is false, the PWA SHALL fall back to network printer selection even if a Bluetooth printer is paired. When the flag is true but the selected printer is not reachable (or Bluetooth print fails), the PWA SHALL fall back to network/station printer selection when targets exist, instead of stopping after a Bluetooth-only failure.
+
+#### Scenario: Flag off with paired printer
+
+- **WHEN** a waiter completes a flow that can print via Bluetooth and the event has `bluetooth_printing_enabled` false
+- **THEN** the app does not send ESC/POS over Bluetooth and uses network printers (or reports no printer) instead
+
+#### Scenario: Flag on with reachable paired printer
+
+- **WHEN** the event has `bluetooth_printing_enabled` true, a Bluetooth printer is configured on the Android device, and the selected printer answers a reachability check
+- **THEN** the app prints those payloads via Bluetooth without requiring a station picker
+
+#### Scenario: Flag on with unreachable paired printer
+
+- **WHEN** the event has `bluetooth_printing_enabled` true, a Bluetooth printer is configured, the waiter wants a payment receipt, and the selected printer does not answer a reachability check
+- **THEN** the app does not treat Bluetooth as ready, informs the waiter that the Bluetooth printer is unavailable, and offers network/station printer selection when targets exist
+
+#### Scenario: Bluetooth print fails after probe
+
+- **WHEN** a reachability check succeeded (or an older APK without the probe attempted Bluetooth) and the subsequent Bluetooth print fails, and network printer targets exist
+- **THEN** the app SHALL fall back to network/station printer selection rather than ending only with a Bluetooth error
+
+## ADDED Requirements
+
+### Requirement: Android bridge exposes selected-printer reachability
+
+The Android waiter app SHALL expose a Javascript bridge method on `AndroidPrinter` that checks whether the currently selected Classic Bluetooth ESC/POS printer can accept an RFCOMM connection, without printing a receipt payload. The check SHALL reuse the same device address and SPP UUID as `printEscposBase64`, SHALL apply a short connect timeout, and SHALL return JSON indicating success or failure.
+
+#### Scenario: Selected printer in range
+
+- **WHEN** the PWA calls the reachability method and the selected bonded printer accepts an RFCOMM connect within the timeout
+- **THEN** the bridge returns `{ "ok": true }` (and MAY include the printer address)
+
+#### Scenario: Selected printer offline or out of range
+
+- **WHEN** the PWA calls the reachability method and connect fails or times out
+- **THEN** the bridge returns `{ "ok": false, "error": "…" }` and does not claim the printer is ready
+
+#### Scenario: No printer selected or permission missing
+
+- **WHEN** no address is selected, Bluetooth permission is missing, or no adapter is available
+- **THEN** the bridge returns `{ "ok": false, "error": "…" }` without hanging indefinitely
