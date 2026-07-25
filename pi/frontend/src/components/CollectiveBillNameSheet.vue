@@ -68,12 +68,8 @@ const sheetStyle = computed(() => ({
   '--keyboard-bottom': `${keyboardBottomInset.value}px`,
 }))
 
-/** Prefer live input value so Android IME composition still enables the CTA. */
-const canConfirm = computed(() => {
-  if (props.busy) return false
-  const live = inputEl.value?.value ?? name.value
-  return Boolean(live.trim())
-})
+/** Must read reactive `name` only — DOM inputEl.value is not a Vue dependency. */
+const canConfirm = computed(() => !props.busy && Boolean(name.value.trim()))
 
 watch(
   () => props.open,
@@ -98,6 +94,7 @@ function onCancel() {
 }
 
 function submit() {
+  // Prefer the live DOM value so Enter during IME composition still submits.
   const trimmed = (inputEl.value?.value ?? name.value).trim()
   if (!trimmed || props.busy) return
   name.value = trimmed
