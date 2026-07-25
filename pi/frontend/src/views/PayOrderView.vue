@@ -51,7 +51,7 @@ import { getErrorMessage } from '@/types/api'
 import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
 import { lineAdditionLabels } from '@/utils/bundleHelpers'
 import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
-import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
+import { offerPaymentReceiptAfterSettle } from '@/utils/paymentReceiptPrompt'
 import MoneyKeypad from '@/components/MoneyKeypad.vue'
 
 const route = useRoute()
@@ -150,11 +150,16 @@ async function pay() {
     activeTableNumber.value = null
     showToast('Bezahlt.', 'ok')
     if (res.payment_id && event.value) {
-      await offerPaymentReceipt({
-        paymentId: res.payment_id,
-        event: event.value,
-        showToast,
-      })
+      // Receipt failures must not block navigation after a successful pay.
+      try {
+        await offerPaymentReceiptAfterSettle({
+          paymentId: res.payment_id,
+          event: event.value,
+          showToast,
+        })
+      } catch {
+        // Belt-and-suspenders: AfterSettle already swallows.
+      }
     }
     router.replace({ name: 'hub' })
   } catch (e: unknown) {

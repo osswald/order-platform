@@ -49,6 +49,39 @@ export function isBluetoothPrinterConfigured(): boolean {
   return Boolean(String(sel?.address || '').trim())
 }
 
+/** True when the APK exposes `checkSelectedPrinter` (reachability probe). */
+export function hasBluetoothPrinterProbe(): boolean {
+  const b = bridge()
+  return Boolean(b && typeof b.checkSelectedPrinter === 'function')
+}
+
+/**
+ * Probe the selected Classic Bluetooth printer via native RFCOMM connect.
+ * Older APKs without the method return `{ ok: false, error: … }`.
+ */
+export function checkSelectedPrinter(): BridgeResult {
+  return call('checkSelectedPrinter')
+}
+
+export type BluetoothPrinterReachability = 'reachable' | 'unreachable' | 'unknown'
+
+/**
+ * Live reachability of the selected Bluetooth printer.
+ * - `reachable` / `unreachable`: probe ran
+ * - `unknown`: printer configured but APK has no probe (try print, then fall back)
+ * - `unreachable` also when no printer is selected
+ */
+export function checkBluetoothPrinterReachability(): BluetoothPrinterReachability {
+  if (!isBluetoothPrinterConfigured()) return 'unreachable'
+  if (!hasBluetoothPrinterProbe()) return 'unknown'
+  return checkSelectedPrinter().ok ? 'reachable' : 'unreachable'
+}
+
+/** True only when the native probe reports the selected printer is reachable. */
+export function isBluetoothPrinterReachable(): boolean {
+  return checkBluetoothPrinterReachability() === 'reachable'
+}
+
 export function permissionStatus(): BridgeResult {
   return call('permissionStatus')
 }

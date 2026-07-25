@@ -1,12 +1,12 @@
-import { isAndroidApp } from '@/api'
 import type { EdgeBundleEvent, LocalOrderCreate, LocalOrderCreatedResponse } from '@/types/api'
 import type { ToastState } from '@/types/cart'
-import {
-  isBluetoothPrinterConfigured,
-  printEscposBase64,
-} from './androidPrinter'
+import { printEscposBase64 } from './androidPrinter'
 import { receiptPrintTargets } from './bundleHelpers'
-import { bluetoothPrintingEnabled, pickReceiptStation } from './paymentReceiptPrompt'
+import {
+  bluetoothPrinterConfiguredForEvent,
+  pickReceiptStation,
+  resolveBluetoothPrintGate,
+} from './paymentReceiptPrompt'
 
 type ShowToastFn = (message: string, type?: ToastState['type']) => void
 
@@ -17,7 +17,8 @@ export type VoucherPrintPlan =
 
 /**
  * Decide how waiter voucher slips should be delivered before order submit.
- * Bluetooth (if event-enabled and configured) wins; otherwise pick a network printer; if none, warn and continue.
+ * Bluetooth wins when event-enabled and reachable (or older APK without probe);
+ * otherwise pick a network printer; if none, warn and continue.
  */
 export async function resolveWaiterVoucherPrintPlan(
   event: EdgeBundleEvent | null | undefined,
@@ -31,12 +32,12 @@ export async function resolveWaiterVoucherPrintPlan(
 ): Promise<VoucherPrintPlan> {
   if (!hasVoucherSales) return { mode: 'none' }
 
-  if (
-    isAndroidApp() &&
-    isBluetoothPrinterConfigured() &&
-    bluetoothPrintingEnabled(event)
-  ) {
+  const gate = resolveBluetoothPrintGate(event)
+  if (gate === 'use' || gate === 'try') {
     return { mode: 'bluetooth' }
+  }
+  if (bluetoothPrinterConfiguredForEvent(event)) {
+    showToast?.('Bluetooth-Drucker nicht erreichbar.', 'err')
   }
 
   const targets = receiptPrintTargets(event)

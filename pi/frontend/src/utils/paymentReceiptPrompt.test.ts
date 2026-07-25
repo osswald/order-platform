@@ -8,19 +8,26 @@ vi.mock('../api', () => ({
 
 vi.mock('./androidPrinter', () => ({
   isBluetoothPrinterConfigured: vi.fn(() => false),
+  checkBluetoothPrinterReachability: vi.fn(() => 'unreachable'),
   printPaymentReceipt: vi.fn(),
 }))
 
 import { api, isAndroidApp } from '@/api'
-import { isBluetoothPrinterConfigured, printPaymentReceipt } from './androidPrinter'
+import {
+  checkBluetoothPrinterReachability,
+  isBluetoothPrinterConfigured,
+  printPaymentReceipt,
+} from './androidPrinter'
 import {
   bluetoothPrintingEnabled,
   cancelReceiptPrompt,
   confirmReceiptPrintNo,
   confirmReceiptPrintYes,
   offerPaymentReceipt,
+  offerPaymentReceiptAfterSettle,
   offerPaymentReceiptEnabled,
   receiptPromptOpen,
+  resolveBluetoothPrintGate,
   selectReceiptStation,
 } from './paymentReceiptPrompt'
 
@@ -44,6 +51,52 @@ describe('bluetoothPrintingEnabled', () => {
   })
 })
 
+describe('resolveBluetoothPrintGate', () => {
+  beforeEach(() => {
+    vi.mocked(isAndroidApp).mockReturnValue(false)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(false)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('unreachable')
+  })
+
+  it('skips when not Android / not configured / flag off', () => {
+    expect(
+      resolveBluetoothPrintGate({ bluetooth_printing_enabled: true } as unknown as EdgeBundleEvent),
+    ).toBe('skip')
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    expect(
+      resolveBluetoothPrintGate({ bluetooth_printing_enabled: false } as unknown as EdgeBundleEvent),
+    ).toBe('skip')
+  })
+
+  it('uses Bluetooth when probe reports reachable', () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('reachable')
+    expect(
+      resolveBluetoothPrintGate({ bluetooth_printing_enabled: true } as unknown as EdgeBundleEvent),
+    ).toBe('use')
+  })
+
+  it('tries Bluetooth on older APK without probe', () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('unknown')
+    expect(
+      resolveBluetoothPrintGate({ bluetooth_printing_enabled: true } as unknown as EdgeBundleEvent),
+    ).toBe('try')
+  })
+
+  it('skips when probe reports unreachable', () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('unreachable')
+    expect(
+      resolveBluetoothPrintGate({ bluetooth_printing_enabled: true } as unknown as EdgeBundleEvent),
+    ).toBe('skip')
+  })
+})
+
 describe('offerPaymentReceipt preferredTargetUuid', () => {
   const event = {
     offer_payment_receipt: true,
@@ -62,6 +115,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     vi.mocked(api).mockResolvedValue({ print_job_id: 1 })
     vi.mocked(isAndroidApp).mockReturnValue(false)
     vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(false)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('unreachable')
     vi.mocked(printPaymentReceipt).mockReset()
     vi.mocked(printPaymentReceipt).mockResolvedValue({ ok: true })
     receiptPromptOpen.value = false
@@ -138,9 +192,10 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     })
   })
 
-  it('uses Bluetooth when event enables it and a printer is paired', async () => {
+  it('uses Bluetooth when event enables it and printer is reachable', async () => {
     vi.mocked(isAndroidApp).mockReturnValue(true)
     vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('reachable')
     vi.mocked(printPaymentReceipt).mockResolvedValue({ ok: true })
     const btEvent = {
       ...event,
@@ -153,6 +208,81 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     expect(printPaymentReceipt).toHaveBeenCalledWith(55, { reprint: false })
     expect(api).not.toHaveBeenCalled()
     expect(showToast).toHaveBeenCalledWith('Beleg gedruckt.', 'ok')
+  })
+
+  it('falls back to stations when Bluetooth is configured but unreachable', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('unreachable')
+    const btEvent = {
+      ...event,
+      bluetooth_printing_enabled: true,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({
+      paymentId: 57,
+      event: btEvent,
+      showToast,
+      preferredTargetUuid: 'reg-1',
+    })
+    confirmReceiptPrintYes()
+    await promise
+    expect(printPaymentReceipt).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith('Bluetooth-Drucker nicht erreichbar.', 'err')
+    expect(api).toHaveBeenCalledWith('/v1/payments/57/receipt/print', {
+      method: 'POST',
+      body: JSON.stringify({ station_uuid: 'reg-1' }),
+    })
+  })
+
+  it('falls back to stations when Bluetooth print fails after probe', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('reachable')
+    vi.mocked(printPaymentReceipt).mockRejectedValue(new Error('BT write failed'))
+    const btEvent = {
+      ...event,
+      bluetooth_printing_enabled: true,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({
+      paymentId: 58,
+      event: btEvent,
+      showToast,
+      preferredTargetUuid: 'reg-1',
+    })
+    confirmReceiptPrintYes()
+    await expect(promise).resolves.toBeUndefined()
+    expect(showToast).toHaveBeenCalledWith('BT write failed', 'err')
+    expect(api).toHaveBeenCalledWith('/v1/payments/58/receipt/print', {
+      method: 'POST',
+      body: JSON.stringify({ station_uuid: 'reg-1' }),
+    })
+  })
+
+  it('tries Bluetooth then stations on older APK without probe', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('unknown')
+    vi.mocked(printPaymentReceipt).mockRejectedValue(new Error('offline'))
+    const btEvent = {
+      ...event,
+      bluetooth_printing_enabled: true,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({
+      paymentId: 59,
+      event: btEvent,
+      showToast,
+      preferredTargetUuid: 'reg-1',
+    })
+    confirmReceiptPrintYes()
+    await expect(promise).resolves.toBeUndefined()
+    expect(printPaymentReceipt).toHaveBeenCalled()
+    expect(api).toHaveBeenCalledWith('/v1/payments/59/receipt/print', {
+      method: 'POST',
+      body: JSON.stringify({ station_uuid: 'reg-1' }),
+    })
   })
 
   it('skips Bluetooth when event flag is off even if a printer is paired', async () => {
@@ -176,5 +306,26 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
       method: 'POST',
       body: JSON.stringify({ station_uuid: 'reg-1' }),
     })
+  })
+
+  it('offerPaymentReceiptAfterSettle resolves even when Bluetooth and stations fail', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('reachable')
+    vi.mocked(printPaymentReceipt).mockRejectedValue(new Error('BT down'))
+    vi.mocked(api).mockRejectedValue(new Error('station down'))
+    const btEvent = {
+      ...event,
+      bluetooth_printing_enabled: true,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceiptAfterSettle({
+      paymentId: 60,
+      event: btEvent,
+      showToast,
+      preferredTargetUuid: 'reg-1',
+    })
+    confirmReceiptPrintYes()
+    await expect(promise).resolves.toBeUndefined()
   })
 })

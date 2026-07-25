@@ -167,7 +167,7 @@ import { voucherDefinitionByUuid } from '@/utils/bundleHelpers'
 import QtyInputModal from '@/components/QtyInputModal.vue'
 import PayTableActionsSheet from '@/components/PayTableActionsSheet.vue'
 import VoucherRedeemSheet from '@/components/VoucherRedeemSheet.vue'
-import { offerPaymentReceipt } from '@/utils/paymentReceiptPrompt'
+import { offerPaymentReceiptAfterSettle } from '@/utils/paymentReceiptPrompt'
 
 export interface FixedSettleRow {
   key: string
@@ -326,12 +326,17 @@ async function onPay() {
     if (!res) return
     const fullySettled = Number(res.remaining_cents || 0) <= 0
     if (res.payment_id && event.value) {
-      await offerPaymentReceipt({
-        paymentId: res.payment_id,
-        event: event.value,
-        showToast,
-        preferredTargetUuid: props.receiptTargetUuid,
-      })
+      // Receipt failures must not block settle completion / navigation.
+      try {
+        await offerPaymentReceiptAfterSettle({
+          paymentId: res.payment_id,
+          event: event.value,
+          showToast,
+          preferredTargetUuid: props.receiptTargetUuid,
+        })
+      } catch {
+        // Belt-and-suspenders: AfterSettle already swallows.
+      }
     }
     if (fullySettled) {
       showToast(props.settledToast, 'ok')

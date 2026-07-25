@@ -1,9 +1,9 @@
 import { ref } from 'vue'
-import { api, isAndroidApp } from '@/api'
+import { api } from '@/api'
 import type { EdgeBundleEvent, ShiftSessionRead } from '@/types/api'
 import { isApiError } from '@/types/api'
-import { isBluetoothPrinterConfigured, printEscposBase64 } from '@/utils/androidPrinter'
-import { bluetoothPrintingEnabled } from '@/utils/paymentReceiptPrompt'
+import { printEscposBase64 } from '@/utils/androidPrinter'
+import { resolveBluetoothPrintGate } from '@/utils/paymentReceiptPrompt'
 import { getReceiptCharset } from '@/utils/receiptCharset'
 import { getReceiptPaperWidth } from '@/utils/receiptPaperWidth'
 
@@ -149,20 +149,21 @@ async function printShiftReceipt(
     paper_width: getReceiptPaperWidth(),
     charset: getReceiptCharset(),
   }
-  if (
-    isAndroidApp() &&
-    isBluetoothPrinterConfigured() &&
-    bluetoothPrintingEnabled(event)
-  ) {
-    const data = await api<{ escpos_payload: string }>(`/v1/shift-session/${sessionId}/receipt`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    })
-    const result = printEscposBase64(data.escpos_payload)
-    if (!result.ok) {
-      throw new Error(result.error || 'Schichtabrechnung konnte nicht gedruckt werden.')
+  const gate = resolveBluetoothPrintGate(event)
+  if (gate === 'use' || gate === 'try') {
+    try {
+      const data = await api<{ escpos_payload: string }>(`/v1/shift-session/${sessionId}/receipt`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      const result = printEscposBase64(data.escpos_payload)
+      if (!result.ok) {
+        throw new Error(result.error || 'Schichtabrechnung konnte nicht gedruckt werden.')
+      }
+      return
+    } catch {
+      // Fall through to network print when Bluetooth fails or is unreachable after try.
     }
-    return
   }
   await api(`/v1/shift-session/${sessionId}/print`, {
     method: 'POST',
