@@ -76,7 +76,8 @@ describe('LoginPage', () => {
     await wrapper.find('form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(localStorage.getItem('access_token')).toBe('test-token')
+    expect(localStorage.getItem('auth_session')).toBe('1')
+    expect(localStorage.getItem('access_token')).toBeNull()
     expect(localStorage.getItem('user_email')).toBe('admin@example.com')
   })
 })

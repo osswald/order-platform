@@ -1,5 +1,4 @@
-"""Hosted Pi container orchestrator."""
-
+import hmac
 import logging
 import os
 
@@ -25,9 +24,19 @@ class ProvisionRequest(BaseModel):
         return validate_slug(value)
 
 
+def _secrets_match(provided: str | None, expected: str) -> bool:
+    candidate = provided or ""
+    if len(candidate) != len(expected):
+        return False
+    try:
+        return hmac.compare_digest(candidate, expected)
+    except (TypeError, ValueError):
+        return False
+
+
 def _verify_secret(x_manager_secret: str | None = Header(default=None, alias="X-Manager-Secret")) -> None:
     expected = os.getenv("HOSTED_PI_MANAGER_SECRET", "")
-    if not expected or x_manager_secret != expected:
+    if not expected or not _secrets_match(x_manager_secret, expected):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 

@@ -15703,7 +15703,7 @@
           },
           "new_password": {
             "type": "string",
-            "minLength": 1,
+            "minLength": 10,
             "title": "New Password"
           }
         },
@@ -17871,7 +17871,7 @@
           },
           "password": {
             "type": "string",
-            "minLength": 1,
+            "minLength": 10,
             "title": "Password"
           },
           "role": {
