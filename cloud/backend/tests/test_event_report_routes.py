@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from app.database import SessionLocal
 from app.main import app
-from app.models import Event, HireCompany, Organisation, User
+from app.models import Appliance, EdgeSubmittedOrder, Event, HireCompany, Organisation, User
 from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
@@ -182,3 +182,43 @@ def test_event_payment_batches_v3_route():
     body = r.json()
     assert "payment_batches" in body
     assert isinstance(body["payment_batches"], list)
+
+
+def test_event_transactions_route_tolerates_malformed_line():
+    email, event_id = _report_fixture()
+    suffix = uuid4().hex[:8]
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter(Event.id == event_id).one()
+        appliance = Appliance(hire_company_id=event.organisation.hire_company_id, type="pi", name="Pi")
+        db.add(appliance)
+        db.flush()
+        db.add(
+            EdgeSubmittedOrder(
+                client_order_id=f"malformed-{suffix}",
+                appliance_id=appliance.id,
+                organisation_id=event.organisation_id,
+                event_id=event_id,
+                payload={
+                    "client_order_id": f"malformed-{suffix}",
+                    "payment_status": "paid",
+                    "lines": [{"qty": 1, "unit_cents": 700, "article_name": "Ohne Artikel"}],
+                    "payments": [{"type": "cash", "amount_cents": 700}],
+                },
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    headers = {"Authorization": f"Bearer {_token(email)}"}
+    r = client.get(f"/events/{event_id}/transactions", headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["total"] == 1
+    row = body["items"][0]
+    assert row["lines"] == []
+    assert row["line_count"] == 0
+    assert row["line_cents"] == 0
+    assert row["paid_cents"] == 700
+    assert "7.00" in row["payment_methods"]

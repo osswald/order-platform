@@ -245,3 +245,127 @@ def test_transactions_sort_by_line_cents(db_session):
     asc = build_event_transactions_page(db, event, sort_by="line_cents", sort_desc=False)
     assert asc["items"][0]["line_cents"] == 100
     assert asc["items"][1]["line_cents"] == 500
+
+
+def test_transactions_line_without_article_id_is_skipped(db_session):
+    db, event = db_session
+    _add_order(
+        db,
+        chunk_id="broken-article-id",
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+        payload={
+            "client_order_id": "o1",
+            "payment_status": "paid",
+            "waiter_uuid": "w-1",
+            "lines": [{"qty": 1, "unit_cents": 700, "article_name": "Ohne Artikel"}],
+            "payments": [{"type": "twint", "amount_cents": 700}],
+        },
+    )
+    db.commit()
+
+    page = build_event_transactions_page(db, event)
+    assert page["total"] == 1
+    row = page["items"][0]
+    assert row["lines"] == []
+    assert row["line_count"] == 0
+    assert row["line_cents"] == 0
+    assert row["paid_cents"] == 700
+    assert "7.00" in row["payment_methods"]
+
+
+def test_transactions_mixed_valid_and_malformed_lines(db_session):
+    db, event = db_session
+    _add_order(
+        db,
+        chunk_id="mixed-lines",
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+        payload={
+            "client_order_id": "o1",
+            "payment_status": "open",
+            "waiter_uuid": "w-1",
+            "lines": [
+                {"article_id": 10, "qty": 2, "unit_cents": 500, "article_name": "Bier", "additions": []},
+                {"qty": 1, "unit_cents": 900, "article_name": "Ohne Artikel"},
+            ],
+        },
+    )
+    db.commit()
+
+    page = build_event_transactions_page(db, event)
+    row = page["items"][0]
+    assert row["line_count"] == 1
+    assert [ln["name"] for ln in row["lines"]] == ["Bier"]
+    assert row["line_cents"] == 1000
+
+
+def test_transactions_malformed_values_do_not_hide_other_rows(db_session):
+    db, event = db_session
+    valid_line = {"article_id": 10, "qty": 2, "unit_cents": 500, "article_name": "Bier", "additions": []}
+    broken_lines = {
+        "bad-article-id": {"article_id": "abc", "qty": 1, "unit_cents": 500},
+        "bad-qty": {"article_id": 10, "qty": "zwei", "unit_cents": 500},
+        "bad-addition": {
+            "article_id": 10,
+            "qty": 1,
+            "unit_cents": 500,
+            "additions": [{"article_id": "x", "qty": 1}],
+        },
+    }
+    hour = 10
+    for chunk_id, line in broken_lines.items():
+        _add_order(
+            db,
+            chunk_id=chunk_id,
+            created_at=datetime(2026, 6, 1, hour, 0, tzinfo=UTC),
+            payload={"client_order_id": chunk_id, "payment_status": "open", "lines": [line]},
+        )
+        hour += 1
+    _add_order(
+        db,
+        chunk_id="valid",
+        created_at=datetime(2026, 6, 1, hour, 0, tzinfo=UTC),
+        payload={"client_order_id": "valid", "payment_status": "open", "lines": [valid_line]},
+    )
+    db.commit()
+
+    page = build_event_transactions_page(db, event)
+    assert page["total"] == 4
+    rows = {row["client_order_id"]: row for row in page["items"]}
+    assert set(rows) == {*broken_lines, "valid"}
+    for chunk_id in broken_lines:
+        assert rows[chunk_id]["lines"] == []
+        assert rows[chunk_id]["line_count"] == 0
+        assert rows[chunk_id]["line_cents"] == 0
+    assert rows["valid"]["line_count"] == 1
+    assert rows["valid"]["line_cents"] == 1000
+
+
+def test_transactions_malformed_transfer_event_line_is_skipped(db_session):
+    db, event = db_session
+    _add_order(
+        db,
+        chunk_id="moved-broken",
+        created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+        payload={
+            "client_order_id": "table-5",
+            "table_number": 5,
+            "payment_status": "open",
+            "lines": [{"article_id": 10, "qty": 1, "unit_cents": 500, "article_name": "Bier", "additions": []}],
+            "transfer_events": [
+                {
+                    "to_table_number": 55,
+                    "lines": [
+                        {"article_id": 10, "qty": 2, "unit_cents": 500, "article_name": "Bier", "additions": []},
+                        {"article_id": "abc", "qty": 1, "unit_cents": 900},
+                    ],
+                }
+            ],
+        },
+    )
+    db.commit()
+
+    page = build_event_transactions_page(db, event)
+    row = page["items"][0]
+    assert len(row["moved_lines"]) == 1
+    assert row["moved_line_cents"] == 1000
+    assert row["line_cents"] == 500
