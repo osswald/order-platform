@@ -9,7 +9,7 @@ On Android waiter devices, the Pi PWA SHALL use a configured Bluetooth printer f
 - **WHEN** a waiter completes a flow that can print via Bluetooth and the event has `bluetooth_printing_enabled` false
 - **THEN** the app does not send ESC/POS over Bluetooth and uses network printers (or reports no printer) instead
 
-#### Scenario: Flag on with reachable paired printer
+#### Scenario: Flag on with paired printer
 
 - **WHEN** the event has `bluetooth_printing_enabled` true, a Bluetooth printer is configured on the Android device, and the selected printer answers a reachability check
 - **THEN** the app prints those payloads via Bluetooth without requiring a station picker
