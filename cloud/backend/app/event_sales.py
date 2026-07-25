@@ -527,6 +527,16 @@ def _build_articles_pricing_map(db: Session, article_ids: set[int]) -> dict[int,
     return out
 
 
+def _as_article_id(value: Any) -> int | None:
+    """Payload ids are free-form JSON; a value that is not an int cannot match an article."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _collect_article_ids_from_orders(rows: list[EdgeSubmittedOrder]) -> set[int]:
     ids: set[int] = set()
     for row in rows:
@@ -534,12 +544,15 @@ def _collect_article_ids_from_orders(rows: list[EdgeSubmittedOrder]) -> set[int]
         for line in payload.get("lines") or []:
             if not isinstance(line, dict):
                 continue
-            aid = line.get("article_id")
+            aid = _as_article_id(line.get("article_id"))
             if aid is not None:
-                ids.add(int(aid))
+                ids.add(aid)
             for add in line.get("additions") or []:
-                if isinstance(add, dict) and add.get("article_id") is not None:
-                    ids.add(int(add["article_id"]))
+                if not isinstance(add, dict):
+                    continue
+                add_id = _as_article_id(add.get("article_id"))
+                if add_id is not None:
+                    ids.add(add_id)
     return ids
 
 
