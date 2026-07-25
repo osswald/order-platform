@@ -10,6 +10,10 @@ Payment receipts after settlement are orchestrated by `offerPaymentReceipt` (`pi
 
 The same “configured ⇒ Bluetooth” gate exists for waiter vouchers (`resolveWaiterVoucherPrintPlan`) and shift close receipts (`printShiftReceipt`). Android README currently documents that station printers are only offered when no Bluetooth printer is selected.
 
+### Settle UI stuck after BT print failure
+
+`SplitPaySettleScreen.onPay` awaits settlement (`onGreenCheck`), then `await offerPaymentReceipt(...)`, then only if fully settled emits `settled` (parents navigate via `goHub` / `goBack`). `printBluetooth` toasts and **rethrows**; that exception is caught by `onPay`’s outer `catch`, so **`emit('settled')` never runs** even though the payment already succeeded. Result: order/account is settled in the backend, but the waiter remains on the split-pay screen with stale UI. `PayOrderView.pay` has the same pattern (`router.replace` hub only after the receipt await).
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -18,7 +22,8 @@ The same “configured ⇒ Bluetooth” gate exists for waiter vouchers (`resolv
 - If unreachable (or BT print fails), offer the existing station/register path instead of dead-ending on an error toast.
 - Keep Bluetooth preference when the printer is actually available (no extra picker friction).
 - Align voucher and shift print routing with the same reachability rule.
-- Cover routing with Vitest; document a short Android manual check.
+- Ensure receipt print failures **never** prevent post-settle navigation / `settled` emission / partial-settle continue.
+- Cover routing and settle-completion isolation with Vitest; document a short Android manual check.
 
 **Non-Goals:**
 
@@ -28,6 +33,7 @@ The same “configured ⇒ Bluetooth” gate exists for waiter vouchers (`resolv
 - New cloud event flags or receipt API changes.
 - Automatically clearing a saved printer address when unreachable.
 - Guaranteeing probe success implies a later print will succeed (race: printer can go away between probe and print).
+- Undoing or retrying the payment when printing fails.
 
 ## Decisions
 
@@ -98,6 +104,21 @@ Preferred concrete rule for missing method: **try Bluetooth print once; on failu
 
 - Session cache with TTL — fewer connects, stale “online” risk; not worth it for occasional receipts.
 
+### 6. Receipt failures must not block settle completion
+
+**Choice:** Two complementary fixes:
+
+1. **Callers isolate receipt errors** — In `SplitPaySettleScreen.onPay` and `PayOrderView.pay`, wrap `offerPaymentReceipt` in its own try/catch (or `void`/`finally` pattern) so settle toast + `emit('settled')` / `router.replace` always run after a successful payment, regardless of receipt outcome.
+2. **`offerPaymentReceipt` does not reject for handled print failures** — Toast and fall back to stations (or return after toast if no targets); only user cancel of the ask/picker may soft-return without throwing. Prefer not rethrowing from `printBluetooth`/`printToStation` when the error was already surfaced, so other callers cannot accidentally strand navigation.
+
+Settlement remains authoritative: a failed receipt never implies a failed payment.
+
+**Alternatives considered:**
+
+- Only isolate in `SplitPaySettleScreen` — leaves `PayOrderView` / reprint callers inconsistent.
+- Only stop rethrowing inside `offerPaymentReceipt` — still fragile if a future caller awaits and a new throw path appears; caller isolation is the hard guarantee for settle UX.
+- Reload split-pay summary on receipt error without emitting settled — still wrong when `remaining_cents <= 0` (nothing left to show; should leave the screen).
+
 ## Risks / Trade-offs
 
 - **Bridge thread blocking:** Probe/connect runs on the WebView JS bridge thread (same as print today). Mitigate with a short timeout and busy indicator already used during print (`receiptPromptBusy`).
@@ -105,13 +126,15 @@ Preferred concrete rule for missing method: **try Bluetooth print once; on failu
 - **Probe/print race:** Printer can disappear between probe and print → catch print error and fall through to stations.
 - **Double connect cost:** Probe + print = two RFCOMM handshakes when BT works. Acceptable for receipt frequency; avoid writing real payload during probe.
 - **Voucher planning:** `resolveWaiterVoucherPrintPlan` runs before order submit; a failed probe may open the station picker earlier in the flow — intentional for parity.
+- **Partial settle + receipt fail:** After isolating receipt errors, partial settle must still refresh the split UI (existing `onGreenCheck`/reload behavior) and remain on the screen; only full settle navigates away.
 
 ## Migration Plan
 
 1. Ship Android APK with `checkSelectedPrinter` + PWA that probes when present and falls back on print failure.
-2. No data migration; selected address prefs unchanged.
-3. Update `android/README.md` wording for station fallback.
-4. Manual QA: printer on → BT print; printer off / out of range → toast + station path; event flag off → stations only; old APK without probe → BT try then station fallback on error.
+2. Fix settle/receipt error isolation in the same change so offline BT cannot strand the split-pay / pay-order UI.
+3. No data migration; selected address prefs unchanged.
+4. Update `android/README.md` wording for station fallback.
+5. Manual QA: printer on → BT print; printer off / out of range → toast + station path + leave screen when fully settled; event flag off → stations only; old APK without probe → BT try then station fallback on error.
 
 ## Open Questions
 

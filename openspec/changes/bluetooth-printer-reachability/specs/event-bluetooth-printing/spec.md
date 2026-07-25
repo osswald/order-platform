@@ -26,6 +26,20 @@ On Android waiter devices, the Pi PWA SHALL use a configured Bluetooth printer f
 
 ## ADDED Requirements
 
+### Requirement: Settlement completion is independent of receipt printing
+
+After a payment has been successfully committed, the Pi PWA SHALL complete the settle UI flow (fully settled: leave split-pay / navigate as today; partial settle: refresh and remain for further payment) even when payment-receipt prompting or printing fails, times out, or is cancelled after the ask step. Receipt errors MAY be toasted and MAY offer station fallback, but MUST NOT prevent `settled` emission or post-pay navigation.
+
+#### Scenario: Bluetooth print fails after full table settle
+
+- **WHEN** a waiter fully settles an open table/account and confirms a payment receipt, and Bluetooth printing fails (printer missing / unreachable / error)
+- **THEN** the payment remains settled and the UI leaves the split-pay screen (or otherwise completes the settled flow) instead of remaining on the settle screen as if payment failed
+
+#### Scenario: Receipt failure after full-order pay
+
+- **WHEN** a waiter pays an open order successfully and receipt printing fails
+- **THEN** the app still navigates away from the pay screen as it does after a successful pay without printing
+
 ### Requirement: Android bridge exposes selected-printer reachability
 
 The Android waiter app SHALL expose a Javascript bridge method on `AndroidPrinter` that checks whether the currently selected Classic Bluetooth ESC/POS printer can accept an RFCOMM connection, without printing a receipt payload. The check SHALL reuse the same device address and SPP UUID as `printEscposBase64`, SHALL apply a short connect timeout, and SHALL return JSON indicating success or failure.
