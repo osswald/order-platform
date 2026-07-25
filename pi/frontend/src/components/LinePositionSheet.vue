@@ -2,7 +2,13 @@
   <Teleport to="body">
     <div v-if="open" class="discount-overlay">
       <div class="sheet-backdrop" @click.self="closeSheet" />
-      <div class="sheet sheet--discount" role="dialog" aria-modal="true" @click.stop>
+      <div
+        class="sheet sheet--discount"
+        role="dialog"
+        aria-modal="true"
+        :style="sheetStyle"
+        @click.stop
+      >
         <header class="sheet-header">
           <h3>{{ lineName }}</h3>
           <p v-if="discountsEnabled" class="muted sheet-sub">{{ formatMoney(lineGross, currency) }}</p>
@@ -146,6 +152,7 @@
 import { computed, ref, watch } from 'vue'
 import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent, PositionCommentPreset } from '@/types/api'
 import type { CartLine } from '@/types/cart'
+import { useKeyboardBottomInset } from '@/composables/useKeyboardBottomInset'
 import MoneyKeypad from './MoneyKeypad.vue'
 import {
   applyDiscountCents,
@@ -154,6 +161,11 @@ import {
   normalizeDiscount,
 } from '@/utils/money'
 import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
+
+const keyboardBottomInset = useKeyboardBottomInset()
+const sheetStyle = computed(() => ({
+  '--keyboard-bottom': `${keyboardBottomInset.value}px`,
+}))
 
 const props = withDefaults(
   defineProps<{
@@ -328,7 +340,7 @@ function submit() {
   background: var(--card);
   border-radius: 1rem 1rem 0 0;
   padding: 1rem;
-  padding-bottom: calc(1rem + var(--safe-bottom));
+  padding-bottom: calc(1rem + var(--safe-bottom) + var(--keyboard-bottom, 0px));
   border-top: 1px solid var(--border);
 }
 .sheet-sub {
