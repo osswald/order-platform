@@ -9,7 +9,7 @@
       class="btn primary"
       style="width: 100%; margin-top: 0.75rem"
       :disabled="creating"
-      @click="createBill"
+      @click="nameSheetOpen = true"
     >
       Neue Sammelrechnung
     </button>
@@ -34,6 +34,14 @@
     <button type="button" class="btn" style="width: 100%; margin-top: 1rem" @click="goBack">
       Zurück
     </button>
+
+    <CollectiveBillNameSheet
+      :open="nameSheetOpen"
+      confirm-label="Erstellen"
+      :busy="creating"
+      @close="nameSheetOpen = false"
+      @confirm="createBill"
+    />
   </div>
 </template>
 
@@ -53,11 +61,13 @@ import {
   hubLocationFromCollectiveReturn,
   payCollectiveLocation,
 } from '@/utils/collectiveReturnNav'
+import CollectiveBillNameSheet from '@/components/CollectiveBillNameSheet.vue'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
 const creating = ref(false)
+const nameSheetOpen = ref(false)
 const bills = ref<CollectiveBillListItem[]>([])
 const { event, currency, showToast } = useEventContext()
 
@@ -85,17 +95,18 @@ async function load() {
   }
 }
 
-async function createBill() {
-  const name = window.prompt('Name der Sammelrechnung', 'Personal')
-  if (!name?.trim()) return
+async function createBill(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed) return
   const ev = event.value
   if (!ev) return
   creating.value = true
   try {
     const r = await api<CollectiveBillCreatedResponse>('/v1/collective-bills', {
       method: 'POST',
-      body: JSON.stringify({ event_id: ev.id, name: name.trim() }),
+      body: JSON.stringify({ event_id: ev.id, name: trimmed }),
     })
+    nameSheetOpen.value = false
     showToast(`«${r.name}» erstellt`, 'ok')
     await load()
     if (r.id) {

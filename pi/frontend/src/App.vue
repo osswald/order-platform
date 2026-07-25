@@ -42,6 +42,7 @@
       @cancel="onTwintQrCancel"
     />
     <ShiftOpenDialog />
+    <ShiftCloseDialog />
     <div v-if="terminalPaymentBusy" class="terminal-busy-overlay" aria-live="polite">
       <p>Karte an das Gerät halten…</p>
     </div>
@@ -62,6 +63,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ShiftOpenDialog from '@/components/ShiftOpenDialog.vue'
+import ShiftCloseDialog from '@/components/ShiftCloseDialog.vue'
 import PaymentTypePickerSheet from '@/components/PaymentTypePickerSheet.vue'
 import PaymentReceiptPromptSheet from '@/components/PaymentReceiptPromptSheet.vue'
 import TwintQrSheet from '@/components/TwintQrSheet.vue'

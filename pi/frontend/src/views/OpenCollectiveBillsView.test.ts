@@ -99,12 +99,12 @@ describe('OpenCollectiveBillsView', () => {
     })
   })
 
-  it('preserves return query when creating a bill', async () => {
+  it('opens in-app name sheet instead of window.prompt when creating a bill', async () => {
+    window.prompt = vi.fn(() => 'should-not-be-used') as unknown as typeof window.prompt
     routeQuery.value = {
       returnTo: COLLECTIVE_RETURN_TO_REGISTER,
       registerUuid: 'register-1',
     }
-    window.prompt = vi.fn(() => 'VIP') as unknown as typeof window.prompt
     vi.mocked(api).mockImplementation(async (_path: string, init?: RequestInit) => {
       if (init?.method === 'POST') {
         return { id: 9, name: 'VIP' }
@@ -113,10 +113,20 @@ describe('OpenCollectiveBillsView', () => {
         collective_bills: [{ id: 9, name: 'VIP', order_count: 0, total_cents: 0 }],
       }
     })
-    const wrapper = mount(OpenCollectiveBillsView)
+    const wrapper = mount(OpenCollectiveBillsView, {
+      attachTo: document.body,
+      global: { stubs: { teleport: true } },
+    })
     await flushPromises()
     const createBtn = wrapper.findAll('button').find((b) => b.text().includes('Neue Sammelrechnung'))
     await createBtn!.trigger('click')
+    await flushPromises()
+    expect(window.prompt).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Name')
+    await wrapper.find('input.text-input').setValue('VIP')
+    const confirm = wrapper.find('button.confirm-btn')
+    expect(confirm.exists()).toBe(true)
+    await confirm.trigger('click')
     await flushPromises()
     expect(push).toHaveBeenCalledWith({
       name: 'pay-collective',
@@ -126,5 +136,6 @@ describe('OpenCollectiveBillsView', () => {
         registerUuid: 'register-1',
       },
     })
+    wrapper.unmount()
   })
 })

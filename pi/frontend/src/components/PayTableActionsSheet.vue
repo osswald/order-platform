@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="sheet-backdrop" @click.self="close" />
-    <div v-if="open" class="sheet" role="dialog" aria-modal="true">
+    <div v-if="open && !nameSheetOpen" class="sheet-backdrop" @click.self="close" />
+    <div v-if="open && !nameSheetOpen" class="sheet" role="dialog" aria-modal="true">
       <header class="sheet-header">
         <h3>{{ stepTitle }}</h3>
         <button v-if="step !== 'menu'" type="button" class="link-back" @click="step = 'menu'">← Zurück</button>
@@ -42,26 +42,24 @@
             </button>
           </li>
         </ul>
-        <button type="button" class="btn primary" style="width: 100%; margin-top: 0.75rem" @click="step = 'new-name'">
+        <button
+          type="button"
+          class="btn primary"
+          style="width: 100%; margin-top: 0.75rem"
+          @click="nameSheetOpen = true"
+        >
           Neue Sammelrechnung
         </button>
         <button type="button" class="btn" style="width: 100%; margin-top: 0.5rem" @click="close">Abbrechen</button>
       </template>
-
-      <template v-else-if="step === 'new-name'">
-        <label class="field-label">Name</label>
-        <input v-model="newName" type="text" class="text-input" maxlength="128" placeholder="z. B. Personal" />
-        <button
-          type="button"
-          class="btn primary"
-          style="width: 100%; margin-top: 1rem"
-          :disabled="!newName.trim() || busy"
-          @click="assignNewBill"
-        >
-          Erstellen und zuordnen
-        </button>
-      </template>
     </div>
+    <CollectiveBillNameSheet
+      :open="open && nameSheetOpen"
+      confirm-label="Erstellen und zuordnen"
+      :busy="busy"
+      @close="nameSheetOpen = false"
+      @confirm="assignNewBill"
+    />
   </Teleport>
 </template>
 
@@ -77,6 +75,7 @@ import type {
 } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
 import { formatMoney } from '@/utils/money'
+import CollectiveBillNameSheet from './CollectiveBillNameSheet.vue'
 import TableKeypad from './TableKeypad.vue'
 
 const { showToast, event, currency } = useEventContext()
@@ -116,13 +115,12 @@ const emit = defineEmits<{
 const step = ref('menu')
 const bills = ref<CollectiveBillListItem[]>([])
 const loadingBills = ref(false)
-const newName = ref('')
+const nameSheetOpen = ref(false)
 const busy = ref(false)
 
 const stepTitle = computed(() => {
   if (step.value === 'transfer') return 'Tisch umbuchen'
   if (step.value === 'collective') return 'Sammelrechnung wählen'
-  if (step.value === 'new-name') return 'Neue Sammelrechnung'
   return 'Aktionen'
 })
 
@@ -131,8 +129,10 @@ watch(
   (v) => {
     if (v) {
       step.value = 'menu'
-      newName.value = ''
+      nameSheetOpen.value = false
       bills.value = []
+    } else {
+      nameSheetOpen.value = false
     }
   },
 )
@@ -181,10 +181,10 @@ function assignToBill(b: CollectiveBillListItem) {
   postAssign({ collective_bill_id: b.id })
 }
 
-function assignNewBill() {
-  const name = newName.value.trim()
-  if (!name) return
-  postAssign({ new_name: name })
+function assignNewBill(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  postAssign({ new_name: trimmed })
 }
 
 async function onTransferSubmit(targetTable: number) {
@@ -289,17 +289,5 @@ async function onTransferSubmit(targetTable: number) {
   margin: 0 0 0.75rem;
   font-size: 0.9rem;
   line-height: 1.35;
-}
-.field-label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-size: 0.9rem;
-}
-.text-input {
-  width: 100%;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  font-size: 1rem;
 }
 </style>

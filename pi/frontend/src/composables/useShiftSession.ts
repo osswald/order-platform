@@ -22,6 +22,17 @@ interface ShiftOpenPending {
 export const shiftOpenPending = ref<ShiftOpenPending | null>(null)
 export const shiftOpenAmountChf = ref('')
 
+export const shiftCloseDialogOpen = ref(false)
+export const shiftCloseAmountChf = ref('')
+export const shiftCloseExpectedLabel = ref('')
+export const shiftCloseError = ref('')
+
+interface ShiftClosePending {
+  resolve: (cents: number | null) => void
+}
+
+export const shiftClosePending = ref<ShiftClosePending | null>(null)
+
 export function shiftEnabledForEvent(event: EdgeBundleEvent | null | undefined): boolean {
   return Boolean(event?.shift_settlement_enabled)
 }
@@ -127,6 +138,38 @@ export function cancelShiftOpen(): void {
   shiftOpenPending.value = null
 }
 
+export function promptShiftClose(expectedCents: number): Promise<number | null> {
+  return new Promise((resolve) => {
+    shiftClosePending.value = { resolve }
+    shiftCloseAmountChf.value = formatCentsChf(expectedCents)
+    shiftCloseExpectedLabel.value = formatCentsChf(expectedCents)
+    shiftCloseError.value = ''
+    shiftCloseDialogOpen.value = true
+  })
+}
+
+export function confirmShiftClose(): void {
+  const pending = shiftClosePending.value
+  if (!pending) return
+  const cents = parseChfToCents(shiftCloseAmountChf.value)
+  if (cents == null) {
+    shiftCloseError.value = 'Ungültiger Betrag'
+    return
+  }
+  shiftCloseDialogOpen.value = false
+  shiftClosePending.value = null
+  shiftCloseError.value = ''
+  pending.resolve(cents)
+}
+
+export function cancelShiftClose(): void {
+  const pending = shiftClosePending.value
+  shiftCloseDialogOpen.value = false
+  shiftClosePending.value = null
+  shiftCloseError.value = ''
+  pending?.resolve(null)
+}
+
 export interface ShiftSubjectContext extends FetchActiveShiftInput {
   event: EdgeBundleEvent
 }
@@ -193,16 +236,8 @@ export async function maybeEndShiftOnSwitch(ctx: ShiftSubjectContext): Promise<b
     window.alert('Schicht bleibt offen. Bitte später abschliessen.')
     return true
   }
-  const countedStr = window.prompt(
-    `Kassenbestand zählen (CHF).\nErwartet ca. ${formatCentsChf(active.wallet_cents)}:`,
-    formatCentsChf(active.wallet_cents),
-  )
-  if (countedStr == null) return false
-  const cents = parseChfToCents(countedStr)
-  if (cents == null) {
-    window.alert('Ungültiger Betrag')
-    return false
-  }
+  const cents = await promptShiftClose(active.wallet_cents ?? 0)
+  if (cents == null) return false
   await closeShiftFlow(active.id, cents, event)
   return true
 }
