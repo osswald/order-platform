@@ -19,5 +19,5 @@
 ## 4. Docs and verification
 
 - [x] 4.1 Update `docs/stripe-connect-terminal.md` (and optionally `android/README.md`) for the new gate and best-effort limits
-- [ ] 4.2 Run Pi frontend tests and `./scripts/lint.sh` (or staged lint) for touched areas
+- [x] 4.2 Run Pi frontend tests and `./scripts/lint.sh` (or staged lint) for touched areas
 - [ ] 4.3 Manual Android check: supported device enables Karte; unsupported or NFC-incapable device shows the new hint; older-APK fallback remains enabled when only Android+cloud gates pass (checklist: `qa-android.md`)
