@@ -24,6 +24,8 @@
   --ok: #4ade80;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  /* Soft keyboard (Android IME bridge); text-input sheets only. */
+  --ime-bottom: 0px;
 }
 
 *,
