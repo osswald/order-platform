@@ -5,7 +5,16 @@ interface BridgeResult extends AndroidBridgeResult {
   address?: string
   escpos_payload?: string
   payment_intent_id?: string
+  supported?: boolean
 }
+
+export type TapToPaySupportStatus =
+  | { status: 'unknown' }
+  | { status: 'supported' }
+  | { status: 'unsupported'; error?: string | null }
+  | { status: 'check_failed'; error: string }
+
+let supportCache: TapToPaySupportStatus | null = null
 
 function bridge(): Record<string, (...args: unknown[]) => unknown> | null {
   if (typeof window === 'undefined') return null
@@ -37,6 +46,49 @@ function call(method: string, ...args: unknown[]): BridgeResult {
 
 export function isAndroidTerminalAvailable(): boolean {
   return Boolean(bridge())
+}
+
+/** Test helper — clears the session cache for Tap to Pay device support. */
+export function resetTapToPaySupportCacheForTests(): void {
+  supportCache = null
+}
+
+/**
+ * Query native Tap to Pay device support via `AndroidTerminal.supportsTapToPay`.
+ * Missing bridge method (older APK) → `{ status: 'unknown' }` (fail open for the picker).
+ */
+export function checkTapToPayDeviceSupport(force = false): TapToPaySupportStatus {
+  if (!force && supportCache) return supportCache
+
+  const b = bridge()
+  if (!b || typeof b.supportsTapToPay !== 'function') {
+    const unknown: TapToPaySupportStatus = { status: 'unknown' }
+    supportCache = unknown
+    return unknown
+  }
+
+  const result = call('supportsTapToPay')
+  let status: TapToPaySupportStatus
+  if (result.ok === false) {
+    status = {
+      status: 'check_failed',
+      error: String(result.error || 'Tap-to-Pay-Unterstützung konnte nicht geprüft werden.'),
+    }
+  } else if (result.supported === true) {
+    status = { status: 'supported' }
+  } else if (result.supported === false) {
+    status = {
+      status: 'unsupported',
+      error: result.error != null ? String(result.error) : null,
+    }
+  } else {
+    status = {
+      status: 'check_failed',
+      error: String(result.error || 'Tap-to-Pay-Unterstützung konnte nicht geprüft werden.'),
+    }
+  }
+  supportCache = status
+  return status
 }
 
 export interface CreateTerminalPaymentIntentInput {

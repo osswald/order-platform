@@ -124,8 +124,18 @@ The picker **always shows** Karte when enabled on the event, but the button is
 
 1. **Android app** — WebView with `AndroidTerminal` bridge / `PiFrontendAndroid` user agent
 2. **Cloud reachable** — `GET /v1/cloud/reachable` succeeds (internet; Terminal APIs need cloud)
+3. **Device supports Tap to Pay** — native `AndroidTerminal.supportsTapToPay()` (Stripe
+   Terminal `supportsReadersOfType` for Tap to Pay). Best-effort: some Stripe soft
+   criteria (rooted device, Developer options, stale security patch) may still fail
+   only at discover/connect. Older APKs without `supportsTapToPay` keep prior
+   enablement (fail open for device support).
 
-Hints under a disabled button: «Nur in der Android-App verfügbar.» / «Cloud-Verbindung erforderlich.»
+Hints under a disabled button (priority order):
+
+- «Nur in der Android-App verfügbar.»
+- «Cloud-Verbindung erforderlich.»
+- «Standortberechtigung für Kartenzahlung erforderlich.» (cannot evaluate support)
+- «Gerät unterstützt keine Kartenzahlung (Tap to Pay).»
 
 ## Android Tap to Pay flow
 
@@ -153,20 +163,37 @@ The order/payment payload syncs to cloud through the existing outbox.
 
 ### Android bridge contract
 
-`pi/frontend/src/utils/androidTerminal.js` expects:
+`pi/frontend/src/utils/androidTerminal.ts` expects:
 
 ```kotlin
 webView.addJavascriptInterface(stripeTerminalBridge, "AndroidTerminal")
 ```
 
-Minimum method:
+Methods:
 
 ```kotlin
+@JavascriptInterface
+fun supportsTapToPay(): String
+
 @JavascriptInterface
 fun collectPayment(connectionTokenSecret: String, paymentIntentClientSecret: String): String
 ```
 
-Return JSON:
+`supportsTapToPay` return JSON:
+
+```json
+{ "ok": true, "supported": true }
+```
+
+```json
+{ "ok": true, "supported": false, "error": "…" }
+```
+
+```json
+{ "ok": false, "error": "Standortberechtigung für Kartenzahlung erforderlich." }
+```
+
+`collectPayment` return JSON:
 
 ```json
 { "ok": true, "payment_intent_id": "pi_..." }
@@ -180,7 +207,8 @@ or:
 
 Implementation: `android/app/.../StripeTerminalBridge.kt` with
 `stripeterminal-taptopay` + `stripeterminal-core` (see `app/build.gradle.kts`).
-`minSdk` is 33 for Tap to Pay. Location permission is required.
+`minSdk` is 33 for Tap to Pay. Location permission is required for both support
+check and collect. Debug builds use simulated Tap to Pay discovery for both.
 
 ## Required configuration
 
@@ -219,9 +247,11 @@ python3 docs/generate_stripe_terminal_test_pdf.py
 |----------|----------|
 | Browser PWA, event has Karte | Karte button visible, **disabled** |
 | Android offline / cloud down | Karte **disabled**, cloud hint |
+| Android online, unsupported device (no NFC / fails SDK check) | Karte **disabled**, device Tap to Pay hint |
+| Android online, location permission denied | Karte **disabled**, location hint |
 | Android online, org not onboarded | Karte enabled; payment fails at PI creation (409) |
 | Connect onboarding in cloud | Status chips update; `charges_enabled` true |
-| Event + Karte enabled, Android online | Tap to Pay flow completes; payment has `stripe_payment_intent_id` |
+| Event + Karte enabled, Android online, supported device | Tap to Pay flow completes; payment has `stripe_payment_intent_id` |
 | Webhook `account.updated` | Organisation flags refresh without manual refresh |
 
 ## Troubleshooting

@@ -131,13 +131,19 @@ After a payment, the app asks whether to print a **Zahlungsbeleg**. If a Bluetoo
 
 The app exposes `window.AndroidTerminal` as a JavaScript bridge ([`MainActivity.kt`](app/src/main/java/ch/vendiqo/app/MainActivity.kt)). When an event has the `stripe_terminal` payment type and the organisation is Stripe Connect–onboarded, the Pi PWA uses this bridge for card payments on the device.
 
+Bridge methods:
+
+- `supportsTapToPay()` — Stripe Terminal `supportsReadersOfType` check; the PWA disables **Karte** when the device is unsupported
+- `collectPayment(connectionToken, clientSecret)` — discover/connect on-device Tap to Pay reader and confirm the PaymentIntent
+
 The Pi backend proxies Stripe Terminal API calls to the cloud edge API. See [docs/stripe-connect-terminal.md](../docs/stripe-connect-terminal.md) for the full Connect + Terminal setup and test flow.
 
 Requirements:
 
-- Android 12+ (same as the app)
+- Android 13+ (`minSdk` 33) with Tap to Pay–capable hardware (NFC, GMS, etc.)
 - Stripe Connect onboarding completed in cloud admin for the organisation
 - `stripe_terminal` enabled in the event's payment types
+- Location permission granted (required by the Terminal SDK)
 
 ## Frontend-only rebuild
 
