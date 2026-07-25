@@ -57,9 +57,9 @@ Replace `window.prompt` in `maybeEndShiftOnSwitch` with an in-app dialog pattern
 
 **Alternatives considered:** Reuse Sammelrechnung bottom sheet — wrong metaphor for cash count; stick to amount dialog family.
 
-### 4. No Android native code required for v1
+### 4. Native IME inset bridge (Android edge-to-edge)
 
-Prefer pure frontend `visualViewport` handling so Pi browser / PWA and Android stay aligned. Revisit native IME bridge only if device QA shows `visualViewport` insufficient on target WebViews.
+Device QA showed `visualViewport` does **not** shrink when the soft keyboard opens in the edge-to-edge WebView (keyboard overlays the full-size WebView). Android therefore forwards `WindowInsetsCompat.Type.ime()` into a separate CSS variable `--ime-bottom` / `AndroidInsets.getImeInsetsJson()` — **not** into `--safe-bottom` — and `useKeyboardBottomInset` prefers that value (minus safe-bottom so nav-bar is not double-counted). Activity uses `windowSoftInputMode=adjustNothing` so the WebView is not resized globally.
 
 ## Risks / Trade-offs
 

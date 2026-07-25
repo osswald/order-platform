@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defineComponent, nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
+import { ANDROID_INSETS_EVENT } from '@/utils/androidInsets'
 import { useKeyboardBottomInset } from './useKeyboardBottomInset'
 
 type VvMock = {
@@ -38,6 +39,9 @@ describe('useKeyboardBottomInset', () => {
     listeners.clear()
     originalVv = window.visualViewport
     originalInnerHeight = window.innerHeight
+    delete window.AndroidInsets
+    document.documentElement.style.removeProperty('--safe-bottom')
+    document.documentElement.style.removeProperty('--ime-bottom')
     vv = {
       height: 800,
       offsetTop: 0,
@@ -68,6 +72,9 @@ describe('useKeyboardBottomInset', () => {
       configurable: true,
       value: originalInnerHeight,
     })
+    delete window.AndroidInsets
+    document.documentElement.style.removeProperty('--safe-bottom')
+    document.documentElement.style.removeProperty('--ime-bottom')
   })
 
   it('reports 0 when visualViewport height matches the layout viewport', async () => {
@@ -107,6 +114,20 @@ describe('useKeyboardBottomInset', () => {
     for (const fn of listeners.get('scroll') || []) fn()
     await nextTick()
     expect(inset.value).toBe(250)
+    wrapper.unmount()
+  })
+
+  it('uses Android IME inset minus safe-bottom when visualViewport does not shrink', async () => {
+    document.documentElement.style.setProperty('--safe-bottom', '48px')
+    window.AndroidInsets = {
+      getImeInsetsJson: () => JSON.stringify({ bottom: 360 }),
+    }
+    const { wrapper, inset } = mountInset()
+    await nextTick()
+    expect(inset.value).toBe(312)
+    window.dispatchEvent(new Event(ANDROID_INSETS_EVENT))
+    await nextTick()
+    expect(inset.value).toBe(312)
     wrapper.unmount()
   })
 

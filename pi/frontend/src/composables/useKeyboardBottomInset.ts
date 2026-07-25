@@ -1,9 +1,18 @@
 import { onMounted, onUnmounted, ref } from 'vue'
+import {
+  ANDROID_INSETS_EVENT,
+  readAndroidImeBottomInset,
+  readAndroidSafeBottomInset,
+} from '@/utils/androidInsets'
 
 /**
- * Soft-keyboard coverage at the bottom of the layout viewport (CSS px),
- * derived from `visualViewport`. Returns 0 when the API is missing or the
- * keyboard is not covering the bottom.
+ * Soft-keyboard coverage at the bottom of the layout viewport (CSS px).
+ *
+ * On Android edge-to-edge WebView, `visualViewport` often does not shrink when
+ * the IME opens. Prefer the native `--ime-bottom` / AndroidInsets bridge, and
+ * fall back to `visualViewport`. The returned value is the *extra* padding
+ * beyond `--safe-bottom` so sheets can use:
+ * `padding-bottom: calc(1rem + var(--safe-bottom) + var(--keyboard-bottom))`.
  *
  * Use only on sheets/dialogs that contain text inputs.
  */
@@ -15,13 +24,20 @@ export function useKeyboardBottomInset() {
       keyboardBottomInset.value = 0
       return
     }
+
+    const imeBottom = readAndroidImeBottomInset()
+    const safeBottom = readAndroidSafeBottomInset()
+    // IME already covers the nav-bar region; only add the delta beyond safe-bottom.
+    const androidExtra = Math.max(0, imeBottom - safeBottom)
+
+    let vvExtra = 0
     const vv = window.visualViewport
-    if (!vv) {
-      keyboardBottomInset.value = 0
-      return
+    if (vv) {
+      const covered = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+      vvExtra = Math.max(0, covered - safeBottom)
     }
-    const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
-    keyboardBottomInset.value = inset
+
+    keyboardBottomInset.value = Math.max(androidExtra, vvExtra)
   }
 
   onMounted(() => {
@@ -30,6 +46,7 @@ export function useKeyboardBottomInset() {
     vv?.addEventListener('resize', update)
     vv?.addEventListener('scroll', update)
     window.addEventListener('resize', update)
+    window.addEventListener(ANDROID_INSETS_EVENT, update)
   })
 
   onUnmounted(() => {
@@ -37,6 +54,7 @@ export function useKeyboardBottomInset() {
     vv?.removeEventListener('resize', update)
     vv?.removeEventListener('scroll', update)
     window.removeEventListener('resize', update)
+    window.removeEventListener(ANDROID_INSETS_EVENT, update)
   })
 
   return keyboardBottomInset

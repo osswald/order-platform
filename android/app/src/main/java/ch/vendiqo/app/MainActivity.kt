@@ -52,7 +52,10 @@ class MainActivity : ComponentActivity() {
             val insetTypes =
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             val bars = insets.getInsets(insetTypes)
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             insetsBridge.update(bars.top, bars.bottom, bars.left, bars.right)
+            // Keep IME separate from --safe-bottom so only text-input sheets lift.
+            insetsBridge.updateIme(ime.bottom)
             if (::webView.isInitialized) {
                 insetsBridge.applyToWebView(webView)
             }

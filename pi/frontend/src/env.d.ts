@@ -31,6 +31,8 @@ interface Window {
   }
   AndroidInsets?: {
     getSystemBarInsetsJson?: () => string
+    /** Soft-keyboard (IME) bottom inset in CSS px; separate from system bars. */
+    getImeInsetsJson?: () => string
   }
   /** Native health probe — bypasses WebView CORS for connection setup / Demo. */
   AndroidNetwork?: {
