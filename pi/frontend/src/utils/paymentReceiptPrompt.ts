@@ -152,7 +152,7 @@ async function printViaNetworkTargets(
     return
   }
 
-  let stationUuid: string | null = null
+  let stationUuid: string | null
   try {
     stationUuid = await pickReceiptStation(targets)
   } catch {
@@ -180,7 +180,7 @@ export async function offerPaymentReceipt({
   if (paymentId == null || paymentId === '') return
   if (!reprint && !offerPaymentReceiptEnabled(event)) return
 
-  let wantPrint = false
+  let wantPrint: boolean
   try {
     wantPrint = await askPrintReceipt()
   } catch {

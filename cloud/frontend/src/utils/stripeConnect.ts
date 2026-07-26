@@ -40,7 +40,9 @@ export async function createStripeAccountLink(
       },
     )
   } catch (err: unknown) {
-    if (isApiError(err) && err.status === 503) throw new Error(t('stripe.notConfigured'))
+    if (isApiError(err) && err.status === 503) {
+      throw new Error(t('stripe.notConfigured'), { cause: err })
+    }
     throw err
   }
 }
@@ -56,7 +58,9 @@ export async function refreshStripeConnectStatus(
       },
     )
   } catch (err: unknown) {
-    if (isApiError(err) && err.status === 503) throw new Error(t('stripe.notConfigured'))
+    if (isApiError(err) && err.status === 503) {
+      throw new Error(t('stripe.notConfigured'), { cause: err })
+    }
     throw err
   }
 }
