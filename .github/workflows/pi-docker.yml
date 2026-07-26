@@ -30,6 +30,8 @@ env:
 jobs:
   guards:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
       - name: Dockerfile / workflow guards
