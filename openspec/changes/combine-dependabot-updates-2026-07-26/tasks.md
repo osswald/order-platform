@@ -1,17 +1,17 @@
 ## 1. Create combined branch
 
-- [ ] 1.1 Branch `chore/combine-dependabot-updates-2026-07-26` from updated `main`
-- [ ] 1.2 Confirm open Dependabot set is still #214–#220 and no conflicting migration PR blocks them
+- [x] 1.1 Branch `cursor/combine-dependabot-updates-2026-07-26-c291` from updated `main` (cloud-agent branch; equivalent to planned `chore/…` name)
+- [x] 1.2 Confirm open Dependabot set is still #214–#220 and no conflicting migration PR blocks them
 
 ## 2. Apply dependency bumps
 
-- [ ] 2.1 cloud/backend: bump `fastapi` to 0.140.0 and refresh `uv.lock` (#220)
-- [ ] 2.2 pi/backend: bump `fastapi` to 0.140.0 and refresh `uv.lock` (#219)
-- [ ] 2.3 cloud/hosted-pi-manager: bump `fastapi` to 0.140.0 in `pyproject.toml` + `uv.lock` (#216)
-- [ ] 2.4 cloud/frontend: install `vue-i18n@11.4.8`, `vuetify@4.1.6`, `@types/node@26.1.1` via `scripts/npm.sh` (#217)
-- [ ] 2.5 pi/frontend: install `@types/node@26.1.1` via `scripts/npm.sh` (#214)
-- [ ] 2.6 website: install `markdown-it@14.3.0`, `vite@8.1.5` via `scripts/npm.sh` (#215)
-- [ ] 2.7 root npm: install ESLint 10 stack (`eslint@10.8.0`, `@eslint/js@10.0.1`, `eslint-plugin-vue@10.10.0`, `globals@17.8.0`, `typescript-eslint@8.65.0`) via `scripts/npm.sh`; fix config/peers if lint breaks (#218)
+- [x] 2.1 cloud/backend: bump `fastapi` to 0.140.0 and refresh `uv.lock` (#220)
+- [x] 2.2 pi/backend: bump `fastapi` to 0.140.0 and refresh `uv.lock` (#219)
+- [x] 2.3 cloud/hosted-pi-manager: bump `fastapi` to 0.140.0 in `uv.lock` (#216; `pyproject.toml` already `>=0.115.0`)
+- [x] 2.4 cloud/frontend: install `vue-i18n@11.4.8`, `vuetify@4.1.6`, `@types/node@26.1.1` via `scripts/npm.sh` (#217)
+- [x] 2.5 pi/frontend: install `@types/node@26.1.1` via `scripts/npm.sh` (#214)
+- [x] 2.6 website: install `markdown-it@14.3.0`, `vite@8.1.5` via `scripts/npm.sh` (#215)
+- [x] 2.7 root npm: install ESLint 10 stack (`eslint@10.8.0`, `@eslint/js@10.0.1`, `eslint-plugin-vue@10.10.0`, `globals@17.8.0`, `typescript-eslint@8.65.0`) via `scripts/npm.sh`; fix config/peers if lint breaks (#218)
 
 ## 3. Verify
 
