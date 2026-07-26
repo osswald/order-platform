@@ -15,16 +15,16 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run cloud backend tests (`cd cloud/backend && uv sync && uv run pytest`)
-- [ ] 3.2 Run pi backend tests (`cd pi/backend && uv sync && uv run pytest`)
-- [ ] 3.3 Run cloud frontend tests + typecheck (`npm test && npm run typecheck`)
-- [ ] 3.4 Run pi frontend tests (`npm test`)
-- [ ] 3.5 Run website checks needed for #215 (install + build and/or lint as used in CI)
-- [ ] 3.6 Run `./scripts/lint.sh` (critical for ESLint 10)
-- [ ] 3.7 Confirm no `VERSION` change is included in the diff
+- [x] 3.1 Run cloud backend tests (`cd cloud/backend && uv sync && uv run pytest`) — 456 passed
+- [x] 3.2 Run pi backend tests (`cd pi/backend && uv sync && uv run pytest`) — 305 passed
+- [x] 3.3 Run cloud frontend tests + typecheck (`npm test && npm run typecheck`) — 268 passed, typecheck clean
+- [x] 3.4 Run pi frontend tests (`npm test`) — 366 passed
+- [x] 3.5 Run website checks needed for #215 (install + build and/or lint as used in CI) — `npm test` + `npm run build` passed
+- [x] 3.6 Run `./scripts/lint.sh` (critical for ESLint 10) — passed
+- [x] 3.7 Confirm no `VERSION` change is included in the diff
 
 ## 4. Open PR and supersede Dependabot PRs
 
-- [ ] 4.1 Push branch and open PR titled to combine Dependabot updates, referencing #214–#220
+- [x] 4.1 Push branch and open PR titled to combine Dependabot updates, referencing #214–#220 — #222
 - [ ] 4.2 On each Dependabot PR (#214–#220), comment `Superseded by #N — combining with …` and close without merge (if not auto-closed after the combined merge)
 - [ ] 4.3 Merge combined PR after CI passes
