@@ -6,6 +6,7 @@
     "current_password_incorrect": "Aktuelles Passwort ist falsch.",
     "invalid_authentication_credentials": "Ungültige Anmeldedaten.",
     "csrf_origin_rejected": "Anfrage von nicht erlaubtem Ursprung abgelehnt.",
+    "rental_inquiry_mail_unavailable": "Mietanfrage konnte derzeit nicht gesendet werden. Bitte versuchen Sie es später erneut.",
     "user_not_found": "Benutzer nicht gefunden.",
     "requires_administrative_privileges": "Administrative Berechtigung erforderlich.",
     "missing_edge_headers": "X-Edge-Client-Id oder X-Edge-Secret fehlt.",

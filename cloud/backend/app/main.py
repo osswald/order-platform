@@ -34,6 +34,7 @@ from .routers import (
     organisations,
     payment_types,
     position_comments,
+    public_rental_inquiry,
     receipt_printing,
     stripe_connect,
     stripe_terminal,
@@ -156,6 +157,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(public_rental_inquiry.router)
 app.include_router(countries.router, prefix="/countries", tags=["countries"])
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(receipt_printing.router, tags=["receipt-printing"])

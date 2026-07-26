@@ -21,6 +21,7 @@ EXEMPT_PATH_PREFIXES = (
     "/redoc",
     "/openapi.json",
     "/auth/token",  # password login; not ambient-cookie CSRF
+    "/public",  # marketing-site forms; no session cookies required
 )
 
 allowed_origins = [

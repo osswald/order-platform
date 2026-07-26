@@ -1,15 +1,15 @@
-Diese Datenschutzerklärung beschreibt, wie die **Vendiqo GmbH** («wir», «uns») Personendaten bearbeitet, wenn Sie die **Vendiqo Waiter** Android-App, die Vendiqo Cloud-Verwaltung unter [admin.vendiqo.ch](https://admin.vendiqo.ch) oder verbundene Dienste nutzen.
+Diese Datenschutzerklärung beschreibt, wie die **Vendiqo GmbH** («wir», «uns») Personendaten bearbeitet, wenn Sie die öffentliche Website unter [vendiqo.ch](https://www.vendiqo.ch), die **Vendiqo Waiter** Android-App, die Vendiqo Cloud-Verwaltung unter [admin.vendiqo.ch](https://admin.vendiqo.ch) oder verbundene Dienste nutzen.
 
 ## 1. Verantwortliche Stelle
 
 **Vendiqo GmbH**  
-[Adresse]  
-E-Mail: [Kontakt-E-Mail]
+E-Mail: [kontakt@vendiqo.ch](mailto:kontakt@vendiqo.ch)
 
 ## 2. Geltungsbereich
 
 Diese Erklärung gilt insbesondere für:
 
+- die öffentliche Marketing-Website unter [vendiqo.ch](https://www.vendiqo.ch) / [www.vendiqo.ch](https://www.vendiqo.ch)
 - die Android-App **Vendiqo Waiter** (`ch.vendiqo.app`)
 - die Web-Verwaltung unter [admin.vendiqo.ch](https://admin.vendiqo.ch)
 - die Cloud-API unter [api.vendiqo.ch](https://api.vendiqo.ch)
@@ -21,6 +21,7 @@ Betriebspersonal von Veranstaltern und Gastronomiebetrieben nutzt die App in der
 
 Wir bearbeiten Personendaten, um:
 
+- Mietanfragen über das Kontaktformular der Website entgegenzunehmen und zu beantworten
 - Bestellungen und Zahlungen an Veranstaltungen zu erfassen und abzuwickeln
 - Kellner- und Kassensysteme mit dem Vendiqo Pi zu verbinden
 - bei aktivierter Cloud-Anbindung Daten zwischen Pi und Cloud zu synchronisieren
@@ -52,9 +53,20 @@ Die App kommuniziert im lokalen Netzwerk mit dem Vendiqo Pi (standardmässig unt
 | Gerätedaten | Appliance-Registrierung, Pairing-Informationen |
 | Zahlungs- und Abrechnungsdaten | Stripe Connect-Status, Zahlungsreferenzen |
 
-### 4.3 Daten, die wir nicht erheben
+### 4.3 Marketing-Website und Mietanfragen
 
-Die Vendiqo Waiter App enthält **keine** Analyse-, Tracking- oder Werbe-SDKs (z. B. Firebase Analytics, Google Analytics, Sentry o. ä.).
+Über das Formular unter [vendiqo.ch/kontakt](https://www.vendiqo.ch/kontakt/) können Sie eine Mietanfrage senden. Dabei bearbeiten wir:
+
+| Datenkategorie | Beispiele |
+|---|---|
+| Kontaktdaten | Name, Organisation, E-Mail, optional Telefon |
+| Anfrageinhalt | Zeitraum / Event-Datum(e), Nachricht |
+
+Die Angaben werden per E-Mail an uns übermittelt, um Ihre Anfrage zu beantworten. Es wird **kein** Lead- oder CRM-Datensatz in der Vendiqo-Anwendungsdatenbank angelegt. Die Speicherung erfolgt in unserem E-Mail-Postfach bzw. bei unserem E-Mail-Dienstleister so lange, wie es für die Bearbeitung der Anfrage und allfällige Nachweise erforderlich ist.
+
+### 4.4 Daten, die wir nicht erheben
+
+Die Vendiqo Waiter App und die öffentliche Marketing-Website enthalten **keine** Analyse-, Tracking- oder Werbe-SDKs (z. B. Firebase Analytics, Google Analytics, Sentry o. ä.).
 
 ## 5. Berechtigungen der Android-App
 
@@ -114,7 +126,7 @@ Sie haben nach dem Schweizer Datenschutzgesetz (DSG) und — soweit anwendbar �
 - Widerspruch gegen bestimmte Bearbeitungen
 - Beschwerde bei einer Aufsichtsbehörde
 
-Anfragen richten Sie bitte an [Kontakt-E-Mail]. Wir können zur Identitätsprüfung zusätzliche Informationen verlangen.
+Anfragen richten Sie bitte an [kontakt@vendiqo.ch](mailto:kontakt@vendiqo.ch). Wir können zur Identitätsprüfung zusätzliche Informationen verlangen.
 
 ## 12. Kinder
 

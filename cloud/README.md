@@ -86,7 +86,7 @@ Suggested dev settings in `.env`:
 | `SECRET_KEY` | `devsecretkey123456789` |
 | `ADMIN_EMAIL` | `admin@vendiqo.local` |
 | `ADMIN_PASSWORD` | `admin123` |
-| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174` |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:5174,http://localhost:5175` (include marketing site origin when testing Mietanfrage) |
 | `REFRESH_COOKIE_SECURE` | `false` |
 | `ENABLE_OPENAPI` | `true` |
 
@@ -237,5 +237,6 @@ docker image inspect ghcr.io/osswald/order-platform:pi-frontend-amd64-latest --f
 
 - **502 from Caddy**: check `docker compose -f docker-compose.prod.yml logs cloud-backend cloud-frontend`
 - **Certificate errors**: confirm DNS A records and that ports 80/443 reach the VPS
-- **CORS errors**: `ALLOWED_ORIGINS` must include `https://admin.vendiqo.ch` (no trailing slash)
+- **CORS errors**: `ALLOWED_ORIGINS` must include `https://admin.vendiqo.ch` (no trailing slash). For the marketing Mietanfrage form, also include `https://vendiqo.ch` and `https://www.vendiqo.ch`.
+- **Mietanfrage form fails / 503**: set `RENTAL_INQUIRY_TO` and SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`) on `cloud-backend`; rebuild the `website` image with `VITE_API_BASE_URL=https://api.vendiqo.ch`.
 - **Login cookie not set**: ensure `REFRESH_COOKIE_SECURE=true` in production

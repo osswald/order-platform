@@ -1,7 +1,13 @@
 export function renderSiteHeader({ active = '' } = {}) {
-  const navLink = (href, label, key) => {
+  const navLink = (href, label, key, { primary = false } = {}) => {
     const isActive = active === key
-    return `<a href="${href}"${isActive ? ' aria-current="page"' : ''}>${label}</a>`
+    const classes = [
+      primary ? 'nav-link nav-link--primary' : 'nav-link',
+      isActive ? 'is-active' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+    return `<a class="${classes}" href="${href}"${isActive ? ' aria-current="page"' : ''}>${label}</a>`
   }
 
   return `
@@ -12,8 +18,10 @@ export function renderSiteHeader({ active = '' } = {}) {
           <span>Vendiqo</span>
         </a>
         <nav class="site-nav" aria-label="Hauptnavigation">
+          ${navLink('/ablauf/', 'Ablauf', 'ablauf')}
+          ${navLink('/funktionen/', 'Funktionen', 'funktionen')}
+          ${navLink('/kontakt/', 'Mietanfrage', 'kontakt', { primary: true })}
           ${navLink('https://admin.vendiqo.ch/', 'Admin', 'admin')}
-          ${navLink('/datenschutz/', 'Datenschutz', 'datenschutz')}
         </nav>
       </div>
     </header>
