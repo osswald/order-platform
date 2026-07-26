@@ -26,5 +26,5 @@
 ## 4. Open PR and supersede Dependabot PRs
 
 - [x] 4.1 Push branch and open PR titled to combine Dependabot updates, referencing #214–#220 — #222
-- [ ] 4.2 On each Dependabot PR (#214–#220), comment `Superseded by #N — combining with …` and close without merge (if not auto-closed after the combined merge)
-- [ ] 4.3 Merge combined PR after CI passes
+- [x] 4.2 On each Dependabot PR (#214–#220), comment `Superseded by #222 — combining with …` and close without merge
+- [ ] 4.3 Merge combined PR after CI passes (maintainer merge when required checks are green)
