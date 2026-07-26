@@ -7,6 +7,7 @@
 - Branch from `main`; land changes via pull request only.
 - Do **not** bump [`VERSION`](VERSION) in feature PRs — add a `release:patch|minor|major` label instead.
 - See [`docs/RELEASE.md`](docs/RELEASE.md) for branch protection, labels, and Pi image tags.
+- Dependabot coverage, security-alert triage, and Dependabot PR close/combine/ignore playbook: [`docs/dependency-updates.md`](docs/dependency-updates.md).
 
 ### Architecture overview
 
