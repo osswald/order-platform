@@ -30,9 +30,9 @@
 
 - [x] 5.1 Update `website/content/datenschutz.md` for Mietanfragen (email processing purpose) and replace placeholder contact fields where known
 - [x] 5.2 Note prod checklist: SMTP secrets, `RENTAL_INQUIRY_TO`, `ALLOWED_ORIGINS` includes `https://vendiqo.ch` and `https://www.vendiqo.ch`
-- [ ] 5.3 Run website build; run lint for touched areas; run relevant cloud backend tests
+- [x] 5.3 Run website build; run lint for touched areas; run relevant cloud backend tests
 
 ## 6. Verification
 
-- [ ] 6.1 Manually verify page set and nav on desktop and mobile widths
-- [ ] 6.2 Manually verify inquiry happy path against local/dev API (or logged fallback) and confirm no DB lead row is created
+- [x] 6.1 Manually verify page set and nav on desktop and mobile widths
+- [x] 6.2 Manually verify inquiry happy path against local/dev API (or logged fallback) and confirm no DB lead row is created
