@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mietanfrage — Vendiqo</title>
+    <meta
+      name="description"
+      content="Senden Sie Vendiqo eine Mietanfrage für Ihr Event oder Ihren Venue-Betrieb."
+    />
+    <link rel="icon" href="/apple-touch-icon.png" />
+  </head>
+  <body>
+    <div id="site-header" data-active="kontakt"></div>
+    <main class="site-main">
+      <section class="form-card">
+        <h1>Mietanfrage</h1>
+        <p class="lede">
+          Erzählen Sie uns kurz von Ihrer Organisation und Ihrem Event. Wir antworten per
+          E-Mail.
+        </p>
+
+        <form id="rental-inquiry-form" novalidate>
+          <div class="form-field">
+            <label for="name">Name <span class="hint">(Pflicht)</span></label>
+            <input id="name" name="name" type="text" autocomplete="name" required maxlength="200" />
+          </div>
+
+          <div class="form-field">
+            <label for="organisation"
+              >Organisation / Verein / Betrieb <span class="hint">(Pflicht)</span></label
+            >
+            <input
+              id="organisation"
+              name="organisation"
+              type="text"
+              autocomplete="organization"
+              required
+              maxlength="200"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="email">E-Mail <span class="hint">(Pflicht)</span></label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              maxlength="200"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="phone">Telefon <span class="hint">(optional)</span></label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="80" />
+          </div>
+
+          <div class="form-field">
+            <label for="timeframe"
+              >Zeitraum / Event-Datum(e) <span class="hint">(Pflicht)</span></label
+            >
+            <input
+              id="timeframe"
+              name="timeframe"
+              type="text"
+              required
+              maxlength="500"
+              placeholder="z. B. 12.–14. August 2026"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="message">Nachricht <span class="hint">(Pflicht)</span></label>
+            <textarea
+              id="message"
+              name="message"
+              required
+              maxlength="5000"
+              placeholder="Ort, grobe Grösse, Stationen, was Sie benötigen …"
+            ></textarea>
+          </div>
+
+          <div class="hp-field" aria-hidden="true">
+            <label for="website">Website</label>
+            <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <p class="form-privacy">
+            Mit dem Absenden stimmen Sie der Bearbeitung Ihrer Angaben zur Beantwortung der
+            Anfrage zu. Details in der <a href="/datenschutz/">Datenschutzerklärung</a>.
+          </p>
+
+          <div class="form-actions">
+            <button id="form-submit" class="button button--primary" type="submit">
+              Anfrage senden
+            </button>
+          </div>
+
+          <div id="form-status" class="form-status" role="status" aria-live="polite" hidden></div>
+        </form>
+      </section>
+    </main>
+    <div id="site-footer"></div>
+    <script type="module" src="/src/kontakt.js"></script>
+  </body>
+</html>

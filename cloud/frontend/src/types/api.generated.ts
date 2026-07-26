@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/rental-inquiry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Rental Inquiry */
+        post: operations["create_rental_inquiry_public_rental_inquiry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/countries/": {
         parameters: {
             query?: never;
@@ -4009,6 +4026,29 @@ export interface components {
              */
             bottom_line: string;
         };
+        /** RentalInquiryCreate */
+        RentalInquiryCreate: {
+            /** Name */
+            name: string;
+            /** Organisation */
+            organisation: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Phone */
+            phone?: string | null;
+            /** Timeframe */
+            timeframe: string;
+            /** Message */
+            message: string;
+            /**
+             * Website
+             * @default
+             */
+            website: string;
+        };
         /** SalesAdditionLineRead */
         SalesAdditionLineRead: {
             /** Article Id */
@@ -4834,6 +4874,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    create_rental_inquiry_public_rental_inquiry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalInquiryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

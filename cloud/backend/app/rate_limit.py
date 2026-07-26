@@ -35,6 +35,7 @@ EDGE_PAIR_RATE_LIMIT = os.getenv("EDGE_PAIR_RATE_LIMIT", "20/minute")
 CHANGE_PASSWORD_RATE_LIMIT = os.getenv("CHANGE_PASSWORD_RATE_LIMIT", "5/minute")
 USERS_RATE_LIMIT = os.getenv("USERS_RATE_LIMIT", "30/minute")
 EDGE_WRITE_RATE_LIMIT = os.getenv("EDGE_WRITE_RATE_LIMIT", "120/minute")
+RENTAL_INQUIRY_RATE_LIMIT = os.getenv("RENTAL_INQUIRY_RATE_LIMIT", "5/minute")
 
 
 def edge_client_key(request: Request) -> str:

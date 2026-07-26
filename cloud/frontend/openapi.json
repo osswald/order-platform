@@ -23,6 +23,40 @@
         }
       }
     },
+    "/public/rental-inquiry": {
+      "post": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Create Rental Inquiry",
+        "operationId": "create_rental_inquiry_public_rental_inquiry_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RentalInquiryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/countries/": {
       "get": {
         "tags": [
@@ -16167,6 +16201,66 @@
         },
         "type": "object",
         "title": "ReceiptProfileConfig"
+      },
+      "RentalInquiryCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "organisation": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Organisation"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "timeframe": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Timeframe"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Website",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "organisation",
+          "email",
+          "timeframe",
+          "message"
+        ],
+        "title": "RentalInquiryCreate"
       },
       "SalesAdditionLineRead": {
         "properties": {
