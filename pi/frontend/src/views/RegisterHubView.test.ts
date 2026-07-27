@@ -126,6 +126,7 @@ describe('RegisterHubView', () => {
         {
           local_order_id: 11,
           pickup_code: 'A1',
+          pickup_codes: ['A1', 'A2'],
           item_count: 2,
           total_cents: 800,
           created_at: '2026-07-18T12:00:00Z',
@@ -135,7 +136,7 @@ describe('RegisterHubView', () => {
     const wrapper = mountHub()
     await flushPromises()
     expect(wrapper.text()).toContain('Offene Bestellungen')
-    expect(wrapper.text()).toContain('Pickup A1')
+    expect(wrapper.text()).toContain('Pickup A1, A2')
     const orderBtn = wrapper.find('.order-row')
     await orderBtn.trigger('click')
     expect(push).toHaveBeenCalledWith({

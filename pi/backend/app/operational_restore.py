@@ -17,6 +17,7 @@ from .models import (
     KitchenTicketLine,
     LocalOrder,
     OutboxEntry,
+    StationPickup,
 )
 from .models_operational import CashSession, CashSessionLedger, PaymentBatch
 from .stock import apply_stock_to_bundle, save_bundle
@@ -221,7 +222,63 @@ def _restore_order(
             row.order_number = int(payload["order_number"])
         row.payload_json = json.dumps(payload)
     db.flush()
+    _restore_station_pickups(db, order=row, event_id=event_id, payload=payload)
     return row
+
+
+def _parse_pickup_number(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    if not s:
+        return None
+    digits = "".join(ch for ch in s if ch.isdigit())
+    return int(digits) if digits else None
+
+
+def _restore_station_pickups(db: Session, *, order: LocalOrder, event_id: int, payload: dict) -> None:
+    raw = payload.get("pickups")
+    if not isinstance(raw, list) or not raw:
+        return
+    existing = {
+        (str(r.station_uuid) if r.station_uuid is not None else None): r
+        for r in db.query(StationPickup).filter(StationPickup.local_order_id == order.id).all()
+    }
+    seen: set[str | None] = set()
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        code = str(entry.get("pickup_code") or "").strip()
+        if not code:
+            continue
+        station_uuid = entry.get("station_uuid")
+        key = str(station_uuid) if station_uuid is not None else None
+        seen.add(key)
+        row = existing.get(key)
+        ready_at = _parse_dt(entry.get("ready_at"))
+        picked_up_at = _parse_dt(entry.get("picked_up_at"))
+        if not row:
+            row = StationPickup(
+                local_order_id=order.id,
+                event_id=event_id,
+                station_uuid=key,
+                pickup_code=code,
+                pickup_status=str(entry.get("pickup_status") or "pending"),
+                ready_at=ready_at,
+                picked_up_at=picked_up_at,
+            )
+            db.add(row)
+        else:
+            row.pickup_code = code
+            row.pickup_status = str(entry.get("pickup_status") or row.pickup_status or "pending")
+            row.ready_at = ready_at
+            row.picked_up_at = picked_up_at
+    for key, row in existing.items():
+        if key not in seen:
+            db.delete(row)
+    db.flush()
 
 
 def _ghost_cleanup_orders(db: Session, *, event_id: int, keep_client_ids: set[str]) -> int:
@@ -240,6 +297,7 @@ def _ghost_cleanup_orders(db: Session, *, event_id: int, keep_client_ids: set[st
             )
         ).delete(synchronize_session=False)
         db.query(KitchenTicket).filter(KitchenTicket.local_order_id == row.id).delete(synchronize_session=False)
+        db.query(StationPickup).filter(StationPickup.local_order_id == row.id).delete(synchronize_session=False)
         db.query(OutboxEntry).filter(
             OutboxEntry.event_id == event_id,
             OutboxEntry.payload_json.contains(row.client_order_id),
@@ -380,9 +438,19 @@ def _bump_counters(db: Session, *, event_id: int, payloads: list[dict]) -> None:
         on = payload.get("order_number")
         if on is not None:
             max_order = max(max_order, int(on))
-        pn = payload.get("pickup_number")
+        pn = _parse_pickup_number(payload.get("pickup_number"))
         if pn is not None:
-            max_pickup = max(max_pickup, int(pn))
+            max_pickup = max(max_pickup, pn)
+        for code in payload.get("pickup_codes") or []:
+            parsed = _parse_pickup_number(code)
+            if parsed is not None:
+                max_pickup = max(max_pickup, parsed)
+        for entry in payload.get("pickups") or []:
+            if not isinstance(entry, dict):
+                continue
+            parsed = _parse_pickup_number(entry.get("pickup_code"))
+            if parsed is not None:
+                max_pickup = max(max_pickup, parsed)
     if max_order:
         row = db.query(EventOrderCounter).filter(EventOrderCounter.event_id == event_id).first()
         next_num = max_order + 1

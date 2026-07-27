@@ -209,6 +209,7 @@ class LocalOrderCreatedResponse(BaseModel):
     kitchen_ticket_ids: list[int] = Field(default_factory=list)
     payment_status: str
     pickup_code: str | None = None
+    pickup_codes: list[str] = Field(default_factory=list)
     pickup_status: str | None = None
     payment_mode: str
     articles: dict[str, ArticleStockPatch] = Field(default_factory=dict)
@@ -255,8 +256,10 @@ class KitchenTicketPartialPrintBody(BaseModel):
 class PickupOrderItem(BaseModel):
     model_config = ConfigDict(extra="allow")
 
+    pickup_id: int
     local_order_id: int
     client_order_id: str
+    station_uuid: str | None = None
     pickup_code: str | None = None
     pickup_status: str
     cash_register_uuid: str | None = None
@@ -272,6 +275,7 @@ class PickupOrdersResponse(BaseModel):
 
 
 class PickupPickedUpResponse(BaseModel):
+    pickup_id: int
     local_order_id: int
     pickup_status: str
 
@@ -396,6 +400,7 @@ class RegisterOpenOrderRow(BaseModel):
     local_order_id: int
     client_order_id: str
     pickup_code: str | None = None
+    pickup_codes: list[str] = Field(default_factory=list)
     total_cents: int
     item_count: int
     created_at: str | None = None

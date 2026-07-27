@@ -178,8 +178,13 @@ def test_ready_pickup_orders_expire_after_five_minutes(client):
 
     db = Session()
     try:
+        from app.models import StationPickup
+
         order = db.query(LocalOrder).filter(LocalOrder.pickup_code == "A1").one()
-        order.ready_at = datetime.now(UTC) - timedelta(minutes=6)
+        stale = datetime.now(UTC) - timedelta(minutes=6)
+        order.ready_at = stale
+        for row in db.query(StationPickup).filter(StationPickup.local_order_id == order.id).all():
+            row.ready_at = stale
         db.commit()
     finally:
         db.close()

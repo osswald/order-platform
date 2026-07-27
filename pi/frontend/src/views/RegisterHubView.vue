@@ -24,7 +24,7 @@
         <ul class="order-list">
           <li v-for="o in openOrders" :key="o.local_order_id">
             <button type="button" class="order-row" @click="resumePayment(o)">
-              <span class="num">{{ o.pickup_code ? `Pickup ${o.pickup_code}` : `Bestellung ${o.local_order_id}` }}</span>
+              <span class="num">{{ openOrderPickupLabel(o) }}</span>
               <span class="meta muted">{{ o.item_count }} Position(en) · {{ formatMoney(o.total_cents, currency) }}</span>
             </button>
           </li>
@@ -62,6 +62,13 @@ const { setRegisterSession } = useRegisterSession()
 const { currency } = useEventContext()
 const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
 const openOrders = ref<RegisterOpenOrderRow[]>([])
+
+function openOrderPickupLabel(o: RegisterOpenOrderRow): string {
+  const codes = (o.pickup_codes || []).filter(Boolean)
+  if (codes.length) return `Pickup ${codes.join(', ')}`
+  if (o.pickup_code) return `Pickup ${o.pickup_code}`
+  return `Bestellung ${o.local_order_id}`
+}
 
 function refreshHubDisplay() {
   if (route.name !== 'register-hub' || !register.value) return

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from ..bundle_cache import event_from_bundle, get_bundle_dict
 from ..deps import get_db
 from ..domain.kitchen_sync import enqueue_kitchen_tickets_sync
-from ..models import KitchenTicket, KitchenTicketLine, LocalOrder
+from ..models import KitchenTicket, KitchenTicketLine, LocalOrder, StationPickup
 from ..print_worker import station_name_from_event
 from ..printer_routing import (
     kitchen_monitor_label,
@@ -32,9 +32,13 @@ from ..schemas.edge import (
 from .edge_common import (
     _article_map,
     _create_print_job_for_lines,
+    _mark_station_pickup_picked_up,
+    _pickup_code_for_station,
     _set_pickup_ready_if_complete,
+    _set_station_pickup_ready_for_ticket,
     _station_config_for_uuid,
     _sync_outbox_payload,
+    _sync_station_pickups_to_order,
 )
 
 router = APIRouter()
@@ -73,6 +77,15 @@ def _serialize_kitchen_ticket(
     arts = _article_map(ev)
     line_rows = [_kitchen_line_response(row, arts) for row in sorted(lines, key=lambda r: (r.line_index, r.id))]
     line_rows = [row for row in line_rows if row["qty_remaining"] > 0]
+    pickup_code = None
+    for p in payload.get("pickups") or []:
+        if not isinstance(p, dict):
+            continue
+        if str(p.get("station_uuid") or "") == str(ticket.station_uuid or ""):
+            pickup_code = p.get("pickup_code")
+            break
+    if pickup_code is None:
+        pickup_code = order.pickup_code or payload.get("pickup_code")
     return {
         "id": ticket.id,
         "local_order_id": ticket.local_order_id,
@@ -86,7 +99,7 @@ def _serialize_kitchen_ticket(
         "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
         "client_order_id": order.client_order_id,
         "table_number": payload.get("table_number"),
-        "pickup_code": payload.get("pickup_code"),
+        "pickup_code": pickup_code,
         "order_source": payload.get("order_source") or "waiter",
         "waiter_uuid": payload.get("waiter_uuid"),
         "waiter_name": payload.get("waiter_name"),
@@ -185,7 +198,7 @@ def _enqueue_kitchen_ticket_print(
         job_kind="kitchen_ticket",
         printer_appliance_id=ticket.printer_appliance_id,
         table_number=payload.get("table_number"),
-        pickup_code=payload.get("pickup_code"),
+        pickup_code=_pickup_code_for_station(db, order, ticket.station_uuid),
         kitchen_partial_print=partial_print,
         kitchen_excluded_lines=excluded_lines,
     )
@@ -193,6 +206,7 @@ def _enqueue_kitchen_ticket_print(
         line_row.qty_printed = int(line_row.qty_printed or 0) + int(qty)
     _update_kitchen_ticket_status(db, ticket)
     db.flush()
+    _set_station_pickup_ready_for_ticket(db, order, ticket)
     _set_pickup_ready_if_complete(db, order)
     enqueue_kitchen_tickets_sync(db, order)
     db.commit()
@@ -349,16 +363,41 @@ def print_kitchen_ticket_partial(
     return KitchenTicketPrintResponse(print_job_id=job_id, ticket_status=ticket.status)
 
 
-def _pickup_order_response(order: LocalOrder) -> dict[str, Any]:
-    payload = json.loads(order.payload_json)
-    # Prefer the item count snapshotted at creation: partial settlements move
-    # lines to paid orders, so the live line list can undercount.
+def _pickup_item_count(order: LocalOrder, payload: dict) -> int:
     item_count = payload.get("item_count")
     if item_count is None:
-        item_count = sum(max(1, int(line.get("qty") or 1)) for line in payload.get("lines") or [] if isinstance(line, dict))
+        item_count = sum(
+            max(1, int(line.get("qty") or 1)) for line in payload.get("lines") or [] if isinstance(line, dict)
+        )
+    return int(item_count)
+
+
+def _station_pickup_response(pickup: StationPickup, order: LocalOrder) -> dict[str, Any]:
+    payload = json.loads(order.payload_json)
     return {
+        "pickup_id": pickup.id,
         "local_order_id": order.id,
         "client_order_id": order.client_order_id,
+        "station_uuid": pickup.station_uuid,
+        "pickup_code": pickup.pickup_code,
+        "pickup_status": pickup.pickup_status or "pending",
+        "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
+        "cash_register_name": payload.get("cash_register_name"),
+        "order_number": payload.get("order_number"),
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "ready_at": pickup.ready_at.isoformat() if pickup.ready_at else None,
+        "item_count": _pickup_item_count(order, payload),
+    }
+
+
+def _legacy_order_as_pickup_response(order: LocalOrder) -> dict[str, Any]:
+    """Pre-upgrade orders without station_pickups rows still appear as one tile."""
+    payload = json.loads(order.payload_json)
+    return {
+        "pickup_id": -order.id,
+        "local_order_id": order.id,
+        "client_order_id": order.client_order_id,
+        "station_uuid": None,
         "pickup_code": order.pickup_code or payload.get("pickup_code"),
         "pickup_status": order.pickup_status or payload.get("pickup_status") or "pending",
         "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
@@ -366,7 +405,7 @@ def _pickup_order_response(order: LocalOrder) -> dict[str, Any]:
         "order_number": payload.get("order_number"),
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "ready_at": order.ready_at.isoformat() if order.ready_at else payload.get("ready_at"),
-        "item_count": int(item_count),
+        "item_count": _pickup_item_count(order, payload),
     }
 
 
@@ -374,6 +413,13 @@ READY_PICKUP_TTL = timedelta(minutes=5)
 
 
 def _mark_pickup_order_picked_up(db: Session, order: LocalOrder) -> None:
+    pickups = db.query(StationPickup).filter(StationPickup.local_order_id == order.id).all()
+    if pickups:
+        for pickup in pickups:
+            if pickup.pickup_status != "picked_up":
+                _mark_station_pickup_picked_up(db, pickup)
+        _sync_station_pickups_to_order(db, order)
+        return
     order.pickup_status = "picked_up"
     order.picked_up_at = datetime.now(UTC)
     payload = json.loads(order.payload_json)
@@ -383,9 +429,26 @@ def _mark_pickup_order_picked_up(db: Session, order: LocalOrder) -> None:
     _sync_outbox_payload(db, order, payload)
 
 
-def _expire_stale_ready_pickup_orders(db: Session, event_id: int) -> None:
+def _expire_stale_ready_station_pickups(db: Session, event_id: int) -> None:
     cutoff = datetime.now(UTC) - READY_PICKUP_TTL
     stale = (
+        db.query(StationPickup)
+        .filter(
+            StationPickup.event_id == event_id,
+            StationPickup.pickup_status == "ready",
+            StationPickup.ready_at.isnot(None),
+            StationPickup.ready_at < cutoff,
+        )
+        .all()
+    )
+    order_ids = {int(p.local_order_id) for p in stale}
+    for pickup in stale:
+        _mark_station_pickup_picked_up(db, pickup)
+    for oid in order_ids:
+        order = db.query(LocalOrder).filter(LocalOrder.id == oid).first()
+        if order:
+            _sync_station_pickups_to_order(db, order)
+    legacy = (
         db.query(LocalOrder)
         .filter(
             LocalOrder.event_id == event_id,
@@ -396,15 +459,45 @@ def _expire_stale_ready_pickup_orders(db: Session, event_id: int) -> None:
         )
         .all()
     )
-    for order in stale:
+    for order in legacy:
+        has_rows = db.query(StationPickup).filter(StationPickup.local_order_id == order.id).first()
+        if has_rows:
+            continue
         _mark_pickup_order_picked_up(db, order)
 
 
 @router.get("/v1/pickup/orders", response_model=PickupOrdersResponse)
 def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)) -> PickupOrdersResponse:
-    _expire_stale_ready_pickup_orders(db, event_id)
+    _expire_stale_ready_station_pickups(db, event_id)
     db.commit()
-    rows = (
+    pickups = (
+        db.query(StationPickup)
+        .filter(
+            StationPickup.event_id == event_id,
+            StationPickup.pickup_status.in_(["pending", "ready"]),
+        )
+        .order_by(StationPickup.id.asc())
+        .all()
+    )
+    order_ids = {int(p.local_order_id) for p in pickups}
+    orders = {
+        o.id: o
+        for o in db.query(LocalOrder).filter(LocalOrder.id.in_(order_ids)).all()
+    } if order_ids else {}
+    pending = [p for p in pickups if p.pickup_status != "ready"]
+    ready = sorted(
+        (p for p in pickups if p.pickup_status == "ready"),
+        key=lambda row: row.ready_at or datetime.min.replace(tzinfo=UTC),
+    )
+    out = []
+    for pickup in pending + ready:
+        order = orders.get(pickup.local_order_id)
+        if not order:
+            continue
+        out.append(_station_pickup_response(pickup, order))
+
+    covered = {int(p.local_order_id) for p in pickups}
+    legacy_orders = (
         db.query(LocalOrder)
         .filter(
             LocalOrder.event_id == event_id,
@@ -414,19 +507,50 @@ def list_pickup_orders(event_id: int = Query(...), db: Session = Depends(get_db)
         .order_by(LocalOrder.id.asc())
         .all()
     )
-    pending = [row for row in rows if row.pickup_status != "ready"]
-    ready = sorted(
-        (row for row in rows if row.pickup_status == "ready"),
-        key=lambda row: row.ready_at or datetime.min.replace(tzinfo=UTC),
-    )
-    return PickupOrdersResponse(orders=[_pickup_order_response(row) for row in pending + ready])
+    for order in legacy_orders:
+        if order.id in covered:
+            continue
+        has_rows = db.query(StationPickup).filter(StationPickup.local_order_id == order.id).first()
+        if has_rows:
+            continue
+        out.append(_legacy_order_as_pickup_response(order))
+
+    return PickupOrdersResponse(orders=out)
+
+
+@router.post("/v1/pickup/pickups/{pickup_id}/picked-up", response_model=PickupPickedUpResponse)
+def mark_station_pickup_picked_up_route(pickup_id: int, db: Session = Depends(get_db)) -> PickupPickedUpResponse:
+    if pickup_id < 0:
+        order = db.query(LocalOrder).filter(LocalOrder.id == -pickup_id).first()
+        if not order or order.order_source != "cash_register":
+            raise HTTPException(status_code=404, detail="Pickup not found")
+        _mark_pickup_order_picked_up(db, order)
+        db.commit()
+        return PickupPickedUpResponse(pickup_id=pickup_id, local_order_id=order.id, pickup_status="picked_up")
+
+    pickup = db.query(StationPickup).filter(StationPickup.id == pickup_id).first()
+    if not pickup:
+        raise HTTPException(status_code=404, detail="Pickup not found")
+    order = db.query(LocalOrder).filter(LocalOrder.id == pickup.local_order_id).first()
+    if not order or order.order_source != "cash_register":
+        raise HTTPException(status_code=404, detail="Pickup not found")
+    _mark_station_pickup_picked_up(db, pickup)
+    _sync_station_pickups_to_order(db, order)
+    db.commit()
+    return PickupPickedUpResponse(pickup_id=pickup.id, local_order_id=order.id, pickup_status="picked_up")
 
 
 @router.post("/v1/pickup/orders/{order_id}/picked-up", response_model=PickupPickedUpResponse)
 def mark_pickup_order_picked_up(order_id: int, db: Session = Depends(get_db)) -> PickupPickedUpResponse:
+    """Legacy: mark all station pickups for an order as picked up."""
     order = db.query(LocalOrder).filter(LocalOrder.id == order_id).first()
     if not order or order.order_source != "cash_register":
         raise HTTPException(status_code=404, detail="Pickup order not found")
     _mark_pickup_order_picked_up(db, order)
     db.commit()
-    return PickupPickedUpResponse(local_order_id=order.id, pickup_status="picked_up")
+    first = db.query(StationPickup).filter(StationPickup.local_order_id == order.id).order_by(StationPickup.id).first()
+    return PickupPickedUpResponse(
+        pickup_id=first.id if first else -order.id,
+        local_order_id=order.id,
+        pickup_status="picked_up",
+    )

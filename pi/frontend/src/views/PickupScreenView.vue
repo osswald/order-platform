@@ -6,7 +6,7 @@
       <section class="pickup-column pending">
         <h2>In Arbeit</h2>
         <div class="code-grid">
-          <article v-for="order in pendingOrders" :key="order.local_order_id" class="pickup-code">
+          <article v-for="order in pendingOrders" :key="order.pickup_id" class="pickup-code">
             {{ order.pickup_code }}
           </article>
         </div>
@@ -17,7 +17,7 @@
         <div class="code-grid">
           <button
             v-for="order in readyOrders"
-            :key="order.local_order_id"
+            :key="order.pickup_id"
             type="button"
             class="pickup-code ready-code"
             @click="markPickedUp(order)"
@@ -62,7 +62,8 @@ async function loadOrders() {
 
 async function markPickedUp(order: PickupOrderItem) {
   try {
-    await api(`/v1/pickup/orders/${order.local_order_id}/picked-up`, { method: 'POST' })
+    const pickupId = order.pickup_id ?? -order.local_order_id
+    await api(`/v1/pickup/pickups/${pickupId}/picked-up`, { method: 'POST' })
     await loadOrders()
   } catch (e: unknown) {
     error.value = getErrorMessage(e, 'Konnte nicht abgeschlossen werden.')

@@ -27,6 +27,7 @@ from ..models import (
     OutboxEntry,
     PaymentReceipt,
     PrintJob,
+    StationPickup,
 )
 from ..order_fiscal import waiter_name_from_event
 from ..order_line_utils import discount_signature, selection_key
@@ -528,8 +529,11 @@ def _create_customer_pickup_print_job_for_lines(
     station_lines: list[dict],
     ev: dict,
     articles: dict,
+    pickup_code: str | None = None,
 ) -> int:
     station_payload = {**payload, "lines": station_lines}
+    if pickup_code is not None:
+        station_payload["pickup_code"] = pickup_code
     station_label = station_name_from_event(ev, station_uuid)
     host, port, feed_lines = resolve_printer_endpoint(ev, cash_register_uuid)
     esc = build_customer_pickup_text(
@@ -616,8 +620,148 @@ def _sync_outbox_payload(db: Session, order: LocalOrder, payload: dict) -> None:
     enqueue_payload_sync(db, event_id=order.event_id, client_order_id=cid, payload=payload)
 
 
+def _station_pickup_snapshot(row: StationPickup) -> dict:
+    return {
+        "id": row.id,
+        "station_uuid": row.station_uuid,
+        "pickup_code": row.pickup_code,
+        "pickup_status": row.pickup_status,
+        "ready_at": row.ready_at.isoformat() if row.ready_at else None,
+        "picked_up_at": row.picked_up_at.isoformat() if row.picked_up_at else None,
+    }
+
+
+def _sync_station_pickups_to_order(db: Session, order: LocalOrder) -> None:
+    rows = (
+        db.query(StationPickup)
+        .filter(StationPickup.local_order_id == order.id)
+        .order_by(StationPickup.id.asc())
+        .all()
+    )
+    payload = json.loads(order.payload_json)
+    pickups = [_station_pickup_snapshot(r) for r in rows]
+    payload["pickups"] = pickups
+    codes = [str(p["pickup_code"]) for p in pickups if p.get("pickup_code")]
+    payload["pickup_codes"] = codes
+    if codes:
+        order.pickup_code = codes[0]
+        payload["pickup_code"] = codes[0]
+    if rows:
+        statuses = {str(r.pickup_status or "") for r in rows}
+        if statuses <= {"picked_up"}:
+            order.pickup_status = "picked_up"
+            last_picked = max((r.picked_up_at for r in rows if r.picked_up_at), default=None)
+            if last_picked:
+                order.picked_up_at = last_picked
+            payload["pickup_status"] = "picked_up"
+            if order.picked_up_at:
+                payload["picked_up_at"] = order.picked_up_at.isoformat()
+        elif "pending" in statuses:
+            order.pickup_status = "pending"
+            payload["pickup_status"] = "pending"
+        else:
+            order.pickup_status = "ready"
+            ready_times = []
+            for r in rows:
+                if not r.ready_at:
+                    continue
+                rt = r.ready_at
+                if rt.tzinfo is None:
+                    rt = rt.replace(tzinfo=UTC)
+                ready_times.append(rt)
+            order.ready_at = min(ready_times) if ready_times else datetime.now(UTC)
+            payload["pickup_status"] = "ready"
+            payload["ready_at"] = order.ready_at.isoformat() if order.ready_at else None
+    order.payload_json = json.dumps(payload)
+    _sync_outbox_payload(db, order, payload)
+
+
+def _create_station_pickup(
+    db: Session,
+    *,
+    order: LocalOrder,
+    event_id: int,
+    station_uuid: str | None,
+    pickup_code: str,
+    pickup_status: str = "pending",
+) -> StationPickup:
+    ready_at = datetime.now(UTC) if pickup_status == "ready" else None
+    row = StationPickup(
+        local_order_id=order.id,
+        event_id=event_id,
+        station_uuid=str(station_uuid) if station_uuid is not None else None,
+        pickup_code=pickup_code,
+        pickup_status=pickup_status,
+        ready_at=ready_at,
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
+def _mark_station_pickup_ready(db: Session, pickup: StationPickup) -> None:
+    if pickup.pickup_status in {"ready", "picked_up"}:
+        return
+    pickup.pickup_status = "ready"
+    pickup.ready_at = datetime.now(UTC)
+
+
+def _mark_station_pickup_picked_up(db: Session, pickup: StationPickup) -> None:
+    pickup.pickup_status = "picked_up"
+    pickup.picked_up_at = datetime.now(UTC)
+
+
+def _station_pickup_for_ticket(db: Session, ticket: KitchenTicket) -> StationPickup | None:
+    q = db.query(StationPickup).filter(StationPickup.local_order_id == ticket.local_order_id)
+    if ticket.station_uuid is None:
+        q = q.filter(StationPickup.station_uuid.is_(None))
+    else:
+        q = q.filter(StationPickup.station_uuid == str(ticket.station_uuid))
+    return q.first()
+
+
+def _pickup_code_for_station(db: Session, order: LocalOrder, station_uuid: str | None) -> str | None:
+    q = db.query(StationPickup).filter(StationPickup.local_order_id == order.id)
+    if station_uuid is None:
+        q = q.filter(StationPickup.station_uuid.is_(None))
+    else:
+        q = q.filter(StationPickup.station_uuid == str(station_uuid))
+    row = q.first()
+    if row:
+        return row.pickup_code
+    payload = json.loads(order.payload_json)
+    return order.pickup_code or payload.get("pickup_code")
+
+
+def _set_station_pickup_ready_for_ticket(db: Session, order: LocalOrder, ticket: KitchenTicket) -> None:
+    if order.order_source != "cash_register":
+        return
+    pickup = _station_pickup_for_ticket(db, ticket)
+    if not pickup:
+        return
+    if ticket.status != "done":
+        return
+    _mark_station_pickup_ready(db, pickup)
+    _sync_station_pickups_to_order(db, order)
+
+
 def _set_pickup_ready_if_complete(db: Session, order: LocalOrder) -> None:
+    """Legacy order-level ready: used when no station pickups exist (pre-upgrade)."""
     if order.order_source != "cash_register" or order.pickup_status in {"ready", "picked_up"}:
+        return
+    has_rows = db.query(StationPickup).filter(StationPickup.local_order_id == order.id).first()
+    if has_rows:
+        pending = (
+            db.query(StationPickup)
+            .filter(
+                StationPickup.local_order_id == order.id,
+                StationPickup.pickup_status == "pending",
+            )
+            .first()
+        )
+        if pending:
+            return
+        _sync_station_pickups_to_order(db, order)
         return
     pending = (
         db.query(KitchenTicket).filter(KitchenTicket.local_order_id == order.id, KitchenTicket.status != "done").first()
