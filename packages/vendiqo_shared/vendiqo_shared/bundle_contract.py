@@ -29,6 +29,7 @@ class EdgeBundleArticleAddition(BaseModel):
     sellable: bool | None = None
     monitor_stock: bool | None = None
     preselected: bool | None = None
+    combine_on_kitchen_display: bool | None = None
 
 
 class EdgeBundleArticleIngredient(BaseModel):

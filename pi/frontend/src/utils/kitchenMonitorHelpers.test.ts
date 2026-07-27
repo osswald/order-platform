@@ -4,6 +4,7 @@ import {
   computeKitchenColumnLayout,
   formatElapsedMinutes,
   KITCHEN_ORDER_GAP_PX,
+  kitchenArticleDisplayName,
   kitchenLineAdditionLabels,
   sortTicketsByWaitTime,
   ticketElapsedMs,
@@ -81,7 +82,7 @@ describe('ticketStatusLabel', () => {
 
 describe('kitchenLineAdditionLabels', () => {
   const articles = {
-    '30': { name: 'Gemischter Salat' },
+    '30': { name: 'Gemischter Salat', label: 'Salat' },
     '31': { name: 'Grüner Salat' },
   }
 
@@ -96,12 +97,33 @@ describe('kitchenLineAdditionLabels', () => {
         },
         articles,
       ),
-    ).toEqual(['+ 1x mit Gemischter Salat', '+ 1x mit Grüner Salat'])
+    ).toEqual(['+ 1x Salat', '+ 1x mit Grüner Salat'])
+  })
+
+  it('prefers catalog label over line name and catalog name', () => {
+    expect(
+      kitchenLineAdditionLabels(
+        { additions: [{ article_id: 30, qty: 1, name: 'mit Gemischter Salat' }] },
+        articles,
+      ),
+    ).toEqual(['+ 1x Salat'])
   })
 
   it('resolves names from the article catalog when missing on the line', () => {
     expect(kitchenLineAdditionLabels({ additions: [{ article_id: 30, qty: 2 }] }, articles)).toEqual([
-      '+ 2x Gemischter Salat',
+      '+ 2x Salat',
     ])
+  })
+})
+
+describe('kitchenArticleDisplayName', () => {
+  it('prefers label over name and fallback', () => {
+    expect(
+      kitchenArticleDisplayName(10, { '10': { name: 'Burger Deluxe', label: 'Burger' } }, 'Snap'),
+    ).toBe('Burger')
+  })
+
+  it('falls back to name when label empty', () => {
+    expect(kitchenArticleDisplayName(10, { '10': { name: 'Raclette', label: '' } })).toBe('Raclette')
   })
 })

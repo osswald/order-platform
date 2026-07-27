@@ -80,6 +80,20 @@ interface KitchenLineWithAdditions {
 
 interface KitchenArticleLookup {
   name?: string | null
+  label?: string | null
+}
+
+export function kitchenArticleDisplayName(
+  articleId: number | null | undefined,
+  articles: Record<string, KitchenArticleLookup> | null | undefined,
+  fallback?: string | null,
+): string {
+  if (articleId == null) return fallback || '#?'
+  const article = articles?.[String(articleId)] || articles?.[articleId as unknown as string]
+  const label = typeof article?.label === 'string' ? article.label.trim() : ''
+  if (label) return label
+  if (fallback) return fallback
+  return article?.name || `#${articleId}`
 }
 
 export function kitchenLineAdditionLabels(
@@ -91,7 +105,8 @@ export function kitchenLineAdditionLabels(
   return additions.map((add) => {
     const id = Number(add.article_id)
     const article = articles?.[String(id)] || articles?.[id as unknown as string]
-    const name = add.name || article?.name || `#${id}`
+    const label = typeof article?.label === 'string' ? article.label.trim() : ''
+    const name = label || add.name || article?.name || `#${id}`
     return `+ ${Math.max(1, Number(add.qty) || 1)}x ${name}`
   })
 }

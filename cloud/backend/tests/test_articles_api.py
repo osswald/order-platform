@@ -271,6 +271,74 @@ def test_article_addition_links_round_trip_preselected():
     assert read_links.json()["items"][0]["preselected"] is True
 
 
+def test_article_addition_links_round_trip_combine_on_kitchen_display():
+    org_id = _seed_org_admin()
+    token = _token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    db = SessionLocal()
+    try:
+        cat_id = db.query(ArticleCategory).filter(ArticleCategory.organisation_id == org_id).first().id
+    finally:
+        db.close()
+
+    base = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "Raclette",
+            "label": "RACL",
+            "price": 8.0,
+            "article_category_id": cat_id,
+            "is_addition": False,
+        },
+    )
+    assert base.status_code == 200, base.text
+    base_id = base.json()["id"]
+
+    zusatz = client.post(
+        "/articles/",
+        headers=headers,
+        json={
+            "name": "DOPPELT KÄSE",
+            "label": "2x Käse",
+            "price": 2.0,
+            "article_category_id": cat_id,
+            "is_addition": True,
+        },
+    )
+    assert zusatz.status_code == 200, zusatz.text
+    add_id = zusatz.json()["id"]
+
+    linked = client.put(
+        f"/articles/{base_id}/additions",
+        headers=headers,
+        json={
+            "items": [
+                {
+                    "addition_article_id": add_id,
+                    "sort_order": 0,
+                    "combine_on_kitchen_display": True,
+                }
+            ]
+        },
+    )
+    assert linked.status_code == 200
+    assert linked.json()["items"][0]["combine_on_kitchen_display"] is True
+
+    omitted = client.put(
+        f"/articles/{base_id}/additions",
+        headers=headers,
+        json={"items": [{"addition_article_id": add_id, "sort_order": 0}]},
+    )
+    assert omitted.status_code == 200
+    assert omitted.json()["items"][0]["combine_on_kitchen_display"] is False
+
+    read_links = client.get(f"/articles/{base_id}/additions", headers=headers)
+    assert read_links.status_code == 200
+    assert read_links.json()["items"][0]["combine_on_kitchen_display"] is False
+
+
 def test_article_is_active_defaults_true():
     org_id = _seed_org_admin()
     token = _token()

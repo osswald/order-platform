@@ -449,6 +449,7 @@ class ArticleAdditionLink(Base):
     addition_article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
     sort_order = Column(Integer, nullable=False, default=0)
     preselected = Column(Boolean, nullable=False, default=False)
+    combine_on_kitchen_display = Column(Boolean, nullable=False, default=False)
     base_article = relationship("Article", foreign_keys=[base_article_id])
     addition_article = relationship("Article", foreign_keys=[addition_article_id])
 

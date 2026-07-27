@@ -4,9 +4,19 @@ import { buildKitchenProductSummary, kitchenProductLocationShortLabel } from './
 
 const event = {
   articles: {
-    '10': { id: 10, name: 'Burger', price: 12, additions: [] },
-    '20': { id: 20, name: 'Bier', price: 5, additions: [] },
-    '30': { id: 30, name: 'Salat', price: 2, additions: [] },
+    '10': {
+      id: 10,
+      name: 'Burger Deluxe',
+      label: 'Burger',
+      price: 12,
+      additions: [
+        { article_id: 30, name: 'mit Salat', label: 'Salat', combine_on_kitchen_display: false },
+        { article_id: 40, name: 'DOPPELT KÄSE', label: '2x Käse', combine_on_kitchen_display: true },
+      ],
+    },
+    '20': { id: 20, name: 'Bier vom Fass', label: 'Bier', price: 5, additions: [] },
+    '30': { id: 30, name: 'mit Salat', label: 'Salat', price: 2, additions: [] },
+    '40': { id: 40, name: 'DOPPELT KÄSE', label: '2x Käse', price: 1, additions: [] },
   },
   configuration: {
     app_layouts: [
@@ -23,41 +33,45 @@ const event = {
   },
 } as unknown as EdgeBundleEvent
 
+function ticketLine(
+  overrides: Partial<{
+    id: number
+    article_id: number
+    qty: number
+    note: string
+    additions: Array<{ article_id: number; qty?: number; name?: string }>
+    qty_remaining: number
+  }>,
+) {
+  const articleId = overrides.article_id ?? 10
+  const qty = overrides.qty ?? 1
+  return {
+    id: overrides.id ?? 1,
+    line_index: 0,
+    line: {
+      article_id: articleId,
+      qty,
+      note: overrides.note ?? '',
+      additions: overrides.additions ?? [],
+    },
+    qty_total: qty,
+    qty_printed: 0,
+    qty_remaining: overrides.qty_remaining ?? qty,
+  }
+}
+
 describe('buildKitchenProductSummary', () => {
   it('aggregates articles by article id with per-table breakdown', () => {
     const orders = [
       {
         id: 1,
         table_number: 5,
-        lines: [
-          {
-            id: 1,
-            line_index: 0,
-            line: {
-              article_id: 10,
-              qty: 2,
-              note: '',
-              additions: [{ article_id: 30, qty: 1 }],
-            },
-            qty_total: 2,
-            qty_printed: 0,
-            qty_remaining: 2,
-          },
-        ],
+        lines: [ticketLine({ id: 1, qty: 2, additions: [{ article_id: 30, qty: 1 }] })],
       },
       {
         id: 2,
         table_number: 12,
-        lines: [
-          {
-            id: 2,
-            line_index: 0,
-            line: { article_id: 10, qty: 1, note: '', additions: [] },
-            qty_total: 1,
-            qty_printed: 0,
-            qty_remaining: 1,
-          },
-        ],
+        lines: [ticketLine({ id: 2, article_id: 10, qty: 1, additions: [] })],
       },
     ] as unknown as KitchenOrderTicket[]
 
@@ -78,22 +92,8 @@ describe('buildKitchenProductSummary', () => {
         id: 1,
         table_number: 1,
         lines: [
-          {
-            id: 1,
-            line_index: 0,
-            line: { article_id: 10, qty: 1, note: '', additions: [] },
-            qty_total: 1,
-            qty_printed: 0,
-            qty_remaining: 1,
-          },
-          {
-            id: 2,
-            line_index: 1,
-            line: { article_id: 20, qty: 1, note: '', additions: [] },
-            qty_total: 1,
-            qty_printed: 0,
-            qty_remaining: 1,
-          },
+          ticketLine({ id: 1, article_id: 10, qty: 1 }),
+          ticketLine({ id: 2, article_id: 20, qty: 1 }),
         ],
       },
     ] as unknown as KitchenOrderTicket[]
@@ -102,44 +102,28 @@ describe('buildKitchenProductSummary', () => {
     expect(summary.articles.map((row) => row.name)).toEqual(['Bier', 'Burger'])
   })
 
-  it('aggregates additions separately from main articles', () => {
+  it('aggregates unflagged additions separately from main articles', () => {
     const orders = [
       {
         id: 1,
         table_number: 4,
         lines: [
-          {
+          ticketLine({
             id: 1,
-            line_index: 0,
-            line: {
-              article_id: 10,
-              qty: 2,
-              note: '',
-              additions: [{ article_id: 30, qty: 1, name: 'mit Salat' }],
-            },
-            qty_total: 2,
-            qty_printed: 0,
-            qty_remaining: 2,
-          },
+            qty: 2,
+            additions: [{ article_id: 30, qty: 1, name: 'mit Salat' }],
+          }),
         ],
       },
       {
         id: 2,
         table_number: 22,
         lines: [
-          {
+          ticketLine({
             id: 2,
-            line_index: 0,
-            line: {
-              article_id: 10,
-              qty: 1,
-              note: '',
-              additions: [{ article_id: 30, qty: 1, name: 'mit Salat' }],
-            },
-            qty_total: 1,
-            qty_printed: 0,
-            qty_remaining: 1,
-          },
+            qty: 1,
+            additions: [{ article_id: 30, qty: 1, name: 'mit Salat' }],
+          }),
         ],
       },
     ] as unknown as KitchenOrderTicket[]
@@ -147,13 +131,127 @@ describe('buildKitchenProductSummary', () => {
     const summary = buildKitchenProductSummary(orders, event)
     expect(summary.articles).toHaveLength(1)
     expect(summary.articles[0].totalQty).toBe(3)
+    expect(summary.articles[0].additionLabels).toEqual([])
     expect(summary.additions).toHaveLength(1)
-    expect(summary.additions[0].name).toBe('mit Salat')
+    expect(summary.additions[0].name).toBe('Salat')
     expect(summary.additions[0].totalQty).toBe(3)
     expect(summary.additions[0].breakdown).toEqual([
       { label: 'Tisch 4', qty: 2 },
       { label: 'Tisch 22', qty: 1 },
     ])
+  })
+
+  it('folds flagged additions into the parent card', () => {
+    const orders = [
+      {
+        id: 1,
+        table_number: 4,
+        lines: [
+          ticketLine({
+            id: 1,
+            qty: 2,
+            additions: [{ article_id: 40, qty: 1 }],
+          }),
+        ],
+      },
+    ] as unknown as KitchenOrderTicket[]
+
+    const summary = buildKitchenProductSummary(orders, event)
+    expect(summary.articles).toHaveLength(1)
+    expect(summary.articles[0].name).toBe('Burger')
+    expect(summary.articles[0].additionLabels).toEqual(['+ 1x 2x Käse'])
+    expect(summary.additions).toHaveLength(0)
+  })
+
+  it('keeps unflagged additions standalone when mixed with flagged', () => {
+    const orders = [
+      {
+        id: 1,
+        table_number: 4,
+        lines: [
+          ticketLine({
+            id: 1,
+            qty: 1,
+            additions: [
+              { article_id: 40, qty: 1 },
+              { article_id: 30, qty: 1 },
+            ],
+          }),
+        ],
+      },
+    ] as unknown as KitchenOrderTicket[]
+
+    const summary = buildKitchenProductSummary(orders, event)
+    expect(summary.articles).toHaveLength(1)
+    expect(summary.articles[0].additionLabels).toEqual(['+ 1x 2x Käse'])
+    expect(summary.additions).toHaveLength(1)
+    expect(summary.additions[0].name).toBe('Salat')
+  })
+
+  it('splits parent cards when notes differ', () => {
+    const orders = [
+      {
+        id: 1,
+        table_number: 4,
+        lines: [
+          ticketLine({
+            id: 1,
+            qty: 1,
+            note: 'scharf',
+            additions: [{ article_id: 40, qty: 1 }],
+          }),
+        ],
+      },
+      {
+        id: 2,
+        table_number: 5,
+        lines: [
+          ticketLine({
+            id: 2,
+            qty: 1,
+            note: '',
+            additions: [{ article_id: 40, qty: 1 }],
+          }),
+        ],
+      },
+    ] as unknown as KitchenOrderTicket[]
+
+    const summary = buildKitchenProductSummary(orders, event)
+    expect(summary.articles).toHaveLength(2)
+    const withNote = summary.articles.find((r) => r.note === 'scharf')
+    const plain = summary.articles.find((r) => !r.note)
+    expect(withNote?.totalQty).toBe(1)
+    expect(plain?.totalQty).toBe(1)
+    expect(withNote?.additionLabels).toEqual(['+ 1x 2x Käse'])
+  })
+
+  it('treats missing combine flag as false', () => {
+    const sparseEvent = {
+      articles: {
+        '10': {
+          id: 10,
+          name: 'Burger',
+          label: 'Burger',
+          price: 12,
+          additions: [{ article_id: 30, name: 'Salat' }],
+        },
+        '30': { id: 30, name: 'Salat', label: 'Salat', price: 2, additions: [] },
+      },
+      configuration: { app_layouts: [] },
+    } as unknown as EdgeBundleEvent
+
+    const orders = [
+      {
+        id: 1,
+        table_number: 1,
+        lines: [ticketLine({ additions: [{ article_id: 30, qty: 1 }] })],
+      },
+    ] as unknown as KitchenOrderTicket[]
+
+    const summary = buildKitchenProductSummary(orders, sparseEvent)
+    expect(summary.articles[0].additionLabels).toEqual([])
+    expect(summary.additions).toHaveLength(1)
+    expect(summary.additions[0].name).toBe('Salat')
   })
 })
 

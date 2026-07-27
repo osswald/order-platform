@@ -6,14 +6,11 @@ import { kitchenProductLocationShortLabel } from '@/utils/kitchenProductSummary'
 
 const props = defineProps<{
   summary: KitchenProductSummary
-  showAdditions: boolean
 }>()
 
 const rows = computed(() => [
   ...props.summary.articles.map((row) => ({ row, kind: 'article' as const })),
-  ...(props.showAdditions
-    ? props.summary.additions.map((row) => ({ row, kind: 'addition' as const }))
-    : []),
+  ...props.summary.additions.map((row) => ({ row, kind: 'addition' as const })),
 ])
 
 function rowStyle(row: KitchenProductRow) {
@@ -40,6 +37,16 @@ function rowStyle(row: KitchenProductRow) {
         <span class="product-name">{{ row.name }}</span>
         <strong class="product-qty">{{ row.totalQty }}</strong>
       </div>
+
+      <div v-if="row.additionLabels.length" class="product-additions">
+        <span
+          v-for="(label, index) in row.additionLabels"
+          :key="`${row.key}-add-${index}`"
+          class="product-addition"
+        >{{ label }}</span>
+      </div>
+
+      <p v-if="row.note" class="product-note">{{ row.note }}</p>
 
       <div v-if="row.breakdown.length" class="breakdown-wrap">
         <table class="breakdown-table">
@@ -105,6 +112,25 @@ function rowStyle(row: KitchenProductRow) {
   font-size: 2rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.product-additions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-top: 0.25rem;
+}
+
+.product-addition {
+  font-size: 0.95rem;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.product-note {
+  margin: 0.2rem 0 0;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: color-mix(in srgb, currentColor 72%, transparent);
 }
 
 .breakdown-wrap {

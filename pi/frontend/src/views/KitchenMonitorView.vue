@@ -16,9 +16,7 @@
         :event-name="event?.name || 'Event'"
         :view-mode="viewMode"
         :loading="loading"
-        :show-additions="showAdditions"
         @set-view-mode="setViewMode"
-        @set-show-additions="setShowAdditions"
         @refresh="loadOrders"
       />
 
@@ -37,7 +35,7 @@
           @complete-print="onCompletePrint"
         />
 
-        <KitchenProductList v-else :summary="productSummary" :show-additions="showAdditions" />
+        <KitchenProductList v-else :summary="productSummary" />
       </div>
     </template>
   </div>
@@ -96,14 +94,9 @@ onUnmounted(() => {
 const lineSelection = useKitchenLineSelection()
 
 const viewMode = ref<KitchenMonitorViewMode>(resolveViewMode())
-const showAdditions = ref(readShowAdditions())
 
 function viewStorageKey() {
   return `pi_kitchen_view_${event.value?.id || 'none'}_${printerSlug.value || 'none'}`
-}
-
-function additionsStorageKey() {
-  return `pi_kitchen_show_additions_${event.value?.id || 'none'}_${printerSlug.value || 'none'}`
 }
 
 function readViewModeFromStorage(): KitchenMonitorViewMode {
@@ -119,14 +112,6 @@ function resolveViewMode(): KitchenMonitorViewMode {
   const routeView = String(route.params.view || '')
   if (routeView) return kitchenViewModeFromSlug(routeView)
   return readViewModeFromStorage()
-}
-
-function readShowAdditions(): boolean {
-  try {
-    return localStorage.getItem(additionsStorageKey()) !== '0'
-  } catch {
-    return true
-  }
 }
 
 function syncViewToRoute(mode: KitchenMonitorViewMode) {
@@ -158,20 +143,10 @@ function setViewMode(mode: KitchenMonitorViewMode) {
   syncViewToRoute(mode)
 }
 
-function setShowAdditions(value: boolean) {
-  showAdditions.value = value
-  try {
-    localStorage.setItem(additionsStorageKey(), value ? '1' : '0')
-  } catch {
-    /* ignore */
-  }
-}
-
 watch(
   () => [route.params.view, event.value?.id, printerSlug.value] as const,
   () => {
     viewMode.value = resolveViewMode()
-    showAdditions.value = readShowAdditions()
   },
 )
 

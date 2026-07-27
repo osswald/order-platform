@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { EdgeBundleEvent, KitchenOrderTicket, KitchenTicketLineEntry, OrderLineIn } from '@/types/api'
 import {
   formatElapsedMinutes,
+  kitchenArticleDisplayName,
   kitchenLineAdditionLabels,
   ticketElapsedMs,
   ticketStatusLabel,
@@ -49,11 +50,7 @@ const hasSelection = computed(() =>
 
 function lineName(line: OrderLineIn) {
   const withName = line as OrderLineIn & { article_name?: string | null }
-  if (withName.article_name) return withName.article_name
-  const aid = line?.article_id
-  if (aid == null) return '#?'
-  const article = props.event?.articles?.[String(aid)] || props.event?.articles?.[aid as unknown as string]
-  return article?.name || `#${aid}`
+  return kitchenArticleDisplayName(line?.article_id, props.event?.articles, withName.article_name)
 }
 
 function additionLabels(line: OrderLineIn) {
