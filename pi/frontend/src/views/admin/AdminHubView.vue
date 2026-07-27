@@ -63,6 +63,15 @@
     <p class="muted small version-line">Pi {{ backendLabel ?? '—' }}</p>
     <p v-if="androidVersionLabel" class="muted small version-line">Android {{ androidVersionLabel }}</p>
     <p v-if="androidApp" class="muted small version-line">Tap to Pay: {{ tapToPayLabel }}</p>
+    <ul
+      v-if="androidApp && tapToPayChecksVisible"
+      data-testid="taptopay-checks"
+      class="muted small taptopay-checks"
+    >
+      <li v-for="check in tapToPayChecks" :key="check.id">
+        {{ check.ok ? '✓' : '✗' }} {{ tapToPayEligibilityCheckLabel(check.id) }}
+      </li>
+    </ul>
   </div>
 </template>
 
@@ -77,7 +86,10 @@ import { useBundle } from '@/composables/useBundle'
 import { getAndroidAppInfo } from '@/utils/androidAppInfo'
 import {
   checkTapToPayAdminStatus,
+  shouldShowTapToPayEligibilityChecks,
   tapToPayAdminStatusLabel,
+  tapToPayEligibilityCheckLabel,
+  type TapToPayEligibilityCheck,
 } from '@/utils/taptoPayStatus'
 import type { SetupStatusResponse } from '@/types/api'
 
@@ -91,6 +103,8 @@ const { label: frontendLabel } = useAppVersion()
 const backendLabel = ref<string | null>(null)
 const androidVersionLabel = ref<string | null>(null)
 const tapToPayLabel = ref('prüfen…')
+const tapToPayChecks = ref<TapToPayEligibilityCheck[]>([])
+const tapToPayChecksVisible = ref(false)
 const router = useRouter()
 const { clearAdminSession } = useAdminSession()
 const { bundle } = useBundle()
@@ -127,6 +141,8 @@ onMounted(async () => {
   await Promise.resolve()
   const status = checkTapToPayAdminStatus(true)
   tapToPayLabel.value = tapToPayAdminStatusLabel(status)
+  tapToPayChecks.value = status.checks ?? []
+  tapToPayChecksVisible.value = shouldShowTapToPayEligibilityChecks(status)
 })
 
 function endAdmin() {
@@ -151,5 +167,14 @@ function endAdmin() {
 }
 .version-line + .version-line {
   margin-top: 0.25rem;
+}
+.taptopay-checks {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  text-align: center;
+}
+.taptopay-checks li {
+  margin: 0.1rem 0;
 }
 </style>

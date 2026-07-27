@@ -147,7 +147,10 @@ On the Pi Admin hub (Android only), below the existing **App** (PWA) and **Pi**
   when Admin loads (re-checked each open). Labels: bereit / bereit (simuliert) /
   Standort fehlt / nicht unterstützt / Fehler. This is **device-only** readiness
   (hardware + location + SDK init); it does **not** verify org Stripe Connect
-  onboarding or that a real card charge will succeed.
+  onboarding or that a real card charge will succeed. When any eligibility check
+  fails, Admin also lists each check (location, Android 13+, NFC, hardware
+  keystore, GMS, security patch, developer options, internet, Stripe SDK) with
+  pass/fail. The checklist is hidden when the device is ready.
 
 ## Android Tap to Pay flow
 

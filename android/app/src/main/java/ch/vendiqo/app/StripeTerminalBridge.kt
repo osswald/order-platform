@@ -3,6 +3,10 @@ package ch.vendiqo.app
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
+import android.provider.Settings
 import android.webkit.JavascriptInterface
 import com.stripe.stripeterminal.Terminal
 import com.stripe.stripeterminal.external.callable.Callback
@@ -39,18 +43,27 @@ class StripeTerminalBridge(private val activity: Activity) {
 
     /**
      * Runtime check whether this device can use Stripe Tap to Pay.
-     * Returns JSON: `{ ok, supported?, code?, simulated?, error? }`.
+     * Returns JSON: `{ ok, supported?, code?, simulated?, error?, checks? }`.
      * Codes: `ready` | `ready_simulated` | `location_missing` | `unsupported` | `error`.
      * Missing location permission → `ok: false` + `code: location_missing` (not `supported: false`).
+     * `checks` is an Admin diagnostic list; payment picker may ignore it.
      * Never throws to the WebView.
      */
     @JavascriptInterface
     fun supportsTapToPay(): String {
-        if (!hasLocationPermission()) {
+        val locationOk = hasLocationPermission()
+        if (!locationOk) {
+            val checks =
+                buildEligibilityChecks(
+                    TapToPayEligibility.checkSdkSupportSkipped(
+                        "Standortberechtigung für Kartenzahlung erforderlich.",
+                    ),
+                )
             return JSONObject()
                 .put("ok", false)
                 .put("code", "location_missing")
                 .put("error", "Standortberechtigung für Kartenzahlung erforderlich.")
+                .put("checks", TapToPayEligibility.toJsonArray(checks))
                 .toString()
         }
         return try {
@@ -60,12 +73,26 @@ class StripeTerminalBridge(private val activity: Activity) {
                 DiscoveryConfiguration.TapToPayDiscoveryConfiguration(isSimulated = simulated)
             val result =
                 Terminal.getInstance().supportsReadersOfType(DeviceType.TAP_TO_PAY_DEVICE, config)
+            val sdkCheck =
+                if (result.isSupported) {
+                    TapToPayEligibility.checkSdkSupport(true, null)
+                } else {
+                    TapToPayEligibility.checkSdkSupport(
+                        false,
+                        result.error?.message
+                            ?: "Gerät unterstützt keine Kartenzahlung (Tap to Pay).",
+                    )
+                }
+            val checks = buildEligibilityChecks(sdkCheck)
+            val checksJson = TapToPayEligibility.toJsonArray(checks)
             if (result.isSupported) {
-                ok(
-                    "supported" to true,
-                    "simulated" to simulated,
-                    "code" to if (simulated) "ready_simulated" else "ready",
-                )
+                JSONObject()
+                    .put("ok", true)
+                    .put("supported", true)
+                    .put("simulated", simulated)
+                    .put("code", if (simulated) "ready_simulated" else "ready")
+                    .put("checks", checksJson)
+                    .toString()
             } else {
                 val message =
                     result.error?.message
@@ -75,15 +102,85 @@ class StripeTerminalBridge(private val activity: Activity) {
                     .put("supported", false)
                     .put("code", "unsupported")
                     .put("error", message)
+                    .put("checks", checksJson)
                     .toString()
             }
         } catch (e: Exception) {
+            val message = e.message ?: "Tap-to-Pay-Unterstützung konnte nicht geprüft werden."
+            val checks =
+                buildEligibilityChecks(TapToPayEligibility.checkSdkSupport(false, message))
             JSONObject()
                 .put("ok", false)
                 .put("code", "error")
-                .put("error", e.message ?: "Tap-to-Pay-Unterstützung konnte nicht geprüft werden.")
+                .put("error", message)
+                .put("checks", TapToPayEligibility.toJsonArray(checks))
                 .toString()
         }
+    }
+
+    private fun buildEligibilityChecks(sdkSupport: EligibilityCheck): List<EligibilityCheck> {
+        val pm = activity.packageManager
+        val hasKeystore = pm.hasSystemFeature(PackageManager.FEATURE_HARDWARE_KEYSTORE)
+        val hasKeystoreV100 =
+            pm.hasSystemFeature(PackageManager.FEATURE_HARDWARE_KEYSTORE, TapToPayEligibility.MIN_KEYSTORE_VERSION)
+        val keystoreVersion =
+            when {
+                hasKeystoreV100 -> TapToPayEligibility.MIN_KEYSTORE_VERSION
+                hasKeystore -> 0
+                else -> null
+            }
+        return TapToPayEligibility.composeChecks(
+            locationOk = hasLocationPermission(),
+            sdkInt = Build.VERSION.SDK_INT,
+            hasNfc = pm.hasSystemFeature(PackageManager.FEATURE_NFC),
+            keystoreHasFeature = hasKeystore,
+            keystoreVersion = keystoreVersion,
+            hasPlayStore = isPackageInstalled("com.android.vending"),
+            hasGms = isPackageInstalled("com.google.android.gms"),
+            securityPatch = Build.VERSION.SECURITY_PATCH.orEmpty(),
+            developerOptionsEnabled = isDeveloperOptionsEnabled(),
+            isDebugBuild = BuildConfig.DEBUG,
+            internetOk = hasInternet(),
+            sdkSupport = sdkSupport,
+        )
+    }
+
+    private fun isPackageInstalled(packageName: String): Boolean =
+        try {
+            pmGetPackageInfo(packageName)
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+
+    @Suppress("DEPRECATION")
+    private fun pmGetPackageInfo(packageName: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.packageManager.getPackageInfo(
+                packageName,
+                PackageManager.PackageInfoFlags.of(0),
+            )
+        } else {
+            activity.packageManager.getPackageInfo(packageName, 0)
+        }
+    }
+
+    private fun isDeveloperOptionsEnabled(): Boolean =
+        try {
+            Settings.Global.getInt(
+                activity.contentResolver,
+                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+                0,
+            ) != 0
+        } catch (_: Exception) {
+            false
+        }
+
+    private fun hasInternet(): Boolean {
+        val cm = activity.getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     @JavascriptInterface
