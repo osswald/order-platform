@@ -159,7 +159,7 @@ describe('buildKitchenProductSummary', () => {
     const summary = buildKitchenProductSummary(orders, event)
     expect(summary.articles).toHaveLength(1)
     expect(summary.articles[0].name).toBe('Burger')
-    expect(summary.articles[0].additionLabels).toEqual(['+ 1x 2x Käse'])
+    expect(summary.articles[0].additionLabels).toEqual(['2x Käse'])
     expect(summary.additions).toHaveLength(0)
   })
 
@@ -183,9 +183,28 @@ describe('buildKitchenProductSummary', () => {
 
     const summary = buildKitchenProductSummary(orders, event)
     expect(summary.articles).toHaveLength(1)
-    expect(summary.articles[0].additionLabels).toEqual(['+ 1x 2x Käse'])
+    expect(summary.articles[0].additionLabels).toEqual(['2x Käse'])
     expect(summary.additions).toHaveLength(1)
     expect(summary.additions[0].name).toBe('Salat')
+  })
+
+  it('omits qty prefix when addition qty is 1 and shows Nx when higher', () => {
+    const orders = [
+      {
+        id: 1,
+        table_number: 4,
+        lines: [
+          ticketLine({
+            id: 1,
+            qty: 1,
+            additions: [{ article_id: 40, qty: 2 }],
+          }),
+        ],
+      },
+    ] as unknown as KitchenOrderTicket[]
+
+    const summary = buildKitchenProductSummary(orders, event)
+    expect(summary.articles[0].additionLabels).toEqual(['2x 2x Käse'])
   })
 
   it('splits parent cards when notes differ', () => {
@@ -222,7 +241,7 @@ describe('buildKitchenProductSummary', () => {
     const plain = summary.articles.find((r) => !r.note)
     expect(withNote?.totalQty).toBe(1)
     expect(plain?.totalQty).toBe(1)
-    expect(withNote?.additionLabels).toEqual(['+ 1x 2x Käse'])
+    expect(withNote?.additionLabels).toEqual(['2x Käse'])
   })
 
   it('treats missing combine flag as false', () => {

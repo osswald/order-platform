@@ -33,7 +33,7 @@ describe('KitchenProductList', () => {
           breakdown: [{ label: 'Tisch 4', qty: 2 }],
           color: null,
           sortKey: 0,
-          additionLabels: ['+ 1x 2x Käse'],
+          additionLabels: ['2x Käse'],
           note: 'scharf',
         },
       ],
@@ -54,7 +54,8 @@ describe('KitchenProductList', () => {
 
     const wrapper = mount(KitchenProductList, { props: { summary } })
     expect(wrapper.text()).toContain('Burger')
-    expect(wrapper.text()).toContain('+ 1x 2x Käse')
+    expect(wrapper.text()).toContain('2x Käse')
+    expect(wrapper.text()).not.toContain('+ 1x')
     expect(wrapper.text()).toContain('scharf')
     expect(wrapper.text()).toContain('Salat')
     expect(wrapper.findAll('.product-card')).toHaveLength(2)

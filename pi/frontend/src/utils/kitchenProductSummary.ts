@@ -126,7 +126,7 @@ function flaggedAdditionLabels(
     if (!isCombineOnKitchenDisplay(event, baseArticleId, id)) continue
     const qty = Math.max(1, Number(add.qty) || 1)
     const name = additionDisplayName(id, event, add.name)
-    out.push(`+ ${qty}x ${name}`)
+    out.push(qty > 1 ? `${qty}x ${name}` : name)
   }
   return out
 }
