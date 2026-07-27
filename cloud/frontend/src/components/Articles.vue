@@ -134,6 +134,7 @@
         <h3>{{ $t('articles.additionsTitle') }}</h3>
         <p class="muted small">{{ $t('articles.additionsHint') }}</p>
         <p class="muted small">{{ $t('articles.preselectedHint') }}</p>
+        <p class="muted small">{{ $t('articles.combineOnKitchenDisplayHint') }}</p>
         <div class="form-field">
           <v-select
             v-model="additionPickIds"
@@ -163,6 +164,14 @@
               hide-details
               density="compact"
               @update:model-value="(v: boolean | null) => (item.preselected = v === true)"
+            />
+          </template>
+          <template #item.combine_on_kitchen_display="{ item }">
+            <v-checkbox
+              :model-value="item.combine_on_kitchen_display"
+              hide-details
+              density="compact"
+              @update:model-value="(v: boolean | null) => (item.combine_on_kitchen_display = v === true)"
             />
           </template>
           <template #item.actions="{ item }">
@@ -336,6 +345,7 @@ import { filterArticleList } from '../utils/articleListFilters'
 import { runArticleSaveSequence } from '../utils/articleDetailSave'
 import { labelFromNameIfEmpty } from '../utils/articleLabelFromName'
 import { articleListHeaders } from '../utils/orgScopedListTableHeaders'
+import { articleAdditionsTableHeaders } from '../utils/articleAdditionsTableHeaders'
 import { rules, validateForm } from '../utils/formRules.js'
 import { formatPriceWithCurrency } from '../utils/localeFormat.js'
 import { useTaxCodes } from '../composables/useTaxCodes'
@@ -391,12 +401,7 @@ const ingredientPickIds = ref<number[]>([])
 
 const tableHeaders = computed((): DataTableHeader[] => articleListHeaders(t))
 
-const additionsHeaders = computed((): DataTableHeader[] => [
-  { title: t('articles.additionColumn'), key: 'name' },
-  { title: t('common.price'), key: 'price', sortable: false },
-  { title: t('articles.preselectedColumn'), key: 'preselected', sortable: false, align: 'center', width: 120 },
-  { title: '', key: 'actions', sortable: false, align: 'end', width: 56 },
-])
+const additionsHeaders = computed((): DataTableHeader[] => articleAdditionsTableHeaders(t))
 
 const ingredientsHeaders = computed((): DataTableHeader[] => [
   { title: t('articles.ingredientColumn'), key: 'name' },
@@ -756,6 +761,7 @@ async function loadAdditions(articleId: number | string) {
       price: Number(row.price ?? 0),
       sort_order: Number(row.sort_order ?? idx),
       preselected: Boolean(row.preselected),
+      combine_on_kitchen_display: Boolean(row.combine_on_kitchen_display),
     }))
   } catch {
     additionsLocal.value = []
@@ -782,6 +788,7 @@ function onAdditionPick(ids: number | number[]) {
       price: art.price,
       sort_order: additionsLocal.value.length,
       preselected: false,
+      combine_on_kitchen_display: false,
     })
   }
   additionPickIds.value = []
@@ -800,6 +807,7 @@ async function persistAdditions(articleId: number) {
         addition_article_id: l.addition_article_id,
         sort_order: l.sort_order ?? idx,
         preselected: l.preselected,
+        combine_on_kitchen_display: l.combine_on_kitchen_display,
       })),
     }),
   })
@@ -809,6 +817,7 @@ async function persistAdditions(articleId: number) {
     price: Number(row.price ?? 0),
     sort_order: Number(row.sort_order ?? idx),
     preselected: Boolean(row.preselected),
+    combine_on_kitchen_display: Boolean(row.combine_on_kitchen_display),
   }))
 }
 

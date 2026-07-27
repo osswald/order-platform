@@ -10184,6 +10184,11 @@
             "type": "boolean",
             "title": "Preselected",
             "default": false
+          },
+          "combine_on_kitchen_display": {
+            "type": "boolean",
+            "title": "Combine On Kitchen Display",
+            "default": false
           }
         },
         "type": "object",

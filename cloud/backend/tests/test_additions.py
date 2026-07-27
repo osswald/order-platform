@@ -126,3 +126,55 @@ def test_build_additions_for_base_includes_preselected(db):
     arts = {a.id: a for a in db.query(Article).all()}
     built = build_additions_for_base(links, arts, {})
     assert built[0]["preselected"] is True
+
+
+def test_replace_addition_links_persists_combine_on_kitchen_display(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0, "combine_on_kitchen_display": True}],
+    )
+    db.commit()
+    assert links[0].combine_on_kitchen_display is True
+
+
+def test_replace_addition_links_defaults_combine_on_kitchen_display_false(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0}],
+    )
+    db.commit()
+    assert links[0].combine_on_kitchen_display is False
+
+
+def test_serialize_links_for_admin_includes_combine_on_kitchen_display(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0, "combine_on_kitchen_display": True}],
+    )
+    db.commit()
+    items = serialize_links_for_admin(db, base)
+    assert len(items) == 1
+    assert items[0]["combine_on_kitchen_display"] is True
+
+
+def test_build_additions_for_base_includes_combine_on_kitchen_display(db):
+    base = db.query(Article).filter(Article.id == 10).first()
+    add = db.query(Article).filter(Article.id == 11).first()
+    links = replace_addition_links(
+        db,
+        base,
+        [{"addition_article_id": add.id, "sort_order": 0, "combine_on_kitchen_display": True}],
+    )
+    db.commit()
+    arts = {a.id: a for a in db.query(Article).all()}
+    built = build_additions_for_base(links, arts, {})
+    assert built[0]["combine_on_kitchen_display"] is True

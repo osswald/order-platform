@@ -182,6 +182,8 @@
     "statusAll": "All",
     "preselectedColumn": "Preselected on Pi",
     "preselectedHint": "Preselected additions are checked by default when ordering on Pi (can be deselected).",
+    "combineOnKitchenDisplayColumn": "Combine on kitchen display",
+    "combineOnKitchenDisplayHint": "Flagged additions appear under the parent article on the kitchen monitor instead of as their own product card.",
     "ingredientsTitle": "Ingredients",
     "ingredientsHint": "Ingredients deducted from stock when this article is sold.",
     "addIngredient": "Add ingredient",

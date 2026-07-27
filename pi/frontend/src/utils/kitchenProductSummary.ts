@@ -14,6 +14,8 @@ export interface KitchenProductRow {
   breakdown: KitchenProductBreakdown[]
   color: string | null
   sortKey: number
+  additionLabels: string[]
+  note: string
 }
 
 export interface KitchenProductSummary {
@@ -55,13 +57,19 @@ export function articleLayoutMeta(
   return { color: null, sortKey: Number.MAX_SAFE_INTEGER }
 }
 
-function articleName(
+function lookupArticle(event: EdgeBundleEvent | null | undefined, articleId: number) {
+  return event?.articles?.[String(articleId)] || event?.articles?.[articleId as unknown as string]
+}
+
+function articleDisplayName(
   articleId: number,
   event: EdgeBundleEvent | null | undefined,
   fallback?: string | null,
 ): string {
+  const article = lookupArticle(event, articleId)
+  const label = typeof article?.label === 'string' ? article.label.trim() : ''
+  if (label) return label
   if (fallback) return fallback
-  const article = event?.articles?.[String(articleId)] || event?.articles?.[articleId as unknown as string]
   return article?.name || `#${articleId}`
 }
 
@@ -70,7 +78,57 @@ function lineArticleName(
   event: EdgeBundleEvent | null | undefined,
 ): string {
   const line = entry.line as OrderLineIn & { article_name?: string }
-  return articleName(Number(line.article_id), event, line.article_name)
+  return articleDisplayName(Number(line.article_id), event, line.article_name)
+}
+
+function additionDisplayName(
+  articleId: number,
+  event: EdgeBundleEvent | null | undefined,
+  fallback?: string | null,
+): string {
+  return articleDisplayName(articleId, event, fallback)
+}
+
+function isCombineOnKitchenDisplay(
+  event: EdgeBundleEvent | null | undefined,
+  baseArticleId: number,
+  additionArticleId: number,
+): boolean {
+  const base = lookupArticle(event, baseArticleId)
+  const link = (base?.additions || []).find((a) => Number(a.article_id) === additionArticleId)
+  return Boolean(link?.combine_on_kitchen_display)
+}
+
+function flaggedAdditionsSignature(
+  additions: Array<{ article_id: number; qty?: number | null }> | null | undefined,
+  event: EdgeBundleEvent | null | undefined,
+  baseArticleId: number,
+): string {
+  const items = (additions || [])
+    .map((add) => ({
+      article_id: Number(add.article_id),
+      qty: Math.max(1, Number(add.qty) || 1),
+    }))
+    .filter((add) => Number.isFinite(add.article_id) && isCombineOnKitchenDisplay(event, baseArticleId, add.article_id))
+    .sort((a, b) => a.article_id - b.article_id || a.qty - b.qty)
+  return JSON.stringify(items)
+}
+
+function flaggedAdditionLabels(
+  additions: Array<{ article_id: number; qty?: number | null; name?: string | null }> | null | undefined,
+  event: EdgeBundleEvent | null | undefined,
+  baseArticleId: number,
+): string[] {
+  const out: string[] = []
+  for (const add of additions || []) {
+    const id = Number(add.article_id)
+    if (!Number.isFinite(id)) continue
+    if (!isCombineOnKitchenDisplay(event, baseArticleId, id)) continue
+    const qty = Math.max(1, Number(add.qty) || 1)
+    const name = additionDisplayName(id, event, add.name)
+    out.push(`+ ${qty}x ${name}`)
+  }
+  return out
 }
 
 interface AggregateBucket {
@@ -78,6 +136,8 @@ interface AggregateBucket {
   name: string
   totalQty: number
   breakdown: Map<string, KitchenProductBreakdown>
+  additionLabels: string[]
+  note: string
 }
 
 function addQty(bucket: AggregateBucket, location: string, qty: number) {
@@ -111,6 +171,8 @@ function bucketToRow(
     breakdown: sortBreakdown([...bucket.breakdown.values()]),
     color: layout.color,
     sortKey: layout.sortKey,
+    additionLabels: bucket.additionLabels,
+    note: bucket.note,
   }
 }
 
@@ -128,17 +190,21 @@ export function buildKitchenProductSummary(
   for (const ticket of orders) {
     const location = orderLocationLabel(ticket)
     for (const entry of ticket.lines || []) {
-      const line = entry.line as OrderLineIn
+      const line = entry.line as OrderLineIn & { article_name?: string; note?: string }
       const lineQty = Math.max(0, Number(entry.qty_remaining) || 0)
       if (lineQty <= 0) continue
 
       const articleId = Number(line.article_id)
-      const articleKey = String(articleId)
+      const note = String(line.note || '').trim()
+      const flaggedSig = flaggedAdditionsSignature(line.additions, event, articleId)
+      const articleKey = `${articleId}:${flaggedSig}:${note}`
       const articleBucket = articles.get(articleKey) || {
         articleId,
         name: lineArticleName(entry, event),
         totalQty: 0,
         breakdown: new Map<string, KitchenProductBreakdown>(),
+        additionLabels: flaggedAdditionLabels(line.additions, event, articleId),
+        note,
       }
       addQty(articleBucket, location, lineQty)
       articles.set(articleKey, articleBucket)
@@ -146,14 +212,17 @@ export function buildKitchenProductSummary(
       for (const add of line.additions || []) {
         const addId = Number(add.article_id)
         if (!Number.isFinite(addId)) continue
+        if (isCombineOnKitchenDisplay(event, articleId, addId)) continue
         const addQtyPerLine = Math.max(1, Number(add.qty) || 1)
         const totalAddQty = lineQty * addQtyPerLine
         const addKey = String(addId)
         const addBucket = additions.get(addKey) || {
           articleId: addId,
-          name: articleName(addId, event, add.name),
+          name: additionDisplayName(addId, event, add.name),
           totalQty: 0,
           breakdown: new Map<string, KitchenProductBreakdown>(),
+          additionLabels: [],
+          note: '',
         }
         addQty(addBucket, location, totalAddQty)
         additions.set(addKey, addBucket)

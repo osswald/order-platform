@@ -72,6 +72,7 @@ def build_additions_for_base(
                 "price": add_art.price,
                 "sort_order": link.sort_order,
                 "preselected": bool(link.preselected),
+                "combine_on_kitchen_display": bool(link.combine_on_kitchen_display),
                 **fields,
             }
         )
@@ -119,11 +120,13 @@ def replace_addition_links(db: Session, base: Article, items: list[dict]) -> lis
             raise api_error("article_not_marked_zusatz", status.HTTP_400_BAD_REQUEST, article_id=add_id)
         sort_order = int(item.get("sort_order") if item.get("sort_order") is not None else idx)
         preselected = bool(item.get("preselected", False))
+        combine_on_kitchen_display = bool(item.get("combine_on_kitchen_display", False))
         row = ArticleAdditionLink(
             base_article_id=base.id,
             addition_article_id=add_id,
             sort_order=sort_order,
             preselected=preselected,
+            combine_on_kitchen_display=combine_on_kitchen_display,
         )
         db.add(row)
         out.append(row)
@@ -155,6 +158,7 @@ def serialize_links_for_admin(db: Session, base: Article) -> list[dict[str, Any]
                 "price": a.price,
                 "sort_order": lnk.sort_order,
                 "preselected": bool(lnk.preselected),
+                "combine_on_kitchen_display": bool(lnk.combine_on_kitchen_display),
             }
         )
     return out

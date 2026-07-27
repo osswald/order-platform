@@ -4,12 +4,10 @@ defineProps<{
   eventName: string
   viewMode: 'orders' | 'products'
   loading: boolean
-  showAdditions: boolean
 }>()
 
 const emit = defineEmits<{
   setViewMode: [mode: 'orders' | 'products']
-  setShowAdditions: [value: boolean]
   refresh: []
 }>()
 </script>
@@ -22,14 +20,6 @@ const emit = defineEmits<{
     </div>
 
     <div class="kitchen-controls">
-      <label v-if="viewMode === 'products'" class="extras-toggle">
-        <input
-          type="checkbox"
-          :checked="showAdditions"
-          @change="emit('setShowAdditions', ($event.target as HTMLInputElement).checked)"
-        />
-        <span>Zusätze</span>
-      </label>
       <div class="view-toggle" role="tablist" aria-label="Ansicht">
         <button
           type="button"
@@ -92,25 +82,6 @@ const emit = defineEmits<{
   margin-left: auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.extras-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 40px;
-  padding: 0 0.55rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text);
-  font-size: 0.92rem;
-  user-select: none;
-}
-
-.extras-toggle input {
-  width: 1rem;
-  height: 1rem;
-  margin: 0;
 }
 
 .small-btn {

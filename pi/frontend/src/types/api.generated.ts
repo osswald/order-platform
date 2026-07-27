@@ -1186,6 +1186,8 @@ export interface components {
             monitor_stock?: boolean | null;
             /** Preselected */
             preselected?: boolean | null;
+            /** Combine On Kitchen Display */
+            combine_on_kitchen_display?: boolean | null;
         } & {
             [key: string]: unknown;
         };

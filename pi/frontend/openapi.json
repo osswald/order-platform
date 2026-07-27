@@ -3281,6 +3281,17 @@
               }
             ],
             "title": "Preselected"
+          },
+          "combine_on_kitchen_display": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combine On Kitchen Display"
           }
         },
         "additionalProperties": true,

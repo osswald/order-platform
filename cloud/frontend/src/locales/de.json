@@ -305,6 +305,8 @@
     "additionsHint": "Preise der Zusätze unter Artikel → Zusätze pflegen. Hier nur verknüpfen.",
     "preselectedHint": "Vorausgewählte Zusätze sind auf dem Pi beim Bestellen bereits angehakt (können abgewählt werden).",
     "preselectedColumn": "Vorauswahl Pi",
+    "combineOnKitchenDisplayColumn": "Kombinieren auf Küchendisplay",
+    "combineOnKitchenDisplayHint": "Markierte Zusätze erscheinen auf dem Küchenmonitor unter dem Hauptartikel statt als eigene Produktkarte.",
     "addAddition": "Zusatz hinzufügen",
     "selectAdditions": "Zusätze wählen",
     "noAdditionsLinked": "Keine Zusätze verknüpft.",

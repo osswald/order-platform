@@ -82,4 +82,35 @@ describe('KitchenTicketColumn', () => {
     expect(btnStyle).toContain(`width: ${kitchenTicketActionBtnStyle.width}`)
     expect(btnStyle).toContain(`min-width: ${kitchenTicketActionBtnStyle.minWidth}`)
   })
+
+  it('prefers article labels for line names', () => {
+    const wrapper = mount(KitchenTicketColumn, {
+      props: {
+        ticket: ticket({
+          lines: [
+            line({
+              line: {
+                article_id: 10,
+                qty: 1,
+                note: '',
+                article_name: 'Burger Deluxe',
+                additions: [{ article_id: 30, qty: 1, name: 'mit Salat' }],
+              } as never,
+            }),
+          ],
+        }),
+        event: {
+          articles: {
+            '10': { id: 10, name: 'Burger Deluxe', label: 'Burger', price: 12, additions: [] },
+            '30': { id: 30, name: 'mit Salat', label: 'Salat', price: 2, additions: [] },
+          },
+        } as never,
+        busy: false,
+        selectedQty: () => 0,
+      },
+    })
+    expect(wrapper.text()).toContain('Burger')
+    expect(wrapper.text()).toContain('+ 1x Salat')
+    expect(wrapper.text()).not.toContain('Burger Deluxe')
+  })
 })

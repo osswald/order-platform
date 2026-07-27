@@ -1846,6 +1846,11 @@ export interface components {
              * @default false
              */
             preselected: boolean;
+            /**
+             * Combine On Kitchen Display
+             * @default false
+             */
+            combine_on_kitchen_display: boolean;
         };
         /** ArticleAdditionsRead */
         ArticleAdditionsRead: {

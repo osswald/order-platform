@@ -201,6 +201,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE article_addition_links ADD COLUMN IF NOT EXISTS preselected BOOLEAN NOT NULL DEFAULT FALSE",
     )
     _add_column_if_missing(
+        "article_addition_links",
+        "combine_on_kitchen_display",
+        "ALTER TABLE article_addition_links ADD COLUMN combine_on_kitchen_display BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE article_addition_links ADD COLUMN IF NOT EXISTS combine_on_kitchen_display BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
         "articles",
         "import_article_number",
         "ALTER TABLE articles ADD COLUMN import_article_number VARCHAR",

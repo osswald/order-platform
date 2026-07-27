@@ -411,6 +411,7 @@ export interface AdditionLinkLocal {
   price: number
   sort_order: number
   preselected: boolean
+  combine_on_kitchen_display: boolean
 }
 
 export interface IngredientLinkLocal {
