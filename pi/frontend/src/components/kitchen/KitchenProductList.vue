@@ -117,12 +117,13 @@ function rowStyle(row: KitchenProductRow) {
 .product-additions {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  margin-top: 0.25rem;
+  gap: 0.05rem;
+  margin-top: 0.05rem;
 }
 
 .product-addition {
   font-size: 0.95rem;
+  line-height: 1.15;
   color: color-mix(in srgb, currentColor 72%, transparent);
 }
 
