@@ -83,6 +83,11 @@ dependencies {
     val stripeTerminalVersion = "5.5.1"
     implementation("com.stripe:stripeterminal-taptopay:$stripeTerminalVersion")
     implementation("com.stripe:stripeterminal-core:$stripeTerminalVersion")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
+    // Real org.json for JVM unit tests (Android stubs throw "not mocked").
+    testImplementation("org.json:json:20240303")
 }
 
 val frontendDir = rootProject.projectDir.parentFile.resolve("pi/frontend")

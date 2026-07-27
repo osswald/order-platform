@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   checkTapToPayAdminStatus,
   resetTapToPayAdminStatusCacheForTests,
+  shouldShowTapToPayEligibilityChecks,
   tapToPayAdminStatusLabel,
+  tapToPayEligibilityCheckLabel,
 } from './taptoPayStatus'
 
 describe('checkTapToPayAdminStatus', () => {
@@ -84,6 +86,48 @@ describe('checkTapToPayAdminStatus', () => {
     })
   })
 
+  it('parses eligibility checks from bridge payload', () => {
+    window.AndroidTerminal = {
+      supportsTapToPay: () =>
+        JSON.stringify({
+          ok: true,
+          supported: false,
+          code: 'unsupported',
+          error: 'NFC missing',
+          checks: [
+            { id: 'location', ok: true },
+            { id: 'nfc', ok: false, detail: 'Kein NFC' },
+            { id: 'sdk_support', ok: false, detail: 'NFC missing' },
+          ],
+        }),
+    }
+    expect(checkTapToPayAdminStatus()).toEqual({
+      code: 'unsupported',
+      detail: 'NFC missing',
+      checks: [
+        { id: 'location', ok: true },
+        { id: 'nfc', ok: false, detail: 'Kein NFC' },
+        { id: 'sdk_support', ok: false, detail: 'NFC missing' },
+      ],
+    })
+  })
+
+  it('ignores malformed checks entries', () => {
+    window.AndroidTerminal = {
+      supportsTapToPay: () =>
+        JSON.stringify({
+          ok: false,
+          code: 'location_missing',
+          error: 'Standortberechtigung für Kartenzahlung erforderlich.',
+          checks: [{ id: 'location', ok: false }, { ok: true }, null, 'x'],
+        }),
+    }
+    expect(checkTapToPayAdminStatus()).toEqual({
+      code: 'location_missing',
+      checks: [{ id: 'location', ok: false }],
+    })
+  })
+
   it('maps error for other failures', () => {
     window.AndroidTerminal = {
       supportsTapToPay: () =>
@@ -134,5 +178,61 @@ describe('tapToPayAdminStatusLabel', () => {
     expect(tapToPayAdminStatusLabel({ code: 'unsupported' })).toBe('nicht unterstützt')
     expect(tapToPayAdminStatusLabel({ code: 'error' })).toBe('Fehler')
     expect(tapToPayAdminStatusLabel({ code: 'unavailable' })).toBe('nicht verfügbar')
+  })
+})
+
+describe('shouldShowTapToPayEligibilityChecks', () => {
+  it('hides when ready with no failures', () => {
+    expect(shouldShowTapToPayEligibilityChecks({ code: 'ready' })).toBe(false)
+    expect(
+      shouldShowTapToPayEligibilityChecks({
+        code: 'ready',
+        checks: [
+          { id: 'location', ok: true },
+          { id: 'nfc', ok: true },
+        ],
+      }),
+    ).toBe(false)
+    expect(
+      shouldShowTapToPayEligibilityChecks({
+        code: 'ready_simulated',
+        checks: [{ id: 'sdk_support', ok: true }],
+      }),
+    ).toBe(false)
+  })
+
+  it('shows when any check failed', () => {
+    expect(
+      shouldShowTapToPayEligibilityChecks({
+        code: 'unsupported',
+        checks: [
+          { id: 'location', ok: true },
+          { id: 'nfc', ok: false },
+        ],
+      }),
+    ).toBe(true)
+  })
+
+  it('hides when checks missing even if not ready', () => {
+    expect(shouldShowTapToPayEligibilityChecks({ code: 'location_missing' })).toBe(false)
+    expect(shouldShowTapToPayEligibilityChecks({ code: 'unsupported', checks: [] })).toBe(false)
+  })
+})
+
+describe('tapToPayEligibilityCheckLabel', () => {
+  it('returns German labels for known ids', () => {
+    expect(tapToPayEligibilityCheckLabel('location')).toBe('Standortberechtigung')
+    expect(tapToPayEligibilityCheckLabel('android_version')).toBe('Android 13+')
+    expect(tapToPayEligibilityCheckLabel('nfc')).toBe('NFC')
+    expect(tapToPayEligibilityCheckLabel('hardware_keystore')).toBe('Hardware-Keystore')
+    expect(tapToPayEligibilityCheckLabel('gms')).toBe('Google Play / GMS')
+    expect(tapToPayEligibilityCheckLabel('security_patch')).toBe('Sicherheitsupdate')
+    expect(tapToPayEligibilityCheckLabel('developer_options')).toBe('Entwickleroptionen aus')
+    expect(tapToPayEligibilityCheckLabel('internet')).toBe('Internetverbindung')
+    expect(tapToPayEligibilityCheckLabel('sdk_support')).toBe('Stripe SDK')
+  })
+
+  it('falls back to raw id for unknown checks', () => {
+    expect(tapToPayEligibilityCheckLabel('future_check')).toBe('future_check')
   })
 })

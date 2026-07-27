@@ -86,4 +86,20 @@ describe('checkTapToPayDeviceSupport', () => {
     expect(checkTapToPayDeviceSupport(true)).toEqual({ status: 'unsupported', error: null })
     expect(supportsTapToPay).toHaveBeenCalledTimes(2)
   })
+
+  it('ignores eligibility checks array for picker enablement', () => {
+    window.AndroidTerminal = {
+      supportsTapToPay: () =>
+        JSON.stringify({
+          ok: true,
+          supported: true,
+          code: 'ready',
+          checks: [
+            { id: 'nfc', ok: false, detail: 'should not affect picker' },
+            { id: 'sdk_support', ok: true },
+          ],
+        }),
+    }
+    expect(checkTapToPayDeviceSupport()).toEqual({ status: 'supported' })
+  })
 })

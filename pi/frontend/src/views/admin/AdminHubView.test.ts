@@ -26,6 +26,20 @@ const tapToPayAdminStatusLabel = vi.fn((status: { code: string }) => {
   }
   return labels[status.code] ?? 'nicht verfügbar'
 })
+const shouldShowTapToPayEligibilityChecks = vi.fn(
+  (status: {
+    code: string
+    checks?: Array<{ id: string; ok: boolean; detail?: string | null }>
+  }) => Boolean(status.checks?.some((c) => !c.ok)),
+)
+const tapToPayEligibilityCheckLabel = vi.fn((id: string) => {
+  const labels: Record<string, string> = {
+    location: 'Standortberechtigung',
+    nfc: 'NFC',
+    sdk_support: 'Stripe SDK',
+  }
+  return labels[id] ?? id
+})
 
 vi.mock('@/api', () => ({
   api: vi.fn(),
@@ -55,6 +69,11 @@ vi.mock('@/utils/androidAppInfo', () => ({
 vi.mock('@/utils/taptoPayStatus', () => ({
   checkTapToPayAdminStatus: (force?: boolean) => checkTapToPayAdminStatus(force),
   tapToPayAdminStatusLabel: (status: { code: string }) => tapToPayAdminStatusLabel(status),
+  shouldShowTapToPayEligibilityChecks: (status: {
+    code: string
+    checks?: Array<{ id: string; ok: boolean; detail?: string | null }>
+  }) => shouldShowTapToPayEligibilityChecks(status),
+  tapToPayEligibilityCheckLabel: (id: string) => tapToPayEligibilityCheckLabel(id),
 }))
 
 import { api } from '@/api'
@@ -87,6 +106,19 @@ describe('AdminHubView', () => {
     checkTapToPayAdminStatus.mockReset()
     checkTapToPayAdminStatus.mockReturnValue({ code: 'unavailable' })
     tapToPayAdminStatusLabel.mockClear()
+    shouldShowTapToPayEligibilityChecks.mockClear()
+    shouldShowTapToPayEligibilityChecks.mockImplementation(
+      (status: { checks?: Array<{ ok: boolean }> }) => Boolean(status.checks?.some((c) => !c.ok)),
+    )
+    tapToPayEligibilityCheckLabel.mockClear()
+    tapToPayEligibilityCheckLabel.mockImplementation((id: string) => {
+      const labels: Record<string, string> = {
+        location: 'Standortberechtigung',
+        nfc: 'NFC',
+        sdk_support: 'Stripe SDK',
+      }
+      return labels[id] ?? id
+    })
     vi.mocked(api).mockImplementation(async (path: string) => {
       if (path === '/health') {
         return { status: 'ok', version: '2.0.0', build_time: '202607201100' }
@@ -187,5 +219,48 @@ describe('AdminHubView', () => {
     const wrapper = mountHub()
     await flushPromises()
     expect(wrapper.text()).toContain('Tap to Pay: Standort fehlt')
+  })
+
+  it('shows eligibility checklist when checks failed', async () => {
+    isAndroidApp.mockReturnValue(true)
+    checkTapToPayAdminStatus.mockReturnValue({
+      code: 'unsupported',
+      checks: [
+        { id: 'location', ok: true },
+        { id: 'nfc', ok: false, detail: 'Kein NFC' },
+        { id: 'sdk_support', ok: false },
+      ],
+    })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tap to Pay: nicht unterstützt')
+    expect(wrapper.text()).toContain('✓ Standortberechtigung')
+    expect(wrapper.text()).toContain('✗ NFC')
+    expect(wrapper.text()).toContain('✗ Stripe SDK')
+    expect(wrapper.find('[data-testid="taptopay-checks"]').exists()).toBe(true)
+  })
+
+  it('hides eligibility checklist when ready', async () => {
+    isAndroidApp.mockReturnValue(true)
+    checkTapToPayAdminStatus.mockReturnValue({
+      code: 'ready',
+      checks: [
+        { id: 'location', ok: true },
+        { id: 'nfc', ok: true },
+      ],
+    })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tap to Pay: bereit')
+    expect(wrapper.find('[data-testid="taptopay-checks"]').exists()).toBe(false)
+  })
+
+  it('hides eligibility checklist when checks array absent', async () => {
+    isAndroidApp.mockReturnValue(true)
+    checkTapToPayAdminStatus.mockReturnValue({ code: 'unsupported', detail: 'NFC missing' })
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tap to Pay: nicht unterstützt')
+    expect(wrapper.find('[data-testid="taptopay-checks"]').exists()).toBe(false)
   })
 })

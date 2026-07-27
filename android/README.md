@@ -135,11 +135,12 @@ The app exposes `window.AndroidTerminal` as a JavaScript bridge ([`MainActivity.
 
 Bridge methods:
 
-- `supportsTapToPay()` — Stripe Terminal `supportsReadersOfType` check; returns
-  `{ ok, supported?, code?, simulated?, error? }` with codes
-  `ready` / `ready_simulated` / `location_missing` / `unsupported` / `error`.
-  The PWA disables **Karte** when the device is unsupported, and Pi Admin shows
-  the readiness line (device-only — does not prove a payment will succeed).
+- `supportsTapToPay()` — Stripe Terminal `supportsReadersOfType` check plus local
+  eligibility probes; returns `{ ok, supported?, code?, simulated?, error?, checks? }`
+  with codes `ready` / `ready_simulated` / `location_missing` / `unsupported` /
+  `error`. `checks` is an Admin diagnostic list (`id` / `ok` / optional `detail`).
+  The PWA disables **Karte** from top-level fields only; Pi Admin shows the
+  readiness line and, when any check fails, the full pass/fail checklist.
 - `collectPayment(connectionToken, clientSecret)` — discover/connect on-device Tap to Pay reader and confirm the PaymentIntent
 
 `window.AndroidApp.getAppInfo()` returns `{ ok, versionName, versionCode }` from the APK
