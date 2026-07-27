@@ -90,6 +90,21 @@ class PaymentReceipt(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class StationPickup(Base):
+    """Per-production-station pickup code for a cash-register order."""
+
+    __tablename__ = "station_pickups"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    local_order_id = Column(Integer, nullable=False, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    station_uuid = Column(String(36), nullable=True, index=True)
+    pickup_code = Column(String(16), nullable=False, index=True)
+    pickup_status = Column(String(16), nullable=False, default="pending", index=True)
+    ready_at = Column(DateTime(timezone=True), nullable=True)
+    picked_up_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class KitchenTicket(Base):
     __tablename__ = "kitchen_tickets"
     id = Column(Integer, primary_key=True, autoincrement=True)

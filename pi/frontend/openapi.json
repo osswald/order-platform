@@ -1787,12 +1787,55 @@
         }
       }
     },
+    "/v1/pickup/pickups/{pickup_id}/picked-up": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Mark Station Pickup Picked Up Route",
+        "operationId": "mark_station_pickup_picked_up_route_v1_pickup_pickups__pickup_id__picked_up_post",
+        "parameters": [
+          {
+            "name": "pickup_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pickup Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupPickedUpResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/pickup/orders/{order_id}/picked-up": {
       "post": {
         "tags": [
           "edge"
         ],
         "summary": "Mark Pickup Order Picked Up",
+        "description": "Legacy: mark all station pickups for an order as picked up.",
         "operationId": "mark_pickup_order_picked_up_v1_pickup_orders__order_id__picked_up_post",
         "parameters": [
           {
@@ -4470,6 +4513,13 @@
             ],
             "title": "Pickup Code"
           },
+          "pickup_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pickup Codes"
+          },
           "pickup_status": {
             "anyOf": [
               {
@@ -5153,6 +5203,10 @@
       },
       "PickupOrderItem": {
         "properties": {
+          "pickup_id": {
+            "type": "integer",
+            "title": "Pickup Id"
+          },
           "local_order_id": {
             "type": "integer",
             "title": "Local Order Id"
@@ -5160,6 +5214,17 @@
           "client_order_id": {
             "type": "string",
             "title": "Client Order Id"
+          },
+          "station_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Uuid"
           },
           "pickup_code": {
             "anyOf": [
@@ -5242,6 +5307,7 @@
         "additionalProperties": true,
         "type": "object",
         "required": [
+          "pickup_id",
           "local_order_id",
           "client_order_id",
           "pickup_status",
@@ -5267,6 +5333,10 @@
       },
       "PickupPickedUpResponse": {
         "properties": {
+          "pickup_id": {
+            "type": "integer",
+            "title": "Pickup Id"
+          },
           "local_order_id": {
             "type": "integer",
             "title": "Local Order Id"
@@ -5278,6 +5348,7 @@
         },
         "type": "object",
         "required": [
+          "pickup_id",
           "local_order_id",
           "pickup_status"
         ],
@@ -5731,6 +5802,13 @@
               }
             ],
             "title": "Pickup Code"
+          },
+          "pickup_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pickup Codes"
           },
           "total_cents": {
             "type": "integer",

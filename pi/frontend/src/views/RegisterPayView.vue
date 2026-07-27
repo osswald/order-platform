@@ -29,6 +29,7 @@ import SplitPaySettleScreen, { type SettleResult } from '@/components/SplitPaySe
 
 type OrderSummary = AccountSummaryResponse & {
   pickup_code?: string | null
+  pickup_codes?: string[] | null
 }
 
 const route = useRoute()
@@ -45,8 +46,10 @@ const {
 
 const orderId = computed(() => parseInt(String(route.params.orderId), 10))
 const pickupCode = ref<string | null>(null)
+const pickupCodes = ref<string[]>([])
+const pickupLabel = computed(() => (pickupCodes.value.length ? pickupCodes.value.join(', ') : pickupCode.value))
 const headerTitle = computed(() =>
-  pickupCode.value ? `Bezahlen – Pickup ${pickupCode.value}` : 'Bezahlen',
+  pickupLabel.value ? `Bezahlen – Pickup ${pickupLabel.value}` : 'Bezahlen',
 )
 
 const paymentHooks: PickPaymentHooks = {
@@ -64,6 +67,8 @@ const paymentHooks: PickPaymentHooks = {
 async function loadSummary(): Promise<OrderSummary> {
   const data = await api<OrderSummary>(`/v1/orders/${orderId.value}/summary`)
   pickupCode.value = data.pickup_code || null
+  const codes = Array.isArray(data.pickup_codes) ? data.pickup_codes.filter(Boolean) : []
+  pickupCodes.value = codes.length ? codes.map(String) : pickupCode.value ? [pickupCode.value] : []
   syncCustomerDisplay(data)
   return data
 }
@@ -91,8 +96,8 @@ function goHub() {
 
 function onBack() {
   setDisplayIdle()
-  if (pickupCode.value) {
-    showToast(`Bestellung ${pickupCode.value} bleibt offen`, 'ok')
+  if (pickupLabel.value) {
+    showToast(`Bestellung ${pickupLabel.value} bleibt offen`, 'ok')
   }
   goHub()
 }
@@ -108,6 +113,7 @@ async function onSettled(res: SettleResult) {
   await pushDisplayPayload({
     state: 'submitted',
     pickup_code: pickupCode.value,
+    pickup_codes: pickupCodes.value,
     pickup_status: null,
     lines: [],
     total_cents: 0,
@@ -115,7 +121,7 @@ async function onSettled(res: SettleResult) {
     twint_qr_data_url: null,
     voucher_lines: [],
   } as Partial<RegisterDisplayPayload>)
-  if (pickupCode.value) showToast(`Pickup ${pickupCode.value}`, 'ok')
+  if (pickupLabel.value) showToast(`Pickup ${pickupLabel.value}`, 'ok')
   if (!register.value) {
     router.replace({ name: 'registers' })
     return

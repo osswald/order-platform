@@ -19,7 +19,7 @@ from ..domain.sessions import ensure_order_session
 from ..domain.sync_enqueue import enqueue_payload_sync, enrich_payload_for_cloud_sync, event_mode_label
 from ..instant_collective_bill import ensure_instant_collective_bill
 from ..line_moves import append_lines_to_collective, append_lines_to_table, take_from_orders
-from ..models import CollectiveBill, LocalOrder
+from ..models import CollectiveBill, LocalOrder, StationPickup
 from ..order_fiscal import (
     allocate_order_number,
     distinct_order_numbers_for_local_orders,
@@ -80,17 +80,19 @@ from .edge_common import (
     _create_kitchen_ticket,
     _create_payment_receipt,
     _create_print_job_for_lines,
+    _create_station_pickup,
     _create_voucher_print_job,
     _line_totals,
     _lines_with_station_uuid,
+    _mark_station_pickup_ready,
     _normalize_additions,
     _payment_status_for_create,
     _payments_total_cents,
     _receipt_payload_from_orders,
     _selections_total_cents_from_groups,
-    _set_pickup_ready_if_complete,
     _summary_from_orders,
     _sync_outbox_payload,
+    _sync_station_pickups_to_order,
     _validate_payment_types,
 )
 
@@ -262,11 +264,10 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     table_number_db = 0 if order_source == "cash_register" else body.table_number
     pickup_number: int | None = None
     pickup_code: str | None = None
+    pickup_codes: list[str] = []
     pickup_status: str | None = None
+    pickup_prefix = str(reg.get("pickup_code_prefix") or "").strip().upper() if order_source == "cash_register" else ""
     if order_source == "cash_register":
-        pickup_number = _allocate_pickup_number(db, body.event_id)
-        prefix = str(reg.get("pickup_code_prefix") or "").strip().upper()
-        pickup_code = f"{prefix}{pickup_number}"
         pickup_status = "pending"
     payload: dict = {
         "client_order_id": body.client_order_id,
@@ -292,9 +293,11 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             {
                 "cash_register_uuid": body.cash_register_uuid,
                 "cash_register_name": reg.get("name"),
-                "pickup_prefix": reg.get("pickup_code_prefix"),
+                "pickup_prefix": pickup_prefix,
                 "pickup_number": pickup_number,
                 "pickup_code": pickup_code,
+                "pickup_codes": pickup_codes,
+                "pickups": [],
                 "pickup_status": pickup_status,
                 # Snapshot for the pickup screen: partial settlements move lines
                 # into paid orders, so the live line list can undercount later.
@@ -389,25 +392,41 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     for station_uuid, station_lines in groups.items():
         if not station_lines:
             continue
+        station_pickup_code = pickup_code
+        if order_source == "cash_register":
+            pickup_number = _allocate_pickup_number(db, body.event_id)
+            station_pickup_code = f"{pickup_prefix}{pickup_number}"
+            pickup_codes.append(station_pickup_code)
+            if pickup_code is None:
+                pickup_code = station_pickup_code
+            _create_station_pickup(
+                db,
+                order=order,
+                event_id=body.event_id,
+                station_uuid=station_uuid,
+                pickup_code=station_pickup_code,
+                pickup_status="pending",
+            )
         order_ctx = {
             "table_number": payload.get("table_number"),
-            "pickup_code": payload.get("pickup_code"),
+            "pickup_code": station_pickup_code,
         }
         printer_groups = subgroup_lines_by_printer(ev, station_uuid, station_lines, order_ctx)
+        station_kitchen_ticket_ids: list[int] = []
         for printer_id, printer_lines in printer_groups.items():
             if not printer_lines:
                 continue
             if printer_in_kitchen_monitor(ev, printer_id) and station_uuid is not None:
-                kitchen_ticket_ids.append(
-                    _create_kitchen_ticket(
-                        db,
-                        order_id=order.id,
-                        event_id=body.event_id,
-                        station_uuid=str(station_uuid),
-                        station_lines=printer_lines,
-                        printer_appliance_id=printer_id,
-                    )
+                tid = _create_kitchen_ticket(
+                    db,
+                    order_id=order.id,
+                    event_id=body.event_id,
+                    station_uuid=str(station_uuid),
+                    station_lines=printer_lines,
+                    printer_appliance_id=printer_id,
                 )
+                kitchen_ticket_ids.append(tid)
+                station_kitchen_ticket_ids.append(tid)
             else:
                 print_job_ids.append(
                     _create_print_job_for_lines(
@@ -420,7 +439,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
                         articles=arts,
                         printer_appliance_id=printer_id,
                         table_number=payload.get("table_number"),
-                        pickup_code=payload.get("pickup_code"),
+                        pickup_code=station_pickup_code,
                     )
                 )
         if order_source == "cash_register":
@@ -434,12 +453,28 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
                     station_lines=station_lines,
                     ev=ev,
                     articles=arts,
+                    pickup_code=station_pickup_code,
                 )
             )
+            if not station_kitchen_ticket_ids:
+                row = (
+                    db.query(StationPickup)
+                    .filter(
+                        StationPickup.local_order_id == order.id,
+                        StationPickup.pickup_code == station_pickup_code,
+                    )
+                    .one()
+                )
+                _mark_station_pickup_ready(db, row)
 
-    if order_source == "cash_register" and not kitchen_ticket_ids:
-        _set_pickup_ready_if_complete(db, order)
+    if order_source == "cash_register":
+        order.pickup_code = pickup_code
+        payload["pickup_code"] = pickup_code
+        payload["pickup_codes"] = pickup_codes
+        payload["pickup_number"] = pickup_number
+        _sync_station_pickups_to_order(db, order)
         payload = json.loads(order.payload_json)
+        pickup_status = order.pickup_status
 
     if kitchen_ticket_ids:
         enqueue_kitchen_tickets_sync(db, order)
@@ -499,6 +534,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
         kitchen_ticket_ids=kitchen_ticket_ids,
         payment_status=payment_status,
         pickup_code=pickup_code,
+        pickup_codes=pickup_codes if order_source == "cash_register" else [],
         pickup_status=payload.get("pickup_status") if order_source == "cash_register" else None,
         payment_mode=(ev.get("payment_mode") or "pay_later").lower(),
         articles=stock_patch.get("articles") or {},
@@ -593,6 +629,8 @@ def get_order_summary(order_id: int, db: Session = Depends(get_db)) -> AccountSu
             "local_order_id": order.id,
             "event_id": order.event_id,
             "pickup_code": order.pickup_code or payload.get("pickup_code"),
+            "pickup_codes": payload.get("pickup_codes")
+            or ([order.pickup_code] if order.pickup_code else []),
             "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
         },
     )
@@ -799,11 +837,16 @@ def list_register_open_orders(
         payload = json.loads(o.payload_json)
         lines = payload.get("lines") or []
         total_cents, item_count = _line_totals(lines, arts, ev)
+        pickup_codes = payload.get("pickup_codes")
+        if not isinstance(pickup_codes, list) or not pickup_codes:
+            code = o.pickup_code or payload.get("pickup_code")
+            pickup_codes = [code] if code else []
         rows.append(
             RegisterOpenOrderRow(
                 local_order_id=o.id,
                 client_order_id=o.client_order_id,
-                pickup_code=o.pickup_code or payload.get("pickup_code"),
+                pickup_code=o.pickup_code or payload.get("pickup_code") or (pickup_codes[0] if pickup_codes else None),
+                pickup_codes=[str(c) for c in pickup_codes if c],
                 total_cents=total_cents,
                 item_count=item_count,
                 created_at=o.created_at.isoformat() if o.created_at else None,

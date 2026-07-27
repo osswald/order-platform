@@ -654,6 +654,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pickup/pickups/{pickup_id}/picked-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Station Pickup Picked Up Route */
+        post: operations["mark_station_pickup_picked_up_route_v1_pickup_pickups__pickup_id__picked_up_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pickup/orders/{order_id}/picked-up": {
         parameters: {
             query?: never;
@@ -663,7 +680,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark Pickup Order Picked Up */
+        /**
+         * Mark Pickup Order Picked Up
+         * @description Legacy: mark all station pickups for an order as picked up.
+         */
         post: operations["mark_pickup_order_picked_up_v1_pickup_orders__order_id__picked_up_post"];
         delete?: never;
         options?: never;
@@ -1600,6 +1620,8 @@ export interface components {
             payment_status: string;
             /** Pickup Code */
             pickup_code?: string | null;
+            /** Pickup Codes */
+            pickup_codes?: string[];
             /** Pickup Status */
             pickup_status?: string | null;
             /** Payment Mode */
@@ -1847,10 +1869,14 @@ export interface components {
         };
         /** PickupOrderItem */
         PickupOrderItem: {
+            /** Pickup Id */
+            pickup_id: number;
             /** Local Order Id */
             local_order_id: number;
             /** Client Order Id */
             client_order_id: string;
+            /** Station Uuid */
+            station_uuid?: string | null;
             /** Pickup Code */
             pickup_code?: string | null;
             /** Pickup Status */
@@ -1877,6 +1903,8 @@ export interface components {
         };
         /** PickupPickedUpResponse */
         PickupPickedUpResponse: {
+            /** Pickup Id */
+            pickup_id: number;
             /** Local Order Id */
             local_order_id: number;
             /** Pickup Status */
@@ -2033,6 +2061,8 @@ export interface components {
             client_order_id: string;
             /** Pickup Code */
             pickup_code?: string | null;
+            /** Pickup Codes */
+            pickup_codes?: string[];
             /** Total Cents */
             total_cents: number;
             /** Item Count */
@@ -3589,6 +3619,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PickupOrdersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_station_pickup_picked_up_route_v1_pickup_pickups__pickup_id__picked_up_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pickup_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupPickedUpResponse"];
                 };
             };
             /** @description Validation Error */

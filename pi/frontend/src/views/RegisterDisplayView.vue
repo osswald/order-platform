@@ -2,7 +2,7 @@
   <div class="customer-display">
     <section v-if="payload.state === 'submitted'" class="pickup-done">
       <p>Danke!</p>
-      <strong>Pickup {{ payload.pickup_code }}</strong>
+      <strong>Pickup {{ pickupCodesLabel }}</strong>
       <span>Bitte Bon mitnehmen.</span>
     </section>
 
@@ -75,6 +75,7 @@ type DisplayPayload = RegisterDisplayPayload & {
   show_twint?: boolean
   twint_qr_data_url?: string | null
   pickup_code?: string | null
+  pickup_codes?: string[] | null
   voucher_lines?: VoucherDisplayLine[]
   lines?: Array<CartLine & { display_label?: string }>
 }
@@ -91,6 +92,11 @@ const registerUuid = computed(() => String(route.params.registerUuid || ''))
 const lines = computed(() => payload.value.lines || [])
 const voucherLines = computed(() => payload.value.voucher_lines || [])
 const articles = computed(() => event.value?.articles || {})
+const pickupCodesLabel = computed(() => {
+  const codes = (payload.value.pickup_codes || []).filter(Boolean)
+  if (codes.length) return codes.join(', ')
+  return payload.value.pickup_code || ''
+})
 
 function lineKey(line: CartLine & { display_label?: string }) {
   if (line?.lineId) return line.lineId
