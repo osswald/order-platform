@@ -11,8 +11,14 @@ describe('pi frontend nginx.conf', () => {
     expect(nginxConf).toMatch(/resolver\s+127\.0\.0\.11\b/)
     expect(nginxConf).toMatch(/set\s+\$backend\s+"pi-backend:8000"/)
     expect(nginxConf).not.toMatch(/proxy_pass\s+http:\/\/pi-backend:/)
-    expect(nginxConf).toMatch(/proxy_pass\s+http:\/\/\$backend\/health;/)
-    expect(nginxConf).toMatch(/proxy_pass\s+http:\/\/\$backend\/v1\/;/)
+  })
+
+  it('passes the full request URI when proxy_pass uses a variable', () => {
+    // Variable proxy_pass with a fixed URI path (e.g. http://$backend/v1/) replaces
+    // the entire client URI with that path — /v1/sync/pull becomes /v1/ and 404s.
+    expect(nginxConf).toMatch(/proxy_pass\s+http:\/\/\$backend\$request_uri;/)
+    expect(nginxConf).not.toMatch(/proxy_pass\s+http:\/\/\$backend\/v1\/;/)
+    expect(nginxConf).not.toMatch(/proxy_pass\s+http:\/\/\$backend\/health;/)
   })
 
   it('still serves the SPA from / and proxies API/health paths', () => {
