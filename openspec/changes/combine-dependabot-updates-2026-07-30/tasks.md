@@ -1,7 +1,7 @@
 ## 1. Branch and inventory
 
-- [ ] 1.1 Confirm branch is cut from latest `main` (`cursor/combine-dependabot-updates-2026-07-30-2e77` or equivalent)
-- [ ] 1.2 Confirm open Dependabot set is still #231–#236 and no conflicting migration PR blocks them
+- [x] 1.1 Confirm branch is cut from latest `main` (`cursor/combine-dependabot-updates-2026-07-30-2e77` or equivalent)
+- [x] 1.2 Confirm open Dependabot set is still #231–#236 and no conflicting migration PR blocks them
 
 ## 2. Apply dependency bumps
 
