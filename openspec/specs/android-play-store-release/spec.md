@@ -54,3 +54,19 @@ The Play Store release build SHALL NOT override `VITE_API_BASE` at build time; t
 
 - **WHEN** a venue waiter installs the app from Play Store and opens it on the venue LAN
 - **THEN** the app SHALL attempt to reach the Pi at the default LAN API base without requiring a separate review-only build flavor
+
+### Requirement: Play release targets API level 36
+
+The Waiter Android app release build submitted to Google Play SHALL set both `compileSdk` and `targetSdk` to Android API level 36 (Android 16) or higher so new app updates meet Google Play’s target API level policy for phone and tablet form factors.
+
+#### Scenario: Release Gradle config meets Play target
+
+- **WHEN** `android/app/build.gradle.kts` is used to produce a Play release AAB
+- **THEN** `compileSdk` SHALL be 36 or higher
+- **AND** `targetSdk` SHALL be 36 or higher
+
+#### Scenario: Existing minSdk unchanged by this policy
+
+- **WHEN** the Play target API level is raised to 36
+- **THEN** `minSdk` MAY remain at its existing Tap to Pay–compatible value (33)
+- **AND** raising `minSdk` is not required for Play target-API compliance
