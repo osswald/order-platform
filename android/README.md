@@ -2,7 +2,7 @@
 
 Native Android WebView wrapper for [`pi/frontend`](../pi/frontend).
 
-- Requires **Android 12+** (`minSdk 31`).
+- Requires **Android 13+** (`minSdk 33`).
 - Bundles the Vue frontend into the APK via Gradle (`copyPiFrontendAssets`).
 - Default Pi API URL: **`http://192.168.192.10`** (production Pi nginx on port 80; override at build or in Admin).
 - Exposes `window.AndroidPrinter` for paired Bluetooth Classic ESC/POS printers.
@@ -12,7 +12,7 @@ Native Android WebView wrapper for [`pi/frontend`](../pi/frontend).
 ## Prerequisites
 
 - **JDK 17** (required by Gradle 9)
-- **Android SDK** with API 35 (Android Studio recommended)
+- **Android SDK** with API 36 (Android Studio recommended)
 - **Node.js + npm** (frontend is built during Gradle `preBuild`)
 - Pi reachable on the LAN at **`http://192.168.192.10`** (same Wi‑Fi/VLAN as the phone)
 
