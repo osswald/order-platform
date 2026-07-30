@@ -223,6 +223,8 @@ class ApplianceEdgeCredential(Base):
     status = Column(String(32), nullable=False, default="active")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    reported_app_version = Column(String(64), nullable=True)
+    reported_app_build_time = Column(String(64), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     appliance = relationship("Appliance", back_populates="edge_credentials")
 

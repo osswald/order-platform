@@ -49,9 +49,40 @@ def test_fetch_bundle_uses_edge_headers(monkeypatch, tmp_path):
             request = httpx.Request("GET", url)
             return httpx.Response(200, request=request, json={"events": []})
 
+    monkeypatch.setenv("APP_VERSION", "1.5.10")
+    monkeypatch.setenv("APP_BUILD_TIME", "202607201045")
     monkeypatch.setattr("app.cloud_client.httpx.AsyncClient", FakeAsyncClient)
     data = asyncio.run(fetch_bundle())
     assert data == {"events": []}
     assert captured["url"].endswith("/edge/v1/bundle")
     assert captured["headers"]["X-Edge-Client-Id"] == "cid-1"
     assert captured["headers"]["X-Edge-Secret"] == "sec-1"
+    assert captured["headers"]["X-Edge-App-Version"] == "1.5.10"
+    assert captured["headers"]["X-Edge-App-Build-Time"] == "202607201045"
+
+
+def test_fetch_bundle_omits_build_time_header_when_unset(monkeypatch, tmp_path):
+    _write_edge_env(tmp_path, monkeypatch)
+    captured: dict = {}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, url, headers=None, params=None):
+            captured["headers"] = headers or {}
+            request = httpx.Request("GET", url)
+            return httpx.Response(200, request=request, json={"events": []})
+
+    monkeypatch.setenv("APP_VERSION", "2.0.0")
+    monkeypatch.delenv("APP_BUILD_TIME", raising=False)
+    monkeypatch.setattr("app.cloud_client.httpx.AsyncClient", FakeAsyncClient)
+    asyncio.run(fetch_bundle())
+    assert captured["headers"]["X-Edge-App-Version"] == "2.0.0"
+    assert "X-Edge-App-Build-Time" not in captured["headers"]

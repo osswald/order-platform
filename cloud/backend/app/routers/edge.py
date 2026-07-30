@@ -70,10 +70,24 @@ class ApplianceEdgeContext:
         self.edge_credential = edge_credential
 
 
+_EDGE_APP_VERSION_MAX_LEN = 64
+
+
+def _normalize_edge_app_version_header(value: str | None) -> str | None:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed or len(trimmed) > _EDGE_APP_VERSION_MAX_LEN:
+        return None
+    return trimmed
+
+
 def get_edge_server_appliance(
     db: Session = Depends(get_db),
     x_edge_client_id: str | None = Header(None, alias="X-Edge-Client-Id"),
     x_edge_secret: str | None = Header(None, alias="X-Edge-Secret"),
+    x_edge_app_version: str | None = Header(None, alias="X-Edge-App-Version"),
+    x_edge_app_build_time: str | None = Header(None, alias="X-Edge-App-Build-Time"),
 ) -> ApplianceEdgeContext:
     if not x_edge_client_id or not x_edge_secret:
         raise api_error("missing_edge_headers", status.HTTP_401_UNAUTHORIZED)
@@ -113,6 +127,12 @@ def get_edge_server_appliance(
         raise api_error("lending_org_mismatch", status.HTTP_403_FORBIDDEN)
     if edge_credential is not None:
         edge_credential.last_seen_at = datetime.now(UTC)
+        reported_version = _normalize_edge_app_version_header(x_edge_app_version)
+        if reported_version is not None:
+            edge_credential.reported_app_version = reported_version
+            edge_credential.reported_app_build_time = _normalize_edge_app_version_header(
+                x_edge_app_build_time
+            )
         commit_or_raise(db)
     return ApplianceEdgeContext(appliance, lending.organisation_id, edge_credential=edge_credential)
 

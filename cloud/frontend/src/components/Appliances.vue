@@ -125,6 +125,9 @@
                 </v-chip>
               </template>
               <template #item.last_seen_at="{ item }">{{ formatDeDateTime(item.last_seen_at) }}</template>
+              <template #item.reported_app_version="{ item }">
+                {{ formatReportedAppVersion(item.reported_app_version, item.reported_app_build_time, t('common.emDash')) }}
+              </template>
               <template #item.actions="{ item }">
                 <v-btn
                   v-if="item.status === 'active'"
@@ -372,6 +375,7 @@ import { useListDetailRouting } from '../composables/useListDetailRouting'
 import { useClientPagination } from '../composables/useClientPagination'
 import VqDataTable from './VqDataTable.vue'
 import { formatDate, formatDateTime } from '../utils/localeFormat'
+import { formatReportedAppVersion } from '../utils/formatReportedAppVersion'
 import { currentLocale } from '../i18n'
 import type {
   ApplianceRead,
@@ -421,6 +425,7 @@ const edgeCredentialsHeaders = computed((): DataTableHeader[] => [
   { title: t('appliances.table.clientId'), key: 'edge_client_id', sortable: false },
   { title: t('appliances.table.status'), key: 'status', sortable: false },
   { title: t('appliances.table.lastSeen'), key: 'last_seen_at', sortable: false },
+  { title: t('appliances.table.version'), key: 'reported_app_version', sortable: false },
   { title: t('appliances.table.action'), key: 'actions', sortable: false, align: 'end' },
 ])
 

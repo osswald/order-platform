@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 
 from .edge_config import read_edge_config
+from .version_info import get_app_version, get_build_time
 
 
 class CloudConfigError(Exception):
@@ -41,10 +42,15 @@ def _require_config() -> tuple[str, str, str]:
 
 
 def _headers(client_id: str, secret: str) -> dict[str, str]:
-    return {
+    headers = {
         "X-Edge-Client-Id": client_id,
         "X-Edge-Secret": secret,
+        "X-Edge-App-Version": get_app_version(),
     }
+    build_time = get_build_time()
+    if build_time:
+        headers["X-Edge-App-Build-Time"] = build_time
+    return headers
 
 
 async def fetch_bundle() -> dict[str, Any]:

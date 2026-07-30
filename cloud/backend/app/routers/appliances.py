@@ -108,6 +108,8 @@ class ApplianceEdgeCredentialRead(BaseModel):
     status: str
     created_at: datetime | None = None
     last_seen_at: datetime | None = None
+    reported_app_version: str | None = None
+    reported_app_build_time: str | None = None
     revoked_at: datetime | None = None
 
 
@@ -222,6 +224,8 @@ def _appliance_to_read(
                 status=row.status,
                 created_at=row.created_at,
                 last_seen_at=row.last_seen_at,
+                reported_app_version=row.reported_app_version,
+                reported_app_build_time=row.reported_app_build_time,
                 revoked_at=row.revoked_at,
             )
             for row in rows

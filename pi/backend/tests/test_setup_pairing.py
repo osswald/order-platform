@@ -77,6 +77,7 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
             assert headers == {
                 "X-Edge-Client-Id": "client-123",
                 "X-Edge-Secret": "secret-456",
+                "X-Edge-App-Version": "0.0.0-dev",
             }
             return FakeResponse(cloud_bundle)
 

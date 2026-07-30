@@ -1716,6 +1716,10 @@ export interface components {
             created_at?: string | null;
             /** Last Seen At */
             last_seen_at?: string | null;
+            /** Reported App Version */
+            reported_app_version?: string | null;
+            /** Reported App Build Time */
+            reported_app_build_time?: string | null;
             /** Revoked At */
             revoked_at?: string | null;
         };
@@ -9478,6 +9482,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9512,6 +9518,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9544,6 +9552,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9576,6 +9586,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9612,6 +9624,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9773,6 +9787,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9809,6 +9825,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -9847,6 +9865,8 @@ export interface operations {
             header?: {
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
             };
             path: {
                 payment_intent_id: string;

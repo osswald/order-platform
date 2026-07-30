@@ -292,6 +292,18 @@ def apply_schema_patches() -> None:
     _backfill_kitchen_monitors_from_stations()
     _ensure_appliance_pairing_sessions_table()
     _ensure_appliance_edge_credentials_table()
+    _add_column_if_missing(
+        "appliance_edge_credentials",
+        "reported_app_version",
+        "ALTER TABLE appliance_edge_credentials ADD COLUMN reported_app_version VARCHAR(64)",
+        "ALTER TABLE appliance_edge_credentials ADD COLUMN IF NOT EXISTS reported_app_version VARCHAR(64)",
+    )
+    _add_column_if_missing(
+        "appliance_edge_credentials",
+        "reported_app_build_time",
+        "ALTER TABLE appliance_edge_credentials ADD COLUMN reported_app_build_time VARCHAR(64)",
+        "ALTER TABLE appliance_edge_credentials ADD COLUMN IF NOT EXISTS reported_app_build_time VARCHAR(64)",
+    )
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
     _patch_organisation_stripe_connect()

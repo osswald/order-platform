@@ -1214,6 +1214,7 @@
       "sdCard": "SD-Karte",
       "clientId": "Client-ID",
       "lastSeen": "Zuletzt online",
+      "version": "Version",
       "action": "Aktion",
       "from": "Von",
       "to": "Bis"
