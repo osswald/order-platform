@@ -27,4 +27,4 @@
 
 - [x] 4.1 Push branch and open PR titled to combine Dependabot updates, referencing #214–#220 — #222
 - [x] 4.2 On each Dependabot PR (#214–#220), comment `Superseded by #222 — combining with …` and close without merge
-- [ ] 4.3 Merge combined PR after CI passes — CI green on #222; awaiting maintainer merge
+- [x] 4.3 Merge combined PR after CI passes — #222 merged 2026-07-26
