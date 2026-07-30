@@ -8666,6 +8666,38 @@
               ],
               "title": "X-Edge-Secret"
             }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
+            }
           }
         ],
         "responses": {
@@ -8748,6 +8780,38 @@
               ],
               "title": "X-Edge-Secret"
             }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
+            }
           }
         ],
         "responses": {
@@ -8810,6 +8874,38 @@
                 }
               ],
               "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
             }
           }
         ],
@@ -8875,6 +8971,38 @@
                 }
               ],
               "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
             }
           }
         ],
@@ -8950,6 +9078,38 @@
                 }
               ],
               "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
             }
           }
         ],
@@ -9250,6 +9410,38 @@
               ],
               "title": "X-Edge-Secret"
             }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
+            }
           }
         ],
         "requestBody": {
@@ -9324,6 +9516,38 @@
                 }
               ],
               "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
             }
           }
         ],
@@ -9417,6 +9641,38 @@
                 }
               ],
               "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
             }
           }
         ],
@@ -9790,6 +10046,28 @@
               }
             ],
             "title": "Last Seen At"
+          },
+          "reported_app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported App Version"
+          },
+          "reported_app_build_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported App Build Time"
           },
           "revoked_at": {
             "anyOf": [
