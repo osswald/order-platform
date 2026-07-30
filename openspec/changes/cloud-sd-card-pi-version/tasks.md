@@ -16,9 +16,9 @@
 
 - [x] 3.1 Write failing frontend test(s) for SD-card table Version column (reported value vs empty)
 - [x] 3.2 Add Version column + i18n (de/en); format `v{version}` with optional build time
-- [ ] 3.3 Run cloud frontend tests / typecheck for touched areas
+- [x] 3.3 Run cloud frontend tests / typecheck for touched areas
 
 ## 4. Verify
 
-- [ ] 4.1 Run `./scripts/lint.sh` (or `--staged`) on changed areas
-- [ ] 4.2 Confirm no `VERSION` bump in the feature PR
+- [x] 4.1 Run `./scripts/lint.sh` (or `--staged`) on changed areas
+- [x] 4.2 Confirm no `VERSION` bump in the feature PR
