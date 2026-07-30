@@ -23,12 +23,12 @@ val appVersionCode = appVersion.split(".").let { parts ->
 
 android {
     namespace = "ch.vendiqo.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "ch.vendiqo.app"
         minSdk = 33
-        targetSdk = 35
+        targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersion
     }
@@ -80,7 +80,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.webkit:webkit:1.12.1")
-    val stripeTerminalVersion = "5.5.1"
+    val stripeTerminalVersion = "5.7.0"
     implementation("com.stripe:stripeterminal-taptopay:$stripeTerminalVersion")
     implementation("com.stripe:stripeterminal-core:$stripeTerminalVersion")
 

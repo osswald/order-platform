@@ -221,9 +221,11 @@ or:
 ```
 
 Implementation: `android/app/.../StripeTerminalBridge.kt` with
-`stripeterminal-taptopay` + `stripeterminal-core` (see `app/build.gradle.kts`).
-`minSdk` is 33 for Tap to Pay. Location permission is required for both support
-check and collect. Debug builds use simulated Tap to Pay discovery for both.
+`stripeterminal-taptopay` + `stripeterminal-core` **5.7.0** (see `app/build.gradle.kts`).
+`compileSdk` / `targetSdk` are 36 (Play target API). `minSdk` is 33 for Tap to Pay.
+`Terminal.init` uses `LocaleConfig.CardLanguagePreferenceIfAvailable`.
+Location permission is required for both support check and collect. Debug builds
+use simulated Tap to Pay discovery for both.
 
 ## Required configuration
 

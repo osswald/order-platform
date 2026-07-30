@@ -26,6 +26,7 @@ import com.stripe.stripeterminal.external.models.DeviceType
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration
 import com.stripe.stripeterminal.external.models.PaymentIntent
 import com.stripe.stripeterminal.external.models.Reader
+import com.stripe.stripeterminal.external.models.TapUseCase
 import com.stripe.stripeterminal.external.models.TerminalException
 import com.stripe.stripeterminal.log.LogLevel
 import org.json.JSONObject
@@ -227,6 +228,7 @@ class StripeTerminalBridge(private val activity: Activity) {
                     tokenProvider,
                     TerminalListenerAdapter(),
                     null,
+                    TerminalLocaleConfig.forInit(),
                 )
             } catch (e: TerminalException) {
                 err.set(e)
@@ -296,7 +298,7 @@ class StripeTerminalBridge(private val activity: Activity) {
             ?: throw IllegalStateException("Tap-to-Pay-Lesegerät ohne Standort-ID.")
         val config =
             ConnectionConfiguration.TapToPayConnectionConfiguration(
-                locationId = locationId,
+                useCase = TapUseCase.Pay(locationId = locationId),
                 autoReconnectOnUnexpectedDisconnect = true,
                 tapToPayReaderListener = object : TapToPayReaderListener {},
             )
