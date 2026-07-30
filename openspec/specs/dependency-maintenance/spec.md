@@ -79,3 +79,11 @@ When Dependabot opens one grouped pull request per ecosystem directory in the sa
 - **WHEN** a grouped Dependabot PR includes a major bump limited to developer tooling (for example root ESLint 10)
 - **THEN** the major is included in the same combined batch when `./scripts/lint.sh` (or equivalent) can be made green with config/peer fixes
 - **AND** if the major cannot be landed, the PR is closed with an ignore instruction or `dependabot.yml` `ignore:` rule and a written peer/compat reason (not silently left open)
+
+### Requirement: FastAPI minor bumps stay aligned across uv apps
+When a weekly Dependabot window bumps FastAPI in more than one of cloud backend, pi backend, and hosted-pi-manager, the combined maintainer PR MUST land the same FastAPI version in all three `uv.lock` files (and any corresponding lock refresh for hosted-pi-manager).
+
+#### Scenario: Three uv apps share a FastAPI target
+- **WHEN** open Dependabot PRs propose the same FastAPI minor/patch for `/cloud/backend`, `/pi/backend`, and `/cloud/hosted-pi-manager` in one weekly window
+- **THEN** the combined PR upgrades all three locks to that FastAPI version together
+- **AND** the combined PR is not split so that one uv app remains on the previous FastAPI version
