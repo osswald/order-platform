@@ -37,6 +37,40 @@ def test_apply_schema_patches_drops_legacy_event_currency_column():
     assert "currency" not in inspector_cols
 
 
+def test_apply_schema_patches_does_not_readd_legacy_income_account(monkeypatch):
+    """Regression: re-adding then dropping income_account each boot burns PG's 1600-col limit."""
+    import app.database as database
+
+    added: list[tuple[str, str]] = []
+    real_add = database._add_column_if_missing
+
+    def _spy(table: str, column: str, ddl_sqlite: str, ddl_other: str) -> None:
+        added.append((table, column))
+        real_add(table, column, ddl_sqlite, ddl_other)
+
+    monkeypatch.setattr(database, "_add_column_if_missing", _spy)
+    apply_schema_patches()
+
+    assert ("articles", "income_account") not in added
+    cols = {c["name"] for c in inspect(engine).get_columns("articles")}
+    assert "income_account" not in cols
+    assert "accounting_account_id" in cols
+
+
+def test_apply_schema_patches_drops_legacy_income_account():
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE articles ADD COLUMN income_account INTEGER"))
+
+    apply_schema_patches()
+    cols = {c["name"] for c in inspect(engine).get_columns("articles")}
+    assert "income_account" not in cols
+    assert "accounting_account_id" in cols
+
+    apply_schema_patches()
+    cols = {c["name"] for c in inspect(engine).get_columns("articles")}
+    assert "income_account" not in cols
+
+
 def test_create_event_after_legacy_currency_column_removed():
     with engine.begin() as conn:
         conn.execute(
