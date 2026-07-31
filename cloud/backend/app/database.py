@@ -224,12 +224,9 @@ def apply_schema_patches() -> None:
         "ALTER TABLE articles ADD COLUMN unit VARCHAR",
         "ALTER TABLE articles ADD COLUMN IF NOT EXISTS unit VARCHAR",
     )
-    _add_column_if_missing(
-        "articles",
-        "income_account",
-        "ALTER TABLE articles ADD COLUMN income_account INTEGER",
-        "ALTER TABLE articles ADD COLUMN IF NOT EXISTS income_account INTEGER",
-    )
+    # Do not re-add legacy articles.income_account: it is dropped below in favour of
+    # accounting_account_id. Add+drop each boot leaves dropped PG attrs that count
+    # toward the 1600-column limit until VACUUM FULL.
     _add_column_if_missing(
         "event_article_stock",
         "baseline_in_stock",
