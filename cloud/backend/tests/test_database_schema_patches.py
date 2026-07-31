@@ -274,3 +274,119 @@ def test_run_migrations_applies_fresh_database_from_scratch():
 
     assert _alembic_current_revision() == "008_edge_credential_reported_app_version"
     assert "users" in inspect(engine).get_table_names()
+
+
+def test_alembic_revision_ids_fit_version_num_column():
+    """Alembic's default version_num is VARCHAR(32); we widen to 64 — keep ids within that."""
+    from pathlib import Path
+
+    from app.database import ALEMBIC_VERSION_NUM_MAX_LEN
+
+    versions_dir = Path(__file__).resolve().parents[1] / "alembic" / "versions"
+    too_long: list[str] = []
+    for path in sorted(versions_dir.glob("*.py")):
+        namespace: dict[str, object] = {}
+        exec(path.read_text(encoding="utf-8"), namespace)
+        revision = namespace.get("revision")
+        if not isinstance(revision, str):
+            continue
+        if len(revision) > ALEMBIC_VERSION_NUM_MAX_LEN:
+            too_long.append(f"{path.name}: {revision!r} ({len(revision)})")
+    assert not too_long, "revision id(s) exceed alembic_version.version_num capacity:\n" + "\n".join(
+        too_long
+    )
+
+
+def test_ensure_alembic_version_num_capacity_stores_long_revision():
+    from app.database import (
+        ALEMBIC_VERSION_NUM_MAX_LEN,
+        _ensure_alembic_version_num_capacity,
+    )
+
+    long_rev = "008_edge_credential_reported_app_version"
+    assert len(long_rev) > 32
+    assert len(long_rev) <= ALEMBIC_VERSION_NUM_MAX_LEN
+
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+
+    _ensure_alembic_version_num_capacity()
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO alembic_version (version_num) VALUES (:v)"),
+            {"v": long_rev},
+        )
+        row = conn.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+    assert row is not None
+    assert row[0] == long_rev
+
+
+def test_ensure_alembic_version_num_capacity_widens_existing_narrow_column(monkeypatch):
+    """Postgres path must ALTER a legacy VARCHAR(32) version_num before long revision ids."""
+    from app.database import _ensure_alembic_version_num_capacity
+
+    executed: list[str] = []
+
+    class _FakeDialect:
+        name = "postgresql"
+
+    class _FakeResult:
+        def fetchone(self):
+            return ("32",)
+
+    class _FakeConn:
+        def execute(self, stmt, *args, **kwargs):
+            executed.append(str(stmt))
+            sql = str(stmt).lower()
+            if "character_maximum_length" in sql or "information_schema" in sql:
+                return _FakeResult()
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    class _FakeEngine:
+        dialect = _FakeDialect()
+
+        def begin(self):
+            return _FakeConn()
+
+    monkeypatch.setattr("app.database.engine", _FakeEngine())
+    monkeypatch.setattr(
+        "app.database.inspect",
+        lambda _engine: type("I", (), {"get_table_names": lambda self: ["alembic_version"]})(),
+    )
+
+    _ensure_alembic_version_num_capacity()
+
+    assert any("ALTER TABLE alembic_version" in s and "VARCHAR(64)" in s for s in executed)
+
+
+def test_run_migrations_ensures_version_num_capacity_before_upgrade(monkeypatch):
+    import alembic.command as alembic_command
+    from app.database import run_migrations
+
+    calls: list[str] = []
+
+    monkeypatch.setattr("app.database._database_pre_alembic", lambda: False)
+    monkeypatch.setattr(
+        "app.database._ensure_alembic_version_num_capacity",
+        lambda: calls.append("ensure"),
+    )
+    monkeypatch.setattr(
+        alembic_command,
+        "upgrade",
+        lambda *_a, **_k: calls.append("upgrade"),
+    )
+    monkeypatch.setattr(
+        "app.database.Base.metadata.create_all",
+        lambda **_k: calls.append("create_all"),
+    )
+
+    run_migrations()
+
+    assert calls[:2] == ["ensure", "upgrade"]

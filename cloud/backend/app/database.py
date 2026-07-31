@@ -1378,12 +1378,64 @@ def _alembic_config():
     return cfg
 
 
+# Alembic creates version_num as VARCHAR(32) by default; several of our revision ids are longer.
+ALEMBIC_VERSION_NUM_MAX_LEN = 64
+
+
+def _ensure_alembic_version_num_capacity() -> None:
+    """Ensure alembic_version.version_num can store long revision ids before upgrade runs.
+
+    Without this, upgrades fail when writing ids longer than VARCHAR(32), e.g.
+    ``008_edge_credential_reported_app_version`` (40 chars), after DDL already ran —
+    leaving the process crash-looping on boot.
+    """
+    try:
+        inspector = inspect(engine)
+        table_names = inspector.get_table_names()
+    except Exception:
+        return
+
+    is_sqlite = engine.dialect.name == "sqlite"
+    with engine.begin() as conn:
+        if "alembic_version" not in table_names:
+            # Pre-create with a wide column so Alembic does not install VARCHAR(32).
+            conn.execute(
+                text(
+                    "CREATE TABLE alembic_version ("
+                    f"version_num VARCHAR({ALEMBIC_VERSION_NUM_MAX_LEN}) NOT NULL PRIMARY KEY)"
+                )
+            )
+            return
+
+        if is_sqlite:
+            # SQLite does not enforce VARCHAR length; nothing to widen.
+            return
+
+        row = conn.execute(
+            text(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                "WHERE table_schema = current_schema() "
+                "AND table_name = 'alembic_version' AND column_name = 'version_num'"
+            )
+        ).fetchone()
+        current_len = int(row[0]) if row and row[0] is not None else None
+        if current_len is not None and current_len >= ALEMBIC_VERSION_NUM_MAX_LEN:
+            return
+        conn.execute(
+            text(
+                "ALTER TABLE alembic_version "
+                f"ALTER COLUMN version_num TYPE VARCHAR({ALEMBIC_VERSION_NUM_MAX_LEN})"
+            )
+        )
+
+
 def run_migrations() -> None:
     """Apply cloud Alembic migrations; fallback to metadata create_all only in development."""
     from alembic import command
 
     cfg = _alembic_config()
     try:
+        _ensure_alembic_version_num_capacity()
         if _database_pre_alembic():
             log.warning("Pre-Alembic database detected; stamping head before upgrade")
             command.stamp(cfg, "head")
