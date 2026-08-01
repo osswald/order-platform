@@ -1872,145 +1872,6 @@
         }
       }
     },
-    "/v1/terminal/connection-token": {
-      "post": {
-        "tags": [
-          "edge"
-        ],
-        "summary": "Terminal Connection Token",
-        "operationId": "terminal_connection_token_v1_terminal_connection_token_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TerminalConnectionTokenBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Terminal Connection Token V1 Terminal Connection Token Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/terminal/payment-intents": {
-      "post": {
-        "tags": [
-          "edge"
-        ],
-        "summary": "Terminal Payment Intent",
-        "operationId": "terminal_payment_intent_v1_terminal_payment_intents_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TerminalPaymentIntentBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Terminal Payment Intent V1 Terminal Payment Intents Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/terminal/payment-intents/{payment_intent_id}": {
-      "get": {
-        "tags": [
-          "edge"
-        ],
-        "summary": "Terminal Payment Intent Status",
-        "operationId": "terminal_payment_intent_status_v1_terminal_payment_intents__payment_intent_id__get",
-        "parameters": [
-          {
-            "name": "payment_intent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Payment Intent Id"
-            }
-          },
-          {
-            "name": "event_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Event Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Terminal Payment Intent Status V1 Terminal Payment Intents  Payment Intent Id  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/registers/{cash_register_uuid}/display": {
       "get": {
         "tags": [
@@ -2276,6 +2137,147 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentReceiptPrintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sumup/checkout": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Sumup Checkout",
+        "operationId": "sumup_checkout_v1_sumup_checkout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupCheckoutBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Sumup Checkout V1 Sumup Checkout Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sumup/terminate": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Sumup Terminate",
+        "operationId": "sumup_terminate_v1_sumup_terminate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupTerminateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Sumup Terminate V1 Sumup Terminate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sumup/status": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Sumup Status",
+        "operationId": "sumup_status_v1_sumup_status_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "checkout_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Checkout Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Sumup Status V1 Sumup Status Get"
                 }
               }
             }
@@ -3438,6 +3440,13 @@
             },
             "type": "array",
             "title": "Admin Pin Hashes"
+          },
+          "sumup_readers": {
+            "items": {
+              "$ref": "#/components/schemas/EdgeBundleSumupReader"
+            },
+            "type": "array",
+            "title": "Sumup Readers"
           }
         },
         "additionalProperties": true,
@@ -3608,6 +3617,25 @@
           "name"
         ],
         "title": "EdgeBundleIngredient"
+      },
+      "EdgeBundleSumupReader": {
+        "properties": {
+          "sumup_reader_id": {
+            "type": "string",
+            "title": "Sumup Reader Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sumup_reader_id",
+          "label"
+        ],
+        "title": "EdgeBundleSumupReader"
       },
       "EdgeEventConfiguration": {
         "properties": {
@@ -6304,6 +6332,77 @@
         "type": "object",
         "title": "StockValidateOrderResponse"
       },
+      "SumupCheckoutBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Cents"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "reader_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Reader Id"
+          },
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "amount_cents",
+          "reader_id"
+        ],
+        "title": "SumupCheckoutBody"
+      },
+      "SumupTerminateBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "reader_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Reader Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "reader_id"
+        ],
+        "title": "SumupTerminateBody"
+      },
       "SyncMetaResponse": {
         "properties": {
           "last_sync_at": {
@@ -6537,82 +6636,6 @@
           "table_number"
         ],
         "title": "TableSettleResponse"
-      },
-      "TerminalConnectionTokenBody": {
-        "properties": {
-          "event_id": {
-            "type": "integer",
-            "title": "Event Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "event_id"
-        ],
-        "title": "TerminalConnectionTokenBody"
-      },
-      "TerminalPaymentIntentBody": {
-        "properties": {
-          "event_id": {
-            "type": "integer",
-            "title": "Event Id"
-          },
-          "amount_cents": {
-            "type": "integer",
-            "exclusiveMinimum": 0.0,
-            "title": "Amount Cents"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 3,
-                "minLength": 3
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "client_order_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Order Id"
-          },
-          "idempotency_key": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 255
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Idempotency Key"
-          },
-          "metadata": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Metadata"
-          }
-        },
-        "type": "object",
-        "required": [
-          "event_id",
-          "amount_cents"
-        ],
-        "title": "TerminalPaymentIntentBody"
       },
       "TransferLinesBody": {
         "properties": {

@@ -9284,21 +9284,65 @@
           {
             "name": "code",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
-              "minLength": 1,
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Code"
             }
           },
           {
             "name": "state",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
-              "minLength": 1,
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "State"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Description"
             }
           }
         ],
@@ -18010,7 +18054,7 @@
         "properties": {
           "pairing_code": {
             "type": "string",
-            "maxLength": 9,
+            "maxLength": 20,
             "minLength": 8,
             "title": "Pairing Code"
           },
