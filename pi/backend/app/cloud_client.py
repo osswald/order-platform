@@ -130,7 +130,7 @@ async def fetch_operational_snapshot(*, event_id: int | None = None) -> dict[str
 
 
 async def ping_cloud_reachable() -> tuple[bool, str | None]:
-    """Return whether the Pi can reach the cloud API (for Terminal gating)."""
+    """Return whether the Pi can reach the cloud API."""
     try:
         base, _, _ = _require_config()
     except CloudConfigError:
@@ -146,49 +146,50 @@ async def ping_cloud_reachable() -> tuple[bool, str | None]:
         return False, str(exc)[:200]
 
 
-async def create_terminal_connection_token(event_id: int) -> dict[str, Any]:
-    base, cid, secret = _require_config()
-    url = f"{base}/edge/v1/terminal/connection-token"
-    body = {"event_id": event_id}
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
-        r.raise_for_status()
-        return r.json()
-
-
-async def create_terminal_payment_intent(
+async def create_sumup_checkout(
     *,
     event_id: int,
     amount_cents: int,
     currency: str | None = None,
+    reader_id: str,
     client_order_id: str | None = None,
-    idempotency_key: str | None = None,
-    metadata: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     base, cid, secret = _require_config()
-    url = f"{base}/edge/v1/terminal/payment-intents"
+    url = f"{base}/edge/v1/sumup/checkout"
     body: dict[str, Any] = {
         "event_id": event_id,
         "amount_cents": amount_cents,
-        "metadata": metadata or {},
+        "reader_id": reader_id,
     }
     if currency:
         body["currency"] = currency
     if client_order_id:
         body["client_order_id"] = client_order_id
-    if idempotency_key:
-        body["idempotency_key"] = idempotency_key
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
         r.raise_for_status()
         return r.json()
 
 
-async def retrieve_terminal_payment_intent(*, event_id: int, payment_intent_id: str) -> dict[str, Any]:
+async def terminate_sumup_checkout(*, event_id: int, reader_id: str) -> dict[str, Any]:
     base, cid, secret = _require_config()
-    url = f"{base}/edge/v1/terminal/payment-intents/{payment_intent_id}"
+    url = f"{base}/edge/v1/sumup/terminate"
+    body = {"event_id": event_id, "reader_id": reader_id}
     async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get(url, headers=_headers(cid, secret), params={"event_id": event_id})
+        r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
+        r.raise_for_status()
+        return r.json()
+
+
+async def get_sumup_checkout_status(*, event_id: int, checkout_id: str) -> dict[str, Any]:
+    base, cid, secret = _require_config()
+    url = f"{base}/edge/v1/sumup/status"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(
+            url,
+            headers=_headers(cid, secret),
+            params={"event_id": event_id, "checkout_id": checkout_id},
+        )
         r.raise_for_status()
         return r.json()
 

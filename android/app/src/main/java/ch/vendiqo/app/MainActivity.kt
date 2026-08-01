@@ -1,8 +1,6 @@
 package ch.vendiqo.app
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
@@ -14,8 +12,6 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
@@ -23,10 +19,7 @@ import androidx.webkit.WebViewAssetLoader
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var printerBridge: BluetoothPrinterBridge
-    private lateinit var terminalBridge: StripeTerminalBridge
 
-    private val locationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
     private val insetsBridge =
         AndroidInsetsBridge { resources.displayMetrics.density }
 
@@ -88,10 +81,9 @@ class MainActivity : ComponentActivity() {
         }
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         printerBridge = BluetoothPrinterBridge(this)
-        terminalBridge = StripeTerminalBridge(this)
+        val terminalBridge = AndroidTerminalStub()
         val networkBridge = AndroidNetworkBridge()
         val appBridge = AndroidAppBridge()
-        requestTerminalPermissionsIfNeeded()
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
         webView.addJavascriptInterface(terminalBridge, "AndroidTerminal")
         webView.addJavascriptInterface(appBridge, "AndroidApp")
@@ -126,25 +118,6 @@ class MainActivity : ComponentActivity() {
                 else -> BUNDLED_START_URL
             }
         webView.loadUrl(loadUrl)
-    }
-
-    private fun requestTerminalPermissionsIfNeeded() {
-        val needed =
-            buildList {
-                if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                    add(Manifest.permission.ACCESS_FINE_LOCATION)
-                }
-                if (!isGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) {
-                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                }
-            }
-        if (needed.isNotEmpty()) {
-            locationPermissionLauncher.launch(needed.toTypedArray())
-        }
-    }
-
-    private fun isGranted(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onDestroy() {

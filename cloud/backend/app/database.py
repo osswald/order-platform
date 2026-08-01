@@ -258,6 +258,12 @@ def apply_schema_patches() -> None:
         "ALTER TABLE event_cash_registers ADD COLUMN cash_drawer_command VARCHAR(32) NOT NULL DEFAULT 'none'",
         "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS cash_drawer_command VARCHAR(32) NOT NULL DEFAULT 'none'",
     )
+    _add_column_if_missing(
+        "event_cash_registers",
+        "sumup_reader_id",
+        "ALTER TABLE event_cash_registers ADD COLUMN sumup_reader_id VARCHAR(64)",
+        "ALTER TABLE event_cash_registers ADD COLUMN IF NOT EXISTS sumup_reader_id VARCHAR(64)",
+    )
     _backfill_baseline_in_stock()
     _patch_entity_uuids("event_stations")
     _patch_entity_uuids("event_waiters")
@@ -307,6 +313,8 @@ def apply_schema_patches() -> None:
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
     _patch_organisation_stripe_connect()
+    _patch_organisation_sumup_connect()
+    _ensure_sumup_tables()
     _patch_organisation_currency()
     _patch_tenant_admin_role()
     _backfill_user_home_verleiher()
@@ -320,6 +328,7 @@ def apply_schema_patches() -> None:
     _ensure_keine_tax_codes()
     _ensure_payment_types_table()
     _seed_payment_types()
+    _sync_payment_types_for_sumup()
     _refresh_payment_types_cache()
     _ensure_accounting_accounts_tables()
     _add_column_if_missing(
@@ -819,6 +828,36 @@ def _patch_organisation_stripe_connect() -> None:
         )
 
 
+def _patch_organisation_sumup_connect() -> None:
+    """SumUp OAuth credentials on the organisation."""
+    sumup_columns = [
+        ("sumup_merchant_code", "VARCHAR(64)", "VARCHAR(64)"),
+        ("sumup_access_token", "TEXT", "TEXT"),
+        ("sumup_refresh_token", "TEXT", "TEXT"),
+        ("sumup_token_expires_at", "DATETIME", "TIMESTAMP WITH TIME ZONE"),
+        ("sumup_connected_at", "DATETIME", "TIMESTAMP WITH TIME ZONE"),
+    ]
+    for col, sqlite_type, pg_type in sumup_columns:
+        _add_column_if_missing(
+            "organisations",
+            col,
+            f"ALTER TABLE organisations ADD COLUMN {col} {sqlite_type}",
+            f"ALTER TABLE organisations ADD COLUMN IF NOT EXISTS {col} {pg_type}",
+        )
+
+
+def _ensure_sumup_tables() -> None:
+    try:
+        from .models import SumupCheckout, SumupOAuthState, SumupReader, SumupWebhookEvent
+
+        SumupReader.__table__.create(bind=engine, checkfirst=True)
+        SumupOAuthState.__table__.create(bind=engine, checkfirst=True)
+        SumupCheckout.__table__.create(bind=engine, checkfirst=True)
+        SumupWebhookEvent.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        return
+
+
 def _backfill_layout_cell_voucher_uuids() -> None:
     try:
         inspector = inspect(engine)
@@ -1292,7 +1331,7 @@ def _seed_payment_types() -> None:
         ("cash", 0),
         ("twint", 1),
         ("sumup", 2),
-        ("stripe_terminal", 3),
+        ("sumup_connected", 3),
     ]
     db = SessionLocal()
     try:
@@ -1300,6 +1339,53 @@ def _seed_payment_types() -> None:
             return
         for slug, sort_order in seed_rows:
             db.add(PaymentType(slug=slug, sort_order=sort_order, is_active=True))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _sync_payment_types_for_sumup() -> None:
+    """Ensure sumup_connected is active, deactivate stripe_terminal, migrate events."""
+    from .models import Event, PaymentType
+
+    desired = [
+        ("cash", 0, True),
+        ("twint", 1, True),
+        ("sumup", 2, True),
+        ("sumup_connected", 3, True),
+        ("stripe_terminal", 99, False),
+    ]
+    db = SessionLocal()
+    try:
+        by_slug = {row.slug: row for row in db.query(PaymentType).all()}
+        for slug, sort_order, is_active in desired:
+            row = by_slug.get(slug)
+            if row is None:
+                if not is_active and slug == "stripe_terminal":
+                    continue
+                db.add(PaymentType(slug=slug, sort_order=sort_order, is_active=is_active))
+                continue
+            row.sort_order = sort_order
+            row.is_active = is_active
+        db.flush()
+
+        for event in db.query(Event).all():
+            raw = event.payment_types
+            if not isinstance(raw, list) or not raw:
+                continue
+            types = [str(t).strip().lower() for t in raw if str(t).strip()]
+            if "stripe_terminal" not in types:
+                continue
+            migrated = [("sumup_connected" if t == "stripe_terminal" else t) for t in types]
+            # de-dupe preserving order
+            seen: set[str] = set()
+            out: list[str] = []
+            for t in migrated:
+                if t in seen:
+                    continue
+                seen.add(t)
+                out.append(t)
+            event.payment_types = out or ["cash"]
         db.commit()
     finally:
         db.close()

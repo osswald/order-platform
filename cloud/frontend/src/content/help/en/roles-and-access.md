@@ -16,7 +16,7 @@ Staff of a hire company with administration rights at tenant level.
 - Create and manage organisations
 - Manage appliances and users across the hire company
 - Plan lendings, maintain events and catalogue
-- Stripe onboarding for organisations
+- SumUp onboarding for organisations
 
 ## Organisation admin
 

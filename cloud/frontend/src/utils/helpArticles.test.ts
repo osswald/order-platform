@@ -32,8 +32,8 @@ describe('searchArticles', () => {
   })
 
   it('matches title and summary', () => {
-    const results = searchArticles('stripe')
-    expect(results.some((article) => article.slug === 'stripe-connect')).toBe(true)
+    const results = searchArticles('pairing')
+    expect(results.some((article) => article.slug === 'appliance-pairing')).toBe(true)
   })
 
   it('matches markdown body text', () => {

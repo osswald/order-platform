@@ -68,14 +68,7 @@ export const helpCategories = [
   {
     id: 'payments',
     title: 'Zahlungen',
-    articles: [
-      {
-        slug: 'stripe-connect',
-        title: 'Stripe Connect',
-        summary: 'Stripe-Konto verbinden und Kartenzahlung per Terminal aktivieren.',
-        relatedRoutes: ['organisations', 'organisations-detail', 'stripe-connect-return', 'stripe-connect-refresh'],
-      },
-    ],
+    articles: [],
   },
   {
     id: 'administration',
@@ -90,7 +83,7 @@ export const helpCategories = [
       {
         slug: 'organisation-setup',
         title: 'Organisation einrichten',
-        summary: 'Stammdaten, Buchhaltung, Farbpalette, Geräteausleihen und Stripe für eine Organisation.',
+        summary: 'Stammdaten, Buchhaltung, Farbpalette, Geräteausleihen und SumUp für eine Organisation.',
         relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
       },
       {

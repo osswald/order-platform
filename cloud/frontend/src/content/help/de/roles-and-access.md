@@ -16,7 +16,7 @@ Mitarbeiter eines Verleihers mit Verwaltungsrechten auf Mandantenebene.
 - Organisationen anlegen und verwalten
 - Geräte und Benutzer im gesamten Verleiher verwalten
 - Ausleihen planen, Events und Katalog pflegen
-- Stripe-Onboarding für Organisationen
+- SumUp-Onboarding für Organisationen
 
 ## Organisations-Admin
 

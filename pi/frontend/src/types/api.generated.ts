@@ -1812,6 +1812,8 @@ export interface components {
             amount_cents: number;
             /** Stripe Payment Intent Id */
             stripe_payment_intent_id?: string | null;
+            /** Sumup Transaction Id */
+            sumup_transaction_id?: string | null;
         } & {
             [key: string]: unknown;
         };

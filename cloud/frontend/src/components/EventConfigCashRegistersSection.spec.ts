@@ -53,6 +53,38 @@ describe('EventConfigCashRegistersSection', () => {
     expect(wrapper.text()).not.toContain('Kassenschublade')
   })
 
+  it('shows SumUp reader picker when readers are available', () => {
+    const registers: EventCashRegisterLocal[] = [
+      {
+        name: 'Hauptkasse',
+        pickup_code_prefix: 'A',
+        pin: '0000',
+        layout_uuid: 'layout-1',
+        receipt_printer_appliance_id: null,
+        cash_drawer_command: 'none',
+        sumup_reader_id: 'rdr_test1234567890123456789012',
+      },
+    ]
+    const wrapper = mount(EventConfigCashRegistersSection, {
+      props: {
+        modelValue: registers,
+        'onUpdate:modelValue': (value: EventCashRegisterLocal[]) => {
+          registers.splice(0, registers.length, ...value)
+        },
+        sumupReaderOptions: [
+          { sumup_reader_id: 'rdr_test1234567890123456789012', label: 'Terrasse' },
+        ],
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          FormLabel: { template: '<label><slot /></label>' },
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('SumUp-Reader')
+  })
+
   it('uses outlined danger icon for config-card remove', () => {
     const registers: EventCashRegisterLocal[] = [
       {

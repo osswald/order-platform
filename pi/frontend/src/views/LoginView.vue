@@ -36,6 +36,34 @@
             </li>
           </ul>
         </div>
+        <div v-if="showSumupReaderPicker" class="field">
+          <label>SumUp-Gerät</label>
+          <button
+            type="button"
+            class="waiter-picker"
+            :aria-expanded="readerListOpen"
+            @click="toggleReaderList"
+          >
+            <span class="waiter-picker-main">
+              <span class="waiter-picker-name">{{ selectedReader?.label || 'Gerät wählen' }}</span>
+              <span class="waiter-picker-hint muted">{{ readerListOpen ? 'Schließen' : 'Tippen zum Wechseln' }}</span>
+            </span>
+            <span class="waiter-picker-chevron" aria-hidden="true">{{ readerListOpen ? '▲' : '▼' }}</span>
+          </button>
+          <ul v-if="readerListOpen" class="waiter-list">
+            <li v-for="reader in sumupReaders" :key="reader.sumup_reader_id">
+              <button
+                type="button"
+                class="waiter-row"
+                :class="{ 'waiter-row--selected': reader.sumup_reader_id === sumupReaderId }"
+                @click="pickSumupReader(reader)"
+              >
+                <span class="waiter-row-name">{{ reader.label }}</span>
+                <span v-if="reader.sumup_reader_id === sumupReaderId" class="waiter-row-check" aria-hidden="true">✓</span>
+              </button>
+            </li>
+          </ul>
+        </div>
         <div class="field">
           <label>PIN</label>
           <PinNumberInput v-model="pin" :maxlength="12" @submit="login" />
@@ -57,10 +85,16 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import PinNumberInput from '@/components/PinNumberInput.vue'
 import { useWaiterSession } from '@/composables/useWaiterSession'
-import { setRegisterSession } from '@/store'
+import { bundle, setRegisterSession } from '@/store'
 import { ensureShiftForSubject } from '@/composables/useShiftSession'
 import { getErrorMessage } from '@/types/api'
 import type { WaiterSession } from '@/types/cart'
+import {
+  autoSelectSumupReader,
+  eventNeedsSumupReaderPicker,
+  getBundleSumupReaders,
+  type SumupBundleReader,
+} from '@/utils/sumupReaders'
 
 const router = useRouter()
 const route = useRoute()
@@ -73,26 +107,54 @@ const waiters = computed(() =>
 )
 const waiterId = ref<string | null>(null)
 const waiterListOpen = ref(false)
+const sumupReaderId = ref<string | null>(null)
+const readerListOpen = ref(false)
 const pin = ref('')
 const err = ref('')
 
+const sumupReaders = computed(() => getBundleSumupReaders(bundle.value))
+const showSumupReaderPicker = computed(() =>
+  eventNeedsSumupReaderPicker(event.value, sumupReaders.value),
+)
 const selectedWaiter = computed(() => waiters.value.find((x) => x.uuid === waiterId.value) || null)
+const selectedReader = computed(
+  () => sumupReaders.value.find((x) => x.sumup_reader_id === sumupReaderId.value) || null,
+)
 
 watch(
-  waiters,
-  (ws) => {
+  [waiters, sumupReaders, event],
+  ([ws, readers, ev]) => {
     if (ws.length && waiterId.value == null) waiterId.value = String(ws[0].uuid)
+    if (!ev || !readers.length) {
+      sumupReaderId.value = null
+      return
+    }
+    const auto = autoSelectSumupReader(readers)
+    if (auto && sumupReaderId.value == null) {
+      sumupReaderId.value = auto.sumup_reader_id
+    }
   },
   { immediate: true },
 )
 
 function toggleWaiterList() {
   waiterListOpen.value = !waiterListOpen.value
+  if (waiterListOpen.value) readerListOpen.value = false
+}
+
+function toggleReaderList() {
+  readerListOpen.value = !readerListOpen.value
+  if (readerListOpen.value) waiterListOpen.value = false
 }
 
 function pickWaiter(uuid: string) {
   waiterId.value = uuid
   waiterListOpen.value = false
+}
+
+function pickSumupReader(reader: SumupBundleReader) {
+  sumupReaderId.value = reader.sumup_reader_id
+  readerListOpen.value = false
 }
 
 async function login() {
@@ -106,13 +168,23 @@ async function login() {
     err.value = 'PIN ungültig.'
     return
   }
+  if (showSumupReaderPicker.value && !sumupReaderId.value) {
+    err.value = 'SumUp-Gerät wählen.'
+    return
+  }
   const ev = event.value
   if (!ev?.id) {
     err.value = 'Event nicht geladen.'
     return
   }
   setRegisterSession(null)
-  const session: WaiterSession = { uuid: String(w.uuid), name: String(w.name) }
+  const reader = selectedReader.value
+  const session: WaiterSession = {
+    uuid: String(w.uuid),
+    name: String(w.name),
+    sumupReaderId: reader?.sumup_reader_id,
+    sumupReaderLabel: reader?.label,
+  }
   setWaiter(session)
   try {
     await ensureShiftForSubject({

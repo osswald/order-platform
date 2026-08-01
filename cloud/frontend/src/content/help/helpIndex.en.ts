@@ -68,14 +68,7 @@ export const helpCategories = [
   {
     id: 'payments',
     title: 'Payments',
-    articles: [
-      {
-        slug: 'stripe-connect',
-        title: 'Stripe Connect',
-        summary: 'Connect a Stripe account and enable card payments via terminal.',
-        relatedRoutes: ['organisations', 'organisations-detail', 'stripe-connect-return', 'stripe-connect-refresh'],
-      },
-    ],
+    articles: [],
   },
   {
     id: 'administration',
@@ -90,7 +83,7 @@ export const helpCategories = [
       {
         slug: 'organisation-setup',
         title: 'Set up an organisation',
-        summary: 'Master data, accounting, color palette, appliance lending, and Stripe for an organisation.',
+        summary: 'Master data, accounting, color palette, appliance lending, and SumUp for an organisation.',
         relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
       },
       {

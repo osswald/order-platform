@@ -30,5 +30,5 @@ Organisations and individual events can override with their own receipt profiles
 | Level | Location | Purpose |
 |-------|----------|---------|
 | Hire company | Tenant settings | Tenant master data, global receipt templates |
-| Organisation | Organisations | Customer master data, accounting, Stripe |
+| Organisation | Organisations | Customer master data, accounting, SumUp |
 | Event | Event configuration → Receipts | Event-specific receipt profiles |

@@ -15,8 +15,9 @@ from .models import Article, EdgeOrderItem, EdgeSubmittedOrder, Event, EventVouc
 PAYMENT_TYPE_LABELS = {
     "cash": "Bargeld",
     "twint": "TWINT",
-    "sumup": "SumUp",
-    "stripe_terminal": "Karte (Stripe Terminal)",
+    "sumup": "Sumup (manual)",
+    "sumup_connected": "Sumup connected",
+    "stripe_terminal": "Karte (Stripe Terminal)",  # historical orders only
     "open": "Offen",
 }
 

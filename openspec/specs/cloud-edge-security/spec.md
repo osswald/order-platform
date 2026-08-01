@@ -52,26 +52,26 @@ Authorized appliance/tenant administrators SHALL be able to revoke edge credenti
 - **AND** the former client calls a protected `/edge` route with the old secret
 - **THEN** the response is HTTP 401 or 403
 
-### Requirement: Stripe webhooks are signature-verified
-`POST /stripe/webhooks` SHALL reject requests that lack a valid Stripe signature for the configured `STRIPE_WEBHOOK_SECRET`. Unsigned or tampered payloads MUST NOT mutate payment or organisation state.
+### Requirement: SumUp webhooks are signature-verified
+`POST` SumUp webhook endpoint(s) SHALL reject requests that lack a valid SumUp signature for the configured webhook secret. Unsigned or tampered payloads MUST NOT mutate payment or organisation state.
 
 #### Scenario: Unsigned webhook is rejected
-- **WHEN** a client posts to `/stripe/webhooks` without a valid Stripe signature
+- **WHEN** a client posts to the SumUp webhook endpoint without a valid signature
 - **THEN** the response is an error status
 - **AND** no webhook-driven state change is committed
 
-### Requirement: Edge Stripe Terminal actions require edge auth and event scope
-Stripe Terminal connection tokens and PaymentIntent operations exposed under the edge API SHALL require the same valid edge credentials as other protected edge routes. Unauthenticated callers MUST NOT obtain Terminal secrets or create PaymentIntents. Terminal operations MUST be limited to organisations/events permitted by the edge credential binding (no foreign-event PaymentIntents).
+### Requirement: Edge SumUp Cloud API actions require edge auth and event scope
+SumUp reader checkout, terminate, and status operations exposed under the edge API SHALL require the same valid edge credentials as other protected edge routes. Unauthenticated callers MUST NOT create or terminate checkouts. Operations MUST be limited to organisations/events permitted by the edge credential binding (no foreign-event checkouts).
 
-#### Scenario: Terminal endpoint without edge credentials fails
-- **WHEN** a client calls an edge Stripe Terminal endpoint without valid edge credentials
+#### Scenario: Checkout endpoint without edge credentials fails
+- **WHEN** a client calls an edge SumUp checkout endpoint without valid edge credentials
 - **THEN** the response is HTTP 401 or 403
-- **AND** no Terminal connection token or PaymentIntent is created
+- **AND** no SumUp reader checkout is created
 
-#### Scenario: Terminal PaymentIntent rejected for foreign event
-- **WHEN** an authenticated edge client requests a Terminal PaymentIntent for an event outside its credential scope
+#### Scenario: Checkout rejected for foreign event
+- **WHEN** an authenticated edge client requests a SumUp checkout for an event outside its credential scope
 - **THEN** the response is HTTP 404 or 403
-- **AND** no PaymentIntent is created for that foreign event
+- **AND** no checkout is created for that foreign event
 
 ### Requirement: Hosted-Pi manager requires a shared secret
 Calls from cloud-backend to the hosted-Pi manager SHALL authenticate with `HOSTED_PI_MANAGER_SECRET` (or equivalent header). Requests without the correct secret MUST be rejected. Provision responses that include edge credentials MUST only be returned on the authenticated manager channel, not to anonymous callers.

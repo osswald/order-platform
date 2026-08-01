@@ -25,7 +25,7 @@ Wir bearbeiten Personendaten, um:
 - Bestellungen und Zahlungen an Veranstaltungen zu erfassen und abzuwickeln
 - Kellner- und Kassensysteme mit dem Vendiqo Pi zu verbinden
 - bei aktivierter Cloud-Anbindung Daten zwischen Pi und Cloud zu synchronisieren
-- Kartenzahlungen über Stripe Tap to Pay zu ermöglichen
+- Kartenzahlungen über SumUp Solo (Cloud API) zu ermöglichen
 - Belege auf Bluetooth-Druckern auszudrucken
 - Benutzerkonten für die Cloud-Verwaltung bereitzustellen
 
@@ -39,8 +39,7 @@ Wir bearbeiten Personendaten, um:
 | Bedienperson / Kellner | Kellnercode, Bedienungszuordnung | Vendiqo Pi; bei Cloud-Sync auch Cloud |
 | Bluetooth-Drucker | Name und Adresse des gekoppelten ESC/POS-Druckers | lokal auf dem Android-Gerät |
 | Geräte- und Sitzungsdaten | UI-Einstellungen, lokale App-Zustände | lokal im WebView-Speicher des Geräts |
-| Standortdaten | ungefährer/genauer Standort | nur bei Kartenzahlung über Stripe Tap to Pay, zur Erfüllung regulatorischer Anforderungen |
-| Zahlungsdaten | Zahlungsstatus, Stripe-Referenzen | Stripe und Vendiqo Cloud/Pi; **keine Speicherung vollständiger Kartendaten durch Vendiqo** |
+| Zahlungsdaten | Zahlungsstatus, SumUp-Transaktionsreferenzen | SumUp und Vendiqo Cloud/Pi; **keine Speicherung vollständiger Kartendaten durch Vendiqo** |
 
 Die App kommuniziert im lokalen Netzwerk mit dem Vendiqo Pi (standardmässig unter `http://192.168.192.10`) und bei aktivierter Anbindung verschlüsselt mit der Cloud unter `https://api.vendiqo.ch`.
 
@@ -51,7 +50,7 @@ Die App kommuniziert im lokalen Netzwerk mit dem Vendiqo Pi (standardmässig unt
 | Kontodaten | E-Mail-Adresse, Passwort-Hash, Rolle, Zuordnung zu Organisation/Verleiher |
 | Organisations- und Eventdaten | Veranstaltungen, Artikel, Kategorien, Bedienpersonen |
 | Gerätedaten | Appliance-Registrierung, Pairing-Informationen |
-| Zahlungs- und Abrechnungsdaten | Stripe Connect-Status, Zahlungsreferenzen |
+| Zahlungs- und Abrechnungsdaten | SumUp-Verbindungsstatus, Zahlungsreferenzen |
 
 ### 4.3 Marketing-Website und Mietanfragen
 
@@ -74,8 +73,6 @@ Die App kann folgende Geräteberechtigungen anfordern:
 
 - **Internet** — Kommunikation mit Pi und Cloud
 - **Bluetooth** — Verbindung zu gekoppelten Belegdruckern
-- **Standort** — erforderlich für Stripe Tap to Pay; nicht für Profilbildung oder Standorttracking
-- **NFC** — für kontaktlose Kartenzahlungen über Stripe Terminal
 
 ## 6. Rechtsgrundlagen
 
@@ -92,15 +89,14 @@ Personendaten können weitergegeben werden an:
 
 | Empfänger | Zweck |
 |---|---|
-| **Stripe Payments Europe Ltd.** | Kartenzahlungen, Stripe Connect, Tap to Pay |
-| **Google / Google Play Services** | technische Abhängigkeit des Stripe Terminal SDK auf Android |
+| **SumUp Limited / SumUp EU** | Kartenzahlungen über Solo-Lesegeräte (Cloud API), OAuth-Anbindung |
 | **Hosting-Infrastruktur** | Betrieb von `vendiqo.ch`, `admin.vendiqo.ch` und `api.vendiqo.ch` |
 
-Stripe verarbeitet Zahlungsdaten als eigenständiger Verantwortlicher bzw. Auftragsbearbeiter gemäss eigenen Datenschutzinformationen.
+SumUp verarbeitet Zahlungsdaten als eigenständiger Verantwortlicher bzw. Auftragsbearbeiter gemäss eigenen Datenschutzinformationen.
 
 ## 8. Übermittlung ins Ausland
 
-Je nach Dienstleister kann eine Bearbeitung ausserhalb der Schweiz/des EWR stattfinden, insbesondere bei Stripe und Cloud-Infrastruktur. In solchen Fällen setzen wir geeignete Garantien ein, soweit gesetzlich erforderlich.
+Je nach Dienstleister kann eine Bearbeitung ausserhalb der Schweiz/des EWR stattfinden, insbesondere bei SumUp und Cloud-Infrastruktur. In solchen Fällen setzen wir geeignete Garantien ein, soweit gesetzlich erforderlich.
 
 ## 9. Speicherdauer
 

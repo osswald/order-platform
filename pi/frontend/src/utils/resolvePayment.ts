@@ -1,13 +1,9 @@
 import { ref } from 'vue'
 import type { EdgeBundleEvent, PaymentIn } from '@/types/api'
-import { checkTapToPayDeviceSupport, collectTerminalPayment } from './androidTerminal'
 import { pickPaymentType, type PickPaymentHooks } from './pickPaymentType'
-import { buildPayment, buildStripeTerminalPayment } from './paymentTypes'
-import {
-  checkCloudReachable,
-  isStripeTerminalAndroidReady,
-  stripeTerminalDisabledHint,
-} from './stripeTerminalAvailability'
+import { buildPayment } from './paymentTypes'
+import { checkCloudReachable } from './cloudReachable'
+import { collectSumupConnectedPayment } from './sumupCheckout'
 
 export const terminalPaymentBusy = ref(false)
 
@@ -18,27 +14,23 @@ export async function resolvePaymentsForAmount(
   hooks: PickPaymentHooks = {},
 ): Promise<PaymentIn[]> {
   const payType = await pickPaymentType(event, amountCents, hooks)
-  if (payType !== 'stripe_terminal') {
+  if (payType !== 'sumup_connected') {
     return buildPayment(amountCents, payType)
   }
 
-  const androidReady = isStripeTerminalAndroidReady()
   const { reachable: cloudReady } = await checkCloudReachable(true)
-  const deviceSupport = androidReady ? checkTapToPayDeviceSupport() : { status: 'unknown' as const }
-  const hint = stripeTerminalDisabledHint(androidReady, cloudReady, deviceSupport)
-  if (hint) {
-    throw new Error(hint)
+  if (!cloudReady) {
+    throw new Error('Cloud-Verbindung erforderlich.')
   }
 
   terminalPaymentBusy.value = true
   try {
-    const payment = await collectTerminalPayment({
-      eventId: event.id,
+    const payment = await collectSumupConnectedPayment({
+      event,
       amountCents,
-      currency: event.currency,
       clientOrderId,
     })
-    return buildStripeTerminalPayment(amountCents, payment.stripe_payment_intent_id)
+    return [payment]
   } finally {
     terminalPaymentBusy.value = false
   }

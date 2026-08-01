@@ -194,6 +194,7 @@ class CashRegisterRead(BaseModel):
     receipt_printer_appliance_id: int | None
     cash_drawer_command: CASH_DRAWER_COMMANDS = "none"
     subsidiary_code: str | None = None
+    sumup_reader_id: str | None = None
 
 
 class EventConfigurationRead(BaseModel):
@@ -274,6 +275,7 @@ class CashRegisterIn(BaseModel):
     receipt_printer_appliance_id: int | None = None
     cash_drawer_command: CASH_DRAWER_COMMANDS = "none"
     subsidiary_code: str | None = Field(None, max_length=32)
+    sumup_reader_id: str | None = Field(None, max_length=64)
 
 
 class EventConfigurationIn(BaseModel):

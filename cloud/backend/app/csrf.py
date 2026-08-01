@@ -16,7 +16,7 @@ MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 EXEMPT_PATH_PREFIXES = (
     "/health",
     "/edge",
-    "/stripe/webhooks",
+    "/sumup/webhooks",
     "/docs",
     "/redoc",
     "/openapi.json",

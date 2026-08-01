@@ -23,7 +23,7 @@ On startup, `apply_schema_patches()` creates a default Verleiher named **Vendiqo
 
 - Lifecycle: config → test → prod → archive
 - Payment modes: `instant`, `pay_now`, `pay_later`
-- Payment types: cash, TWINT, SumUp, Stripe Terminal
+- Payment types: cash, TWINT, SumUp (manual), SumUp connected
 - Per-event configuration: stations, printer rules, app layouts, waiters (PINs), cash registers, vouchers, kitchen monitor printers, receipt printing (logos, fonts, footers)
 
 ### Master data
@@ -38,11 +38,11 @@ Appliance types: server, printer, mobile, tablet, router, ap. Server appliances 
 
 Sales reports, event stats, transactions, cash sessions, payment batches, bookkeeping export, collective bill PDF download.
 
-### Payments (Stripe)
+### Payments (SumUp)
 
-Stripe Connect onboarding per organisation (`/settings/stripe/*`). Stripe Terminal edge API for card payments on Android devices. Stripe keys are optional for local dev — core POS works without them.
+Organisation SumUp OAuth connect and Solo reader management under **SumUp-Geräte**. Edge Cloud API checkouts for **Sumup connected** payments. SumUp keys are optional for local dev — core POS works without them.
 
-See [docs/stripe-connect-terminal.md](../docs/stripe-connect-terminal.md).
+See [docs/sumup-cloud-api.md](../docs/sumup-cloud-api.md).
 
 ### Edge API
 

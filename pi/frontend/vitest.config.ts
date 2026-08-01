@@ -27,7 +27,7 @@ export default defineConfig({
         'src/utils/splitPay.ts',
         'src/composables/useSplitPay.ts',
         'src/utils/paymentTypes.ts',
-        'src/utils/stripeTerminalAvailability.ts',
+        'src/utils/cloudReachable.ts',
         'src/utils/resolvePayment.ts',
         'src/utils/paymentReceiptPrompt.ts',
         'src/utils/dateFormat.ts',

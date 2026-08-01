@@ -49,6 +49,7 @@
             :default-layout-uuid="layoutsLocal[0]?.uuid || ''"
             :printer-options="printerOptions"
             :accounts-enabled="accountsEnabled"
+            :sumup-reader-options="sumupReaderOptions"
           />
         </template>
 
@@ -172,6 +173,7 @@ import EventCashSessionsTab from './EventCashSessionsTab.vue'
 import EventBookkeepingTab from './EventBookkeepingTab.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import { organisationAccountsEnabled } from '../utils/orgScope.js'
+import { fetchSumupReaders, type SumupReader } from '../utils/sumupCloud'
 import { resolveAppLayoutsForPut, stationArticleUnion } from '../utils/eventConfigLayoutsPayload'
 import { newUuid } from '@/utils/newUuid'
 import { SESSION_CONTEXT_KEY } from '../sessionContext'
@@ -325,6 +327,7 @@ function onStockStatusChange({ status, errorMessage }: StatusChangePayload) {
 }
 
 const printerOptions = ref<PrinterOptionRead[]>([])
+const sumupReaderOptions = ref<Array<{ sumup_reader_id: string; label: string }>>([])
 const stationsLocal = ref<EventStationLocal[]>([])
 const kitchenMonitorsLocal = ref<EventKitchenMonitorLocal[]>([])
 const waitersLocal = ref<EventWaiterLocal[]>([])
@@ -534,6 +537,7 @@ function applyConfigurationFromResponse(
     receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
     cash_drawer_command: reg.cash_drawer_command || 'none',
     subsidiary_code: reg.subsidiary_code || '',
+    sumup_reader_id: reg.sumup_reader_id ?? null,
   }))
 }
 
@@ -563,6 +567,23 @@ async function loadCatalog() {
   }
 }
 
+async function loadSumupReaders() {
+  const orgId = props.organisationId
+  if (orgId == null) {
+    sumupReaderOptions.value = []
+    return
+  }
+  try {
+    const readers: SumupReader[] = await fetchSumupReaders(orgId)
+    sumupReaderOptions.value = readers.map((reader) => ({
+      sumup_reader_id: reader.sumup_reader_id,
+      label: reader.label,
+    }))
+  } catch {
+    sumupReaderOptions.value = []
+  }
+}
+
 async function loadConfiguration() {
   loading.value = true
   loadError.value = ''
@@ -586,6 +607,7 @@ async function loadConfiguration() {
   }
   if (!loadError.value) {
     void loadCatalog()
+    void loadSumupReaders()
     if (activeConfigTab.value === 'layouts') {
       void layoutsSectionRef.value?.loadLayoutCells()
     }
@@ -696,6 +718,7 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
         receipt_printer_appliance_id: reg.receipt_printer_appliance_id ?? null,
         cash_drawer_command: (reg.cash_drawer_command || 'none') as CashRegisterIn['cash_drawer_command'],
         subsidiary_code: (reg.subsidiary_code || '').trim() || null,
+        sumup_reader_id: reg.sumup_reader_id?.trim() || null,
       }
       if (reg.uuid != null) row.uuid = reg.uuid
       return row

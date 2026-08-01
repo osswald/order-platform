@@ -5051,6 +5051,17 @@
               }
             ],
             "title": "Stripe Payment Intent Id"
+          },
+          "sumup_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sumup Transaction Id"
           }
         },
         "additionalProperties": true,

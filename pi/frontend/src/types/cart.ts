@@ -31,6 +31,8 @@ export interface ToastState {
 export interface WaiterSession {
   uuid: string
   name: string
+  sumupReaderId?: string
+  sumupReaderLabel?: string
 }
 
 export interface RegisterSession {

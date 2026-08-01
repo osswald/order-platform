@@ -139,4 +139,4 @@ Pi backend/frontend formatting is **out of scope** for this stack; do not route 
 - Docker runs inside a nested container (Firecracker VM). Requires `fuse-overlayfs` storage driver and `iptables-legacy`. On Docker 29+, `/etc/docker/daemon.json` must also disable the containerd snapshotter (`"features": { "containerd-snapshotter": false }`) for `fuse-overlayfs` to work.
 - Cloud backend auto-creates a bootstrap admin user and a default "Vendiqo" hire company on first start (via `apply_schema_patches()`).
 - Pi PWA is designed to work unpaired (shows setup/pairing page). Pairing requires a cloud appliance credential.
-- Stripe keys are optional for core functionality — leave `STRIPE_SECRET_KEY` empty for local dev.
+- SumUp Cloud API keys are optional for core functionality — leave `SUMUP_CLIENT_ID` / `SUMUP_CLIENT_SECRET` empty for local dev without card payments.

@@ -40,6 +40,7 @@ from ..models import (
     EventStation,
     Organisation,
     OrganisationPositionComment,
+    SumupReader,
     User,
     organisation_users,
 )
@@ -338,6 +339,11 @@ class PositionCommentPresetBundleRead(BaseModel):
     text: str
 
 
+class SumupReaderBundleRead(BaseModel):
+    sumup_reader_id: str
+    label: str
+
+
 class EdgeBundleRead(BaseModel):
     organisation_id: int
     appliance_id: int
@@ -347,6 +353,7 @@ class EdgeBundleRead(BaseModel):
     position_comments_enabled: bool = False
     position_comment_presets: list[PositionCommentPresetBundleRead] = Field(default_factory=list)
     ingredients_enabled: bool = False
+    sumup_readers: list[SumupReaderBundleRead] = Field(default_factory=list)
 
 
 class EdgePairRequest(BaseModel):
@@ -438,6 +445,16 @@ def _position_comment_presets_for_org(db: Session, organisation_id: int) -> list
     return [{"id": row.id, "text": row.text} for row in rows]
 
 
+def _sumup_readers_for_org(db: Session, organisation_id: int) -> list[dict[str, str]]:
+    rows = (
+        db.query(SumupReader)
+        .filter(SumupReader.organisation_id == organisation_id)
+        .order_by(SumupReader.label)
+        .all()
+    )
+    return [{"sumup_reader_id": row.sumup_reader_id, "label": row.label} for row in rows]
+
+
 @router.get("/v1/bundle", response_model=EdgeBundleRead)
 def read_edge_bundle(
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
@@ -485,6 +502,7 @@ def read_edge_bundle(
     position_comment_presets = (
         _position_comment_presets_for_org(db, org_id) if position_comments_enabled else []
     )
+    sumup_readers = _sumup_readers_for_org(db, org_id)
     commit_or_raise(db)
     bundle_core = edge_bundle_payload(
         organisation_id=org_id,
@@ -493,6 +511,7 @@ def read_edge_bundle(
         position_comments_enabled=position_comments_enabled,
         position_comment_presets=position_comment_presets,
         ingredients_enabled=ingredients_enabled,
+        sumup_readers=sumup_readers,
     )
     return EdgeBundleRead(
         organisation_id=bundle_core["organisation_id"],
@@ -503,6 +522,7 @@ def read_edge_bundle(
         position_comments_enabled=bundle_core["position_comments_enabled"],
         position_comment_presets=bundle_core["position_comment_presets"],
         ingredients_enabled=bundle_core["ingredients_enabled"],
+        sumup_readers=sumup_readers,
     )
 
 

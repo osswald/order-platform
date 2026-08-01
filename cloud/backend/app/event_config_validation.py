@@ -412,6 +412,8 @@ def replace_event_configuration(
         reg.receipt_printer_appliance_id = getattr(reg_in, "receipt_printer_appliance_id", None)
         reg.cash_drawer_command = str(getattr(reg_in, "cash_drawer_command", None) or "none").strip().lower() or "none"
         reg.subsidiary_code = (getattr(reg_in, "subsidiary_code", None) or "").strip() or None
+        sumup_reader_id = getattr(reg_in, "sumup_reader_id", None)
+        reg.sumup_reader_id = (str(sumup_reader_id).strip() or None) if sumup_reader_id else None
         kept_register_uuids.add(reg.uuid)
 
     for reg_uuid, reg in list(existing_registers.items()):

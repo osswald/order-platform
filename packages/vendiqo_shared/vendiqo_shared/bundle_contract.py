@@ -14,8 +14,16 @@ BUNDLE_TOP_LEVEL_KEYS = frozenset(
         "position_comment_presets",
         "ingredients_enabled",
         "admin_pin_hashes",
+        "sumup_readers",
     }
 )
+
+
+class EdgeBundleSumupReader(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sumup_reader_id: str
+    label: str
 
 
 class EdgeBundleArticleAddition(BaseModel):
@@ -124,3 +132,4 @@ class EdgeBundleContract(BaseModel):
     position_comment_presets: list[PositionCommentPreset] = Field(default_factory=list)
     ingredients_enabled: bool = False
     admin_pin_hashes: list[str] = Field(default_factory=list)
+    sumup_readers: list[EdgeBundleSumupReader] = Field(default_factory=list)

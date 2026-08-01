@@ -70,6 +70,21 @@
           />
         </div>
       </div>
+      <div v-if="sumupReaderOptions.length" class="field-row">
+        <div class="form-field">
+          <label>{{ $t('events.config.sumupReader') }}</label>
+          <v-select
+            v-model="reg.sumup_reader_id"
+            :items="sumupReaderOptions"
+            item-title="label"
+            item-value="sumup_reader_id"
+            :placeholder="$t('events.config.noSumupReader')"
+            clearable
+            density="compact"
+            hide-details
+          />
+        </div>
+      </div>
       <div v-if="reg.receipt_printer_appliance_id" class="field-row">
         <div class="form-field">
           <label>{{ $t('events.config.cashDrawer') }}</label>
@@ -102,12 +117,14 @@ const props = withDefaults(
     defaultLayoutUuid?: string
     printerOptions?: PrinterOptionRead[]
     accountsEnabled?: boolean
+    sumupReaderOptions?: Array<{ sumup_reader_id: string; label: string }>
   }>(),
   {
     layoutOptions: () => [],
     defaultLayoutUuid: '',
     printerOptions: () => [],
     accountsEnabled: false,
+    sumupReaderOptions: () => [],
   },
 )
 
@@ -143,6 +160,7 @@ function addCashRegister() {
     receipt_printer_appliance_id: null,
     cash_drawer_command: 'none',
     subsidiary_code: '',
+    sumup_reader_id: null,
   })
 }
 
