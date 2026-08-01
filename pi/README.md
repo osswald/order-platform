@@ -15,7 +15,7 @@ The Pi is designed to keep selling while the internet is unavailable. It serves 
 - Collective bills (Sammelrechnung)
 - Cash registers, customer display, shift sessions
 - Kitchen monitor, pickup screen
-- Payments: cash, TWINT, SumUp; card via Stripe Terminal on Android ([`androidTerminal.ts`](frontend/src/utils/androidTerminal.ts))
+- Payments: cash, TWINT, SumUp (manual), SumUp connected (Solo via Cloud API proxy)
 - Vouchers, stock tracking, receipt history
 - ESC/POS network printing (python-escpos) and Android Bluetooth receipts
 - Offline-first SQLite with background cloud sync
@@ -396,8 +396,8 @@ Payment types are configured per event in cloud admin. The Pi PWA offers only th
 |------|----------------|
 | Cash | Pi PWA |
 | TWINT | Pi PWA (QR from synced event assets) |
-| SumUp | Pi PWA |
-| Stripe Terminal | Android app (Tap to Pay via `window.AndroidTerminal`; Pi proxies API calls to cloud) |
+| SumUp (manual) | Pi PWA (offline confirm) |
+| SumUp connected | Pi PWA → cloud edge → SumUp Solo reader (Cloud API) |
 
 ### Payment mode
 

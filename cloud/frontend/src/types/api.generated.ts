@@ -1482,7 +1482,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/stripe/connect/organisations/{organisation_id}/status": {
+    "/sumup/organisations/{organisation_id}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -1490,7 +1490,7 @@ export interface paths {
             cookie?: never;
         };
         /** Read Connect Status */
-        get: operations["read_connect_status_stripe_connect_organisations__organisation_id__status_get"];
+        get: operations["read_connect_status_sumup_organisations__organisation_id__status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1499,7 +1499,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/stripe/connect/organisations/{organisation_id}/account-link": {
+    "/sumup/organisations/{organisation_id}/authorize": {
         parameters: {
             query?: never;
             header?: never;
@@ -1508,93 +1508,146 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Connect Account Link */
-        post: operations["create_connect_account_link_stripe_connect_organisations__organisation_id__account_link_post"];
+        /** Start Oauth Authorize */
+        post: operations["start_oauth_authorize_sumup_organisations__organisation_id__authorize_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/stripe/connect/organisations/{organisation_id}/refresh": {
+    "/sumup/oauth/callback": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /** Refresh Connect Status */
-        post: operations["refresh_connect_status_stripe_connect_organisations__organisation_id__refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/stripe/webhooks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stripe Webhook */
-        post: operations["stripe_webhook_stripe_webhooks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/edge/v1/terminal/connection-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Terminal Connection Token */
-        post: operations["create_terminal_connection_token_edge_v1_terminal_connection_token_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/edge/v1/terminal/payment-intents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Terminal Payment Intent */
-        post: operations["create_terminal_payment_intent_edge_v1_terminal_payment_intents_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/edge/v1/terminal/payment-intents/{payment_intent_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Terminal Payment Intent */
-        get: operations["read_terminal_payment_intent_edge_v1_terminal_payment_intents__payment_intent_id__get"];
+        /** Oauth Callback */
+        get: operations["oauth_callback_sumup_oauth_callback_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sumup/organisations/{organisation_id}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disconnect Sumup */
+        post: operations["disconnect_sumup_sumup_organisations__organisation_id__disconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sumup/organisations/{organisation_id}/readers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Org Readers */
+        get: operations["list_org_readers_sumup_organisations__organisation_id__readers_get"];
+        put?: never;
+        /** Pair Reader */
+        post: operations["pair_reader_sumup_organisations__organisation_id__readers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sumup/organisations/{organisation_id}/readers/{reader_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unpair Reader */
+        delete: operations["unpair_reader_sumup_organisations__organisation_id__readers__reader_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Reader */
+        patch: operations["rename_reader_sumup_organisations__organisation_id__readers__reader_id__patch"];
+        trace?: never;
+    };
+    "/edge/v1/sumup/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Sumup Checkout */
+        post: operations["create_sumup_checkout_edge_v1_sumup_checkout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/edge/v1/sumup/terminate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Terminate Sumup Checkout */
+        post: operations["terminate_sumup_checkout_edge_v1_sumup_terminate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/edge/v1/sumup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Sumup Checkout Status */
+        get: operations["read_sumup_checkout_status_edge_v1_sumup_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sumup/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sumup Webhook */
+        post: operations["sumup_webhook_sumup_webhooks_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2116,6 +2169,8 @@ export interface components {
             cash_drawer_command: "none" | "escp_pin2" | "escp_pin5" | "escp_pin2_long" | "escp_pin5_long";
             /** Subsidiary Code */
             subsidiary_code?: string | null;
+            /** Sumup Reader Id */
+            sumup_reader_id?: string | null;
         };
         /** CashRegisterRead */
         CashRegisterRead: {
@@ -2141,6 +2196,8 @@ export interface components {
             cash_drawer_command: "none" | "escp_pin2" | "escp_pin5" | "escp_pin2_long" | "escp_pin5_long";
             /** Subsidiary Code */
             subsidiary_code?: string | null;
+            /** Sumup Reader Id */
+            sumup_reader_id?: string | null;
         };
         /** CashSessionRead */
         CashSessionRead: {
@@ -2444,6 +2501,8 @@ export interface components {
              * @default false
              */
             ingredients_enabled: boolean;
+            /** Sumup Readers */
+            sumup_readers?: components["schemas"]["SumupReaderBundleRead"][];
         };
         /** EdgeEventBundle */
         EdgeEventBundle: {
@@ -4378,73 +4437,99 @@ export interface components {
             /** Average Order Value Cents */
             average_order_value_cents: number;
         };
-        /**
-         * StripeAccountLinkRequest
-         * @description Accepted for backwards compatibility; the URLs are ignored in favour of env config.
-         */
-        StripeAccountLinkRequest: {
-            /** Return Url */
-            return_url?: string | null;
-            /** Refresh Url */
-            refresh_url?: string | null;
+        /** SumupAuthorizeResponse */
+        SumupAuthorizeResponse: {
+            /** Authorize Url */
+            authorize_url: string;
+            /** State */
+            state: string;
         };
-        /** StripeAccountLinkResponse */
-        StripeAccountLinkResponse: {
+        /** SumupCheckoutCreate */
+        SumupCheckoutCreate: {
+            /** Event Id */
+            event_id: number;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Currency */
+            currency?: string | null;
+            /** Reader Id */
+            reader_id: string;
+            /** Client Order Id */
+            client_order_id?: string | null;
+        };
+        /** SumupCheckoutRead */
+        SumupCheckoutRead: {
+            /** Checkout Id */
+            checkout_id: string;
+            /** Status */
+            status: string;
+            /** Transaction Id */
+            transaction_id?: string | null;
+        };
+        /** SumupConnectStatus */
+        SumupConnectStatus: {
             /** Organisation Id */
             organisation_id: number;
-            /** Hire Company Id */
-            hire_company_id: number;
-            /** Stripe Account Id */
-            stripe_account_id?: string | null;
+            /** Connected */
+            connected: boolean;
+            /** Merchant Code */
+            merchant_code?: string | null;
             /**
-             * Charges Enabled
-             * @default false
+             * Reader Count
+             * @default 0
              */
-            charges_enabled: boolean;
-            /**
-             * Payouts Enabled
-             * @default false
-             */
-            payouts_enabled: boolean;
-            /**
-             * Details Submitted
-             * @default false
-             */
-            details_submitted: boolean;
-            /** Onboarding Started At */
-            onboarding_started_at?: string | null;
-            /** Account Updated At */
-            account_updated_at?: string | null;
-            /** Url */
-            url: string;
+            reader_count: number;
         };
-        /** StripeConnectStatus */
-        StripeConnectStatus: {
+        /** SumupReaderBundleRead */
+        SumupReaderBundleRead: {
+            /** Sumup Reader Id */
+            sumup_reader_id: string;
+            /** Label */
+            label: string;
+        };
+        /** SumupReaderCreateRequest */
+        SumupReaderCreateRequest: {
+            /** Pairing Code */
+            pairing_code: string;
+            /** Label */
+            label: string;
+        };
+        /** SumupReaderResponse */
+        SumupReaderResponse: {
+            /** Id */
+            id: number;
             /** Organisation Id */
             organisation_id: number;
-            /** Hire Company Id */
-            hire_company_id: number;
-            /** Stripe Account Id */
-            stripe_account_id?: string | null;
+            /** Sumup Reader Id */
+            sumup_reader_id: string;
+            /** Label */
+            label: string;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** SumupReaderUpdateRequest */
+        SumupReaderUpdateRequest: {
+            /** Label */
+            label: string;
+        };
+        /** SumupTerminateBody */
+        SumupTerminateBody: {
+            /** Event Id */
+            event_id: number;
+            /** Reader Id */
+            reader_id: string;
+        };
+        /** SumupTerminateResponse */
+        SumupTerminateResponse: {
             /**
-             * Charges Enabled
-             * @default false
+             * Ok
+             * @default true
              */
-            charges_enabled: boolean;
-            /**
-             * Payouts Enabled
-             * @default false
-             */
-            payouts_enabled: boolean;
-            /**
-             * Details Submitted
-             * @default false
-             */
-            details_submitted: boolean;
-            /** Onboarding Started At */
-            onboarding_started_at?: string | null;
-            /** Account Updated At */
-            account_updated_at?: string | null;
+            ok: boolean;
         };
         /** TaxCodeAccountDefaultItem */
         TaxCodeAccountDefaultItem: {
@@ -4529,46 +4614,6 @@ export interface components {
             name?: string | null;
             /** Rates */
             rates?: components["schemas"]["TaxCodeRateBase"][] | null;
-        };
-        /** TerminalConnectionTokenCreate */
-        TerminalConnectionTokenCreate: {
-            /** Event Id */
-            event_id: number;
-        };
-        /** TerminalConnectionTokenRead */
-        TerminalConnectionTokenRead: {
-            /** Secret */
-            secret: string;
-        };
-        /** TerminalPaymentIntentCreate */
-        TerminalPaymentIntentCreate: {
-            /** Event Id */
-            event_id: number;
-            /** Amount Cents */
-            amount_cents: number;
-            /** Currency */
-            currency?: string | null;
-            /** Client Order Id */
-            client_order_id?: string | null;
-            /** Idempotency Key */
-            idempotency_key?: string | null;
-            /** Metadata */
-            metadata?: {
-                [key: string]: string;
-            };
-        };
-        /** TerminalPaymentIntentRead */
-        TerminalPaymentIntentRead: {
-            /** Id */
-            id: string;
-            /** Client Secret */
-            client_secret?: string | null;
-            /** Status */
-            status: string;
-            /** Amount Cents */
-            amount_cents: number;
-            /** Currency */
-            currency: string;
         };
         /** Token */
         Token: {
@@ -9656,7 +9701,7 @@ export interface operations {
             };
         };
     };
-    read_connect_status_stripe_connect_organisations__organisation_id__status_get: {
+    read_connect_status_sumup_organisations__organisation_id__status_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9675,7 +9720,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StripeConnectStatus"];
+                    "application/json": components["schemas"]["SumupConnectStatus"];
                 };
             };
             /** @description Validation Error */
@@ -9689,7 +9734,138 @@ export interface operations {
             };
         };
     };
-    create_connect_account_link_stripe_connect_organisations__organisation_id__account_link_post: {
+    start_oauth_authorize_sumup_organisations__organisation_id__authorize_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupAuthorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    oauth_callback_sumup_oauth_callback_get: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disconnect_sumup_sumup_organisations__organisation_id__disconnect_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupConnectStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_org_readers_sumup_organisations__organisation_id__readers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupReaderResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pair_reader_sumup_organisations__organisation_id__readers_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9702,17 +9878,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StripeAccountLinkRequest"];
+                "application/json": components["schemas"]["SumupReaderCreateRequest"];
             };
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StripeAccountLinkResponse"];
+                    "application/json": components["schemas"]["SumupReaderResponse"];
                 };
             };
             /** @description Validation Error */
@@ -9726,7 +9902,7 @@ export interface operations {
             };
         };
     };
-    refresh_connect_status_stripe_connect_organisations__organisation_id__refresh_post: {
+    unpair_reader_sumup_organisations__organisation_id__readers__reader_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -9734,7 +9910,157 @@ export interface operations {
             };
             path: {
                 organisation_id: number;
+                reader_id: number;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_reader_sumup_organisations__organisation_id__readers__reader_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+                reader_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SumupReaderUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupReaderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sumup_checkout_edge_v1_sumup_checkout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Edge-Client-Id"?: string | null;
+                "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SumupCheckoutCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupCheckoutRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    terminate_sumup_checkout_edge_v1_sumup_terminate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Edge-Client-Id"?: string | null;
+                "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SumupTerminateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupTerminateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_sumup_checkout_status_edge_v1_sumup_status_get: {
+        parameters: {
+            query: {
+                event_id: number;
+                checkout_id: string;
+            };
+            header?: {
+                "X-Edge-Client-Id"?: string | null;
+                "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
+            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -9745,7 +10071,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StripeConnectStatus"];
+                    "application/json": components["schemas"]["SumupCheckoutRead"];
                 };
             };
             /** @description Validation Error */
@@ -9759,7 +10085,7 @@ export interface operations {
             };
         };
     };
-    stripe_webhook_stripe_webhooks_post: {
+    sumup_webhook_sumup_webhooks_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -9777,120 +10103,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
-                };
-            };
-        };
-    };
-    create_terminal_connection_token_edge_v1_terminal_connection_token_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Edge-Client-Id"?: string | null;
-                "X-Edge-Secret"?: string | null;
-                "X-Edge-App-Version"?: string | null;
-                "X-Edge-App-Build-Time"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TerminalConnectionTokenCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerminalConnectionTokenRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_terminal_payment_intent_edge_v1_terminal_payment_intents_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Edge-Client-Id"?: string | null;
-                "X-Edge-Secret"?: string | null;
-                "X-Edge-App-Version"?: string | null;
-                "X-Edge-App-Build-Time"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TerminalPaymentIntentCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerminalPaymentIntentRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_terminal_payment_intent_edge_v1_terminal_payment_intents__payment_intent_id__get: {
-        parameters: {
-            query: {
-                event_id: number;
-            };
-            header?: {
-                "X-Edge-Client-Id"?: string | null;
-                "X-Edge-Secret"?: string | null;
-                "X-Edge-App-Version"?: string | null;
-                "X-Edge-App-Build-Time"?: string | null;
-            };
-            path: {
-                payment_intent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerminalPaymentIntentRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

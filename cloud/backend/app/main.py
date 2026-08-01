@@ -36,9 +36,10 @@ from .routers import (
     position_comments,
     public_rental_inquiry,
     receipt_printing,
-    stripe_connect,
-    stripe_terminal,
-    stripe_webhooks,
+    sumup_connect,
+    sumup_edge,
+    sumup_readers,
+    sumup_webhooks,
     tax_codes,
     users,
     waiters,
@@ -177,6 +178,7 @@ app.include_router(articles.router, prefix="/articles", tags=["articles"])
 app.include_router(ingredients.router, prefix="/ingredients", tags=["ingredients"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(edge.router, prefix="/edge", tags=["edge"])
-app.include_router(stripe_connect.router, prefix="/stripe/connect", tags=["stripe-connect"])
-app.include_router(stripe_webhooks.router, prefix="/stripe", tags=["stripe-webhooks"])
-app.include_router(stripe_terminal.router, prefix="/edge", tags=["stripe-terminal"])
+app.include_router(sumup_connect.router, prefix="/sumup", tags=["sumup-connect"])
+app.include_router(sumup_readers.router, prefix="/sumup", tags=["sumup-readers"])
+app.include_router(sumup_edge.router, prefix="/edge", tags=["sumup-edge"])
+app.include_router(sumup_webhooks.router, prefix="/sumup", tags=["sumup-webhooks"])

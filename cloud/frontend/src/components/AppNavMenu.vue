@@ -84,6 +84,13 @@
           :title="$t('nav.applianceLendings')"
           @click="onNavigate"
         />
+        <v-list-item
+          v-if="canAccessOrganisationSettings"
+          :to="routeTo('sumup-devices')"
+          prepend-icon="mdi-credit-card-wireless"
+          :title="$t('nav.sumupDevices')"
+          @click="onNavigate"
+        />
       </v-list>
     </div>
 

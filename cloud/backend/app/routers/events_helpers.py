@@ -208,6 +208,7 @@ def serialize_event_configuration(
             receipt_printer_appliance_id=reg.receipt_printer_appliance_id,
             cash_drawer_command=getattr(reg, "cash_drawer_command", None) or "none",
             subsidiary_code=getattr(reg, "subsidiary_code", None),
+            sumup_reader_id=getattr(reg, "sumup_reader_id", None),
         )
         for reg in sorted(event.cash_registers, key=lambda r: (r.sort_order, r.id))
     ]

@@ -9147,13 +9147,13 @@
         }
       }
     },
-    "/stripe/connect/organisations/{organisation_id}/status": {
+    "/sumup/organisations/{organisation_id}/status": {
       "get": {
         "tags": [
-          "stripe-connect"
+          "sumup-connect"
         ],
         "summary": "Read Connect Status",
-        "operationId": "read_connect_status_stripe_connect_organisations__organisation_id__status_get",
+        "operationId": "read_connect_status_sumup_organisations__organisation_id__status_get",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -9192,7 +9192,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StripeConnectStatus"
+                  "$ref": "#/components/schemas/SumupConnectStatus"
                 }
               }
             }
@@ -9210,86 +9210,13 @@
         }
       }
     },
-    "/stripe/connect/organisations/{organisation_id}/account-link": {
+    "/sumup/organisations/{organisation_id}/authorize": {
       "post": {
         "tags": [
-          "stripe-connect"
+          "sumup-connect"
         ],
-        "summary": "Create Connect Account Link",
-        "operationId": "create_connect_account_link_stripe_connect_organisations__organisation_id__account_link_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "organisation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Organisation Id"
-            }
-          },
-          {
-            "name": "X-Hire-Company-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Hire-Company-Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StripeAccountLinkRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StripeAccountLinkResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/stripe/connect/organisations/{organisation_id}/refresh": {
-      "post": {
-        "tags": [
-          "stripe-connect"
-        ],
-        "summary": "Refresh Connect Status",
-        "operationId": "refresh_connect_status_stripe_connect_organisations__organisation_id__refresh_post",
+        "summary": "Start Oauth Authorize",
+        "operationId": "start_oauth_authorize_sumup_organisations__organisation_id__authorize_post",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -9328,7 +9255,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StripeConnectStatus"
+                  "$ref": "#/components/schemas/SumupAuthorizeResponse"
                 }
               }
             }
@@ -9346,262 +9273,625 @@
         }
       }
     },
-    "/stripe/webhooks": {
-      "post": {
-        "tags": [
-          "stripe-webhooks"
-        ],
-        "summary": "Stripe Webhook",
-        "operationId": "stripe_webhook_stripe_webhooks_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Stripe Webhook Stripe Webhooks Post"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/edge/v1/terminal/connection-token": {
-      "post": {
-        "tags": [
-          "stripe-terminal"
-        ],
-        "summary": "Create Terminal Connection Token",
-        "operationId": "create_terminal_connection_token_edge_v1_terminal_connection_token_post",
-        "parameters": [
-          {
-            "name": "X-Edge-Client-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-Client-Id"
-            }
-          },
-          {
-            "name": "X-Edge-Secret",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-Secret"
-            }
-          },
-          {
-            "name": "X-Edge-App-Version",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-App-Version"
-            }
-          },
-          {
-            "name": "X-Edge-App-Build-Time",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-App-Build-Time"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TerminalConnectionTokenCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TerminalConnectionTokenRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/edge/v1/terminal/payment-intents": {
-      "post": {
-        "tags": [
-          "stripe-terminal"
-        ],
-        "summary": "Create Terminal Payment Intent",
-        "operationId": "create_terminal_payment_intent_edge_v1_terminal_payment_intents_post",
-        "parameters": [
-          {
-            "name": "X-Edge-Client-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-Client-Id"
-            }
-          },
-          {
-            "name": "X-Edge-Secret",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-Secret"
-            }
-          },
-          {
-            "name": "X-Edge-App-Version",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-App-Version"
-            }
-          },
-          {
-            "name": "X-Edge-App-Build-Time",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Edge-App-Build-Time"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TerminalPaymentIntentCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TerminalPaymentIntentRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/edge/v1/terminal/payment-intents/{payment_intent_id}": {
+    "/sumup/oauth/callback": {
       "get": {
         "tags": [
-          "stripe-terminal"
+          "sumup-connect"
         ],
-        "summary": "Read Terminal Payment Intent",
-        "operationId": "read_terminal_payment_intent_edge_v1_terminal_payment_intents__payment_intent_id__get",
+        "summary": "Oauth Callback",
+        "operationId": "oauth_callback_sumup_oauth_callback_get",
         "parameters": [
           {
-            "name": "payment_intent_id",
-            "in": "path",
+            "name": "code",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Payment Intent Id"
+              "minLength": 1,
+              "title": "Code"
             }
           },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sumup/organisations/{organisation_id}/disconnect": {
+      "post": {
+        "tags": [
+          "sumup-connect"
+        ],
+        "summary": "Disconnect Sumup",
+        "operationId": "disconnect_sumup_sumup_organisations__organisation_id__disconnect_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SumupConnectStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sumup/organisations/{organisation_id}/readers": {
+      "get": {
+        "tags": [
+          "sumup-readers"
+        ],
+        "summary": "List Org Readers",
+        "operationId": "list_org_readers_sumup_organisations__organisation_id__readers_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SumupReaderResponse"
+                  },
+                  "title": "Response List Org Readers Sumup Organisations  Organisation Id  Readers Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sumup-readers"
+        ],
+        "summary": "Pair Reader",
+        "operationId": "pair_reader_sumup_organisations__organisation_id__readers_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupReaderCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SumupReaderResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sumup/organisations/{organisation_id}/readers/{reader_id}": {
+      "patch": {
+        "tags": [
+          "sumup-readers"
+        ],
+        "summary": "Rename Reader",
+        "operationId": "rename_reader_sumup_organisations__organisation_id__readers__reader_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "reader_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Reader Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupReaderUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SumupReaderResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sumup-readers"
+        ],
+        "summary": "Unpair Reader",
+        "operationId": "unpair_reader_sumup_organisations__organisation_id__readers__reader_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "reader_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Reader Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/edge/v1/sumup/checkout": {
+      "post": {
+        "tags": [
+          "sumup-edge"
+        ],
+        "summary": "Create Sumup Checkout",
+        "operationId": "create_sumup_checkout_edge_v1_sumup_checkout_post",
+        "parameters": [
+          {
+            "name": "X-Edge-Client-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-Client-Id"
+            }
+          },
+          {
+            "name": "X-Edge-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupCheckoutCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SumupCheckoutRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/edge/v1/sumup/terminate": {
+      "post": {
+        "tags": [
+          "sumup-edge"
+        ],
+        "summary": "Terminate Sumup Checkout",
+        "operationId": "terminate_sumup_checkout_edge_v1_sumup_terminate_post",
+        "parameters": [
+          {
+            "name": "X-Edge-Client-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-Client-Id"
+            }
+          },
+          {
+            "name": "X-Edge-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-Secret"
+            }
+          },
+          {
+            "name": "X-Edge-App-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Version"
+            }
+          },
+          {
+            "name": "X-Edge-App-Build-Time",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Edge-App-Build-Time"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupTerminateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SumupTerminateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/edge/v1/sumup/status": {
+      "get": {
+        "tags": [
+          "sumup-edge"
+        ],
+        "summary": "Read Sumup Checkout Status",
+        "operationId": "read_sumup_checkout_status_edge_v1_sumup_status_get",
+        "parameters": [
           {
             "name": "event_id",
             "in": "query",
@@ -9612,6 +9902,17 @@
             }
           },
           {
+            "name": "checkout_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Checkout Id"
+            }
+          },
+          {
             "name": "X-Edge-Client-Id",
             "in": "header",
             "required": false,
@@ -9682,7 +9983,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TerminalPaymentIntentRead"
+                  "$ref": "#/components/schemas/SumupCheckoutRead"
                 }
               }
             }
@@ -9693,6 +9994,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sumup/webhooks": {
+      "post": {
+        "tags": [
+          "sumup-webhooks"
+        ],
+        "summary": "Sumup Webhook",
+        "operationId": "sumup_webhook_sumup_webhooks_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Sumup Webhook Sumup Webhooks Post"
                 }
               }
             }
@@ -11313,6 +11639,18 @@
               }
             ],
             "title": "Subsidiary Code"
+          },
+          "sumup_reader_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sumup Reader Id"
           }
         },
         "type": "object",
@@ -11382,6 +11720,17 @@
               }
             ],
             "title": "Subsidiary Code"
+          },
+          "sumup_reader_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sumup Reader Id"
           }
         },
         "type": "object",
@@ -12149,6 +12498,13 @@
             "type": "boolean",
             "title": "Ingredients Enabled",
             "default": false
+          },
+          "sumup_readers": {
+            "items": {
+              "$ref": "#/components/schemas/SumupReaderBundleRead"
+            },
+            "type": "array",
+            "title": "Sumup Readers"
           }
         },
         "type": "object",
@@ -17500,121 +17856,86 @@
         ],
         "title": "StatsTotalsRead"
       },
-      "StripeAccountLinkRequest": {
+      "SumupAuthorizeResponse": {
         "properties": {
-          "return_url": {
-            "anyOf": [
-              {
-                "type": "string",
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Return Url"
-          },
-          "refresh_url": {
-            "anyOf": [
-              {
-                "type": "string",
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Refresh Url"
-          }
-        },
-        "type": "object",
-        "title": "StripeAccountLinkRequest",
-        "description": "Accepted for backwards compatibility; the URLs are ignored in favour of env config."
-      },
-      "StripeAccountLinkResponse": {
-        "properties": {
-          "organisation_id": {
-            "type": "integer",
-            "title": "Organisation Id"
-          },
-          "hire_company_id": {
-            "type": "integer",
-            "title": "Hire Company Id"
-          },
-          "stripe_account_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stripe Account Id"
-          },
-          "charges_enabled": {
-            "type": "boolean",
-            "title": "Charges Enabled",
-            "default": false
-          },
-          "payouts_enabled": {
-            "type": "boolean",
-            "title": "Payouts Enabled",
-            "default": false
-          },
-          "details_submitted": {
-            "type": "boolean",
-            "title": "Details Submitted",
-            "default": false
-          },
-          "onboarding_started_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Onboarding Started At"
-          },
-          "account_updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Account Updated At"
-          },
-          "url": {
+          "authorize_url": {
             "type": "string",
-            "title": "Url"
+            "title": "Authorize Url"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
           }
         },
         "type": "object",
         "required": [
-          "organisation_id",
-          "hire_company_id",
-          "url"
+          "authorize_url",
+          "state"
         ],
-        "title": "StripeAccountLinkResponse"
+        "title": "SumupAuthorizeResponse"
       },
-      "StripeConnectStatus": {
+      "SumupCheckoutCreate": {
         "properties": {
-          "organisation_id": {
+          "event_id": {
             "type": "integer",
-            "title": "Organisation Id"
+            "title": "Event Id"
           },
-          "hire_company_id": {
+          "amount_cents": {
             "type": "integer",
-            "title": "Hire Company Id"
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Cents"
           },
-          "stripe_account_id": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "reader_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Reader Id"
+          },
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "amount_cents",
+          "reader_id"
+        ],
+        "title": "SumupCheckoutCreate"
+      },
+      "SumupCheckoutRead": {
+        "properties": {
+          "checkout_id": {
+            "type": "string",
+            "title": "Checkout Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "transaction_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -17623,54 +17944,192 @@
                 "type": "null"
               }
             ],
-            "title": "Stripe Account Id"
+            "title": "Transaction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkout_id",
+          "status"
+        ],
+        "title": "SumupCheckoutRead"
+      },
+      "SumupConnectStatus": {
+        "properties": {
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
           },
-          "charges_enabled": {
+          "connected": {
             "type": "boolean",
-            "title": "Charges Enabled",
-            "default": false
+            "title": "Connected"
           },
-          "payouts_enabled": {
-            "type": "boolean",
-            "title": "Payouts Enabled",
-            "default": false
-          },
-          "details_submitted": {
-            "type": "boolean",
-            "title": "Details Submitted",
-            "default": false
-          },
-          "onboarding_started_at": {
+          "merchant_code": {
             "anyOf": [
               {
-                "type": "string",
-                "format": "date-time"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Onboarding Started At"
+            "title": "Merchant Code"
           },
-          "account_updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Account Updated At"
+          "reader_count": {
+            "type": "integer",
+            "title": "Reader Count",
+            "default": 0
           }
         },
         "type": "object",
         "required": [
           "organisation_id",
-          "hire_company_id"
+          "connected"
         ],
-        "title": "StripeConnectStatus"
+        "title": "SumupConnectStatus"
+      },
+      "SumupReaderBundleRead": {
+        "properties": {
+          "sumup_reader_id": {
+            "type": "string",
+            "title": "Sumup Reader Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sumup_reader_id",
+          "label"
+        ],
+        "title": "SumupReaderBundleRead"
+      },
+      "SumupReaderCreateRequest": {
+        "properties": {
+          "pairing_code": {
+            "type": "string",
+            "maxLength": 9,
+            "minLength": 8,
+            "title": "Pairing Code"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pairing_code",
+          "label"
+        ],
+        "title": "SumupReaderCreateRequest"
+      },
+      "SumupReaderResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "organisation_id": {
+            "type": "integer",
+            "title": "Organisation Id"
+          },
+          "sumup_reader_id": {
+            "type": "string",
+            "title": "Sumup Reader Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organisation_id",
+          "sumup_reader_id",
+          "label",
+          "status"
+        ],
+        "title": "SumupReaderResponse"
+      },
+      "SumupReaderUpdateRequest": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "SumupReaderUpdateRequest"
+      },
+      "SumupTerminateBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "reader_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Reader Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "reader_id"
+        ],
+        "title": "SumupTerminateBody"
+      },
+      "SumupTerminateResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "SumupTerminateResponse"
       },
       "TaxCodeAccountDefaultItem": {
         "properties": {
@@ -17930,134 +18389,6 @@
         },
         "type": "object",
         "title": "TaxCodeUpdate"
-      },
-      "TerminalConnectionTokenCreate": {
-        "properties": {
-          "event_id": {
-            "type": "integer",
-            "title": "Event Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "event_id"
-        ],
-        "title": "TerminalConnectionTokenCreate"
-      },
-      "TerminalConnectionTokenRead": {
-        "properties": {
-          "secret": {
-            "type": "string",
-            "title": "Secret"
-          }
-        },
-        "type": "object",
-        "required": [
-          "secret"
-        ],
-        "title": "TerminalConnectionTokenRead"
-      },
-      "TerminalPaymentIntentCreate": {
-        "properties": {
-          "event_id": {
-            "type": "integer",
-            "title": "Event Id"
-          },
-          "amount_cents": {
-            "type": "integer",
-            "exclusiveMinimum": 0.0,
-            "title": "Amount Cents"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 3,
-                "minLength": 3
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "client_order_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Order Id"
-          },
-          "idempotency_key": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 255
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Idempotency Key"
-          },
-          "metadata": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Metadata"
-          }
-        },
-        "type": "object",
-        "required": [
-          "event_id",
-          "amount_cents"
-        ],
-        "title": "TerminalPaymentIntentCreate"
-      },
-      "TerminalPaymentIntentRead": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "client_secret": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Secret"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "amount_cents": {
-            "type": "integer",
-            "title": "Amount Cents"
-          },
-          "currency": {
-            "type": "string",
-            "title": "Currency"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "status",
-          "amount_cents",
-          "currency"
-        ],
-        "title": "TerminalPaymentIntentRead"
       },
       "Token": {
         "properties": {

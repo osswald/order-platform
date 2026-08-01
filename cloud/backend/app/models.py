@@ -130,6 +130,11 @@ class Organisation(Base):
     stripe_details_submitted = Column(Boolean, nullable=False, default=False)
     stripe_onboarding_started_at = Column(DateTime(timezone=True), nullable=True)
     stripe_account_updated_at = Column(DateTime(timezone=True), nullable=True)
+    sumup_merchant_code = Column(String(64), nullable=True, index=True)
+    sumup_access_token = Column(Text, nullable=True)
+    sumup_refresh_token = Column(Text, nullable=True)
+    sumup_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    sumup_connected_at = Column(DateTime(timezone=True), nullable=True)
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
     receipt_logo_data = Column(Text, nullable=True)
@@ -153,6 +158,66 @@ class Organisation(Base):
         cascade="all, delete-orphan",
         order_by="OrganisationPositionComment.sort_order",
     )
+    sumup_readers = relationship(
+        "SumupReader",
+        back_populates="organisation",
+        cascade="all, delete-orphan",
+    )
+
+
+class SumupReader(Base):
+    __tablename__ = "sumup_readers"
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "sumup_reader_id", name="uq_sumup_readers_org_reader"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    sumup_reader_id = Column(String(64), nullable=False)
+    label = Column(String(128), nullable=False)
+    status = Column(String(32), nullable=False, default="paired")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    organisation = relationship("Organisation", back_populates="sumup_readers")
+
+
+class SumupOAuthState(Base):
+    __tablename__ = "sumup_oauth_states"
+
+    state = Column(String(128), primary_key=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class SumupCheckout(Base):
+    __tablename__ = "sumup_checkouts"
+    __table_args__ = (UniqueConstraint("sumup_checkout_id", name="uq_sumup_checkouts_checkout_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    sumup_reader_id = Column(String(64), nullable=False)
+    sumup_checkout_id = Column(String(128), nullable=False)
+    client_order_id = Column(String(64), nullable=True)
+    amount_cents = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False)
+    status = Column(String(32), nullable=False, default="pending")
+    sumup_transaction_id = Column(String(128), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SumupWebhookEvent(Base):
+    __tablename__ = "sumup_webhook_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    webhook_event_id = Column(String(255), nullable=False, unique=True, index=True)
+    event_type = Column(String(128), nullable=False)
+    sumup_checkout_id = Column(String(128), nullable=True, index=True)
+    payload_json = Column(JSON, nullable=True)
+    processed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class OrganisationPositionComment(Base):
@@ -594,6 +659,7 @@ class EventCashRegister(Base):
     layout_uuid = Column(String(36), nullable=False)
     receipt_printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
     cash_drawer_command = Column(String(32), nullable=False, default="none", server_default="none")
+    sumup_reader_id = Column(String(64), nullable=True)
     event = relationship("Event", back_populates="cash_registers")
     receipt_printer_appliance = relationship("Appliance", foreign_keys=[receipt_printer_appliance_id])
 

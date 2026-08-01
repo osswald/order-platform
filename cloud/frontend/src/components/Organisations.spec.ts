@@ -57,7 +57,6 @@ async function mountOrganisations(path: string) {
           template: '<div data-testid="stammdaten-fields" />',
           props: ['form', 'countryOptions', 'currencyOptions'],
         },
-        OrganisationStripeSection: { template: '<div data-testid="stripe-section" />' },
         ReceiptPrintingSection: { template: '<div data-testid="receipt-section" />' },
         OrganisationAccountingSection: { template: '<div data-testid="accounting-section" />' },
         OrganisationLendingDialog: { template: '<div />' },
@@ -96,16 +95,15 @@ describe('Organisations', () => {
     expect(router.currentRoute.value.query.section).toBeUndefined()
   })
 
-  it('renders SectionNavLayout with eight tabs on edit route', async () => {
+  it('renders SectionNavLayout with seven tabs on edit route', async () => {
     const { wrapper, router } = await mountOrganisations('/organisations/1')
     const layout = wrapper.findComponent(SectionNavLayout)
 
     expect(layout.exists()).toBe(true)
-    expect(layout.props('sections')).toHaveLength(8)
+    expect(layout.props('sections')).toHaveLength(7)
     expect(layout.props('sections')!.map((section: { title: string }) => section.title)).toEqual([
       'Stammdaten',
       'Geräte/Ausleihen',
-      'Kartenzahlung (Stripe)',
       'Belegvorlagen',
       'Farbpalette (App Layout)',
       'Positionen',
@@ -130,9 +128,9 @@ describe('Organisations', () => {
   })
 
   it('activates the tab from the section query on load', async () => {
-    const { wrapper, router } = await mountOrganisations('/organisations/1?section=stripe')
+    const { wrapper, router } = await mountOrganisations('/organisations/1?section=buchhaltung')
 
-    expect(router.currentRoute.value.query.section).toBe('stripe')
-    expect(wrapper.find('[data-testid="stripe-section"]').exists()).toBe(true)
+    expect(router.currentRoute.value.query.section).toBe('buchhaltung')
+    expect(wrapper.find('[data-testid="accounting-section"]').exists()).toBe(true)
   })
 })

@@ -30,11 +30,9 @@ In the **Appliances** tab view and plan lendings for this organisation:
 
 For the read-only member view see **Appliance lending**.
 
-## Card payments (Stripe)
+## Card payments (SumUp)
 
-Stripe Connect is set up per organisation. Payouts go to the organisation.
-
-See the **Stripe Connect** help article for onboarding, event activation, and troubleshooting.
+Connect SumUp per organisation under **SumUp devices** in the cloud admin. Enable **SumUp connected** as a payment type in event configuration.
 
 ## Color palette (app layout)
 

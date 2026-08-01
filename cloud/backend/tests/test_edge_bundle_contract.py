@@ -12,6 +12,8 @@ def test_edge_bundle_contract_accepts_minimal_payload():
         "admin_pin_hashes": [],
         "position_comments_enabled": False,
         "position_comment_presets": [],
+        "ingredients_enabled": False,
+        "sumup_readers": [],
     }
     model = EdgeBundleContract.model_validate(payload)
     assert model.organisation_id == 1

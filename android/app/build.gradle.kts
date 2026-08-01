@@ -80,9 +80,6 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.webkit:webkit:1.12.1")
-    val stripeTerminalVersion = "5.7.0"
-    implementation("com.stripe:stripeterminal-taptopay:$stripeTerminalVersion")
-    implementation("com.stripe:stripeterminal-core:$stripeTerminalVersion")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")

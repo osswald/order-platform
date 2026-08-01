@@ -14,7 +14,6 @@ dependencies = [
     "email-validator",
     "python-multipart",
     "slowapi",
-    "stripe",
     "httpx>=0.28.1,<1",
     "fpdf2>=2.8.7,<3",
     "Pillow>=12.3.0,<13",

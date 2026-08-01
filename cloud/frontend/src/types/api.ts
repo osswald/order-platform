@@ -117,8 +117,6 @@ export type ReceiptPrintingRead = components['schemas']['ReceiptPrintingRead']
 export type EventReceiptPrintingConfig = components['schemas']['EventReceiptPrintingConfig']
 export type ReceiptPrintingConfig = components['schemas']['ReceiptPrintingConfig']
 export type PositionCommentPresetRead = components['schemas']['PositionCommentPresetRead']
-export type StripeConnectStatus = components['schemas']['StripeConnectStatus']
-export type StripeAccountLinkResponse = components['schemas']['StripeAccountLinkResponse']
 export type TaxCodeRateRead = components['schemas']['TaxCodeRateRead']
 
 export type TokenResponse = components['schemas']['Token']

@@ -2,7 +2,6 @@ import { ref } from 'vue'
 import type { EdgeBundleEvent } from '@/types/api'
 import { formatMoney } from './money'
 import { eventPaymentTypes, eventTwintQrDataUrl, type PaymentType } from './paymentTypes'
-import { stripeTerminalPickerEntry } from './stripeTerminalAvailability'
 
 export interface PaymentPickerEntry {
   value: PaymentType
@@ -38,15 +37,7 @@ function entryDisabled(entry: PaymentPickerEntry | PaymentType): boolean {
 
 async function buildPickerEntries(event: EdgeBundleEvent): Promise<PaymentPickerEntry[]> {
   const types = eventPaymentTypes(event)
-  const entries: PaymentPickerEntry[] = []
-  for (const t of types) {
-    if (t === 'stripe_terminal') {
-      entries.push(await stripeTerminalPickerEntry())
-    } else {
-      entries.push({ value: t, disabled: false })
-    }
-  }
-  return entries
+  return types.map((t) => ({ value: t, disabled: false }))
 }
 
 async function pickTypeFromSheet(event: EdgeBundleEvent, amountCents: number | null): Promise<PaymentType> {

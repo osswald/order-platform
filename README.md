@@ -1,6 +1,6 @@
 # Vendiqo Order Platform
 
-Vendiqo is a multi-tenant event and venue POS system. **Verleiher** (hire companies) rent POS hardware to event customers: the **cloud** stack configures organisations and events; **Raspberry Pi** edge servers run on-venue ordering, printing, and sync; the **Android** app wraps the Pi PWA for waiter devices with Bluetooth printing and Stripe Tap to Pay.
+Vendiqo is a multi-tenant event and venue POS system. **Verleiher** (hire companies) rent POS hardware to event customers: the **cloud** stack configures organisations and events; **Raspberry Pi** edge servers run on-venue ordering, printing, and sync; the **Android** app wraps the Pi PWA for waiter devices with Bluetooth printing. Card payments use **SumUp Solo** readers via the SumUp Cloud API.
 
 ```mermaid
 flowchart TB
@@ -14,6 +14,7 @@ flowchart TB
     PiPWA[Vue PWA]
     PiAPI[FastAPI + SQLite]
     Printers[ESC/POS printers]
+    Solo[SumUp Solo readers]
     PiPWA --> PiAPI
     PiAPI --> Printers
   end
@@ -21,14 +22,13 @@ flowchart TB
   subgraph android [Android waiter phone]
     WebView[WebView + Pi PWA]
     BTPrinter[Bluetooth printer]
-    TapToPay[Stripe Tap to Pay]
     WebView --> PiAPI
     WebView --> BTPrinter
-    WebView --> TapToPay
   end
 
   PiAPI -->|bundle + sync| CloudAPI
-  TapToPay -->|via Pi proxy| CloudAPI
+  PiAPI -->|SumUp checkout proxy| CloudAPI
+  CloudAPI -->|Cloud API| Solo
 ```
 
 ## Features
@@ -41,7 +41,7 @@ flowchart TB
 - User management, tax codes, countries, payment types
 - Event configuration: stations, printers, layouts, vouchers, kitchen monitors, cash registers, receipt printing
 - Sales reports, event stats, transactions, cash sessions, bookkeeping export, collective bill PDFs
-- Stripe Connect onboarding and Stripe Terminal edge API (optional in local dev)
+- SumUp OAuth connect, Solo reader management, and Cloud API edge checkout (optional in local dev)
 - Hosted Cloud-Pi browser sandboxes for events in config status
 - Orderjutsu import wizard
 - Help center and admin UI in German and English; locale-aware money and date formatting
@@ -52,7 +52,7 @@ flowchart TB
 - Waiter ordering, open tables, split-pay, collective bills (Sammelrechnung)
 - Cash registers, customer display, shift sessions
 - Kitchen monitor, pickup screen
-- Payments: cash, TWINT, SumUp; card via Stripe Terminal on Android
+- Payments: cash, TWINT, SumUp (manual), SumUp connected (Solo Cloud API)
 - Vouchers, stock tracking, receipt history
 - ESC/POS network printing (python-escpos)
 
@@ -60,7 +60,6 @@ flowchart TB
 
 - Native WebView wrapper for the Pi PWA
 - Bluetooth ESC/POS receipt printing
-- Stripe Tap to Pay via `window.AndroidTerminal`
 
 ## Monorepo layout
 
@@ -73,7 +72,7 @@ flowchart TB
 | [`packages/frontend-shared/`](packages/frontend-shared/) | Shared frontend utilities |
 | [`website/`](website/) | Static landing page and privacy policy (production via Caddy) |
 | [`sd-card-creator/`](sd-card-creator/) | Raspberry Pi OS SD card image build tooling |
-| [`docs/`](docs/) | Integration guides (e.g. [Stripe Connect / Terminal](docs/stripe-connect-terminal.md)) |
+| [`docs/`](docs/) | Integration guides (e.g. [SumUp Cloud API](docs/sumup-cloud-api.md)) |
 
 Further documentation: [cloud/README.md](cloud/README.md), [pi/README.md](pi/README.md), [android/README.md](android/README.md), [sd-card-creator/README.md](sd-card-creator/README.md), [AGENTS.md](AGENTS.md).
 

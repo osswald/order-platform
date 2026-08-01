@@ -30,11 +30,9 @@ Im Tab **Geräte** sehen und planen Sie Ausleihen für diese Organisation:
 
 Details zur lesenden Ansicht für Mitglieder: siehe **Geräteausleihen**.
 
-## Kartenzahlung (Stripe)
+## Kartenzahlung (SumUp)
 
-Stripe Connect wird pro Organisation eingerichtet. Auszahlungen gehen an die Organisation.
-
-Siehe Hilfeartikel **Stripe Connect** für Onboarding, Event-Aktivierung und Fehlerbehebung.
+SumUp wird pro Organisation unter **SumUp-Geräte** in der Cloud-Administration verbunden. Aktivieren Sie **SumUp connected** als Zahlungsart in der Event-Konfiguration.
 
 ## Farbpalette (App Layout)
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import re
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -56,8 +55,7 @@ from ..vouchers import (
 )
 
 PAYMENT_MODES_CASH = {"pay_now", "instant"}
-ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "stripe_terminal"})
-STRIPE_PAYMENT_INTENT_ID_PATTERN = re.compile(r"^pi_[A-Za-z0-9_]+$")
+ALLOWED_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "sumup_connected"})
 
 
 def _event_payment_types(ev: dict) -> set[str]:
@@ -96,12 +94,12 @@ def _validate_payment_types(ev: dict, payments: list) -> None:
                 status_code=400,
                 detail=f"Payment type «{t or '?'}» is not allowed for this event",
             )
-        if t == "stripe_terminal":
-            pi_id = (p.get("stripe_payment_intent_id") or "").strip()
-            if not STRIPE_PAYMENT_INTENT_ID_PATTERN.match(pi_id):
+        if t == "sumup_connected":
+            txn_id = (p.get("sumup_transaction_id") or "").strip()
+            if not txn_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="Stripe Terminal payment requires a valid stripe_payment_intent_id",
+                    detail="Sumup connected payment requires a sumup_transaction_id",
                 )
 
 

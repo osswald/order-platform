@@ -6,7 +6,14 @@
     "article_delete_reason_addition": "linked as an addition on other articles",
     "article_delete_reason_layout": "used on app layouts",
     "article_delete_reason_station": "assigned to stations",
-    "article_delete_reason_stats": "used in sales/statistics"
+    "article_delete_reason_stats": "used in sales/statistics",
+    "sumup_request_failed": "SumUp request failed: {detail}",
+    "sumup_pairing_code_invalid": "Invalid or expired SumUp pairing code. Generate a new code on the Solo (or Virtual Solo) via Connections → API → Connect and pair within 5 minutes.",
+    "sumup_oauth_denied": "SumUp connection was cancelled.",
+    "sumup_oauth_missing_code": "SumUp callback was missing an authorization code.",
+    "sumup_oauth_invalid_state": "SumUp connection expired or is invalid. Please connect again.",
+    "sumup_oauth_config": "SumUp OAuth is not configured on the server.",
+    "organisation_not_found": "Organisation not found."
   },
   "pdf": {
     "common": {

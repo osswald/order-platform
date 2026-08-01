@@ -19,7 +19,8 @@ import TenantSettings from '../components/TenantSettings.vue'
 import Appliances from '../components/Appliances.vue'
 import Users from '../components/Users.vue'
 import AccountSettings from '../components/AccountSettings.vue'
-import StripeConnectReturn from '../components/StripeConnectReturn.vue'
+import SumupDevices from '../components/SumupDevices.vue'
+import SumupOAuthCallback from '../components/SumupOAuthCallback.vue'
 import LoginPage from '../components/LoginPage.vue'
 import SectionPlaceholder from '../components/SectionPlaceholder.vue'
 import HelpCenter from '../components/HelpCenter.vue'
@@ -84,6 +85,18 @@ const routes = [
     component: ApplianceLendings,
     meta: orgScoped,
   },
+  {
+    path: '/sumup-devices',
+    name: 'sumup-devices',
+    component: SumupDevices,
+    meta: organisationManagerOnly,
+  },
+  {
+    path: '/sumup/oauth/callback',
+    name: 'sumup-oauth-callback',
+    component: SumupOAuthCallback,
+    meta: organisationManagerOnly,
+  },
   ...listDetailRoutes({
     path: '/verleiher',
     listName: 'hire-companies',
@@ -118,18 +131,6 @@ const routes = [
     name: 'settings',
     component: AccountSettings,
     meta: orgScoped,
-  },
-  {
-    path: '/settings/stripe/return',
-    name: 'stripe-connect-return',
-    component: StripeConnectReturn,
-    meta: tenantAdminOnly,
-  },
-  {
-    path: '/settings/stripe/refresh',
-    name: 'stripe-connect-refresh',
-    component: StripeConnectReturn,
-    meta: tenantAdminOnly,
   },
   {
     path: '/help',

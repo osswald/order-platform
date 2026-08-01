@@ -1,19 +1,26 @@
 import type { EdgeBundleEvent, PaymentIn } from '@/types/api'
 
-export const PAYMENT_TYPE_ORDER = ['cash', 'twint', 'sumup', 'stripe_terminal'] as const
+export const PAYMENT_TYPE_ORDER = ['cash', 'twint', 'sumup', 'sumup_connected'] as const
 
 export type PaymentType = (typeof PAYMENT_TYPE_ORDER)[number]
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Bargeld',
   twint: 'TWINT',
-  sumup: 'SumUp',
+  sumup: 'Sumup (manual)',
+  sumup_connected: 'Sumup connected',
+}
+
+/** Labels for historical / legacy payment rows still present in synced orders. */
+const LEGACY_PAYMENT_TYPE_LABELS: Record<string, string> = {
   stripe_terminal: 'Karte',
 }
 
 export function paymentTypeLabel(type: string | null | undefined): string {
   const key = String(type || '').toLowerCase()
-  return PAYMENT_TYPE_LABELS[key as PaymentType] || key || '—'
+  if (key in PAYMENT_TYPE_LABELS) return PAYMENT_TYPE_LABELS[key as PaymentType]
+  if (key in LEGACY_PAYMENT_TYPE_LABELS) return LEGACY_PAYMENT_TYPE_LABELS[key]
+  return key || '—'
 }
 
 export function eventPaymentTypes(event: EdgeBundleEvent | null | undefined): PaymentType[] {
@@ -36,12 +43,15 @@ export function buildPayment(amountCents: number, type: string): PaymentIn[] {
   return [{ type, amount_cents: Math.max(0, Number(amountCents) || 0) }]
 }
 
-export function buildStripeTerminalPayment(amountCents: number, paymentIntentId: string): PaymentIn[] {
+export function buildSumupConnectedPayment(
+  amountCents: number,
+  sumupTransactionId: string,
+): PaymentIn[] {
   return [
     {
-      type: 'stripe_terminal',
+      type: 'sumup_connected',
       amount_cents: Math.max(0, Number(amountCents) || 0),
-      stripe_payment_intent_id: String(paymentIntentId || '').trim(),
+      sumup_transaction_id: String(sumupTransactionId || '').trim(),
     },
   ]
 }

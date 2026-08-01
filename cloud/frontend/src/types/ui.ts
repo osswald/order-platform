@@ -80,6 +80,7 @@ export interface EventCashRegisterLocal {
   receipt_printer_appliance_id: number | null
   cash_drawer_command?: string
   subsidiary_code?: string
+  sumup_reader_id?: string | null
 }
 
 export interface EventVoucherDefinitionLocal {

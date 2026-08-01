@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-FALLBACK_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "stripe_terminal"})
-FALLBACK_PAYMENT_TYPE_ORDER = ("cash", "twint", "sumup", "stripe_terminal")
+FALLBACK_PAYMENT_TYPES = frozenset({"cash", "twint", "sumup", "sumup_connected"})
+FALLBACK_PAYMENT_TYPE_ORDER = ("cash", "twint", "sumup", "sumup_connected")
 
 _allowed_slugs: frozenset[str] = FALLBACK_PAYMENT_TYPES
 _slug_order: tuple[str, ...] = FALLBACK_PAYMENT_TYPE_ORDER

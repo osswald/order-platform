@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { EdgeBundleEvent } from '@/types/api'
 import {
   buildPayment,
-  buildStripeTerminalPayment,
+  buildSumupConnectedPayment,
   eventPaymentTypes,
   eventTwintQrDataUrl,
   paymentTypeLabel,
@@ -11,6 +11,8 @@ import {
 describe('paymentTypeLabel', () => {
   it('maps known payment types', () => {
     expect(paymentTypeLabel('cash')).toBe('Bargeld')
+    expect(paymentTypeLabel('sumup')).toBe('Sumup (manual)')
+    expect(paymentTypeLabel('sumup_connected')).toBe('Sumup connected')
     expect(paymentTypeLabel('stripe_terminal')).toBe('Karte')
     expect(paymentTypeLabel('unknown')).toBe('unknown')
   })
@@ -18,15 +20,21 @@ describe('paymentTypeLabel', () => {
 
 describe('eventPaymentTypes', () => {
   it('orders types according to PAYMENT_TYPE_ORDER', () => {
-    expect(eventPaymentTypes({ payment_types: ['twint', 'cash', 'sumup'] } as EdgeBundleEvent)).toEqual([
-      'cash',
-      'twint',
-      'sumup',
-    ])
+    expect(
+      eventPaymentTypes({
+        payment_types: ['twint', 'cash', 'sumup', 'sumup_connected'],
+      } as EdgeBundleEvent),
+    ).toEqual(['cash', 'twint', 'sumup', 'sumup_connected'])
   })
 
   it('defaults to cash when missing', () => {
     expect(eventPaymentTypes(null)).toEqual(['cash'])
+  })
+
+  it('ignores deactivated stripe_terminal in event config', () => {
+    expect(
+      eventPaymentTypes({ payment_types: ['cash', 'stripe_terminal'] } as EdgeBundleEvent),
+    ).toEqual(['cash'])
   })
 })
 
@@ -46,13 +54,13 @@ describe('buildPayment', () => {
   })
 })
 
-describe('buildStripeTerminalPayment', () => {
-  it('includes stripe payment intent id', () => {
-    expect(buildStripeTerminalPayment(1200, 'pi_123')).toEqual([
+describe('buildSumupConnectedPayment', () => {
+  it('includes sumup transaction id', () => {
+    expect(buildSumupConnectedPayment(1500, 'txn_abc')).toEqual([
       {
-        type: 'stripe_terminal',
-        amount_cents: 1200,
-        stripe_payment_intent_id: 'pi_123',
+        type: 'sumup_connected',
+        amount_cents: 1500,
+        sumup_transaction_id: 'txn_abc',
       },
     ])
   })

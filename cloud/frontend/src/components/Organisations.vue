@@ -95,10 +95,6 @@
             </template>
           </template>
 
-          <template #stripe>
-            <OrganisationStripeSection :organisation-id="activeId" />
-          </template>
-
           <template #belegvorlagen>
             <ReceiptPrintingSection
               :api-base-path="`/organisations/${activeId}`"
@@ -232,7 +228,6 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import OrganisationStammdatenFields from './OrganisationStammdatenFields.vue'
-import OrganisationStripeSection from './OrganisationStripeSection.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
 import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import OrganisationPositionCommentsSection from './OrganisationPositionCommentsSection.vue'
@@ -306,7 +301,6 @@ const configSections = computed((): SectionNavSection[] => {
   return [
     { id: 'stammdaten', title: t('organisations.config.sectionStammdaten'), defaultOpen: true },
     { id: 'geraete', title: t('organisations.config.sectionGeraete') },
-    { id: 'stripe', title: t('organisations.config.sectionStripe') },
     { id: 'belegvorlagen', title: t('organisations.config.sectionBelegvorlagen') },
     { id: 'farbpalette', title: t('organisations.config.sectionColorPalette') },
     { id: 'positionen', title: t('organisations.config.sectionPositionen') },

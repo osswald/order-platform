@@ -30,5 +30,5 @@ Organisationen und einzelne Events können eigene Belegprofile überschreiben �
 | Ebene | Ort | Zweck |
 |-------|-----|-------|
 | Verleiher | Verleiher-Einstellungen | Mandanten-Stammdaten, globale Belegvorlagen |
-| Organisation | Organisationen | Kunden-Stammdaten, Buchhaltung, Stripe |
+| Organisation | Organisationen | Kunden-Stammdaten, Buchhaltung, SumUp |
 | Event | Event-Konfiguration → Belege | Event-spezifische Belegprofile |

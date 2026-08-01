@@ -34,7 +34,7 @@ describe('HelpLink', () => {
 
   it('renders text link for link variant', async () => {
     const wrapper = mount(HelpLink, {
-      props: { slug: 'stripe-connect', variant: 'link', label: 'Stripe-Hilfe' },
+      props: { slug: 'event-setup', variant: 'link', label: 'Event-Hilfe' },
       global: {
         plugins: [router],
       },
@@ -43,7 +43,7 @@ describe('HelpLink', () => {
     await router.isReady()
 
     const link = wrapper.find('a.help-link')
-    expect(link.text()).toBe('Stripe-Hilfe')
-    expect(link.attributes('href')).toBe('/help/stripe-connect')
+    expect(link.text()).toBe('Event-Hilfe')
+    expect(link.attributes('href')).toBe('/help/event-setup')
   })
 })

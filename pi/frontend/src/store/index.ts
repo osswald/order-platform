@@ -93,8 +93,19 @@ export function validateWaiterSession(): void {
     selectedEventId.value = null
     return
   }
-  waiter.value = { uuid: String(configured.uuid), name: String(configured.name) }
-  persistWaiterSession({ eventId: Number(eventId), uuid: String(configured.uuid), name: String(configured.name) })
+  waiter.value = {
+    uuid: String(configured.uuid),
+    name: String(configured.name),
+    sumupReaderId: waiter.value.sumupReaderId,
+    sumupReaderLabel: waiter.value.sumupReaderLabel,
+  }
+  persistWaiterSession({
+    eventId: Number(eventId),
+    uuid: String(configured.uuid),
+    name: String(configured.name),
+    sumupReaderId: waiter.value.sumupReaderId,
+    sumupReaderLabel: waiter.value.sumupReaderLabel,
+  })
 }
 
 export function setWaiter(w: WaiterSession | null): void {
@@ -110,6 +121,8 @@ export function setWaiter(w: WaiterSession | null): void {
       eventId: selectedEventId.value!,
       uuid: w.uuid,
       name: w.name,
+      sumupReaderId: w.sumupReaderId,
+      sumupReaderLabel: w.sumupReaderLabel,
     })
   }
 }

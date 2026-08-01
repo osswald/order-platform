@@ -1,7 +1,5 @@
 """Smoke tests for edge_api routes not covered elsewhere."""
 
-from unittest.mock import AsyncMock
-
 from app.deps import get_db
 from app.main import app
 
@@ -78,55 +76,6 @@ def test_cloud_reachable_not_configured(client, monkeypatch, tmp_path):
 def test_admin_status(client):
     r = client.get("/v1/admin/status")
     assert r.status_code == 200
-
-
-def test_terminal_routes_require_stripe_event(client, bundle):
-    b = dict(bundle)
-    ev = b["events"][0]
-    ev["payment_types"] = ["cash"]
-    b["events"] = [ev]
-    import json
-
-    from app.database import SessionLocal
-    from app.models import SyncedBundle
-
-    db = SessionLocal()
-    try:
-        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-        row.json_body = json.dumps(b)
-        db.commit()
-    finally:
-        db.close()
-
-    r = client.post("/v1/terminal/connection-token", json={"event_id": ev["id"]})
-    assert r.status_code == 403
-
-
-def test_terminal_connection_token_proxies_cloud(client, bundle, monkeypatch):
-    b = dict(bundle)
-    ev = b["events"][0]
-    ev["payment_types"] = ["stripe_terminal"]
-    b["events"] = [ev]
-    import json
-
-    from app.database import SessionLocal
-    from app.models import SyncedBundle
-
-    db = SessionLocal()
-    try:
-        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
-        row.json_body = json.dumps(b)
-        db.commit()
-    finally:
-        db.close()
-
-    monkeypatch.setattr(
-        "app.routers.edge_payments.cloud_create_terminal_connection_token",
-        AsyncMock(return_value={"secret": "tok_test"}),
-    )
-    r = client.post("/v1/terminal/connection-token", json={"event_id": ev["id"]})
-    assert r.status_code == 200, r.text
-    assert r.json()["secret"] == "tok_test"
 
 
 def test_payments_list_empty(client, bundle):

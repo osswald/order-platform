@@ -7,7 +7,7 @@ import { useSectionQuerySync } from './useSectionQuerySync'
 
 const sections = [
   { id: 'stammdaten' },
-  { id: 'stripe' },
+  { id: 'geraete' },
   { id: 'buchhaltung' },
 ]
 
@@ -47,8 +47,8 @@ async function mountSync(options: {
 
 describe('useSectionQuerySync', () => {
   it('applies a valid section query to the active tab', async () => {
-    const { activeTab } = await mountSync({ path: '/detail/1?section=stripe' })
-    expect(activeTab.value).toBe('stripe')
+    const { activeTab } = await mountSync({ path: '/detail/1?section=geraete' })
+    expect(activeTab.value).toBe('geraete')
   })
 
   it('ignores unknown section ids in the query', async () => {
@@ -68,11 +68,11 @@ describe('useSectionQuerySync', () => {
   })
 
   it('does not replace when the query already matches the active tab', async () => {
-    const { router, activeTab } = await mountSync({ path: '/detail/1?section=stripe' })
-    expect(activeTab.value).toBe('stripe')
+    const { router, activeTab } = await mountSync({ path: '/detail/1?section=geraete' })
+    expect(activeTab.value).toBe('geraete')
 
     const replaceSpy = vi.spyOn(router, 'replace')
-    activeTab.value = 'stripe'
+    activeTab.value = 'geraete'
     await nextTick()
     await flushPromises()
 
@@ -89,7 +89,7 @@ describe('useSectionQuerySync', () => {
 
     expect(router.currentRoute.value.query.section).toBeUndefined()
 
-    activeTab.value = 'stripe'
+    activeTab.value = 'geraete'
     await flushPromises()
 
     expect(router.currentRoute.value.query.section).toBeUndefined()
@@ -97,9 +97,9 @@ describe('useSectionQuerySync', () => {
 
   it('updates the query when the active tab falls back after sections change', async () => {
     const { activeTab, sectionList, router } = await mountSync({
-      path: '/detail/1?section=stripe',
+      path: '/detail/1?section=geraete',
     })
-    expect(activeTab.value).toBe('stripe')
+    expect(activeTab.value).toBe('geraete')
 
     activeTab.value = 'stammdaten'
     await flushPromises()
@@ -117,10 +117,10 @@ describe('useSectionQuerySync', () => {
     const { activeTab, router } = await mountSync({ path: '/detail/1?foo=bar' })
     expect(router.currentRoute.value.query).toMatchObject({ foo: 'bar', section: 'stammdaten' })
 
-    activeTab.value = 'stripe'
+    activeTab.value = 'geraete'
     await flushPromises()
 
-    expect(router.currentRoute.value.query).toMatchObject({ foo: 'bar', section: 'stripe' })
+    expect(router.currentRoute.value.query).toMatchObject({ foo: 'bar', section: 'geraete' })
   })
 
   it('applies section from query when enabled becomes true', async () => {

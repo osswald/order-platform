@@ -3,6 +3,8 @@ import { ref } from 'vue'
 export interface WaiterSession {
   uuid: string
   name: string
+  sumupReaderId?: string
+  sumupReaderLabel?: string
 }
 
 export interface RegisterSession {
@@ -43,7 +45,12 @@ export function restoreWaiterSession(): void {
     const data = JSON.parse(raw) as Partial<PersistedWaiterSession>
     if (!data?.uuid || data.eventId == null) return
     selectedEventId.value = Number(data.eventId)
-    waiter.value = { uuid: String(data.uuid), name: String(data.name || '') }
+    waiter.value = {
+      uuid: String(data.uuid),
+      name: String(data.name || ''),
+      sumupReaderId: data.sumupReaderId ? String(data.sumupReaderId) : undefined,
+      sumupReaderLabel: data.sumupReaderLabel ? String(data.sumupReaderLabel) : undefined,
+    }
   } catch {
     localStorage.removeItem(WAITER_SESSION_KEY)
   }
