@@ -9769,9 +9769,11 @@ export interface operations {
     };
     oauth_callback_sumup_oauth_callback_get: {
         parameters: {
-            query: {
-                code: string;
-                state: string;
+            query?: {
+                code?: string | null;
+                state?: string | null;
+                error?: string | null;
+                error_description?: string | null;
             };
             header?: never;
             path?: never;

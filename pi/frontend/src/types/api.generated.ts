@@ -691,57 +691,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/terminal/connection-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Terminal Connection Token */
-        post: operations["terminal_connection_token_v1_terminal_connection_token_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/terminal/payment-intents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Terminal Payment Intent */
-        post: operations["terminal_payment_intent_v1_terminal_payment_intents_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/terminal/payment-intents/{payment_intent_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Terminal Payment Intent Status */
-        get: operations["terminal_payment_intent_status_v1_terminal_payment_intents__payment_intent_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/registers/{cash_register_uuid}/display": {
         parameters: {
             query?: never;
@@ -805,6 +754,57 @@ export interface paths {
         put?: never;
         /** Payment Receipt Print To Station */
         post: operations["payment_receipt_print_to_station_v1_payments__payment_id__receipt_print_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sumup/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sumup Checkout */
+        post: operations["sumup_checkout_v1_sumup_checkout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sumup/terminate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sumup Terminate */
+        post: operations["sumup_terminate_v1_sumup_terminate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sumup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sumup Status */
+        get: operations["sumup_status_v1_sumup_status_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1249,6 +1249,8 @@ export interface components {
             ingredients_enabled: boolean;
             /** Admin Pin Hashes */
             admin_pin_hashes?: string[];
+            /** Sumup Readers */
+            sumup_readers?: components["schemas"]["EdgeBundleSumupReader"][];
         } & {
             [key: string]: unknown;
         };
@@ -1308,6 +1310,13 @@ export interface components {
             monitor_stock?: boolean | null;
         } & {
             [key: string]: unknown;
+        };
+        /** EdgeBundleSumupReader */
+        EdgeBundleSumupReader: {
+            /** Sumup Reader Id */
+            sumup_reader_id: string;
+            /** Label */
+            label: string;
         };
         /** EdgeEventConfiguration */
         EdgeEventConfiguration: {
@@ -2224,6 +2233,26 @@ export interface components {
              */
             ok: boolean;
         };
+        /** SumupCheckoutBody */
+        SumupCheckoutBody: {
+            /** Event Id */
+            event_id: number;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Currency */
+            currency?: string | null;
+            /** Reader Id */
+            reader_id: string;
+            /** Client Order Id */
+            client_order_id?: string | null;
+        };
+        /** SumupTerminateBody */
+        SumupTerminateBody: {
+            /** Event Id */
+            event_id: number;
+            /** Reader Id */
+            reader_id: string;
+        };
         /** SyncMetaResponse */
         SyncMetaResponse: {
             /** Last Sync At */
@@ -2313,28 +2342,6 @@ export interface components {
             total_cents: number;
             /** Table Number */
             table_number: number;
-        };
-        /** TerminalConnectionTokenBody */
-        TerminalConnectionTokenBody: {
-            /** Event Id */
-            event_id: number;
-        };
-        /** TerminalPaymentIntentBody */
-        TerminalPaymentIntentBody: {
-            /** Event Id */
-            event_id: number;
-            /** Amount Cents */
-            amount_cents: number;
-            /** Currency */
-            currency?: string | null;
-            /** Client Order Id */
-            client_order_id?: string | null;
-            /** Idempotency Key */
-            idempotency_key?: string | null;
-            /** Metadata */
-            metadata?: {
-                [key: string]: string;
-            };
         };
         /** TransferLinesBody */
         TransferLinesBody: {
@@ -3696,111 +3703,6 @@ export interface operations {
             };
         };
     };
-    terminal_connection_token_v1_terminal_connection_token_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TerminalConnectionTokenBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    terminal_payment_intent_v1_terminal_payment_intents_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TerminalPaymentIntentBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    terminal_payment_intent_status_v1_terminal_payment_intents__payment_intent_id__get: {
-        parameters: {
-            query: {
-                event_id: number;
-            };
-            header?: never;
-            path: {
-                payment_intent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_register_display_v1_registers__cash_register_uuid__display_get: {
         parameters: {
             query: {
@@ -3959,6 +3861,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaymentReceiptPrintResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sumup_checkout_v1_sumup_checkout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SumupCheckoutBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sumup_terminate_v1_sumup_terminate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SumupTerminateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sumup_status_v1_sumup_status_get: {
+        parameters: {
+            query: {
+                event_id: number;
+                checkout_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -14,7 +14,9 @@ const readers = [
 
 describe('sumupReaders', () => {
   it('returns empty list when bundle has no sumup_readers', () => {
-    expect(getBundleSumupReaders({ organisation_id: 1, events: [] } as EdgeBundleResponse)).toEqual([])
+    expect(
+      getBundleSumupReaders({ organisation_id: 1, events: [] } as unknown as EdgeBundleResponse),
+    ).toEqual([])
   })
 
   it('reads labelled readers from bundle', () => {
@@ -23,17 +25,17 @@ describe('sumupReaders', () => {
         organisation_id: 1,
         events: [],
         sumup_readers: readers,
-      } as EdgeBundleResponse),
+      } as unknown as EdgeBundleResponse),
     ).toEqual(readers)
   })
 
   it('requires picker when sumup_connected and multiple readers', () => {
-    const event = { payment_types: ['cash', 'sumup_connected'] } as EdgeBundleEvent
+    const event = { payment_types: ['cash', 'sumup_connected'] } as unknown as EdgeBundleEvent
     expect(eventNeedsSumupReaderPicker(event, readers)).toBe(true)
   })
 
   it('does not require picker without sumup_connected', () => {
-    const event = { payment_types: ['cash'] } as EdgeBundleEvent
+    const event = { payment_types: ['cash'] } as unknown as EdgeBundleEvent
     expect(eventNeedsSumupReaderPicker(event, readers)).toBe(false)
   })
 
@@ -50,7 +52,7 @@ describe('sumupReaders', () => {
       configuration: {
         cash_registers: [{ uuid: 'reg-1', name: 'Front', sumup_reader_id: 'r2' }],
       },
-    } as EdgeBundleEvent
+    } as unknown as EdgeBundleEvent
     expect(resolveRegisterSumupReaderId(event, 'reg-1')).toBe('r2')
     expect(resolveRegisterSumupReaderId(event, 'missing')).toBeNull()
   })
