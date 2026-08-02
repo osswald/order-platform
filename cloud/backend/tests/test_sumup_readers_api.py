@@ -176,15 +176,87 @@ def test_list_readers():
     finally:
         db.close()
 
-    r = client.get(
-        f"/sumup/organisations/{org_id}/readers",
-        headers=_auth_headers(),
-    )
+    with patch("app.routers.sumup_readers.sumup_client.list_readers") as mock_list:
+        mock_list.return_value = [
+            {"id": SUMUP_READER_ID, "name": "Bar", "status": "paired"},
+        ]
+        r = client.get(
+            f"/sumup/organisations/{org_id}/readers",
+            headers=_auth_headers(),
+        )
     assert r.status_code == 200, r.text
     items = r.json()
     assert len(items) == 1
     assert items[0]["label"] == "Bar"
     assert items[0]["sumup_reader_id"] == SUMUP_READER_ID
+    assert items[0]["status"] == "paired"
+
+
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
+@patch("app.routers.sumup_readers.get_valid_access_token", return_value="access_test")
+def test_list_readers_refreshes_stale_status(mock_token, mock_list):
+    org_id, _ = _seed_connected_org()
+    db = SessionLocal()
+    try:
+        db.add(
+            SumupReader(
+                organisation_id=org_id,
+                sumup_reader_id=SUMUP_READER_ID,
+                label="Bar",
+                status="processing",
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    mock_list.return_value = [
+        {"id": SUMUP_READER_ID, "name": "Bar", "status": "paired"},
+    ]
+    r = client.get(
+        f"/sumup/organisations/{org_id}/readers",
+        headers=_auth_headers(),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()[0]["status"] == "paired"
+    mock_list.assert_called_once()
+
+    db = SessionLocal()
+    try:
+        stored = db.query(SumupReader).filter(SumupReader.sumup_reader_id == SUMUP_READER_ID).first()
+        assert stored is not None
+        assert stored.status == "paired"
+    finally:
+        db.close()
+
+
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
+@patch("app.routers.sumup_readers.get_valid_access_token", return_value="access_test")
+def test_list_readers_keeps_local_status_when_sumup_unavailable(mock_token, mock_list):
+    from app.sumup_client import SumupApiError
+
+    org_id, _ = _seed_connected_org()
+    db = SessionLocal()
+    try:
+        db.add(
+            SumupReader(
+                organisation_id=org_id,
+                sumup_reader_id=SUMUP_READER_ID,
+                label="Bar",
+                status="processing",
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    mock_list.side_effect = SumupApiError(503, "unavailable")
+    r = client.get(
+        f"/sumup/organisations/{org_id}/readers",
+        headers=_auth_headers(),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()[0]["status"] == "processing"
 
 
 @patch("app.routers.sumup_readers.sumup_client.update_reader")
