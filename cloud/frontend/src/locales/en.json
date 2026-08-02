@@ -268,6 +268,9 @@
     "pleaseWait": "Please wait…",
     "readerStatus": {
       "paired": "Paired",
+      "processing": "Pairing…",
+      "expired": "Expired",
+      "unknown": "Unknown",
       "active": "Active",
       "inactive": "Inactive"
     }
