@@ -30,6 +30,9 @@ docker compose -f "$COMPOSE_DIR/docker-compose.yml" --env-file "$ENV_FILE" -p "$
 echo "==> Starting stack"
 docker compose -f "$COMPOSE_DIR/docker-compose.yml" --env-file "$ENV_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --wait
 
+echo "==> Ensuring Caddy route for Play review host"
+"$ROOT/scripts/ensure-play-review-caddy.sh"
+
 check_health_json() {
   local url="$1"
   local tmp headers ctype acao
@@ -77,6 +80,15 @@ while (( SECONDS < deadline )); do
 done
 if (( ok != 1 )); then
   echo "Health check timed out for: $PLAY_REVIEW_URL/health (JSON + CORS required)" >&2
+  echo "==> Diagnostics (TLS / Caddy)" >&2
+  curl -vI "$PLAY_REVIEW_URL/health" >&2 || true
+  docker ps --filter name=play-review --format 'table {{.Names}}\t{{.Status}}\t{{.Networks}}' >&2 || true
+  if [[ -f "$ROOT/cloud/hosted-snippets/play-review.caddy" ]]; then
+    echo "--- cloud/hosted-snippets/play-review.caddy ---" >&2
+    cat "$ROOT/cloud/hosted-snippets/play-review.caddy" >&2 || true
+  else
+    echo "Missing cloud/hosted-snippets/play-review.caddy" >&2
+  fi
   exit 1
 fi
 

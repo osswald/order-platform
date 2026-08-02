@@ -32,6 +32,16 @@ jobs:
             git fetch origin main
             # Remove untracked bootstrap copies that block merge; ignored
             # files such as cloud/play-review/.env are kept.
-            git clean -fd
+            # Keep hosted Caddy snippets (play-review TLS route).
+            git clean -fd -e cloud/hosted-snippets
             git merge --ff-only origin/main
+            # When dispatched from a fix branch, use that commit's deploy scripts.
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.sha }}" != "$(git rev-parse HEAD)" ]]; then
+              git fetch origin "${{ github.sha }}"
+              git checkout "${{ github.sha }}" -- \
+                scripts/deploy-play-review.sh \
+                scripts/ensure-play-review-caddy.sh \
+                scripts/cleanup-play-review.sh \
+                cloud/hosted-snippets/play-review.caddy
+            fi
             ./scripts/deploy-play-review.sh

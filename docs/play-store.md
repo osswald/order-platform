@@ -83,7 +83,7 @@ Encode keystore: `base64 -i order-platform-upload.jks | pbcopy`
 ### 1.7 VPS review stack
 
 - [x] Copy `cloud/play-review/.env.example` → `.env` on VPS; set `EDGE_CLIENT_ID`, `EDGE_SECRET`, `PLAY_REVIEW_CLEANUP_SECRET`.
-- [x] Install Caddy snippet into `cloud/hosted-snippets/play-review.caddy` (project `play-review`).
+- [x] Install Caddy snippet into `cloud/hosted-snippets/play-review.caddy` (tracked in git; refreshed by `scripts/ensure-play-review-caddy.sh`).
 - [x] Run deploy / `docker compose … up -d` — verified `https://play-review.demo.vendiqo.ch/health` returns JSON `{"status":"ok",...}` with CORS for Android WebView.
 
 Redeploy / full reset demo:
@@ -145,6 +145,7 @@ Use **All or some functionality is restricted**. English instructions:
 | Issue | Check |
 |-------|--------|
 | Review host down | `curl -fsS https://play-review.demo.vendiqo.ch/health` must return JSON (`"status":"ok"`), not HTML |
+| TLS `alert internal error` on review host | Snippet missing after `git clean`; run `./scripts/ensure-play-review-caddy.sh` then `curl -fsS https://play-review.demo.vendiqo.ch/health` |
 | Demo / Speichern stays disabled | Install latest internal build (≥1.6.24): Android uses native `AndroidNetwork.probeHealth` (no WebView CORS). Confirm host: `curl -fsS https://play-review.demo.vendiqo.ch/health` is JSON `status=ok`. |
 | Stale demo orders / receipts | `./scripts/cleanup-play-review.sh` (or wait for nightly); full wipe: `./scripts/deploy-play-review.sh` |
 | App stuck on connection setup | Venue Wi‑Fi; correct Pi IP in Admin → Synchronisation |

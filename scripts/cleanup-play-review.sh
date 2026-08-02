@@ -26,6 +26,10 @@ if [[ -z "${PLAY_REVIEW_CLEANUP_SECRET:-}" ]]; then
   exit 1
 fi
 
+# Self-heal TLS routing if an earlier git clean dropped the untracked snippet.
+echo "==> Ensuring Caddy route for Play review host"
+"$ROOT/scripts/ensure-play-review-caddy.sh"
+
 echo "==> Pi operational purge (HOSTED_PI)"
 curl -fsS -X POST "$PLAY_REVIEW_URL/v1/ops/purge-operational" \
   -H "Content-Type: application/json" \

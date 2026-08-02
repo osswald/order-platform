@@ -1,0 +1,8 @@
+# Persistent Google Play review Pi — kept in git so `git clean -fd` cannot drop TLS routing.
+# scripts/ensure-play-review-caddy.sh rewrites the proxy target to the running container name.
+play-review.demo.vendiqo.ch {
+	import security_headers
+	reverse_proxy play-review-pi-frontend-1:80 {
+		header_down -Server
+	}
+}
