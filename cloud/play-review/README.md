@@ -7,10 +7,10 @@ Always-on Pi stack for Google Play review at `https://play-review.demo.vendiqo.c
 1. Copy `cloud/play-review/.env.example` to `.env` on the VPS and fill in edge credentials from cloud admin (Play Review Demo appliance).
 2. Set `PLAY_REVIEW_CLEANUP_SECRET` (shared with GitHub secret of the same name) for nightly purge.
 3. Optionally set `PLAY_REVIEW_EVENT_ID` and `PLAY_REVIEW_CLOUD_TOKEN` so cleanup also purges cloud operational mirror/stock for that event.
-4. Install the Caddy snippet from `caddy/play-review.caddy`:
-   - Set `FRONTEND_CONTAINER` to the frontend container name after first `docker compose up` (project name `play-review`).
-   - Copy into the host Caddy snippets dir (same as hosted Cloud-Pi; default `/caddy-snippets` on VPS).
-   - Reload Caddy: `docker exec cloud-caddy-1 caddy reload --config /etc/caddy/Caddyfile`
+4. Caddy routing uses tracked `cloud/hosted-snippets/play-review.caddy` (imported by `cloud/Caddyfile`).
+   - After stack up, `scripts/ensure-play-review-caddy.sh` rewrites the proxy target to the running
+     `play-review-pi-frontend-*` container and reloads Caddy (also called from deploy/cleanup).
+   - Do not rely on an untracked copy only — `git clean -fd` used to delete it and break TLS.
 5. Ensure `*.demo.vendiqo.ch` DNS points at the VPS.
 
 ## Manual deploy

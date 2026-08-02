@@ -53,6 +53,10 @@ for wf in "$DEPLOY_WF" "$CLEANUP_WF"; do
     '[[:space:]]git fetch origin main'
   assert_file_contains "$name merges with --ff-only" "$wf" \
     '[[:space:]]git merge --ff-only origin/main'
+  # Untracked hosted Caddy snippets must survive clean; deleting play-review.caddy
+  # leaves Caddy without a TLS site block after the next reload.
+  assert_file_contains "$name git clean excludes hosted-snippets" "$wf" \
+    'git clean -fd -e cloud/hosted-snippets'
 done
 
 assert_file_lacks "play-review-deploy.yml is not triggered by pull_request" "$DEPLOY_WF" \
@@ -73,6 +77,17 @@ assert_file_contains "play-review-guards.yml runs workflow guards" "$GUARDS_WF" 
   'test-play-review-workflow-guards\.sh'
 assert_file_lacks "play-review-guards.yml does not SSH deploy" "$GUARDS_WF" \
   'appleboy/ssh-action@'
+
+DEPLOY_SH="$ROOT/scripts/deploy-play-review.sh"
+CLEANUP_SH="$ROOT/scripts/cleanup-play-review.sh"
+ENSURE_SH="$ROOT/scripts/ensure-play-review-caddy.sh"
+assert_file_exists "ensure-play-review-caddy.sh exists" "$ENSURE_SH"
+assert_file_contains "deploy ensures Caddy route after stack up" "$DEPLOY_SH" \
+  'ensure-play-review-caddy\.sh'
+assert_file_contains "cleanup ensures Caddy route before purge" "$CLEANUP_SH" \
+  'ensure-play-review-caddy\.sh'
+assert_file_exists "tracked play-review Caddy snippet exists" \
+  "$ROOT/cloud/hosted-snippets/play-review.caddy"
 
 if [[ $failures -gt 0 ]]; then
   echo "$failures test(s) failed." >&2
