@@ -73,6 +73,10 @@ import { isAndroidApp } from '@/api'
 import { applyAndroidSafeAreaInsets } from '@/utils/androidInsets'
 import { useBundle } from '@/composables/useBundle'
 import { useBundleRefresh } from '@/composables/useBundleRefresh'
+import {
+  notePiReachable,
+  usePiConnectivityKeepalive,
+} from '@/composables/usePiConnectivity'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 import { useSetupStatus } from '@/composables/useSetupStatus'
 import { useToast } from '@/composables/useToast'
@@ -128,6 +132,7 @@ function syncHostedDemoBodyClass() {
 watch([emulatedPrinter, isWide], syncHostedDemoBodyClass, { immediate: true })
 
 useBundleRefresh()
+usePiConnectivityKeepalive()
 
 watch(
   [() => waiter.value?.uuid, selectedEventId],
@@ -169,6 +174,7 @@ onMounted(async () => {
       await router.replace({ name: 'connection-setup' })
       return
     }
+    notePiReachable()
   }
 
   const status = await fetchSetupStatus()

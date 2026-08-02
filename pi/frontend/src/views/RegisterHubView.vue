@@ -7,15 +7,27 @@
     <p class="muted">{{ event?.name }}</p>
     <p v-if="register?.pickup_code_prefix" class="muted small">Pickup {{ register.pickup_code_prefix }}</p>
 
+    <PiUnreachableBanner />
+
     <div v-if="!register" class="card">
       <p>Kasse nicht gefunden.</p>
     </div>
 
     <div v-else class="hub-actions">
-      <button type="button" class="btn primary hub-btn" @click="startOrder">
-        Neue Bestellung
+      <button
+        type="button"
+        class="btn primary hub-btn"
+        :disabled="gating"
+        @click="startOrder"
+      >
+        {{ gating ? 'Prüfe Verbindung…' : 'Neue Bestellung' }}
       </button>
-      <button type="button" class="btn hub-btn" @click="openCollectiveBills">
+      <button
+        type="button"
+        class="btn hub-btn"
+        :disabled="gating"
+        @click="openCollectiveBills"
+      >
         Sammelrechnungen
       </button>
 
@@ -23,7 +35,12 @@
         <h2>Offene Bestellungen</h2>
         <ul class="order-list">
           <li v-for="o in openOrders" :key="o.local_order_id">
-            <button type="button" class="order-row" @click="resumePayment(o)">
+            <button
+              type="button"
+              class="order-row"
+              :disabled="gating"
+              @click="resumePayment(o)"
+            >
               <span class="num">{{ openOrderPickupLabel(o) }}</span>
               <span class="meta muted">{{ o.item_count }} Position(en) · {{ formatMoney(o.total_cents, currency) }}</span>
             </button>
@@ -42,9 +59,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PiUnreachableBanner from '@/components/PiUnreachableBanner.vue'
 import TestBetriebPill from '@/components/TestBetriebPill.vue'
 import { api } from '@/api'
 import { useCart } from '@/composables/useCart'
+import { usePiConnectivity } from '@/composables/usePiConnectivity'
 import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
 import { useRegisterSession } from '@/composables/useRegisterSession'
 import { ensureShiftForSubject, maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
@@ -60,8 +79,10 @@ const { clearCart } = useCart()
 const { register, event, setDisplayIdle, clearPickupHold, orderRoute } = useRegisterDisplay()
 const { setRegisterSession } = useRegisterSession()
 const { currency } = useEventContext()
+const { ensureReachable } = usePiConnectivity()
 const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
 const openOrders = ref<RegisterOpenOrderRow[]>([])
+const gating = ref(false)
 
 function openOrderPickupLabel(o: RegisterOpenOrderRow): string {
   const codes = (o.pickup_codes || []).filter(Boolean)
@@ -89,24 +110,42 @@ async function loadOpenOrders() {
   }
 }
 
-function startOrder() {
-  clearPickupHold()
-  clearCart()
-  router.push(orderRoute())
+async function withReachability(navigate: () => void) {
+  if (gating.value) return
+  gating.value = true
+  try {
+    const ok = await ensureReachable()
+    if (!ok) return
+    navigate()
+  } finally {
+    gating.value = false
+  }
 }
 
-function openCollectiveBills() {
-  const reg = register.value
-  if (!reg) return
-  router.push(registerCollectiveOpenLocation(String(reg.uuid)))
+async function startOrder() {
+  await withReachability(() => {
+    clearPickupHold()
+    clearCart()
+    router.push(orderRoute())
+  })
 }
 
-function resumePayment(o: RegisterOpenOrderRow) {
+async function openCollectiveBills() {
   const reg = register.value
   if (!reg) return
-  router.push({
-    name: 'register-pay',
-    params: { registerUuid: String(reg.uuid), orderId: String(o.local_order_id) },
+  await withReachability(() => {
+    router.push(registerCollectiveOpenLocation(String(reg.uuid)))
+  })
+}
+
+async function resumePayment(o: RegisterOpenOrderRow) {
+  const reg = register.value
+  if (!reg) return
+  await withReachability(() => {
+    router.push({
+      name: 'register-pay',
+      params: { registerUuid: String(reg.uuid), orderId: String(o.local_order_id) },
+    })
   })
 }
 
@@ -206,6 +245,10 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+.order-row:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 .order-row .num {
   font-weight: 600;
