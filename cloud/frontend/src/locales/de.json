@@ -1342,6 +1342,9 @@
     "pleaseWait": "Bitte warten…",
     "readerStatus": {
       "paired": "Gekoppelt",
+      "processing": "Koppelt…",
+      "expired": "Abgelaufen",
+      "unknown": "Unbekannt",
       "active": "Aktiv",
       "inactive": "Inaktiv"
     }
