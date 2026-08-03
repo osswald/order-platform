@@ -19,14 +19,14 @@
       icon="mdi-help-circle-outline"
       :aria-label="ariaLabel"
       :size="size"
-      @click="dialogOpen = true"
+      @click="openDialog"
     />
     <v-dialog v-model="dialogOpen" max-width="40rem">
-      <v-card v-if="article">
-        <v-card-title>{{ article.title }}</v-card-title>
+      <v-card v-if="dialogArticle">
+        <v-card-title>{{ dialogArticle.title }}</v-card-title>
         <v-card-text>
-          <p class="help-link-summary">{{ article.summary }}</p>
-          <HelpMarkdown :html="article.html" />
+          <p class="help-link-summary">{{ dialogArticle.summary }}</p>
+          <HelpMarkdown :html="dialogArticle.html" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -41,11 +41,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import HelpMarkdown from './HelpMarkdown.vue'
-import { getArticle } from '../utils/helpArticles.js'
+import { getArticleMeta, type HelpArticle } from '../utils/helpMeta'
 import { i18n } from '../i18n'
+
+const HelpMarkdown = defineAsyncComponent(() => import('./HelpMarkdown.vue'))
 
 const { t } = useI18n()
 
@@ -64,8 +65,9 @@ const props = withDefaults(
 )
 
 const dialogOpen = ref(false)
+const dialogArticle = ref<HelpArticle | null>(null)
 
-const article = computed(() => getArticle(props.slug))
+const articleMeta = computed(() => getArticleMeta(props.slug))
 
 const articleRoute = computed(() => ({
   name: 'help-article',
@@ -73,9 +75,15 @@ const articleRoute = computed(() => ({
 }))
 
 const ariaLabel = computed(() => {
-  if (article.value?.title) return t('help.ariaLabel', { title: article.value.title })
+  if (articleMeta.value?.title) return t('help.ariaLabel', { title: articleMeta.value.title })
   return props.label
 })
+
+async function openDialog() {
+  dialogOpen.value = true
+  const { getArticle } = await import('../utils/helpArticles')
+  dialogArticle.value = getArticle(props.slug)
+}
 </script>
 
 <style scoped>

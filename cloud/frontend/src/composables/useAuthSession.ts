@@ -260,6 +260,7 @@ export function useAuthSession() {
     migrateLegacyOrganisationQuery()
 
     if (isLoggedIn.value) {
+      // Organisations fetch depends on role / active hire company from /auth/me.
       const ok = await syncSession()
       if (!ok) {
         isLoggedIn.value = false
