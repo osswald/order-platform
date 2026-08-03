@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 from sqlalchemy.orm import Session
 
-from .bundle_cache import get_bundle_dict_raw
+from .bundle_cache import get_bundle_dict_raw, set_bundle_cache
 from .cloud_client import (
     CloudConfigError,
     ConditionalGetResult,
@@ -171,16 +171,12 @@ async def pull_bundle(
     old_bundle = get_bundle_dict_raw(db)
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     prior_etag = (row.etag if row else None) or None
-    prior_fp = (
-        bundle_content_fingerprint(json.loads(row.json_body))
-        if row and row.json_body
-        else None
-    )
+    prior_fp = bundle_content_fingerprint(old_bundle) if old_bundle else None
 
     result: ConditionalGetResult = await fetch_bundle(client=client, etag=prior_etag)
 
     if result.not_modified:
-        data = json.loads(row.json_body) if row and row.json_body else {}
+        data = old_bundle if isinstance(old_bundle, dict) else {}
         if row is not None and result.etag and result.etag != row.etag:
             row.etag = result.etag
             db.commit()
@@ -203,6 +199,7 @@ async def pull_bundle(
         if row is not None and result.etag and result.etag != row.etag:
             row.etag = result.etag
             db.commit()
+        # Body unchanged — keep warm process cache (old_bundle already loaded).
         event_count = len(data.get("events", []))
         return {
             "ok": True,
@@ -225,6 +222,7 @@ async def pull_bundle(
     db.commit()
     # Bundle may replace event logos; drop prepared rasters so the next slip uses new art.
     clear_receipt_logo_cache()
+    set_bundle_cache(data)
     write_ota_freeze_from_bundle(data if isinstance(data, dict) else None)
     purged = reconcile_bundle_lifecycle(db, old_bundle, data)
     event_count = len(data.get("events", []))
