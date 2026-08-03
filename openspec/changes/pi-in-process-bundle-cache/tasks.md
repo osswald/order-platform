@@ -13,5 +13,5 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Run Pi backend tests (`cd pi/backend && uv run python -m pytest tests/ -v`)
-- [ ] 3.2 Run `./scripts/lint.sh --staged` (or full) before commit
+- [x] 3.1 Run Pi backend tests (`cd pi/backend && uv run python -m pytest tests/ -v`)
+- [x] 3.2 Run `./scripts/lint.sh --staged` (or full) before commit
