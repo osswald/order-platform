@@ -19,6 +19,6 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run Pi frontend tests (`cd pi/frontend && npm test`) and fix failures
-- [ ] 4.2 Run staged lint (`./scripts/lint.sh --staged`) before commit
+- [x] 4.1 Run Pi frontend tests (`cd pi/frontend && npm test`) and fix failures
+- [x] 4.2 Run staged lint (`./scripts/lint.sh --staged`) before commit
 - [x] 4.3 Confirm cold-start connection-setup path still redirects on startup probe failure (no regression)
