@@ -51,5 +51,8 @@ def get_bundle_dict_raw(db: Session) -> dict | None:
     data = json.loads(row.json_body)
     if not isinstance(data, dict):
         return None
+    from .stock import merge_local_stock_overlay
+
+    merge_local_stock_overlay(db, data)
     _cached_bundle = copy.deepcopy(data)
     return copy.deepcopy(_cached_bundle)

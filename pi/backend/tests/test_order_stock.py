@@ -7,6 +7,8 @@ from tests.fixtures_bundles import bundle_copy, default_bundle
 
 
 def _seed_stock_bundle(Session, *, in_stock: int = 2) -> None:
+    from app.bundle_cache import invalidate_bundle_cache
+
     bundle = bundle_copy(default_bundle())
     ev = bundle["events"][0]
     ev["articles"] = {
@@ -25,6 +27,7 @@ def _seed_stock_bundle(Session, *, in_stock: int = 2) -> None:
         row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
         row.json_body = json.dumps(bundle)
         db.commit()
+        invalidate_bundle_cache()
     finally:
         db.close()
 
