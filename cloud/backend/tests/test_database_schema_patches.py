@@ -260,7 +260,7 @@ def test_run_migrations_bootstraps_pre_alembic_database():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "008_edge_credential_reported_app_version"
+    assert _alembic_current_revision() == "009_cash_session_uuid"
     inspector = inspect(engine)
     assert "stripe_webhook_events" in inspector.get_table_names()
 
@@ -272,7 +272,7 @@ def test_run_migrations_applies_fresh_database_from_scratch():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "008_edge_credential_reported_app_version"
+    assert _alembic_current_revision() == "009_cash_session_uuid"
     assert "users" in inspect(engine).get_table_names()
 
 

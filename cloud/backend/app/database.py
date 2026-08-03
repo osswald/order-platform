@@ -425,7 +425,7 @@ def _ensure_user_organisation_onboarding_dismissals_table() -> None:
 
 
 def _patch_edge_operational_snapshot_tables() -> None:
-    """Pi restore snapshots and org-scoped cash session keys (Alembic 003 drift)."""
+    """Pi restore snapshots and org-scoped cash session keys (Alembic 003/008 drift)."""
     try:
         from .models import EdgeCashSession, EdgeKitchenTicketSnapshot, EdgeOrderSnapshot
 
@@ -440,6 +440,12 @@ def _patch_edge_operational_snapshot_tables() -> None:
         "ALTER TABLE edge_cash_sessions ADD COLUMN subject_key VARCHAR(128)",
         "ALTER TABLE edge_cash_sessions ADD COLUMN IF NOT EXISTS subject_key VARCHAR(128)",
     )
+    _add_column_if_missing(
+        "edge_cash_sessions",
+        "cash_session_uuid",
+        "ALTER TABLE edge_cash_sessions ADD COLUMN cash_session_uuid VARCHAR(36)",
+        "ALTER TABLE edge_cash_sessions ADD COLUMN IF NOT EXISTS cash_session_uuid VARCHAR(36)",
+    )
     is_sqlite = engine.dialect.name == "sqlite"
     with engine.begin() as conn:
         conn.execute(
@@ -448,13 +454,35 @@ def _patch_edge_operational_snapshot_tables() -> None:
                 "ON edge_cash_sessions (subject_key)"
             )
         )
-        if not is_sqlite:
+        # Backfill any legacy rows missing UUID before enforcing uniqueness.
+        null_clause = (
+            "cash_session_uuid IS NULL OR cash_session_uuid = ''"
+            if is_sqlite
+            else "cash_session_uuid IS NULL"
+        )
+        rows = conn.execute(
+            text(f"SELECT id FROM edge_cash_sessions WHERE {null_clause}")
+        ).fetchall()
+        import uuid as uuid_mod
+
+        for (row_id,) in rows:
             conn.execute(
-                text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_edge_cash_sessions_org_event_subject "
-                    "ON edge_cash_sessions (organisation_id, event_id, subject_key)"
-                )
+                text("UPDATE edge_cash_sessions SET cash_session_uuid = :u WHERE id = :id"),
+                {"u": str(uuid_mod.uuid4()), "id": row_id},
             )
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_edge_cash_sessions_org_event_uuid "
+                "ON edge_cash_sessions (organisation_id, event_id, cash_session_uuid)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_cash_sessions_cash_session_uuid "
+                "ON edge_cash_sessions (cash_session_uuid)"
+            )
+        )
+        conn.execute(text("DROP INDEX IF EXISTS ix_edge_cash_sessions_org_event_subject"))
 
 
 def _patch_edge_order_items_ordered_at() -> None:

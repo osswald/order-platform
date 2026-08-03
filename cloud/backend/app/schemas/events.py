@@ -424,6 +424,7 @@ class EventTransactionsPageRead(BaseModel):
 class CashSessionRead(BaseModel):
     id: int
     cash_session_id: int
+    cash_session_uuid: str | None = None
     subject_type: str
     subject_name: str
     operator_waiter_name: str

@@ -73,6 +73,7 @@ def _event_snapshot(
     *,
     open_orders: list[dict],
     kitchen_tickets: list[dict] | None = None,
+    open_cash_sessions: list[dict] | None = None,
 ) -> dict:
     return {
         "organisation_id": 1,
@@ -81,7 +82,7 @@ def _event_snapshot(
                 "event_id": 1,
                 "open_orders": open_orders,
                 "collective_bills": [],
-                "open_cash_sessions": [],
+                "open_cash_sessions": open_cash_sessions if open_cash_sessions is not None else [],
                 "kitchen_tickets": kitchen_tickets if kitchen_tickets is not None else [],
             }
         ],
@@ -355,3 +356,36 @@ def test_restore_keeps_local_fewer_lines_than_cloud(isolated_engine, db_session,
     refreshed = db.query(LocalOrder).filter(LocalOrder.client_order_id == "partial-1").one()
     assert json.loads(refreshed.payload_json) == local_payload
     assert json.loads(refreshed.payload_json)["lines"] == local_lines
+
+
+def test_restore_cash_session_preserves_cash_session_uuid(isolated_engine, db_session, bundle):
+    from app.models import CashSession
+
+    db = db_session
+    _seed_bundle(db, bundle)
+    uuid_val = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    snapshot = _event_snapshot(
+        open_orders=[],
+        open_cash_sessions=[
+            {
+                "subject_key": "waiter:w-1",
+                "payload": {
+                    "cash_session_uuid": uuid_val,
+                    "subject_type": "waiter",
+                    "waiter_uuid": "w-1",
+                    "subject_name": "Anna",
+                    "status": "OPEN",
+                    "opening_balance_cents": 1000,
+                    "wallet_cents": 1000,
+                    "total_cash_cents": 0,
+                    "total_non_cash_cents": 0,
+                    "ledger": [],
+                },
+            }
+        ],
+    )
+    summary = restore_operational_snapshot(db, snapshot, bundle)
+    assert summary["restored_cash_sessions"] == 1
+    row = db.query(CashSession).filter(CashSession.event_id == 1, CashSession.status == "OPEN").one()
+    assert row.cash_session_uuid == uuid_val
+    assert row.waiter_uuid == "w-1"

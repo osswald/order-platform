@@ -47,6 +47,7 @@ def build_cash_sessions_page(
             {
                 "id": row.id,
                 "cash_session_id": row.cash_session_id,
+                "cash_session_uuid": row.cash_session_uuid,
                 "subject_type": row.subject_type,
                 "subject_name": row.subject_name,
                 "operator_waiter_name": waiter_names.get(row.operator_waiter_uuid or "", "—")
@@ -88,8 +89,9 @@ def upsert_edge_cash_session(
     from datetime import datetime
 
     cash_session_id = int(payload.get("cash_session_id") or 0)
+    cash_session_uuid = str(payload.get("cash_session_uuid") or "").strip()
     subject_key = cash_session_subject_key(payload) or payload.get("subject_key")
-    if not cash_session_id or not subject_key:
+    if not cash_session_id or not cash_session_uuid:
         return
 
     def _parse_dt(val):
@@ -107,7 +109,7 @@ def upsert_edge_cash_session(
         .filter(
             EdgeCashSession.organisation_id == organisation_id,
             EdgeCashSession.event_id == event_id,
-            EdgeCashSession.subject_key == subject_key,
+            EdgeCashSession.cash_session_uuid == cash_session_uuid,
         )
         .first()
     )
@@ -116,6 +118,7 @@ def upsert_edge_cash_session(
         "appliance_id": appliance_id,
         "event_id": event_id,
         "subject_key": subject_key,
+        "cash_session_uuid": cash_session_uuid,
         "cash_session_id": cash_session_id,
         "subject_type": str(payload.get("subject_type") or "waiter"),
         "waiter_uuid": payload.get("waiter_uuid"),
