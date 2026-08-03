@@ -110,6 +110,29 @@ def get_event_for_configuration(
     return event
 
 
+def get_event_for_reporting(
+    db: Session,
+    current_user: User,
+    event_id: int,
+    hire_company_id: int,
+) -> Event:
+    """Slim event load for reporting routes.
+
+    Only loads event identity and organisation — no stations, layouts, cells,
+    waiters, or vouchers. Service functions that need name maps fetch those
+    themselves via _load_event_for_reporting.
+    """
+    event = (
+        readable_events_query(db, current_user, hire_company_id)
+        .options(joinedload(Event.organisation))
+        .filter(Event.id == event_id)
+        .first()
+    )
+    if not event:
+        raise api_error("event_not_found", status.HTTP_404_NOT_FOUND)
+    return event
+
+
 def get_event_for_station_article_tree(
     db: Session,
     current_user: User,

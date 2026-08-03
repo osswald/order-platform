@@ -685,8 +685,8 @@ class EdgeSubmittedOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     client_order_id = Column(String(64), nullable=False, unique=True, index=True)
     appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False)
-    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
-    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
     payload = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

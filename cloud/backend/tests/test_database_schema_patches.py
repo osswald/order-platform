@@ -260,7 +260,7 @@ def test_run_migrations_bootstraps_pre_alembic_database():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "009_cash_session_uuid"
+    assert _alembic_current_revision() == "010_edge_submitted_order_reporting_indexes"
     inspector = inspect(engine)
     assert "stripe_webhook_events" in inspector.get_table_names()
 
@@ -272,7 +272,7 @@ def test_run_migrations_applies_fresh_database_from_scratch():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "009_cash_session_uuid"
+    assert _alembic_current_revision() == "010_edge_submitted_order_reporting_indexes"
     assert "users" in inspect(engine).get_table_names()
 
 
