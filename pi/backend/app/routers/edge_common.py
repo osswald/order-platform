@@ -38,10 +38,6 @@ from ..pricing import (
     order_total_cents,
 )
 from ..print_worker import (
-    build_customer_pickup_text,
-    build_escpos_receipt_text,
-    build_payment_receipt_text,
-    build_voucher_slip_text,
     resolve_station_uuid_for_line,
     station_name_from_event,
 )
@@ -395,16 +391,19 @@ def _create_voucher_print_job(
     copy_total: int | None = None,
     printer_station_uuid: str | None = None,
 ) -> int:
+    from ..print_render import dump_render_context, make_render_context
+
     reg_uuid = printer_station_uuid or _receipt_register_uuid(ev, cash_register_uuid)
     host, port, feed_lines = resolve_printer_endpoint(ev, reg_uuid)
-    esc = build_voucher_slip_text(
+    ctx = make_render_context(
+        kind="voucher",
+        event_id=int(ev.get("id") or 0),
         event_name=ev.get("name", "Event"),
         voucher_name=voucher_name,
         value_cents=value_cents,
         currency=ev.get("currency", "EUR"),
         copy_index=copy_index,
         copy_total=copy_total,
-        event=ev,
         feed_lines=feed_lines,
     )
     pj = PrintJob(
@@ -413,7 +412,8 @@ def _create_voucher_print_job(
         job_kind="voucher",
         printer_host=host,
         printer_port=port,
-        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        escpos_payload="",
+        render_context_json=dump_render_context(ctx),
         status="queued",
     )
     db.add(pj)
@@ -477,6 +477,8 @@ def _create_print_job_for_lines(
     kitchen_partial_print: bool = False,
     kitchen_excluded_lines: list[dict] | None = None,
 ) -> int:
+    from ..print_render import dump_render_context, make_render_context
+
     station_payload = {**payload, "lines": station_lines}
     if kitchen_partial_print:
         station_payload["kitchen_partial_print"] = True
@@ -493,15 +495,15 @@ def _create_print_job_for_lines(
             pickup_code=pickup_code if pickup_code is not None else payload.get("pickup_code"),
         )
         printer_appliance_id = resolved_id
-    esc = build_escpos_receipt_text(
-        station_payload,
-        ev.get("name", "Event"),
-        station_name=station_label,
-        articles=articles,
-        local_order_id=order_id,
+    ctx = make_render_context(
+        kind=job_kind if job_kind in ("station_order", "kitchen_ticket") else "station_order",
+        event_id=int(ev.get("id") or payload.get("event_id") or 0),
+        event_name=ev.get("name", "Event"),
         currency=ev.get("currency", "EUR"),
-        event=ev,
         feed_lines=feed_lines,
+        station_name=station_label,
+        local_order_id=order_id,
+        payload=station_payload,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -509,7 +511,8 @@ def _create_print_job_for_lines(
         job_kind=job_kind,
         printer_host=host,
         printer_port=port,
-        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        escpos_payload="",
+        render_context_json=dump_render_context(ctx),
         status="queued",
     )
     db.add(pj)
@@ -529,20 +532,22 @@ def _create_customer_pickup_print_job_for_lines(
     articles: dict,
     pickup_code: str | None = None,
 ) -> int:
+    from ..print_render import dump_render_context, make_render_context
+
     station_payload = {**payload, "lines": station_lines}
     if pickup_code is not None:
         station_payload["pickup_code"] = pickup_code
     station_label = station_name_from_event(ev, station_uuid)
     host, port, feed_lines = resolve_printer_endpoint(ev, cash_register_uuid)
-    esc = build_customer_pickup_text(
-        station_payload,
-        ev.get("name", "Event"),
-        station_name=station_label,
-        articles=articles,
-        event=ev,
-        local_order_id=order_id,
+    ctx = make_render_context(
+        kind="customer_pickup",
+        event_id=int(ev.get("id") or payload.get("event_id") or 0),
+        event_name=ev.get("name", "Event"),
         currency=ev.get("currency", "EUR"),
         feed_lines=feed_lines,
+        station_name=station_label,
+        local_order_id=order_id,
+        payload=station_payload,
     )
     pj = PrintJob(
         local_order_id=order_id,
@@ -550,7 +555,8 @@ def _create_customer_pickup_print_job_for_lines(
         job_kind="customer_pickup",
         printer_host=host,
         printer_port=port,
-        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        escpos_payload="",
+        render_context_json=dump_render_context(ctx),
         status="queued",
     )
     db.add(pj)
@@ -835,17 +841,20 @@ def _create_payment_receipt_print_job(
     ev: dict,
     station_uuid: str,
 ) -> int:
+    from ..print_render import dump_render_context, make_render_context
+
     payload = json.loads(row.payload_json or "{}")
     host, port, feed_lines = resolve_printer_endpoint(ev, station_uuid)
-    esc = build_payment_receipt_text(
-        payload,
-        ev.get("name", "Event"),
-        payment_id=row.id,
-        articles=_article_map(ev),
+    generated_at = datetime.now(UTC).isoformat()
+    ctx = make_render_context(
+        kind="payment_receipt",
+        event_id=int(ev.get("id") or row.event_id or 0),
+        event_name=ev.get("name", "Event"),
         currency=ev.get("currency", "EUR"),
-        generated_at=datetime.now(UTC).isoformat(),
-        event=ev,
         feed_lines=feed_lines,
+        payment_id=row.id,
+        generated_at=generated_at,
+        payload=payload,
     )
     pj = PrintJob(
         local_order_id=_local_order_id_for_payment_receipt(row),
@@ -853,7 +862,8 @@ def _create_payment_receipt_print_job(
         job_kind="payment_receipt",
         printer_host=host,
         printer_port=port,
-        escpos_payload=base64.b64encode(esc).decode("ascii"),
+        escpos_payload="",
+        render_context_json=dump_render_context(ctx),
         status="queued",
     )
     db.add(pj)

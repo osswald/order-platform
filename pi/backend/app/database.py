@@ -67,6 +67,11 @@ def apply_print_job_schema_patches() -> None:
         "job_kind",
         "ALTER TABLE print_jobs ADD COLUMN job_kind VARCHAR(32)",
     )
+    _add_column_if_missing(
+        "print_jobs",
+        "render_context_json",
+        "ALTER TABLE print_jobs ADD COLUMN render_context_json TEXT",
+    )
 
 
 def apply_shift_session_schema_patches() -> None:
@@ -131,6 +136,10 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
     """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
     if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
         return None
+    if "print_jobs" in tables:
+        cols = {c["name"] for c in inspector.get_columns("print_jobs")}
+        if "render_context_json" in cols:
+            return "006_print_job_render_context"
     if "station_pickups" in tables:
         return "005_station_pickups"
     if "kitchen_tickets" in tables:

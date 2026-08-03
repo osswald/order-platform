@@ -63,6 +63,7 @@ class PrintJob(Base):
     printer_host = Column(String(255), nullable=False)
     printer_port = Column(Integer, nullable=False, default=9100)
     escpos_payload = Column(Text, nullable=False)
+    render_context_json = Column(Text, nullable=True)
     status = Column(String(32), nullable=False, default="queued")
     last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

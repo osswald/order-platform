@@ -44,9 +44,14 @@ def test_register_voucher_sale_creates_print_jobs_per_unit(client):
     db = Session()
     order = db.query(LocalOrder).filter(LocalOrder.client_order_id == cid).first()
     jobs = db.query(PrintJob).filter(PrintJob.local_order_id == order.id).all()
-    db.close()
-    voucher_jobs = [j for j in jobs if b"GUTSCHEIN" in base64.b64decode(j.escpos_payload or "")]
+    from app.print_render import ensure_print_job_payload
+
+    voucher_jobs = [j for j in jobs if j.job_kind == "voucher"]
     assert len(voucher_jobs) == 2
+    for j in voucher_jobs:
+        slip = ensure_print_job_payload(db, j)
+        assert b"GUTSCHEIN" in slip
+    db.close()
 
 
 def test_register_voucher_only_single_print_job_no_pickup_slip(client):
@@ -75,9 +80,11 @@ def test_register_voucher_only_single_print_job_no_pickup_slip(client):
     db = Session()
     order = db.query(LocalOrder).filter(LocalOrder.client_order_id == cid).first()
     jobs = db.query(PrintJob).filter(PrintJob.local_order_id == order.id).all()
-    db.close()
     assert len(jobs) == 1
-    slip = base64.b64decode(jobs[0].escpos_payload or "")
+    from app.print_render import ensure_print_job_payload
+
+    slip = ensure_print_job_payload(db, jobs[0])
+    db.close()
     text = slip.decode("cp858", errors="replace")
     assert b"GUTSCHEIN" in slip
     assert "20 CHF Gutschein" in text or "Gutschein" in text
