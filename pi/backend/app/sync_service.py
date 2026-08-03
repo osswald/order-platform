@@ -19,6 +19,7 @@ from .cloud_client import (
     fetch_operational_snapshot,
     submit_operational_chunk,
 )
+from .escpos_render import clear_receipt_logo_cache
 from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .operational_restore import needs_operational_restore, restore_operational_snapshot
@@ -118,6 +119,8 @@ async def pull_bundle(db: Session) -> dict[str, Any]:
         row.json_body = body
         row.updated_at = now
     db.commit()
+    # Bundle may replace event logos; drop prepared rasters so the next slip uses new art.
+    clear_receipt_logo_cache()
     write_ota_freeze_from_bundle(data if isinstance(data, dict) else None)
     purged = reconcile_bundle_lifecycle(db, old_bundle, data)
     event_count = len(data.get("events", []))

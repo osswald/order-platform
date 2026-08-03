@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -89,8 +88,10 @@ def test_multi_station_allocates_distinct_codes(client):
             .filter(PrintJob.local_order_id == order.id, PrintJob.job_kind == "customer_pickup")
             .all()
         )
+        from app.print_render import ensure_print_job_payload
+
         texts = {
-            j.station_uuid: base64.b64decode(j.escpos_payload).decode("cp858", errors="replace")
+            j.station_uuid: ensure_print_job_payload(db, j).decode("cp858", errors="replace")
             for j in jobs
         }
         assert "A1" in texts["st-kitchen"]

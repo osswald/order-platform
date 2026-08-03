@@ -6,6 +6,7 @@ Transport (TCP, Bluetooth) stays in print_worker; callers only need the byte pay
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 import os
 import unicodedata
@@ -18,6 +19,16 @@ from escpos.printer import Dummy
 from PIL import Image, ImageOps
 
 log = logging.getLogger(__name__)
+
+# Dark pixels print; tune above mid-gray so light logo colors stay visible.
+_LOGO_THRESHOLD = 175
+_LOGO_THRESHOLD_LUT = [0 if i < _LOGO_THRESHOLD else 255 for i in range(256)]
+_logo_raster_cache: dict[tuple[str, int], Image.Image] = {}
+
+
+def clear_receipt_logo_cache() -> None:
+    """Drop in-process prepared logo rasters (e.g. after a bundle pull)."""
+    _logo_raster_cache.clear()
 
 ReceiptCharset = Literal["pc858", "pc850", "cp1252", "ascii"]
 
@@ -386,7 +397,15 @@ def write_hero(
 
 
 def _prepare_receipt_logo(image_bytes: bytes, *, max_width: int) -> Image.Image:
-    """Convert uploaded logo to centered 1-bit raster for thermal printing."""
+    """Convert uploaded logo to centered 1-bit raster for thermal printing.
+
+    Results are cached in-process by content hash and target width.
+    """
+    cache_key = (hashlib.sha256(image_bytes).hexdigest(), int(max_width))
+    cached = _logo_raster_cache.get(cache_key)
+    if cached is not None:
+        return cached.copy()
+
     img = Image.open(BytesIO(image_bytes))
     img = ImageOps.exif_transpose(img)
 
@@ -405,8 +424,7 @@ def _prepare_receipt_logo(image_bytes: bytes, *, max_width: int) -> Image.Image:
         new_h = max(1, int(gray.height * ratio))
         gray = gray.resize((max_width, new_h), Image.Resampling.LANCZOS)
 
-    # Dark pixels print; tune above mid-gray so light logo colors stay visible.
-    mono = gray.point(lambda p: 0 if p < 175 else 255, mode="1")
+    mono = gray.point(_LOGO_THRESHOLD_LUT, mode="1")
     # getbbox() tracks non-zero (white) pixels; invert to bound dark logo ink.
     bbox = ImageOps.invert(mono.convert("L")).getbbox()
     if bbox:
@@ -415,7 +433,8 @@ def _prepare_receipt_logo(image_bytes: bytes, *, max_width: int) -> Image.Image:
     canvas = Image.new("1", (max_width, mono.height), 1)
     x_offset = max(0, (max_width - mono.width) // 2)
     canvas.paste(mono, (x_offset, 0))
-    return canvas
+    _logo_raster_cache[cache_key] = canvas
+    return canvas.copy()
 
 
 def write_logo_bytes(
