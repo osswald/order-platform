@@ -1,6 +1,8 @@
 """ESC/POS builder, vouchers, print worker (network ESC/POS)."""
 
 import asyncio
+import base64
+import copy
 import json
 import logging
 import os
@@ -8,6 +10,8 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from escpos.printer import Dummy
+from sqlalchemy import event
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
@@ -36,6 +40,66 @@ from .models import LocalOrder, PrintJob, SyncedBundle
 from .pricing import addition_display_name
 
 log = logging.getLogger(__name__)
+
+# Idle wait when no wake signal (seconds). Wake-on-enqueue is the primary path.
+PRINT_WORKER_IDLE_TIMEOUT_SECONDS = float(os.getenv("PRINT_WORKER_IDLE_TIMEOUT_SECONDS", "2") or "2")
+
+_print_jobs_wakeup: asyncio.Event | None = None
+_print_worker_loop: asyncio.AbstractEventLoop | None = None
+_print_wake_hooks_registered = False
+
+
+def notify_print_worker() -> None:
+    """Wake the print worker if it is waiting (safe from sync request threads)."""
+    ev = _print_jobs_wakeup
+    loop = _print_worker_loop
+    if ev is None or loop is None or loop.is_closed():
+        return
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        running = None
+    if running is loop:
+        ev.set()
+    else:
+        try:
+            loop.call_soon_threadsafe(ev.set)
+        except RuntimeError:
+            pass
+
+
+def _register_print_job_wake_hooks() -> None:
+    """Notify the worker after commits that enqueue or re-queue PrintJobs."""
+    global _print_wake_hooks_registered
+    if _print_wake_hooks_registered:
+        return
+    _print_wake_hooks_registered = True
+
+    @event.listens_for(Session, "after_flush")
+    def _mark_queued_print_jobs(session: Session, _ctx) -> None:
+        for obj in session.new:
+            if isinstance(obj, PrintJob) and (obj.status or "") == "queued":
+                session.info["_wake_print_worker"] = True
+                return
+        for obj in session.dirty:
+            if not isinstance(obj, PrintJob):
+                continue
+            hist = sa_inspect(obj).attrs.status.history
+            if hist.has_changes() and (obj.status or "") == "queued":
+                session.info["_wake_print_worker"] = True
+                return
+
+    @event.listens_for(Session, "after_commit")
+    def _wake_after_commit(session: Session) -> None:
+        if session.info.pop("_wake_print_worker", False):
+            notify_print_worker()
+
+    @event.listens_for(Session, "after_rollback")
+    def _clear_wake_flag(session: Session) -> None:
+        session.info.pop("_wake_print_worker", False)
+
+
+_register_print_job_wake_hooks()
 
 
 def resolve_station_uuid_for_line(ev: dict, line: dict) -> str | None:
@@ -990,13 +1054,29 @@ def _load_event_for_order(db: Session, order: LocalOrder) -> dict | None:
 
 
 async def process_print_job(db: Session, job: PrintJob, ev: dict | None) -> None:
-    from .print_render import ensure_print_job_payload, load_event_for_print_job
+    from .print_render import build_escpos_from_render_context, load_event_for_print_job
 
     event = ev
     if event is None:
         event = load_event_for_print_job(db, job)
     try:
-        esc = ensure_print_job_payload(db, job, event)
+        if job.escpos_payload:
+            esc = base64.b64decode(job.escpos_payload)
+        else:
+            if not job.render_context_json:
+                raise ValueError("print job has empty escpos_payload and no render_context_json")
+            try:
+                ctx = json.loads(job.render_context_json)
+            except json.JSONDecodeError as exc:
+                raise ValueError("invalid render_context_json") from exc
+            if not isinstance(ctx, dict):
+                raise ValueError("render_context_json must be an object")
+            # CPU/Pillow work off the event loop; do not pass ORM Session into the thread.
+            ctx_copy = copy.deepcopy(ctx)
+            event_copy = copy.deepcopy(event) if event is not None else None
+            raw = await asyncio.to_thread(build_escpos_from_render_context, ctx_copy, event_copy)
+            job.escpos_payload = base64.b64encode(raw).decode("ascii")
+            esc = raw
     except Exception as e:
         job.status = "error"
         job.last_error = str(e)[:2000]
@@ -1018,40 +1098,63 @@ async def process_print_job(db: Session, job: PrintJob, ev: dict | None) -> None
 
 
 async def print_worker_loop(stop_event: asyncio.Event) -> None:
-    """Poll queued print jobs."""
+    """Process queued print jobs; wake on enqueue with bounded idle timeout."""
+    global _print_jobs_wakeup, _print_worker_loop
     from .print_render import load_event_for_print_job
 
-    log.info("Print worker started")
-    while not stop_event.is_set():
-        db = SessionLocal()
-        try:
-            jobs = (
-                db.query(PrintJob)
-                .filter(PrintJob.status == "queued")
-                .order_by(PrintJob.id.asc())
-                .limit(10)
-                .all()
+    _print_worker_loop = asyncio.get_running_loop()
+    _print_jobs_wakeup = asyncio.Event()
+    idle_timeout = max(0.2, float(PRINT_WORKER_IDLE_TIMEOUT_SECONDS))
+    log.info("Print worker started (idle_timeout=%ss)", idle_timeout)
+    try:
+        while not stop_event.is_set():
+            db = SessionLocal()
+            try:
+                jobs = (
+                    db.query(PrintJob)
+                    .filter(PrintJob.status == "queued")
+                    .order_by(PrintJob.id.asc())
+                    .limit(10)
+                    .all()
+                )
+                for job in jobs:
+                    order = db.query(LocalOrder).filter(LocalOrder.id == job.local_order_id).first()
+                    ev = _load_event_for_order(db, order) if order else load_event_for_print_job(db, job)
+                    try:
+                        await process_print_job(db, job, ev)
+                    except Exception as e:
+                        job.status = "error"
+                        job.last_error = str(e)[:2000]
+                        log.exception("print job %s failed", job.id)
+                db.commit()
+            except Exception:
+                db.rollback()
+                log.exception("print worker tick failed")
+            finally:
+                db.close()
+
+            if stop_event.is_set():
+                break
+            assert _print_jobs_wakeup is not None
+            _print_jobs_wakeup.clear()
+            wake_task = asyncio.create_task(_print_jobs_wakeup.wait())
+            stop_task = asyncio.create_task(stop_event.wait())
+            done, pending = await asyncio.wait(
+                {wake_task, stop_task},
+                timeout=idle_timeout,
+                return_when=asyncio.FIRST_COMPLETED,
             )
-            for job in jobs:
-                order = db.query(LocalOrder).filter(LocalOrder.id == job.local_order_id).first()
-                ev = _load_event_for_order(db, order) if order else load_event_for_print_job(db, job)
+            for task in pending:
+                task.cancel()
+            for task in pending:
                 try:
-                    await process_print_job(db, job, ev)
-                except Exception as e:
-                    job.status = "error"
-                    job.last_error = str(e)[:2000]
-                    log.exception("print job %s failed", job.id)
-            db.commit()
-        except Exception:
-            db.rollback()
-            log.exception("print worker tick failed")
-        finally:
-            db.close()
-        try:
-            await asyncio.wait_for(stop_event.wait(), timeout=1.0)
-        except TimeoutError:
-            pass
-    log.info("Print worker stopped")
+                    await task
+                except asyncio.CancelledError:
+                    pass
+    finally:
+        _print_jobs_wakeup = None
+        _print_worker_loop = None
+        log.info("Print worker stopped")
 
 
 def run_print_job_sync(db: Session, job_id: int) -> None:

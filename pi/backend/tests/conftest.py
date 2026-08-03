@@ -14,6 +14,7 @@ if _shared_pkg.is_dir() and str(_shared_pkg) not in sys.path:
     sys.path.insert(0, str(_shared_pkg))
 
 import json
+import os
 from collections.abc import Generator
 from dataclasses import dataclass
 from unittest.mock import patch
@@ -145,9 +146,19 @@ def api_context(isolated_engine, bundle) -> Generator[ApiTestContext, None, None
             session.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with patch("app.main.run_migrations"), patch("app.main.ensure_default_synced_bundle"):
-        with TestClient(app) as test_client:
-            yield ApiTestContext(client=test_client, Session=Session)
+    # Keep print jobs under test control (run_print_job_sync); background
+    # wake-on-commit would race assertions that expect status=queued.
+    previous_print_worker = os.environ.get("PRINT_WORKER_ENABLED")
+    os.environ["PRINT_WORKER_ENABLED"] = "0"
+    try:
+        with patch("app.main.run_migrations"), patch("app.main.ensure_default_synced_bundle"):
+            with TestClient(app) as test_client:
+                yield ApiTestContext(client=test_client, Session=Session)
+    finally:
+        if previous_print_worker is None:
+            os.environ.pop("PRINT_WORKER_ENABLED", None)
+        else:
+            os.environ["PRINT_WORKER_ENABLED"] = previous_print_worker
     app.dependency_overrides.clear()
 
 

@@ -36,6 +36,9 @@ class OrderSubmission(Base):
     """One FERTIG / submit batch (replaces LocalOrder document)."""
 
     __tablename__ = "order_submissions"
+    __table_args__ = (
+        Index("ix_order_submissions_event_payment", "event_id", "payment_status"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(Integer, nullable=False, index=True)
@@ -205,7 +208,7 @@ class SyncOutbox(Base):
     event_id = Column(Integer, nullable=False, index=True)
     payload_json = Column(Text, nullable=False)
     payload_version = Column(Integer, nullable=False, default=1)
-    status = Column(String(32), nullable=False, default="pending")
+    status = Column(String(32), nullable=False, default="pending", index=True)
     attempt_count = Column(Integer, nullable=False, default=0)
     last_error = Column(Text, nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
