@@ -633,11 +633,14 @@ def submit_edge_order(
     if payload_is_stale_test(event, payload):
         return EdgeOrderAck(server_order_id=0, duplicate=False)
 
+    from ..event_collective_bills import collective_bill_uuid_from_payload
+
     row = EdgeSubmittedOrder(
         client_order_id=body.client_order_id,
         appliance_id=ctx.appliance.id,
         organisation_id=ctx.organisation_id,
         event_id=body.event_id,
+        collective_bill_uuid=collective_bill_uuid_from_payload(payload),
         payload=payload,
     )
     db.add(row)
@@ -706,11 +709,21 @@ def submit_operational_chunk(
 
     entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()
 
+    from ..event_collective_bills import collective_bill_uuid_from_payload
+
+    # Only denormalize membership for order-like chunks; cash/kitchen entities stay NULL.
+    bill_uuid = (
+        None
+        if entity_type in {"cash_session", "cash_drawer", "kitchen_tickets"}
+        else collective_bill_uuid_from_payload(payload)
+    )
+
     row = EdgeSubmittedOrder(
         client_order_id=body.chunk_id,
         appliance_id=ctx.appliance.id,
         organisation_id=ctx.organisation_id,
         event_id=body.event_id,
+        collective_bill_uuid=bill_uuid,
         payload={"entity_type": body.entity_type, **payload},
     )
     db.add(row)
