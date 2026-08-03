@@ -74,7 +74,7 @@ def test_warm_raw_read_also_skips_parse(isolated_engine, db_session):
 
 def test_save_bundle_updates_cache_for_next_read(isolated_engine, db_session):
     db = db_session
-    data = _seed(db)
+    _seed(db)
     warm = get_bundle_dict(db)
     assert warm["events"][0]["articles"]["10"]["name"] == "Bier"
 
