@@ -45,6 +45,8 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
     class FakeResponse:
         def __init__(self, payload: dict):
             self._payload = payload
+            self.status_code = 200
+            self.headers: dict[str, str] = {}
 
         def raise_for_status(self) -> None:
             return None
@@ -62,7 +64,7 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-        async def post(self, url: str, json: dict):
+        async def post(self, url: str, json: dict, headers=None):
             assert url == "https://api.vendiqo.ch/edge/v1/pair"
             assert json == {"pairing_code": "123-456", "device_name": "vendiqo-pi"}
             return FakeResponse({
@@ -72,13 +74,14 @@ def test_setup_pair_writes_edge_config(client, monkeypatch, tmp_path):
                 "edge_secret": "secret-456",
             })
 
-        async def get(self, url: str, headers: dict):
+        async def get(self, url: str, headers: dict | None = None, params=None):
+            headers = headers or {}
+            if "operational/snapshot" in url:
+                return FakeResponse({"events": [], "fingerprint": "empty"})
             assert url == "https://api.vendiqo.ch/edge/v1/bundle"
-            assert headers == {
-                "X-Edge-Client-Id": "client-123",
-                "X-Edge-Secret": "secret-456",
-                "X-Edge-App-Version": "0.0.0-dev",
-            }
+            assert headers["X-Edge-Client-Id"] == "client-123"
+            assert headers["X-Edge-Secret"] == "secret-456"
+            assert headers["X-Edge-App-Version"] == "0.0.0-dev"
             return FakeResponse(cloud_bundle)
 
     import app.routers.setup as setup_router

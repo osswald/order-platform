@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from sqlalchemy.orm import Session
 
 from .bundle_cache import get_bundle_dict_raw
 from .cloud_client import (
     CloudConfigError,
+    ConditionalGetResult,
     _resolve_config,
+    edge_http_client,
     fetch_bundle,
     fetch_operational_snapshot,
     submit_operational_chunk,
@@ -43,7 +47,16 @@ sync_status: dict[str, Any] = {
     "last_error": None,
     "last_restore_at": None,
     "last_restore_summary": None,
+    "last_restore_check_at": None,
+    "snapshot_etag": None,
 }
+
+
+def bundle_content_fingerprint(payload: dict[str, Any]) -> str:
+    """Stable hash of bundle content excluding request-volatile ``server_time``."""
+    body = {k: v for k, v in payload.items() if k != "server_time"}
+    raw = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def is_cloud_configured() -> bool:
@@ -61,6 +74,14 @@ def is_restore_enabled() -> bool:
     return val not in ("0", "false", "no", "off")
 
 
+def restore_check_max_idle_seconds() -> int:
+    raw = os.getenv("SYNC_RESTORE_CHECK_MAX_IDLE_SECONDS", "300").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 300
+
+
 def pending_outbox_count(db: Session) -> int:
     return (
         db.query(OutboxEntry)
@@ -69,7 +90,41 @@ def pending_outbox_count(db: Session) -> int:
     )
 
 
-async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, Any]:
+def should_check_operational_restore(
+    db: Session,
+    *,
+    bundle_changed: bool,
+    force: bool = False,
+) -> bool:
+    """Whether this cycle should fetch the operational snapshot."""
+    if not is_restore_enabled():
+        return False
+    if force or bundle_changed:
+        return True
+    if pending_outbox_count(db) > 0:
+        return True
+    max_idle = restore_check_max_idle_seconds()
+    if max_idle <= 0:
+        return True
+    last_raw = sync_status.get("last_restore_check_at")
+    if not last_raw:
+        return True
+    try:
+        last = datetime.fromisoformat(str(last_raw).replace("Z", "+00:00"))
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=UTC)
+    except ValueError:
+        return True
+    age = (datetime.now(UTC) - last).total_seconds()
+    return age >= max_idle
+
+
+async def push_outbox(
+    db: Session,
+    *,
+    retry_errors: bool = True,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
     """Upload pending (and optionally failed) outbox entries to cloud."""
     statuses = ["pending"]
     if retry_errors:
@@ -90,6 +145,7 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
                 event_id=row.event_id,
                 entity_type=row.entity_type,
                 payload=payload,
+                client=client,
             )
             row.status = "acked"
             row.acked_at = datetime.now(UTC)
@@ -106,17 +162,65 @@ async def push_outbox(db: Session, *, retry_errors: bool = True) -> dict[str, An
     return {"sent": sent, "errors": errors}
 
 
-async def pull_bundle(db: Session) -> dict[str, Any]:
-    """Download bundle from cloud into SyncedBundle."""
+async def pull_bundle(
+    db: Session,
+    *,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """Download bundle from cloud into SyncedBundle (conditional GET when possible)."""
     old_bundle = get_bundle_dict_raw(db)
-    data = await fetch_bundle()
+    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
+    prior_etag = (row.etag if row else None) or None
+    prior_fp = (
+        bundle_content_fingerprint(json.loads(row.json_body))
+        if row and row.json_body
+        else None
+    )
+
+    result: ConditionalGetResult = await fetch_bundle(client=client, etag=prior_etag)
+
+    if result.not_modified:
+        data = json.loads(row.json_body) if row and row.json_body else {}
+        if row is not None and result.etag and result.etag != row.etag:
+            row.etag = result.etag
+            db.commit()
+        event_count = len(data.get("events", [])) if isinstance(data, dict) else 0
+        return {
+            "ok": True,
+            "event_count": event_count,
+            "bundle": data,
+            "purged_event_ids": [],
+            "bundle_changed": False,
+            "not_modified": True,
+        }
+
+    assert result.data is not None
+    data = result.data
+    new_fp = bundle_content_fingerprint(data)
+    identical = prior_fp is not None and new_fp == prior_fp
+
+    if identical:
+        if row is not None and result.etag and result.etag != row.etag:
+            row.etag = result.etag
+            db.commit()
+        event_count = len(data.get("events", []))
+        return {
+            "ok": True,
+            "event_count": event_count,
+            "bundle": data,
+            "purged_event_ids": [],
+            "bundle_changed": False,
+            "not_modified": False,
+        }
+
     body = json.dumps(data)
     now = datetime.now(UTC)
-    row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     if not row:
-        db.add(SyncedBundle(id=1, json_body=body, updated_at=now))
+        row = SyncedBundle(id=1, json_body=body, etag=result.etag, updated_at=now)
+        db.add(row)
     else:
         row.json_body = body
+        row.etag = result.etag
         row.updated_at = now
     db.commit()
     # Bundle may replace event logos; drop prepared rasters so the next slip uses new art.
@@ -124,7 +228,14 @@ async def pull_bundle(db: Session) -> dict[str, Any]:
     write_ota_freeze_from_bundle(data if isinstance(data, dict) else None)
     purged = reconcile_bundle_lifecycle(db, old_bundle, data)
     event_count = len(data.get("events", []))
-    return {"ok": True, "event_count": event_count, "bundle": data, "purged_event_ids": purged}
+    return {
+        "ok": True,
+        "event_count": event_count,
+        "bundle": data,
+        "purged_event_ids": purged,
+        "bundle_changed": True,
+        "not_modified": False,
+    }
 
 
 def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
@@ -151,22 +262,55 @@ def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
     save_bundle(db, data)
 
 
-async def pull_and_restore(db: Session) -> dict[str, Any]:
+async def pull_and_restore(
+    db: Session,
+    *,
+    client: httpx.AsyncClient | None = None,
+    force_restore_check: bool = False,
+) -> dict[str, Any]:
     """Pull bundle from cloud, reapply stock, and optionally restore operational snapshot."""
-    pull_result = await pull_bundle(db)
+    pull_result = await pull_bundle(db, client=client)
     reapply_pending_stock(db, pull_result.get("bundle"))
-    if is_restore_enabled():
-        try:
-            snapshot = await fetch_operational_snapshot()
-            bundle = pull_result.get("bundle")
-            if needs_operational_restore(db, snapshot):
-                restore_summary = restore_operational_snapshot(db, snapshot, bundle)
-                pull_result["restore"] = restore_summary
-                if bundle:
-                    reapply_pending_stock(db, bundle)
-        except Exception as e:
-            log.warning("operational restore failed: %s", e)
-            pull_result["restore_failed"] = str(e)[:2000]
+
+    bundle_changed = bool(pull_result.get("bundle_changed"))
+    if not should_check_operational_restore(
+        db,
+        bundle_changed=bundle_changed,
+        force=force_restore_check,
+    ):
+        pull_result["restore_deferred"] = True
+        return pull_result
+
+    now = datetime.now(UTC).isoformat()
+    sync_status["last_restore_check_at"] = now
+
+    if not is_restore_enabled():
+        return pull_result
+
+    try:
+        snap: ConditionalGetResult = await fetch_operational_snapshot(
+            client=client,
+            etag=sync_status.get("snapshot_etag"),
+        )
+        if snap.etag:
+            sync_status["snapshot_etag"] = snap.etag
+        if snap.not_modified:
+            pull_result["restore_skipped"] = "not_modified"
+            return pull_result
+
+        assert snap.data is not None
+        snapshot = snap.data
+        bundle = pull_result.get("bundle")
+        if needs_operational_restore(db, snapshot):
+            restore_summary = restore_operational_snapshot(db, snapshot, bundle)
+            pull_result["restore"] = restore_summary
+            if bundle:
+                reapply_pending_stock(db, bundle)
+        else:
+            pull_result["restore_skipped"] = "fingerprint_match"
+    except Exception as e:
+        log.warning("operational restore failed: %s", e)
+        pull_result["restore_failed"] = str(e)[:2000]
     return pull_result
 
 
@@ -190,44 +334,48 @@ async def run_sync_cycle(db: Session) -> dict[str, Any]:
     last_error: str | None = None
 
     try:
-        pull_result = await pull_and_restore(db)
-        summary["pull_ok"] = True
-        summary["event_count"] = pull_result["event_count"]
-        summary["purged_event_ids"] = pull_result.get("purged_event_ids") or []
-        sync_status["last_pull_at"] = now
-        sync_status["last_event_count"] = pull_result["event_count"]
-        if pull_result.get("restore"):
-            summary["restore"] = pull_result["restore"]
-            sync_status["last_restore_at"] = now
-            sync_status["last_restore_summary"] = pull_result["restore"]
-        if pull_result.get("restore_failed"):
-            summary["restore_failed"] = pull_result["restore_failed"]
-    except CloudConfigError as e:
-        last_error = str(e)
-        sync_status["last_error"] = last_error
-        sync_status["last_cycle_at"] = now
-        return {**summary, "error": last_error}
-    except Exception as e:
-        last_error = str(e)
-        log.warning("sync pull failed: %s", e)
-        summary["pull_failed"] = True
+        async with edge_http_client() as client:
+            try:
+                pull_result = await pull_and_restore(db, client=client)
+                summary["pull_ok"] = True
+                summary["event_count"] = pull_result["event_count"]
+                summary["purged_event_ids"] = pull_result.get("purged_event_ids") or []
+                sync_status["last_pull_at"] = now
+                sync_status["last_event_count"] = pull_result["event_count"]
+                if pull_result.get("restore"):
+                    summary["restore"] = pull_result["restore"]
+                    sync_status["last_restore_at"] = now
+                    sync_status["last_restore_summary"] = pull_result["restore"]
+                if pull_result.get("restore_failed"):
+                    summary["restore_failed"] = pull_result["restore_failed"]
+            except CloudConfigError as e:
+                last_error = str(e)
+                sync_status["last_error"] = last_error
+                sync_status["last_cycle_at"] = now
+                return {**summary, "error": last_error}
+            except Exception as e:
+                last_error = str(e)
+                log.warning("sync pull failed: %s", e)
+                summary["pull_failed"] = True
 
-    try:
-        if is_push_enabled():
-            push_result = await push_outbox(db, retry_errors=True)
-            summary["push_sent"] = push_result["sent"]
-            summary["push_errors"] = push_result["errors"]
-            sync_status["last_push_sent"] = push_result["sent"]
-            if push_result["errors"]:
-                last_error = push_result["errors"][0].get("error")
-        else:
-            summary["push_skipped"] = True
+            try:
+                if is_push_enabled():
+                    push_result = await push_outbox(db, retry_errors=True, client=client)
+                    summary["push_sent"] = push_result["sent"]
+                    summary["push_errors"] = push_result["errors"]
+                    sync_status["last_push_sent"] = push_result["sent"]
+                    if push_result["errors"]:
+                        last_error = push_result["errors"][0].get("error")
+                else:
+                    summary["push_skipped"] = True
+            except CloudConfigError as e:
+                last_error = str(e)
+            except Exception as e:
+                last_error = str(e)
+                log.warning("sync push failed: %s", e)
+                summary["push_failed"] = True
     except CloudConfigError as e:
         last_error = str(e)
-    except Exception as e:
-        last_error = str(e)
-        log.warning("sync push failed: %s", e)
-        summary["push_failed"] = True
 
     sync_status["last_cycle_at"] = now
     sync_status["pending_outbox_count"] = pending_outbox_count(db)

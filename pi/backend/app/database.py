@@ -74,6 +74,14 @@ def apply_print_job_schema_patches() -> None:
     )
 
 
+def apply_synced_bundle_schema_patches() -> None:
+    _add_column_if_missing(
+        "synced_bundle",
+        "etag",
+        "ALTER TABLE synced_bundle ADD COLUMN etag VARCHAR(128)",
+    )
+
+
 def apply_shift_session_schema_patches() -> None:
     """create_all() does not alter existing tables; patch shift-session drift."""
     _add_column_if_missing(
@@ -136,10 +144,18 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
     """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
     if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
         return None
+    if "synced_bundle" in tables:
+        cols = {c["name"] for c in inspector.get_columns("synced_bundle")}
+        if "etag" in cols:
+            return "007_synced_bundle_etag"
     if "print_jobs" in tables:
         cols = {c["name"] for c in inspector.get_columns("print_jobs")}
         if "render_context_json" in cols:
             return "006_print_job_render_context"
+    if "cash_sessions" in tables:
+        cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
+        if "cash_session_uuid" in cols:
+            return "006_cash_session_uuid"
     if "station_pickups" in tables:
         return "005_station_pickups"
     if "kitchen_tickets" in tables:
@@ -152,8 +168,6 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
             return "003_print_job_kind"
     if "cash_sessions" in tables:
         cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
-        if "cash_session_uuid" in cols:
-            return "006_cash_session_uuid"
         if "subject_type" in cols:
             return "002_shift_sessions"
     return "001_v3"
@@ -203,6 +217,7 @@ def init_test_schema() -> None:
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
+    apply_synced_bundle_schema_patches()
 
 
 def _alembic_head_revision(cfg) -> str:
@@ -253,6 +268,7 @@ def run_migrations() -> None:
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
+    apply_synced_bundle_schema_patches()
     _create_all_tables()
 
 

@@ -52,8 +52,9 @@ def test_fetch_bundle_uses_edge_headers(monkeypatch, tmp_path):
     monkeypatch.setenv("APP_VERSION", "1.5.10")
     monkeypatch.setenv("APP_BUILD_TIME", "202607201045")
     monkeypatch.setattr("app.cloud_client.httpx.AsyncClient", FakeAsyncClient)
-    data = asyncio.run(fetch_bundle())
-    assert data == {"events": []}
+    result = asyncio.run(fetch_bundle())
+    assert result.not_modified is False
+    assert result.data == {"events": []}
     assert captured["url"].endswith("/edge/v1/bundle")
     assert captured["headers"]["X-Edge-Client-Id"] == "cid-1"
     assert captured["headers"]["X-Edge-Secret"] == "sec-1"
