@@ -75,7 +75,9 @@ def mock_printer_tcp(monkeypatch):
 def isolated_engine() -> Generator[Engine, None, None]:
     """In-memory SQLite engine; replaces app.database.engine for the test."""
     import app.database as database
+    from app.bundle_cache import invalidate_bundle_cache
 
+    invalidate_bundle_cache()
     engine = create_engine(
         "sqlite:///?cache=shared",
         connect_args={"check_same_thread": False},
@@ -98,6 +100,7 @@ def isolated_engine() -> Generator[Engine, None, None]:
     try:
         yield engine
     finally:
+        invalidate_bundle_cache()
         database.engine = previous_engine
         database.SessionLocal = previous_session_local
         print_worker.SessionLocal = previous_print_session
@@ -115,10 +118,13 @@ def db_session(isolated_engine) -> Generator[Session, None, None]:
 
 
 def _seed_bundle(Session: sessionmaker[Session], bundle: dict) -> None:
+    from app.bundle_cache import invalidate_bundle_cache
+
     db = Session()
     try:
         db.add(SyncedBundle(id=1, json_body=json.dumps(bundle)))
         db.commit()
+        invalidate_bundle_cache()
     finally:
         db.close()
 

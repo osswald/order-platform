@@ -165,6 +165,7 @@ def save_bundle(db, bundle: dict) -> None:
     import json
     from datetime import datetime
 
+    from .bundle_cache import set_bundle_cache
     from .instant_collective_bill import ensure_instant_collective_bills_for_bundle
     from .models import SyncedBundle
 
@@ -177,3 +178,4 @@ def save_bundle(db, bundle: dict) -> None:
     else:
         db.add(SyncedBundle(id=1, json_body=body, updated_at=now))
     ensure_instant_collective_bills_for_bundle(db, bundle)
+    set_bundle_cache(bundle)
