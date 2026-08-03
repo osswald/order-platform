@@ -67,6 +67,11 @@ def apply_print_job_schema_patches() -> None:
         "job_kind",
         "ALTER TABLE print_jobs ADD COLUMN job_kind VARCHAR(32)",
     )
+    _add_column_if_missing(
+        "print_jobs",
+        "render_context_json",
+        "ALTER TABLE print_jobs ADD COLUMN render_context_json TEXT",
+    )
 
 
 def apply_synced_bundle_schema_patches() -> None:
@@ -143,6 +148,10 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
         cols = {c["name"] for c in inspector.get_columns("synced_bundle")}
         if "etag" in cols:
             return "007_synced_bundle_etag"
+    if "print_jobs" in tables:
+        cols = {c["name"] for c in inspector.get_columns("print_jobs")}
+        if "render_context_json" in cols:
+            return "006_print_job_render_context"
     if "cash_sessions" in tables:
         cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
         if "cash_session_uuid" in cols:

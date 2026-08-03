@@ -1,7 +1,6 @@
 """ESC/POS builder, vouchers, print worker (network ESC/POS)."""
 
 import asyncio
-import base64
 import json
 import logging
 import os
@@ -991,10 +990,21 @@ def _load_event_for_order(db: Session, order: LocalOrder) -> dict | None:
 
 
 async def process_print_job(db: Session, job: PrintJob, ev: dict | None) -> None:
-    esc = base64.b64decode(job.escpos_payload)
+    from .print_render import ensure_print_job_payload, load_event_for_print_job
+
+    event = ev
+    if event is None:
+        event = load_event_for_print_job(db, job)
+    try:
+        esc = ensure_print_job_payload(db, job, event)
+    except Exception as e:
+        job.status = "error"
+        job.last_error = str(e)[:2000]
+        log.exception("print job %s render failed", job.id)
+        return
     station_name = None
-    if ev and job.station_uuid:
-        station_name = station_name_from_event(ev, job.station_uuid)
+    if event and job.station_uuid:
+        station_name = station_name_from_event(event, job.station_uuid)
     await _send_to_printer(
         job.printer_host,
         job.printer_port,
@@ -1009,6 +1019,8 @@ async def process_print_job(db: Session, job: PrintJob, ev: dict | None) -> None
 
 async def print_worker_loop(stop_event: asyncio.Event) -> None:
     """Poll queued print jobs."""
+    from .print_render import load_event_for_print_job
+
     log.info("Print worker started")
     while not stop_event.is_set():
         db = SessionLocal()
@@ -1022,7 +1034,7 @@ async def print_worker_loop(stop_event: asyncio.Event) -> None:
             )
             for job in jobs:
                 order = db.query(LocalOrder).filter(LocalOrder.id == job.local_order_id).first()
-                ev = _load_event_for_order(db, order) if order else None
+                ev = _load_event_for_order(db, order) if order else load_event_for_print_job(db, job)
                 try:
                     await process_print_job(db, job, ev)
                 except Exception as e:
@@ -1043,9 +1055,11 @@ async def print_worker_loop(stop_event: asyncio.Event) -> None:
 
 
 def run_print_job_sync(db: Session, job_id: int) -> None:
+    from .print_render import load_event_for_print_job
+
     job = db.query(PrintJob).filter(PrintJob.id == job_id).first()
     if not job:
         return
     order = db.query(LocalOrder).filter(LocalOrder.id == job.local_order_id).first()
-    ev = _load_event_for_order(db, order) if order else None
+    ev = _load_event_for_order(db, order) if order else load_event_for_print_job(db, job)
     asyncio.run(process_print_job(db, job, ev))
