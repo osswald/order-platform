@@ -174,6 +174,8 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
     """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
     if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
         return None
+    if "local_stock_state" in tables:
+        return "009_local_stock_overlay"
     if "print_jobs" in tables:
         indexes = {ix["name"] for ix in inspector.get_indexes("print_jobs")}
         if "ix_print_jobs_status" in indexes:

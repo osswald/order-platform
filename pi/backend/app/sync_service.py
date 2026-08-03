@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 from sqlalchemy.orm import Session
 
-from .bundle_cache import get_bundle_dict_raw, set_bundle_cache
+from .bundle_cache import get_bundle_dict_raw
 from .cloud_client import (
     CloudConfigError,
     ConditionalGetResult,
@@ -28,7 +28,7 @@ from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .operational_restore import needs_operational_restore, restore_operational_snapshot
 from .ota_freeze import write_ota_freeze_from_bundle
-from .stock import apply_stock_to_bundle, save_bundle
+from .stock import apply_stock_to_bundle, persist_catalogue_bundle, persist_local_stock
 
 # Serialize pull/push with the background sync worker (SQLite).
 sync_cycle_lock = asyncio.Lock()
@@ -171,7 +171,16 @@ async def pull_bundle(
     old_bundle = get_bundle_dict_raw(db)
     row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).first()
     prior_etag = (row.etag if row else None) or None
-    prior_fp = bundle_content_fingerprint(old_bundle) if old_bundle else None
+    # Fingerprint the durable catalogue baseline (not effective overlay) so local
+    # stock deductions do not force a false "body changed" on no-ETag fallback.
+    prior_fp = None
+    if row and row.json_body:
+        try:
+            catalogue = json.loads(row.json_body)
+            if isinstance(catalogue, dict):
+                prior_fp = bundle_content_fingerprint(catalogue)
+        except json.JSONDecodeError:
+            prior_fp = None
 
     result: ConditionalGetResult = await fetch_bundle(client=client, etag=prior_etag)
 
@@ -210,19 +219,10 @@ async def pull_bundle(
             "not_modified": False,
         }
 
-    body = json.dumps(data)
-    now = datetime.now(UTC)
-    if not row:
-        row = SyncedBundle(id=1, json_body=body, etag=result.etag, updated_at=now)
-        db.add(row)
-    else:
-        row.json_body = body
-        row.etag = result.etag
-        row.updated_at = now
+    persist_catalogue_bundle(db, data, etag=result.etag)
     db.commit()
     # Bundle may replace event logos; drop prepared rasters so the next slip uses new art.
     clear_receipt_logo_cache()
-    set_bundle_cache(data)
     write_ota_freeze_from_bundle(data if isinstance(data, dict) else None)
     purged = reconcile_bundle_lifecycle(db, old_bundle, data)
     event_count = len(data.get("events", []))
@@ -236,11 +236,15 @@ async def pull_bundle(
     }
 
 
-def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
-    """Re-decrement stock for orders not yet acknowledged by cloud (after a pull)."""
+def reapply_pending_stock(db: Session, bundle: dict | None = None) -> bool:
+    """Re-decrement stock for orders not yet acknowledged by cloud (after a pull).
+
+    Persists via local stock overlay (does not rewrite catalogue JSON).
+    Returns True when any monitored stock was applied and persisted.
+    """
     data = bundle if bundle is not None else get_bundle_dict_raw(db)
     if not data or data.get("organisation_id") is None:
-        return
+        return False
     rows = (
         db.query(OutboxEntry)
         .filter(OutboxEntry.status.in_(("pending", "error")))
@@ -248,7 +252,8 @@ def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
         .all()
     )
     if not rows:
-        return
+        return False
+    touched_events: set[int] = set()
     for row in rows:
         try:
             payload = json.loads(row.payload_json)
@@ -257,7 +262,11 @@ def reapply_pending_stock(db: Session, bundle: dict | None = None) -> None:
         lines = payload.get("lines") or []
         if lines:
             apply_stock_to_bundle(data, row.event_id, lines)
-    save_bundle(db, data)
+            touched_events.add(int(row.event_id))
+    if not touched_events:
+        return False
+    persist_local_stock(db, data, event_ids=touched_events)
+    return True
 
 
 async def pull_and_restore(
@@ -268,9 +277,14 @@ async def pull_and_restore(
 ) -> dict[str, Any]:
     """Pull bundle from cloud, reapply stock, and optionally restore operational snapshot."""
     pull_result = await pull_bundle(db, client=client)
-    reapply_pending_stock(db, pull_result.get("bundle"))
-
     bundle_changed = bool(pull_result.get("bundle_changed"))
+    # Only re-stamp stock onto a fresh cloud catalogue baseline — never on 304 /
+    # identical-body where the local effective bundle already includes deductions.
+    if bundle_changed:
+        if reapply_pending_stock(db, pull_result.get("bundle")):
+            db.commit()
+        # If reapply was a no-op, catalogue commit from pull already landed.
+
     if not should_check_operational_restore(
         db,
         bundle_changed=bundle_changed,
@@ -303,7 +317,8 @@ async def pull_and_restore(
             restore_summary = restore_operational_snapshot(db, snapshot, bundle)
             pull_result["restore"] = restore_summary
             if bundle:
-                reapply_pending_stock(db, bundle)
+                if reapply_pending_stock(db, bundle):
+                    db.commit()
         else:
             pull_result["restore_skipped"] = "fingerprint_match"
     except Exception as e:

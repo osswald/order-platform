@@ -168,7 +168,7 @@ def test_alembic_head_is_hot_path_indexes():
 
     cfg = Config("alembic.ini")
     head = ScriptDirectory.from_config(cfg).get_current_head()
-    assert head == "008_hot_path_indexes"
+    assert head == "009_local_stock_overlay"
 
 
 def test_idle_timeout_default_is_bounded():

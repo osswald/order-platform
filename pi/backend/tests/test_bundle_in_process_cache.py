@@ -149,12 +149,15 @@ def test_pull_bundle_304_leaves_warm_cache(monkeypatch, isolated_engine, db_sess
 
     with patch("app.bundle_cache.json.loads", side_effect=tracking_loads):
         result = asyncio.run(pull_bundle(db))
+        after_pull = len(loads)
+        assert get_bundle_dict(db)["organisation_id"] == 1
+        # Effective cache stays warm (no extra parse for get_bundle_dict).
+        assert len(loads) == after_pull
 
     assert result["bundle_changed"] is False
     assert result["not_modified"] is True
-    # Warm cache: get_bundle_dict_raw at start of pull should not re-parse.
-    assert loads == []
-    assert get_bundle_dict(db)["organisation_id"] == 1
+    # At most one parse: durable catalogue fingerprint on pull (not effective cache).
+    assert after_pull <= 1
 
 
 def test_pull_bundle_changed_body_refreshes_cache(monkeypatch, isolated_engine, db_session):

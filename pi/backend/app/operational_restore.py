@@ -20,7 +20,7 @@ from .models import (
     StationPickup,
 )
 from .models_operational import CashSession, CashSessionLedger, PaymentBatch
-from .stock import apply_stock_to_bundle, save_bundle
+from .stock import apply_stock_to_bundle, persist_local_stock
 
 log = logging.getLogger(__name__)
 
@@ -478,7 +478,7 @@ def _apply_stock_for_open_orders(db: Session, bundle: dict, event_id: int, paylo
         lines = payload.get("lines") or []
         if lines:
             apply_stock_to_bundle(data, event_id, lines)
-    save_bundle(db, data)
+    persist_local_stock(db, data, event_ids={int(event_id)})
 
 
 def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | None) -> dict[str, Any]:
