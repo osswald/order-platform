@@ -32,6 +32,7 @@ def session_to_api_dict(session) -> dict[str, Any]:
     return {
         "id": int(session.id),
         "event_id": int(session.event_id),
+        "cash_session_uuid": str(session.cash_session_uuid or "").strip() or None,
         "subject_type": session.subject_type,
         "subject_name": session.subject_name or "",
         "status": session.status,

@@ -517,6 +517,7 @@ class ShiftSessionRead(BaseModel):
 
     id: int
     event_id: int
+    cash_session_uuid: str | None = None
     subject_type: str
     subject_name: str
     status: str

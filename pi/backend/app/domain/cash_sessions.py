@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
@@ -12,6 +13,15 @@ from sqlalchemy.orm import Session
 
 from ..models_operational import CashSession, CashSessionLedger
 from ..order_fiscal import waiter_name_from_event
+
+
+def _ensure_cash_session_uuid(session: CashSession) -> str:
+    existing = str(session.cash_session_uuid or "").strip()
+    if existing:
+        return existing
+    minted = str(uuid.uuid4())
+    session.cash_session_uuid = minted
+    return minted
 
 
 def shift_settlement_enabled(ev: dict) -> bool:
@@ -95,6 +105,7 @@ def open_session(
     )
     session = CashSession(
         event_id=event_id,
+        cash_session_uuid=str(uuid.uuid4()),
         subject_type=subject_type,
         waiter_uuid=waiter_uuid if subject_type == "waiter" else None,
         cash_register_uuid=cash_register_uuid if subject_type == "cash_register" else None,
@@ -249,8 +260,10 @@ def session_to_sync_payload(db: Session, session: CashSession) -> dict[str, Any]
         subject_key = f"waiter:{session.waiter_uuid}"
     else:
         subject_key = None
+    cash_session_uuid = _ensure_cash_session_uuid(session)
     return {
         "cash_session_id": int(session.id),
+        "cash_session_uuid": cash_session_uuid,
         "subject_key": subject_key,
         "event_id": int(session.event_id),
         "subject_type": session.subject_type,

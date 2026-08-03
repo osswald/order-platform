@@ -2205,6 +2205,8 @@ export interface components {
             id: number;
             /** Cash Session Id */
             cash_session_id: number;
+            /** Cash Session Uuid */
+            cash_session_uuid?: string | null;
             /** Subject Type */
             subject_type: string;
             /** Subject Name */

@@ -112,10 +112,12 @@ def test_kitchen_snapshot_included_for_open_order(db_session):
     assert kitchen[0]["tickets"][0]["status"] == "partial"
 
 
-def test_cash_session_org_scoped_by_subject_key(db_session):
+def test_cash_session_org_scoped_by_cash_session_uuid(db_session):
     db, ev = db_session
+    uuid_val = "dddddddd-dddd-dddd-dddd-dddddddddddd"
     payload = {
         "cash_session_id": 7,
+        "cash_session_uuid": uuid_val,
         "subject_type": "waiter",
         "waiter_uuid": "w-1",
         "subject_name": "Anna",
@@ -136,3 +138,49 @@ def test_cash_session_org_scoped_by_subject_key(db_session):
     sessions = snapshot["events"][0]["open_cash_sessions"]
     assert len(sessions) == 1
     assert sessions[0]["payload"]["wallet_cents"] == 200
+    assert sessions[0]["payload"]["cash_session_uuid"] == uuid_val
+
+
+def test_snapshot_open_only_when_closed_and_open_share_subject(db_session):
+    db, ev = db_session
+    closed = {
+        "cash_session_id": 1,
+        "cash_session_uuid": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+        "subject_type": "waiter",
+        "waiter_uuid": "w-1",
+        "subject_name": "Anna",
+        "status": "CLOSED",
+        "opening_balance_cents": 0,
+        "wallet_cents": 50,
+        "total_cash_cents": 50,
+        "total_non_cash_cents": 0,
+        "ledger": [],
+        "started_at": "2026-06-01T08:00:00+00:00",
+        "ended_at": "2026-06-01T12:00:00+00:00",
+    }
+    open_payload = {
+        "cash_session_id": 2,
+        "cash_session_uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+        "subject_type": "waiter",
+        "waiter_uuid": "w-1",
+        "subject_name": "Anna",
+        "status": "OPEN",
+        "opening_balance_cents": 0,
+        "wallet_cents": 10,
+        "total_cash_cents": 10,
+        "total_non_cash_cents": 0,
+        "ledger": [],
+        "started_at": "2026-06-01T13:00:00+00:00",
+    }
+    upsert_edge_cash_session(db, organisation_id=1, appliance_id=1, event_id=1, payload=closed)
+    upsert_edge_cash_session(db, organisation_id=1, appliance_id=1, event_id=1, payload=open_payload)
+    db.commit()
+
+    from app.models import EdgeCashSession
+
+    assert db.query(EdgeCashSession).count() == 2
+    snapshot = build_operational_snapshot_for_events(db, organisation_id=1, events=[ev])
+    sessions = snapshot["events"][0]["open_cash_sessions"]
+    assert len(sessions) == 1
+    assert sessions[0]["payload"]["cash_session_uuid"] == "ffffffff-ffff-ffff-ffff-ffffffffffff"
+    assert sessions[0]["payload"]["status"] == "OPEN"

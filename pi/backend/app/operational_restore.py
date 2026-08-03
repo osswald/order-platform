@@ -326,9 +326,12 @@ def _restore_cash_session(db: Session, *, event_id: int, payload: dict) -> None:
     else:
         row = q.filter(CashSession.waiter_uuid == payload.get("waiter_uuid")).first()
 
+    incoming_uuid = str(payload.get("cash_session_uuid") or "").strip() or None
+
     if not row:
         row = CashSession(
             event_id=event_id,
+            cash_session_uuid=incoming_uuid,
             subject_type=subject_type,
             waiter_uuid=payload.get("waiter_uuid"),
             cash_register_uuid=payload.get("cash_register_uuid"),
@@ -347,6 +350,8 @@ def _restore_cash_session(db: Session, *, event_id: int, payload: dict) -> None:
         db.add(row)
         db.flush()
     else:
+        if incoming_uuid:
+            row.cash_session_uuid = incoming_uuid
         row.subject_name = str(payload.get("subject_name") or row.subject_name)
         row.operator_waiter_uuid = payload.get("operator_waiter_uuid")
         row.status = str(payload.get("status") or row.status)
