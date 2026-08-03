@@ -163,6 +163,7 @@ class CashSession(Base):
     __tablename__ = "cash_sessions"
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_id = Column(Integer, nullable=False, index=True)
+    cash_session_uuid = Column(String(36), nullable=True, unique=True, index=True)
     subject_type = Column(String(32), nullable=False, default="cash_register", index=True)
     waiter_uuid = Column(String(36), nullable=True, index=True)
     cash_register_uuid = Column(String(36), nullable=True, index=True)

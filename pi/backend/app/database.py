@@ -96,6 +96,11 @@ def apply_shift_session_schema_patches() -> None:
         "total_non_cash_cents",
         "ALTER TABLE cash_sessions ADD COLUMN total_non_cash_cents INTEGER NOT NULL DEFAULT 0",
     )
+    _add_column_if_missing(
+        "cash_sessions",
+        "cash_session_uuid",
+        "ALTER TABLE cash_sessions ADD COLUMN cash_session_uuid VARCHAR(36)",
+    )
     try:
         inspector = inspect(engine)
         if "cash_sessions" not in inspector.get_table_names():
@@ -138,6 +143,8 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
             return "003_print_job_kind"
     if "cash_sessions" in tables:
         cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
+        if "cash_session_uuid" in cols:
+            return "006_cash_session_uuid"
         if "subject_type" in cols:
             return "002_shift_sessions"
     return "001_v3"

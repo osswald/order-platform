@@ -150,6 +150,7 @@ def db():
             appliance_id=1,
             event_id=1,
             cash_session_id=1,
+            cash_session_uuid="00000000-0000-4000-8000-000000000001",
             subject_name="Anna",
             status="OPEN",
             payload={},

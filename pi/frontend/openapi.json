@@ -6125,6 +6125,17 @@
             "type": "integer",
             "title": "Event Id"
           },
+          "cash_session_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Session Uuid"
+          },
           "subject_type": {
             "type": "string",
             "title": "Subject Type"
