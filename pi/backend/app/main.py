@@ -50,9 +50,20 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("OTA freeze sync on startup failed: %s", exc)
 
-    stop_print_worker = asyncio.Event()
-    print_task = asyncio.create_task(print_worker_loop(stop_print_worker))
-    log.info("Print worker started")
+    # Tests set PRINT_WORKER_ENABLED=0 so API suites keep deterministic
+    # run_print_job_sync control (wake-on-commit would race otherwise).
+    print_worker_enabled = os.getenv("PRINT_WORKER_ENABLED", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+    if print_worker_enabled:
+        stop_print_worker = asyncio.Event()
+        print_task = asyncio.create_task(print_worker_loop(stop_print_worker))
+        log.info("Print worker started")
+    else:
+        log.info("Print worker disabled (PRINT_WORKER_ENABLED)")
 
     stop_sync_worker = asyncio.Event()
     sync_task = asyncio.create_task(sync_worker_loop(stop_sync_worker))

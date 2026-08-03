@@ -53,6 +53,36 @@ def _add_column_if_missing(table: str, column: str, ddl: str) -> None:
         log.exception("Failed to add column %s.%s", table, column)
 
 
+def _add_index_if_missing(table: str, index_name: str, columns: list[str]) -> None:
+    try:
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        existing = {ix["name"] for ix in inspector.get_indexes(table)}
+        if index_name in existing:
+            return
+        cols_sql = ", ".join(columns)
+        with engine.begin() as conn:
+            conn.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table} ({cols_sql})"))
+    except Exception:
+        log.exception("Failed to add index %s on %s", index_name, table)
+
+
+def apply_hot_path_index_schema_patches() -> None:
+    _add_index_if_missing("print_jobs", "ix_print_jobs_status", ["status"])
+    _add_index_if_missing(
+        "order_submissions",
+        "ix_order_submissions_event_payment",
+        ["event_id", "payment_status"],
+    )
+    _add_index_if_missing("sync_outbox", "ix_sync_outbox_status", ["status"])
+    _add_index_if_missing(
+        "kitchen_tickets",
+        "ix_kitchen_tickets_event_status",
+        ["event_id", "status"],
+    )
+
+
 def apply_kitchen_ticket_schema_patches() -> None:
     _add_column_if_missing(
         "kitchen_tickets",
@@ -144,6 +174,10 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
     """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
     if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
         return None
+    if "print_jobs" in tables:
+        indexes = {ix["name"] for ix in inspector.get_indexes("print_jobs")}
+        if "ix_print_jobs_status" in indexes:
+            return "008_hot_path_indexes"
     if "synced_bundle" in tables:
         cols = {c["name"] for c in inspector.get_columns("synced_bundle")}
         if "etag" in cols:
@@ -218,6 +252,7 @@ def init_test_schema() -> None:
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
     apply_synced_bundle_schema_patches()
+    apply_hot_path_index_schema_patches()
 
 
 def _alembic_head_revision(cfg) -> str:
@@ -269,6 +304,7 @@ def run_migrations() -> None:
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
     apply_synced_bundle_schema_patches()
+    apply_hot_path_index_schema_patches()
     _create_all_tables()
 
 
