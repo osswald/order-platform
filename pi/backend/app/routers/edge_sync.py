@@ -56,7 +56,7 @@ def get_sync_status(db: Session = Depends(get_db)) -> SyncStatusResponse:
 async def sync_pull(db: Session = Depends(get_db)) -> SyncPullResponse:
     async with sync_cycle_lock:
         try:
-            result = await pull_and_restore(db)
+            result = await pull_and_restore(db, force_restore_check=True)
         except CloudConfigError as e:
             raise cloud_config_http_error(e) from e
         except httpx.HTTPStatusError as e:

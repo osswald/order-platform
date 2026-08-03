@@ -30,6 +30,7 @@ class SyncedBundle(Base):
     __tablename__ = "synced_bundle"
     id = Column(Integer, primary_key=True, default=1)
     json_body = Column(Text, nullable=False, default="{}")
+    etag = Column(String(128), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

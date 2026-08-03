@@ -1,5 +1,10 @@
 """Pull/push against cloud edge API."""
 
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -23,6 +28,15 @@ class CloudRequestError(Exception):
         self.status_code = status_code
         self.detail = detail
         super().__init__(f"Cloud request failed ({status_code}): {detail}")
+
+
+@dataclass(frozen=True)
+class ConditionalGetResult:
+    """Result of a conditional GET (bundle or snapshot)."""
+
+    not_modified: bool
+    data: dict[str, Any] | None
+    etag: str | None
 
 
 def _resolve_config() -> tuple[str, str, str]:
@@ -53,42 +67,88 @@ def _headers(client_id: str, secret: str) -> dict[str, str]:
     return headers
 
 
-async def fetch_bundle() -> dict[str, Any]:
+@asynccontextmanager
+async def edge_http_client(
+    client: httpx.AsyncClient | None = None,
+    *,
+    timeout: float = 60.0,
+) -> AsyncIterator[httpx.AsyncClient]:
+    """Yield a shared client when provided; otherwise open a short-lived one."""
+    if client is not None:
+        yield client
+        return
+    async with httpx.AsyncClient(timeout=timeout) as owned:
+        yield owned
+
+
+def _response_etag(response: httpx.Response) -> str | None:
+    value = response.headers.get("etag") or response.headers.get("ETag")
+    return value.strip() if value else None
+
+
+async def fetch_bundle(
+    *,
+    client: httpx.AsyncClient | None = None,
+    etag: str | None = None,
+) -> ConditionalGetResult:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/bundle"
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(url, headers=_headers(cid, secret))
+    headers = _headers(cid, secret)
+    if etag:
+        headers["If-None-Match"] = etag
+    async with edge_http_client(client, timeout=60.0) as http:
+        r = await http.get(url, headers=headers)
+        if r.status_code == 304:
+            return ConditionalGetResult(not_modified=True, data=None, etag=_response_etag(r) or etag)
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        if not isinstance(data, dict):
+            raise CloudRequestError(r.status_code, "bundle response was not an object")
+        return ConditionalGetResult(not_modified=False, data=data, etag=_response_etag(r))
 
 
-async def fetch_bundle_manifest() -> dict[str, Any]:
+async def fetch_bundle_manifest(*, client: httpx.AsyncClient | None = None) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/bundle/manifest"
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get(url, headers=_headers(cid, secret))
+    async with edge_http_client(client, timeout=30.0) as http:
+        r = await http.get(url, headers=_headers(cid, secret))
         r.raise_for_status()
         return r.json()
 
 
-async def fetch_bundle_chunk(*, section: str, cursor: str | None = None) -> dict[str, Any]:
+async def fetch_bundle_chunk(
+    *,
+    section: str,
+    cursor: str | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/bundle/chunk"
     params: dict[str, str] = {"section": section}
     if cursor:
         params["cursor"] = cursor
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(url, headers=_headers(cid, secret), params=params)
+    async with edge_http_client(client, timeout=60.0) as http:
+        r = await http.get(url, headers=_headers(cid, secret), params=params)
         r.raise_for_status()
         return r.json()
 
 
-async def submit_order(client_order_id: str, event_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+async def submit_order(
+    client_order_id: str,
+    event_id: int,
+    payload: dict[str, Any],
+    *,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/orders"
     body = {"client_order_id": client_order_id, "event_id": event_id, "payload": payload}
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
+    async with edge_http_client(client, timeout=60.0) as http:
+        r = await http.post(
+            url,
+            headers={**_headers(cid, secret), "Content-Type": "application/json"},
+            json=body,
+        )
         r.raise_for_status()
         return r.json()
 
@@ -99,6 +159,7 @@ async def submit_operational_chunk(
     event_id: int,
     entity_type: str,
     payload: dict[str, Any],
+    client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/sync/operational/chunk"
@@ -108,25 +169,42 @@ async def submit_operational_chunk(
         "entity_type": entity_type,
         "payload": payload,
     }
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
+    async with edge_http_client(client, timeout=60.0) as http:
+        r = await http.post(
+            url,
+            headers={**_headers(cid, secret), "Content-Type": "application/json"},
+            json=body,
+        )
         if r.status_code == 404:
             client_order_id = str(payload.get("client_order_id") or chunk_id)
-            return await submit_order(client_order_id, event_id, payload)
+            return await submit_order(client_order_id, event_id, payload, client=http)
         r.raise_for_status()
         return r.json()
 
 
-async def fetch_operational_snapshot(*, event_id: int | None = None) -> dict[str, Any]:
+async def fetch_operational_snapshot(
+    *,
+    event_id: int | None = None,
+    client: httpx.AsyncClient | None = None,
+    etag: str | None = None,
+) -> ConditionalGetResult:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/sync/operational/snapshot"
     params: dict[str, str] = {}
     if event_id is not None:
         params["event_id"] = str(event_id)
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(url, headers=_headers(cid, secret), params=params or None)
+    headers = _headers(cid, secret)
+    if etag:
+        headers["If-None-Match"] = etag
+    async with edge_http_client(client, timeout=60.0) as http:
+        r = await http.get(url, headers=headers, params=params or None)
+        if r.status_code == 304:
+            return ConditionalGetResult(not_modified=True, data=None, etag=_response_etag(r) or etag)
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        if not isinstance(data, dict):
+            raise CloudRequestError(r.status_code, "snapshot response was not an object")
+        return ConditionalGetResult(not_modified=False, data=data, etag=_response_etag(r))
 
 
 async def ping_cloud_reachable() -> tuple[bool, str | None]:

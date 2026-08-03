@@ -9527,6 +9527,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "If-None-Match"?: string | null;
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
                 "X-Edge-App-Version"?: string | null;
@@ -9546,6 +9547,13 @@ export interface operations {
                     "application/json": components["schemas"]["EdgeBundleRead"];
                 };
             };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -9563,6 +9571,7 @@ export interface operations {
                 event_id?: number | null;
             };
             header?: {
+                "If-None-Match"?: string | null;
                 "X-Edge-Client-Id"?: string | null;
                 "X-Edge-Secret"?: string | null;
                 "X-Edge-App-Version"?: string | null;
@@ -9581,6 +9590,13 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

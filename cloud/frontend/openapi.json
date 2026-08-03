@@ -8636,6 +8636,22 @@
         "operationId": "read_edge_bundle_edge_v1_bundle_get",
         "parameters": [
           {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          },
+          {
             "name": "X-Edge-Client-Id",
             "in": "header",
             "required": false,
@@ -8711,6 +8727,9 @@
               }
             }
           },
+          "304": {
+            "description": "Not Modified"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -8747,6 +8766,22 @@
                 }
               ],
               "title": "Event Id"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
             }
           },
           {
@@ -8822,6 +8857,9 @@
                 "schema": {}
               }
             }
+          },
+          "304": {
+            "description": "Not Modified"
           },
           "422": {
             "description": "Validation Error",

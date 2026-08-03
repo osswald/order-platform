@@ -4,6 +4,7 @@ import asyncio
 import json
 from pathlib import Path
 
+from app.cloud_client import ConditionalGetResult
 from app.models import OutboxEntry, SyncedBundle
 from app.sync_service import is_cloud_configured, pending_outbox_count, run_sync_cycle
 
@@ -47,14 +48,21 @@ def test_run_sync_cycle_pull_and_push(monkeypatch, tmp_path, isolated_engine, db
     _write_edge_env(tmp_path, monkeypatch)
     db = db_session
 
-    async def fake_fetch_bundle():
-        return {"organisation_id": 1, "events": [{"id": 1, "name": "E"}]}
+    async def fake_fetch_bundle(**_kwargs):
+        return ConditionalGetResult(
+            False,
+            {"organisation_id": 1, "events": [{"id": 1, "name": "E"}]},
+            '"etag"',
+        )
 
-    async def fake_push(db, *, retry_errors=True):
+    async def fake_push(db, *, retry_errors=True, client=None):
         return {"sent": 0, "errors": []}
 
     monkeypatch.setattr("app.sync_service.fetch_bundle", fake_fetch_bundle)
     monkeypatch.setattr("app.sync_service.push_outbox", fake_push)
+    monkeypatch.setattr("app.sync_service.reconcile_bundle_lifecycle", lambda *_a, **_k: [])
+    monkeypatch.setattr("app.sync_service.write_ota_freeze_from_bundle", lambda *_a, **_k: None)
+    monkeypatch.setenv("RESTORE_FROM_CLOUD", "0")
 
     summary = asyncio.run(run_sync_cycle(db))
     assert summary["skipped"] is False
