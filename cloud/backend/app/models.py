@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -682,11 +683,20 @@ class EdgeSubmittedOrder(Base):
     """Orders submitted from on-prem Pi (idempotent by client_order_id)."""
 
     __tablename__ = "edge_submitted_orders"
+    __table_args__ = (
+        Index(
+            "ix_edge_submitted_orders_event_id_collective_bill_uuid",
+            "event_id",
+            "collective_bill_uuid",
+        ),
+    )
     id = Column(Integer, primary_key=True, index=True)
     client_order_id = Column(String(64), nullable=False, unique=True, index=True)
     appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False)
-    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
-    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    # Denormalized from payload for Sammelrechnung list/close/PDF without full-event scans.
+    collective_bill_uuid = Column(String(36), nullable=True)
     payload = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -884,11 +894,20 @@ class EdgeKitchenTicketSnapshot(Base):
 
 class EdgeCashSession(Base):
     __tablename__ = "edge_cash_sessions"
+    __table_args__ = (
+        UniqueConstraint(
+            "organisation_id",
+            "event_id",
+            "cash_session_uuid",
+            name="uq_edge_cash_sessions_org_event_uuid",
+        ),
+    )
     id = Column(Integer, primary_key=True, index=True)
     organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
     appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False, index=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
     subject_key = Column(String(128), nullable=True, index=True)
+    cash_session_uuid = Column(String(36), nullable=False, index=True)
     cash_session_id = Column(Integer, nullable=False, index=True)
     subject_type = Column(String(32), nullable=False, default="waiter")
     waiter_uuid = Column(String(36), nullable=True, index=True)

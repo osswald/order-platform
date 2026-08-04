@@ -384,10 +384,23 @@ def build_event_transactions_page(
             .limit(items_per_page)
             .all()
         )
-        all_for_prior = base.order_by(EdgeSubmittedOrder.created_at.asc(), EdgeSubmittedOrder.id.asc()).all()
-        prior_by_order_id = _prior_order_by_id(all_for_prior)
+        # Build prior-snapshot map scoped to the current page's client_order_ids
+        # to avoid loading all event orders into memory.
+        page_client_ids = list({
+            str(_payload_dict(o).get("client_order_id") or o.client_order_id)
+            for o in orders
+        })
+        if page_client_ids:
+            prior_candidates = (
+                base.filter(EdgeSubmittedOrder.client_order_id.in_(page_client_ids))
+                .order_by(EdgeSubmittedOrder.created_at.asc(), EdgeSubmittedOrder.id.asc())
+                .all()
+            )
+        else:
+            prior_candidates = []
+        prior_by_order_id = _prior_order_by_id(prior_candidates)
         article_ids = _collect_article_ids_from_orders(orders)
-        article_ids |= _collect_article_ids_from_orders(all_for_prior)
+        article_ids |= _collect_article_ids_from_orders(prior_candidates)
         arts = _build_articles_pricing_map(db, article_ids)
         items = [
             _transaction_row(o, arts=arts, name_maps=name_maps, prior_by_order_id=prior_by_order_id)

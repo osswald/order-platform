@@ -53,6 +53,36 @@ def _add_column_if_missing(table: str, column: str, ddl: str) -> None:
         log.exception("Failed to add column %s.%s", table, column)
 
 
+def _add_index_if_missing(table: str, index_name: str, columns: list[str]) -> None:
+    try:
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        existing = {ix["name"] for ix in inspector.get_indexes(table)}
+        if index_name in existing:
+            return
+        cols_sql = ", ".join(columns)
+        with engine.begin() as conn:
+            conn.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table} ({cols_sql})"))
+    except Exception:
+        log.exception("Failed to add index %s on %s", index_name, table)
+
+
+def apply_hot_path_index_schema_patches() -> None:
+    _add_index_if_missing("print_jobs", "ix_print_jobs_status", ["status"])
+    _add_index_if_missing(
+        "order_submissions",
+        "ix_order_submissions_event_payment",
+        ["event_id", "payment_status"],
+    )
+    _add_index_if_missing("sync_outbox", "ix_sync_outbox_status", ["status"])
+    _add_index_if_missing(
+        "kitchen_tickets",
+        "ix_kitchen_tickets_event_status",
+        ["event_id", "status"],
+    )
+
+
 def apply_kitchen_ticket_schema_patches() -> None:
     _add_column_if_missing(
         "kitchen_tickets",
@@ -66,6 +96,19 @@ def apply_print_job_schema_patches() -> None:
         "print_jobs",
         "job_kind",
         "ALTER TABLE print_jobs ADD COLUMN job_kind VARCHAR(32)",
+    )
+    _add_column_if_missing(
+        "print_jobs",
+        "render_context_json",
+        "ALTER TABLE print_jobs ADD COLUMN render_context_json TEXT",
+    )
+
+
+def apply_synced_bundle_schema_patches() -> None:
+    _add_column_if_missing(
+        "synced_bundle",
+        "etag",
+        "ALTER TABLE synced_bundle ADD COLUMN etag VARCHAR(128)",
     )
 
 
@@ -95,6 +138,11 @@ def apply_shift_session_schema_patches() -> None:
         "cash_sessions",
         "total_non_cash_cents",
         "ALTER TABLE cash_sessions ADD COLUMN total_non_cash_cents INTEGER NOT NULL DEFAULT 0",
+    )
+    _add_column_if_missing(
+        "cash_sessions",
+        "cash_session_uuid",
+        "ALTER TABLE cash_sessions ADD COLUMN cash_session_uuid VARCHAR(36)",
     )
     try:
         inspector = inspect(engine)
@@ -126,6 +174,24 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
     """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
     if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
         return None
+    if "local_stock_state" in tables:
+        return "009_local_stock_overlay"
+    if "print_jobs" in tables:
+        indexes = {ix["name"] for ix in inspector.get_indexes("print_jobs")}
+        if "ix_print_jobs_status" in indexes:
+            return "008_hot_path_indexes"
+    if "synced_bundle" in tables:
+        cols = {c["name"] for c in inspector.get_columns("synced_bundle")}
+        if "etag" in cols:
+            return "007_synced_bundle_etag"
+    if "print_jobs" in tables:
+        cols = {c["name"] for c in inspector.get_columns("print_jobs")}
+        if "render_context_json" in cols:
+            return "006_print_job_render_context"
+    if "cash_sessions" in tables:
+        cols = {c["name"] for c in inspector.get_columns("cash_sessions")}
+        if "cash_session_uuid" in cols:
+            return "006_cash_session_uuid"
     if "station_pickups" in tables:
         return "005_station_pickups"
     if "kitchen_tickets" in tables:
@@ -187,6 +253,8 @@ def init_test_schema() -> None:
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
+    apply_synced_bundle_schema_patches()
+    apply_hot_path_index_schema_patches()
 
 
 def _alembic_head_revision(cfg) -> str:
@@ -237,6 +305,8 @@ def run_migrations() -> None:
     apply_shift_session_schema_patches()
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
+    apply_synced_bundle_schema_patches()
+    apply_hot_path_index_schema_patches()
     _create_all_tables()
 
 

@@ -7,6 +7,8 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, Query, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -15,6 +17,7 @@ from ..currency import event_currency
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..edge_bundle import edge_bundle_payload
+from ..edge_etag import etag_for_payload, etag_matches
 from ..edge_operational_mirror import (
     upsert_edge_kitchen_ticket_snapshot,
     upsert_edge_order_snapshot,
@@ -455,10 +458,15 @@ def _sumup_readers_for_org(db: Session, organisation_id: int) -> list[dict[str, 
     return [{"sumup_reader_id": row.sumup_reader_id, "label": row.label} for row in rows]
 
 
-@router.get("/v1/bundle", response_model=EdgeBundleRead)
+@router.get(
+    "/v1/bundle",
+    response_model=EdgeBundleRead,
+    responses={304: {"description": "Not Modified"}},
+)
 def read_edge_bundle(
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
 ):
     appliance = ctx.appliance
     org_id = ctx.organisation_id
@@ -513,7 +521,7 @@ def read_edge_bundle(
         ingredients_enabled=ingredients_enabled,
         sumup_readers=sumup_readers,
     )
-    return EdgeBundleRead(
+    read = EdgeBundleRead(
         organisation_id=bundle_core["organisation_id"],
         appliance_id=appliance.id,
         server_time=datetime.now(UTC),
@@ -524,13 +532,24 @@ def read_edge_bundle(
         ingredients_enabled=bundle_core["ingredients_enabled"],
         sumup_readers=sumup_readers,
     )
+    body = jsonable_encoder(read.model_dump(mode="json") if hasattr(read, "model_dump") else read.dict())
+    # server_time changes every request — exclude from validator so idle pulls can 304.
+    etag_body = {k: v for k, v in body.items() if k != "server_time"}
+    etag = etag_for_payload(etag_body)
+    if etag_matches(if_none_match, etag):
+        return Response(status_code=304, headers={"ETag": etag})
+    return JSONResponse(content=body, headers={"ETag": etag})
 
 
-@router.get("/v1/sync/operational/snapshot")
+@router.get(
+    "/v1/sync/operational/snapshot",
+    responses={304: {"description": "Not Modified"}},
+)
 def read_operational_snapshot(
     event_id: int | None = Query(None),
     ctx: ApplianceEdgeContext = Depends(get_edge_server_appliance),
     db: Session = Depends(get_db),
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
 ):
     """Org/event operational state for Pi restore (cross-appliance takeover)."""
     events, _emulated = _events_for_edge_bundle(db, ctx)
@@ -543,7 +562,12 @@ def read_operational_snapshot(
     )
     snapshot["appliance_id"] = ctx.appliance.id
     snapshot["server_time"] = datetime.now(UTC)
-    return snapshot
+    body = jsonable_encoder(snapshot)
+    etag_body = {k: v for k, v in body.items() if k != "server_time"}
+    etag = etag_for_payload(etag_body)
+    if etag_matches(if_none_match, etag):
+        return Response(status_code=304, headers={"ETag": etag})
+    return JSONResponse(content=body, headers={"ETag": etag})
 
 
 class EdgeOrderCreate(BaseModel):
@@ -609,11 +633,14 @@ def submit_edge_order(
     if payload_is_stale_test(event, payload):
         return EdgeOrderAck(server_order_id=0, duplicate=False)
 
+    from ..event_collective_bills import collective_bill_uuid_from_payload
+
     row = EdgeSubmittedOrder(
         client_order_id=body.client_order_id,
         appliance_id=ctx.appliance.id,
         organisation_id=ctx.organisation_id,
         event_id=body.event_id,
+        collective_bill_uuid=collective_bill_uuid_from_payload(payload),
         payload=payload,
     )
     db.add(row)
@@ -682,11 +709,21 @@ def submit_operational_chunk(
 
     entity_type = (body.entity_type or payload.get("entity_type") or "").strip().lower()
 
+    from ..event_collective_bills import collective_bill_uuid_from_payload
+
+    # Only denormalize membership for order-like chunks; cash/kitchen entities stay NULL.
+    bill_uuid = (
+        None
+        if entity_type in {"cash_session", "cash_drawer", "kitchen_tickets"}
+        else collective_bill_uuid_from_payload(payload)
+    )
+
     row = EdgeSubmittedOrder(
         client_order_id=body.chunk_id,
         appliance_id=ctx.appliance.id,
         organisation_id=ctx.organisation_id,
         event_id=body.event_id,
+        collective_bill_uuid=bill_uuid,
         payload={"entity_type": body.entity_type, **payload},
     )
     db.add(row)

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { EdgeBundleEvent, EdgeBundleResponse } from '@/types/api'
 import * as store from '@/store'
 
@@ -9,6 +9,7 @@ const ctx = vi.hoisted(() => ({
   push: vi.fn(),
   setWaiter: vi.fn(),
   maybeEndShiftOnSwitch: vi.fn(async () => true),
+  ensureReachable: vi.fn(async () => true),
   event: null as ReturnType<typeof ref<EdgeBundleEvent | null>> | null,
   waiter: null as ReturnType<
     typeof ref<{
@@ -19,6 +20,8 @@ const ctx = vi.hoisted(() => ({
     }>
   > | null,
   selectedEventId: null as ReturnType<typeof ref<number>> | null,
+  status: null as ReturnType<typeof ref<'unknown' | 'reachable' | 'unreachable'>> | null,
+  probing: null as ReturnType<typeof ref<boolean>> | null,
 }))
 
 vi.mock('@/api', () => ({
@@ -45,25 +48,39 @@ vi.mock('@/composables/useShiftSession', () => ({
   maybeEndShiftOnSwitch: ctx.maybeEndShiftOnSwitch,
 }))
 
+vi.mock('@/composables/usePiConnectivity', () => ({
+  usePiConnectivity: () => ({
+    status: ctx.status,
+    probing: ctx.probing,
+    unreachable: computed(() => ctx.status?.value === 'unreachable'),
+    ensureReachable: ctx.ensureReachable,
+    probeNow: vi.fn(async () => ctx.status?.value === 'reachable'),
+  }),
+}))
+
 ctx.event = ref<EdgeBundleEvent | null>(null)
 ctx.waiter = ref({ uuid: 'w-1', name: 'Anna' })
 ctx.selectedEventId = ref(1)
+ctx.status = ref<'unknown' | 'reachable' | 'unreachable'>('reachable')
+ctx.probing = ref(false)
 
-const { push, setWaiter, maybeEndShiftOnSwitch } = ctx
+const { push, setWaiter, maybeEndShiftOnSwitch, ensureReachable } = ctx
 const eventRef = ctx.event!
 const waiterRef = ctx.waiter!
 const selectedEventIdRef = ctx.selectedEventId!
+const status = ctx.status!
+const probing = ctx.probing!
 
 import { isAndroidApp } from '@/api'
 import WaiterHubView from './WaiterHubView.vue'
 
-function baseEvent(status: string, paymentTypes: string[] = ['cash']): EdgeBundleEvent {
+function baseEvent(statusValue: string, paymentTypes: string[] = ['cash']): EdgeBundleEvent {
   return {
     id: 1,
     name: 'Sommerfest',
     currency: 'CHF',
     payment_mode: 'pay_later',
-    status,
+    status: statusValue,
     payment_types: paymentTypes,
   } as EdgeBundleEvent
 }
@@ -85,10 +102,18 @@ function mountHub() {
       { path: '/hub', name: 'hub', component: { template: '<div/>' } },
       { path: '/events', name: 'events', component: { template: '<div/>' } },
       { path: '/login', name: 'login', component: { template: '<div/>' } },
+      { path: '/connection-setup', name: 'connection-setup', component: { template: '<div/>' } },
     ],
   })
   router.push = push
   return mount(WaiterHubView, { global: { plugins: [router] } })
+}
+
+async function clickHubButton(wrapper: ReturnType<typeof mountHub>, label: string) {
+  const btn = wrapper.findAll('button').find((b) => b.text().includes(label))
+  expect(btn).toBeTruthy()
+  await btn!.trigger('click')
+  await flushPromises()
 }
 
 describe('WaiterHubView', () => {
@@ -97,6 +122,10 @@ describe('WaiterHubView', () => {
     setWaiter.mockReset()
     maybeEndShiftOnSwitch.mockReset()
     maybeEndShiftOnSwitch.mockResolvedValue(true)
+    ensureReachable.mockReset()
+    ensureReachable.mockResolvedValue(true)
+    status.value = 'reachable'
+    probing.value = false
     eventRef.value = baseEvent('test')
     waiterRef.value = { uuid: 'w-1', name: 'Anna' }
     selectedEventIdRef.value = 1
@@ -130,6 +159,54 @@ describe('WaiterHubView', () => {
     const wrapperOff = mountHub()
     await flushPromises()
     expect(wrapperOff.text()).not.toContain('Bluetooth Drucker')
+  })
+
+  it('shows unreachable banner when Pi is unreachable', async () => {
+    status.value = 'unreachable'
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Keine Verbindung zur Kasse')
+  })
+
+  it('navigates money-path actions when ensureReachable succeeds', async () => {
+    const wrapper = mountHub()
+    await flushPromises()
+    await clickHubButton(wrapper, 'Neue Bestellung')
+    expect(push).toHaveBeenCalledWith({ name: 'table-new' })
+    push.mockClear()
+
+    await clickHubButton(wrapper, 'Tisch abrechnen')
+    expect(push).toHaveBeenCalledWith({ name: 'table-settle-keypad' })
+    push.mockClear()
+
+    await clickHubButton(wrapper, 'Offene Tische')
+    expect(push).toHaveBeenCalledWith({ name: 'tables-open' })
+    push.mockClear()
+
+    await clickHubButton(wrapper, 'Sammelrechnungen')
+    expect(push).toHaveBeenCalledWith({ name: 'collective-open' })
+    push.mockClear()
+
+    await clickHubButton(wrapper, 'Lagerbestand')
+    expect(push).toHaveBeenCalledWith({ name: 'stock' })
+  })
+
+  it('blocks money-path actions when ensureReachable fails', async () => {
+    ensureReachable.mockResolvedValue(false)
+    status.value = 'unreachable'
+    const wrapper = mountHub()
+    await flushPromises()
+    for (const label of [
+      'Neue Bestellung',
+      'Tisch abrechnen',
+      'Offene Tische',
+      'Sammelrechnungen',
+      'Lagerbestand',
+    ]) {
+      await clickHubButton(wrapper, label)
+    }
+    expect(push).not.toHaveBeenCalled()
+    expect(ensureReachable).toHaveBeenCalled()
   })
 
   it('shows SumUp label and switch when bound with multiple readers', async () => {

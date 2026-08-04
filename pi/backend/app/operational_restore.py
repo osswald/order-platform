@@ -20,7 +20,7 @@ from .models import (
     StationPickup,
 )
 from .models_operational import CashSession, CashSessionLedger, PaymentBatch
-from .stock import apply_stock_to_bundle, save_bundle
+from .stock import apply_stock_to_bundle, persist_local_stock
 
 log = logging.getLogger(__name__)
 
@@ -326,9 +326,12 @@ def _restore_cash_session(db: Session, *, event_id: int, payload: dict) -> None:
     else:
         row = q.filter(CashSession.waiter_uuid == payload.get("waiter_uuid")).first()
 
+    incoming_uuid = str(payload.get("cash_session_uuid") or "").strip() or None
+
     if not row:
         row = CashSession(
             event_id=event_id,
+            cash_session_uuid=incoming_uuid,
             subject_type=subject_type,
             waiter_uuid=payload.get("waiter_uuid"),
             cash_register_uuid=payload.get("cash_register_uuid"),
@@ -347,6 +350,8 @@ def _restore_cash_session(db: Session, *, event_id: int, payload: dict) -> None:
         db.add(row)
         db.flush()
     else:
+        if incoming_uuid:
+            row.cash_session_uuid = incoming_uuid
         row.subject_name = str(payload.get("subject_name") or row.subject_name)
         row.operator_waiter_uuid = payload.get("operator_waiter_uuid")
         row.status = str(payload.get("status") or row.status)
@@ -473,7 +478,7 @@ def _apply_stock_for_open_orders(db: Session, bundle: dict, event_id: int, paylo
         lines = payload.get("lines") or []
         if lines:
             apply_stock_to_bundle(data, event_id, lines)
-    save_bundle(db, data)
+    persist_local_stock(db, data, event_ids={int(event_id)})
 
 
 def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | None) -> dict[str, Any]:

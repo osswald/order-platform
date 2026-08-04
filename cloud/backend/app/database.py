@@ -373,6 +373,7 @@ def apply_schema_patches() -> None:
     _patch_article_label_length()
     _patch_edge_order_item_fiscal_columns()
     _patch_edge_order_items_ordered_at()
+    _patch_edge_submitted_order_collective_bill_uuid()
     _patch_edge_operational_snapshot_tables()
     _patch_event_waiter_register_subsidiary_columns()
     _ensure_accounting_tax_code_defaults_table()
@@ -425,7 +426,7 @@ def _ensure_user_organisation_onboarding_dismissals_table() -> None:
 
 
 def _patch_edge_operational_snapshot_tables() -> None:
-    """Pi restore snapshots and org-scoped cash session keys (Alembic 003 drift)."""
+    """Pi restore snapshots and org-scoped cash session keys (Alembic 003/008 drift)."""
     try:
         from .models import EdgeCashSession, EdgeKitchenTicketSnapshot, EdgeOrderSnapshot
 
@@ -440,6 +441,12 @@ def _patch_edge_operational_snapshot_tables() -> None:
         "ALTER TABLE edge_cash_sessions ADD COLUMN subject_key VARCHAR(128)",
         "ALTER TABLE edge_cash_sessions ADD COLUMN IF NOT EXISTS subject_key VARCHAR(128)",
     )
+    _add_column_if_missing(
+        "edge_cash_sessions",
+        "cash_session_uuid",
+        "ALTER TABLE edge_cash_sessions ADD COLUMN cash_session_uuid VARCHAR(36)",
+        "ALTER TABLE edge_cash_sessions ADD COLUMN IF NOT EXISTS cash_session_uuid VARCHAR(36)",
+    )
     is_sqlite = engine.dialect.name == "sqlite"
     with engine.begin() as conn:
         conn.execute(
@@ -448,13 +455,35 @@ def _patch_edge_operational_snapshot_tables() -> None:
                 "ON edge_cash_sessions (subject_key)"
             )
         )
-        if not is_sqlite:
+        # Backfill any legacy rows missing UUID before enforcing uniqueness.
+        null_clause = (
+            "cash_session_uuid IS NULL OR cash_session_uuid = ''"
+            if is_sqlite
+            else "cash_session_uuid IS NULL"
+        )
+        rows = conn.execute(
+            text(f"SELECT id FROM edge_cash_sessions WHERE {null_clause}")
+        ).fetchall()
+        import uuid as uuid_mod
+
+        for (row_id,) in rows:
             conn.execute(
-                text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_edge_cash_sessions_org_event_subject "
-                    "ON edge_cash_sessions (organisation_id, event_id, subject_key)"
-                )
+                text("UPDATE edge_cash_sessions SET cash_session_uuid = :u WHERE id = :id"),
+                {"u": str(uuid_mod.uuid4()), "id": row_id},
             )
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_edge_cash_sessions_org_event_uuid "
+                "ON edge_cash_sessions (organisation_id, event_id, cash_session_uuid)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_cash_sessions_cash_session_uuid "
+                "ON edge_cash_sessions (cash_session_uuid)"
+            )
+        )
+        conn.execute(text("DROP INDEX IF EXISTS ix_edge_cash_sessions_org_event_subject"))
 
 
 def _patch_edge_order_items_ordered_at() -> None:
@@ -515,6 +544,39 @@ def _backfill_edge_order_items_ordered_at_from_payload() -> None:
     except Exception:
         db.rollback()
         log.exception("Failed to backfill edge_order_items.ordered_at from payload")
+    finally:
+        db.close()
+
+
+def _patch_edge_submitted_order_collective_bill_uuid() -> None:
+    _add_column_if_missing(
+        "edge_submitted_orders",
+        "collective_bill_uuid",
+        "ALTER TABLE edge_submitted_orders ADD COLUMN collective_bill_uuid VARCHAR(36)",
+        "ALTER TABLE edge_submitted_orders ADD COLUMN IF NOT EXISTS collective_bill_uuid VARCHAR(36)",
+    )
+    try:
+        inspector = inspect(engine)
+        if "edge_submitted_orders" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_submitted_orders_event_id_collective_bill_uuid "
+                "ON edge_submitted_orders (event_id, collective_bill_uuid)"
+            )
+        )
+    from .event_collective_bills import backfill_edge_submitted_order_collective_bill_uuids
+
+    db = SessionLocal()
+    try:
+        backfill_edge_submitted_order_collective_bill_uuids(db)
+        db.commit()
+    except Exception:
+        db.rollback()
+        log.exception("Failed to backfill edge_submitted_orders.collective_bill_uuid")
     finally:
         db.close()
 

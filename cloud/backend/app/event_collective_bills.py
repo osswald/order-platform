@@ -21,6 +21,65 @@ from .event_sales import (
 from .models import EdgeSubmittedOrder, Event, EventCollectiveBill
 
 
+def collective_bill_uuid_from_payload(payload: dict | None) -> str | None:
+    """Normalize payload collective_bill_uuid for denormalized column storage."""
+    if not isinstance(payload, dict):
+        return None
+    raw = payload.get("collective_bill_uuid")
+    if raw is None:
+        return None
+    value = str(raw).strip()
+    return value or None
+
+
+def backfill_edge_submitted_order_collective_bill_uuids(db: Session) -> int:
+    """Portable ORM backfill of collective_bill_uuid from payload JSON. Returns rows updated."""
+    updated = 0
+    rows = (
+        db.query(EdgeSubmittedOrder)
+        .filter(EdgeSubmittedOrder.collective_bill_uuid.is_(None))
+        .all()
+    )
+    for row in rows:
+        uuid = collective_bill_uuid_from_payload(row.payload if isinstance(row.payload, dict) else None)
+        if uuid is None:
+            continue
+        row.collective_bill_uuid = uuid
+        updated += 1
+    if updated:
+        db.flush()
+    return updated
+
+
+def load_collective_orders_for_event(db: Session, event_id: int) -> list[EdgeSubmittedOrder]:
+    """Submitted orders that belong to any collective bill on this event (SQL-scoped)."""
+    return (
+        db.query(EdgeSubmittedOrder)
+        .filter(
+            EdgeSubmittedOrder.event_id == event_id,
+            EdgeSubmittedOrder.collective_bill_uuid.isnot(None),
+        )
+        .order_by(EdgeSubmittedOrder.created_at.asc(), EdgeSubmittedOrder.id.asc())
+        .all()
+    )
+
+
+def load_orders_for_collective_bill(
+    db: Session, event_id: int, bill_uuid: str
+) -> list[EdgeSubmittedOrder]:
+    """Submitted orders for one collective bill UUID (SQL-scoped)."""
+    target = str(bill_uuid)
+    return (
+        db.query(EdgeSubmittedOrder)
+        .filter(
+            EdgeSubmittedOrder.event_id == event_id,
+            EdgeSubmittedOrder.collective_bill_uuid == target,
+        )
+        .order_by(EdgeSubmittedOrder.created_at.asc(), EdgeSubmittedOrder.id.asc())
+        .all()
+    )
+
+
 def upsert_collective_bill_from_payload(
     db: Session,
     *,
@@ -28,14 +87,14 @@ def upsert_collective_bill_from_payload(
     appliance_id: int,
     payload: dict,
 ) -> None:
-    bill_uuid = (payload or {}).get("collective_bill_uuid")
+    bill_uuid = collective_bill_uuid_from_payload(payload)
     if not bill_uuid:
         return
     name = str((payload or {}).get("collective_bill_name") or "Sammelrechnung").strip() or "Sammelrechnung"
-    row = db.query(EventCollectiveBill).filter(EventCollectiveBill.uuid == str(bill_uuid)).first()
+    row = db.query(EventCollectiveBill).filter(EventCollectiveBill.uuid == bill_uuid).first()
     if not row:
         row = EventCollectiveBill(
-            uuid=str(bill_uuid),
+            uuid=bill_uuid,
             event_id=event_id,
             name=name,
             appliance_id=appliance_id,
@@ -52,16 +111,7 @@ def upsert_collective_bill_from_payload(
 
 def _maybe_close_collective_bill(db: Session, header: EventCollectiveBill) -> None:
     """Set closed_at only when no open edge orders remain for this bill."""
-    orders = (
-        db.query(EdgeSubmittedOrder)
-        .filter(EdgeSubmittedOrder.event_id == header.event_id)
-        .all()
-    )
-    related = [
-        o
-        for o in orders
-        if str((o.payload or {}).get("collective_bill_uuid") or "") == header.uuid
-    ]
+    related = load_orders_for_collective_bill(db, header.event_id, header.uuid)
     if not related:
         return
     if any(str((o.payload or {}).get("payment_status") or "open").lower() != "paid" for o in related):
@@ -135,6 +185,60 @@ def _order_row_dict(order: EdgeSubmittedOrder, arts: dict) -> dict:
     }
 
 
+def _shape_collective_bill(
+    *,
+    bill_uuid: str,
+    header: EventCollectiveBill | None,
+    raw_orders: list[EdgeSubmittedOrder],
+    arts: dict,
+) -> dict:
+    display_orders = _deduped_orders_for_bill(raw_orders)
+    open_orders = [o for o in display_orders if _is_open_order(o)]
+    line_groups_raw = build_line_groups_from_edge_orders(display_orders, arts)
+    open_groups_raw = build_line_groups_from_edge_orders(open_orders, arts)
+    line_groups = format_line_groups_for_api(line_groups_raw, arts)
+    line_cents = sum(g["line_total_cents"] for g in line_groups_raw)
+    open_cents = sum(g["line_total_cents"] for g in open_groups_raw)
+    paid_cents = sum(
+        sum(
+            int(p.get("amount_cents") or 0)
+            for p in ((o.payload or {}).get("payments") or [])
+            if isinstance(p, dict)
+        )
+        for o in display_orders
+    )
+    has_open = bool(open_orders)
+    if paid_cents == 0 and display_orders and not has_open:
+        paid_cents = line_cents
+    order_rows = [_order_row_dict(o, arts) for o in display_orders]
+    status = "open" if has_open else ("closed" if display_orders else "open")
+    if header and header.closed_at and not has_open:
+        status = "closed"
+    return {
+        "uuid": bill_uuid,
+        "name": (
+            header.name
+            if header
+            else (
+                (display_orders[0].payload or {}).get("collective_bill_name", "Sammelrechnung")
+                if display_orders
+                else "Sammelrechnung"
+            )
+        ),
+        "status": status,
+        "created_at": header.created_at.isoformat()
+        if header and header.created_at
+        else (display_orders[0].created_at.isoformat() if display_orders else None),
+        "closed_at": header.closed_at.isoformat() if header and header.closed_at else None,
+        "order_count": distinct_order_numbers_for_rows(display_orders),
+        "line_cents": line_cents,
+        "open_cents": open_cents,
+        "paid_cents": paid_cents,
+        "line_groups": line_groups,
+        "orders": order_rows,
+    }
+
+
 def build_event_collective_bills_list(db: Session, event: Event) -> dict:
     currency = event_currency(event, "EUR")
 
@@ -143,79 +247,50 @@ def build_event_collective_bills_list(db: Session, event: Event) -> dict:
         for r in db.query(EventCollectiveBill).filter(EventCollectiveBill.event_id == event.id).all()
     }
     orders_by_uuid: dict[str, list[EdgeSubmittedOrder]] = defaultdict(list)
-    all_event_orders = (
-        db.query(EdgeSubmittedOrder)
-        .filter(EdgeSubmittedOrder.event_id == event.id)
-        .order_by(EdgeSubmittedOrder.created_at.asc())
-        .all()
-    )
-    collective_orders = [o for o in all_event_orders if (o.payload or {}).get("collective_bill_uuid")]
+    collective_orders = load_collective_orders_for_event(db, event.id)
     article_ids = _collect_article_ids_from_orders(collective_orders)
     arts = _build_articles_pricing_map(db, article_ids)
 
-    for order in all_event_orders:
-        payload = order.payload or {}
-        u = payload.get("collective_bill_uuid")
+    for order in collective_orders:
+        u = order.collective_bill_uuid or collective_bill_uuid_from_payload(
+            order.payload if isinstance(order.payload, dict) else None
+        )
         if u:
             orders_by_uuid[str(u)].append(order)
 
     all_uuids = set(headers.keys()) | set(orders_by_uuid.keys())
     bills = []
     for u in sorted(all_uuids, key=lambda x: (headers.get(x).created_at if headers.get(x) else None, x)):
-        header = headers.get(u)
-        raw_orders = orders_by_uuid.get(u, [])
-        display_orders = _deduped_orders_for_bill(raw_orders)
-        open_orders = [o for o in display_orders if _is_open_order(o)]
-        line_groups_raw = build_line_groups_from_edge_orders(display_orders, arts)
-        open_groups_raw = build_line_groups_from_edge_orders(open_orders, arts)
-        line_groups = format_line_groups_for_api(line_groups_raw, arts)
-        line_cents = sum(g["line_total_cents"] for g in line_groups_raw)
-        open_cents = sum(g["line_total_cents"] for g in open_groups_raw)
-        paid_cents = sum(
-            sum(
-                int(p.get("amount_cents") or 0)
-                for p in ((o.payload or {}).get("payments") or [])
-                if isinstance(p, dict)
-            )
-            for o in display_orders
-        )
-        has_open = bool(open_orders)
-        if paid_cents == 0 and display_orders and not has_open:
-            paid_cents = line_cents
-        order_rows = [_order_row_dict(o, arts) for o in display_orders]
-        status = "open" if has_open else ("closed" if display_orders else "open")
-        if header and header.closed_at and not has_open:
-            status = "closed"
         bills.append(
-            {
-                "uuid": u,
-                "name": (
-                    header.name
-                    if header
-                    else ((display_orders[0].payload or {}).get("collective_bill_name", "Sammelrechnung") if display_orders else "Sammelrechnung")
-                ),
-                "status": status,
-                "created_at": header.created_at.isoformat() if header and header.created_at else (
-                    display_orders[0].created_at.isoformat() if display_orders else None
-                ),
-                "closed_at": header.closed_at.isoformat() if header and header.closed_at else None,
-                "order_count": distinct_order_numbers_for_rows(display_orders),
-                "line_cents": line_cents,
-                "open_cents": open_cents,
-                "paid_cents": paid_cents,
-                "line_groups": line_groups,
-                "orders": order_rows,
-            }
+            _shape_collective_bill(
+                bill_uuid=u,
+                header=headers.get(u),
+                raw_orders=orders_by_uuid.get(u, []),
+                arts=arts,
+            )
         )
 
     return {"currency": currency, "country_code": event_country_code(event, "CH"), "collective_bills": bills}
 
 
 def build_single_collective_bill(db: Session, event: Event, bill_uuid: str) -> dict | None:
-    """Return one collective bill dict from build_event_collective_bills_list, or None."""
-    result = build_event_collective_bills_list(db, event)
+    """Return one collective bill dict without building the full multi-bill list."""
     target = str(bill_uuid)
-    for bill in result.get("collective_bills") or []:
-        if str(bill.get("uuid") or "") == target:
-            return {**bill, "_currency": result.get("currency")}
-    return None
+    header = (
+        db.query(EventCollectiveBill)
+        .filter(EventCollectiveBill.event_id == event.id, EventCollectiveBill.uuid == target)
+        .first()
+    )
+    raw_orders = load_orders_for_collective_bill(db, event.id, target)
+    if header is None and not raw_orders:
+        return None
+
+    article_ids = _collect_article_ids_from_orders(raw_orders)
+    arts = _build_articles_pricing_map(db, article_ids)
+    bill = _shape_collective_bill(
+        bill_uuid=target,
+        header=header,
+        raw_orders=raw_orders,
+        arts=arts,
+    )
+    return {**bill, "_currency": event_currency(event, "EUR")}

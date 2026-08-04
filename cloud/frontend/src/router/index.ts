@@ -3,30 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { i18n } from '../i18n'
 import { listDetailRoutes } from '../composables/useListDetailRouting'
-
-import Dashboard from '../components/Dashboard.vue'
-import Events from '../components/Events.vue'
-import EventStatsPage from '../components/EventStatsPage.vue'
-import OrderjutsuImportWizard from '../components/OrderjutsuImportWizard.vue'
-import Waiters from '../components/Waiters.vue'
-import Articles from '../components/Articles.vue'
-import ArticleCategories from '../components/ArticleCategories.vue'
-import Ingredients from '../components/Ingredients.vue'
-import ApplianceLendings from '../components/ApplianceLendings.vue'
-import Organisations from '../components/Organisations.vue'
-import HireCompanies from '../components/HireCompanies.vue'
-import TenantSettings from '../components/TenantSettings.vue'
-import Appliances from '../components/Appliances.vue'
-import Users from '../components/Users.vue'
-import AccountSettings from '../components/AccountSettings.vue'
-import SumupDevices from '../components/SumupDevices.vue'
-import SumupOAuthCallback from '../components/SumupOAuthCallback.vue'
-import LoginPage from '../components/LoginPage.vue'
-import SectionPlaceholder from '../components/SectionPlaceholder.vue'
-import HelpCenter from '../components/HelpCenter.vue'
-import Countries from '../components/Countries.vue'
-import TaxCodes from '../components/TaxCodes.vue'
-import PaymentTypes from '../components/PaymentTypes.vue'
+import { isAuthSessionActive } from '@/api'
 
 const orgScoped = { requiresAuth: true, organisationScoped: true }
 const platformOnly = { requiresAuth: true, platformOnly: true }
@@ -39,7 +16,7 @@ const routes = [
   {
     path: '/login',
     name: 'login',
-    component: LoginPage,
+    component: () => import('../components/LoginPage.vue'),
     meta: { guest: true },
   },
   {
@@ -49,105 +26,140 @@ const routes = [
   {
     path: '/dashboard',
     name: 'dashboard',
-    component: Dashboard,
+    component: () => import('../components/Dashboard.vue'),
     meta: orgScoped,
   },
-  ...listDetailRoutes({ path: '/events', listName: 'events', component: Events, meta: orgScoped }),
+  ...listDetailRoutes({
+    path: '/events',
+    listName: 'events',
+    component: () => import('../components/Events.vue'),
+    meta: orgScoped,
+  }),
   {
     path: '/events/import/orderjutsu',
     name: 'events-import-orderjutsu',
-    component: OrderjutsuImportWizard,
+    component: () => import('../components/OrderjutsuImportWizard.vue'),
     meta: { ...organisationManagerOnly, platformAdminAllowed: true },
   },
   {
     path: '/events/:id(\\d+)/stats',
     name: 'events-stats',
-    component: EventStatsPage,
+    component: () => import('../components/EventStatsPage.vue'),
     meta: orgScoped,
   },
-  ...listDetailRoutes({ path: '/waiters', listName: 'waiters', component: Waiters, meta: orgScoped }),
-  ...listDetailRoutes({ path: '/articles', listName: 'articles', component: Articles, meta: orgScoped }),
+  ...listDetailRoutes({
+    path: '/waiters',
+    listName: 'waiters',
+    component: () => import('../components/Waiters.vue'),
+    meta: orgScoped,
+  }),
+  ...listDetailRoutes({
+    path: '/articles',
+    listName: 'articles',
+    component: () => import('../components/Articles.vue'),
+    meta: orgScoped,
+  }),
   ...listDetailRoutes({
     path: '/article-categories',
     listName: 'article-categories',
-    component: ArticleCategories,
+    component: () => import('../components/ArticleCategories.vue'),
     meta: orgScoped,
   }),
   ...listDetailRoutes({
     path: '/ingredients',
     listName: 'ingredients',
-    component: Ingredients,
+    component: () => import('../components/Ingredients.vue'),
     meta: orgScoped,
   }),
   {
     path: '/appliance-lendings',
     name: 'appliance-lendings',
-    component: ApplianceLendings,
+    component: () => import('../components/ApplianceLendings.vue'),
     meta: orgScoped,
   },
   {
     path: '/sumup-devices',
     name: 'sumup-devices',
-    component: SumupDevices,
+    component: () => import('../components/SumupDevices.vue'),
     meta: organisationManagerOnly,
   },
   {
     path: '/sumup/oauth/callback',
     name: 'sumup-oauth-callback',
-    component: SumupOAuthCallback,
+    component: () => import('../components/SumupOAuthCallback.vue'),
     meta: organisationManagerOnly,
   },
   ...listDetailRoutes({
     path: '/verleiher',
     listName: 'hire-companies',
-    component: HireCompanies,
+    component: () => import('../components/HireCompanies.vue'),
     meta: platformOnly,
   }),
   ...listDetailRoutes({
     path: '/organisations',
     listName: 'organisations',
-    component: Organisations,
+    component: () => import('../components/Organisations.vue'),
     meta: organisationManagerOnly,
     createMeta: tenantAdminOnly,
   }),
   {
     path: '/verleiher-einstellungen',
     name: 'tenant-settings',
-    component: TenantSettings,
+    component: () => import('../components/TenantSettings.vue'),
     meta: tenantAdminOnly,
   },
   ...listDetailRoutes({
     path: '/appliances',
     listName: 'appliances',
-    component: Appliances,
+    component: () => import('../components/Appliances.vue'),
     meta: tenantAdminOnly,
   }),
-  ...listDetailRoutes({ path: '/users', listName: 'users', component: Users, meta: usersOnly }),
-  ...listDetailRoutes({ path: '/countries', listName: 'countries', component: Countries, meta: authOnly }),
-  ...listDetailRoutes({ path: '/tax-codes', listName: 'tax-codes', component: TaxCodes, meta: authOnly }),
-  ...listDetailRoutes({ path: '/payment-types', listName: 'payment-types', component: PaymentTypes, meta: authOnly }),
+  ...listDetailRoutes({
+    path: '/users',
+    listName: 'users',
+    component: () => import('../components/Users.vue'),
+    meta: usersOnly,
+  }),
+  ...listDetailRoutes({
+    path: '/countries',
+    listName: 'countries',
+    component: () => import('../components/Countries.vue'),
+    meta: authOnly,
+  }),
+  ...listDetailRoutes({
+    path: '/tax-codes',
+    listName: 'tax-codes',
+    component: () => import('../components/TaxCodes.vue'),
+    meta: authOnly,
+  }),
+  ...listDetailRoutes({
+    path: '/payment-types',
+    listName: 'payment-types',
+    component: () => import('../components/PaymentTypes.vue'),
+    meta: authOnly,
+  }),
   {
     path: '/settings',
     name: 'settings',
-    component: AccountSettings,
+    component: () => import('../components/AccountSettings.vue'),
     meta: orgScoped,
   },
   {
     path: '/help',
     name: 'help',
-    component: HelpCenter,
+    component: () => import('../components/HelpCenter.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/help/:slug',
     name: 'help-article',
-    component: HelpCenter,
+    component: () => import('../components/HelpCenter.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/no-access/:section',
     name: 'no-access',
-    component: SectionPlaceholder,
+    component: () => import('../components/SectionPlaceholder.vue'),
     props: (route: RouteLocationNormalizedLoaded) => ({
       title: i18n.global.t('noAccess.title'),
       description:
@@ -162,8 +174,6 @@ const routes = [
     redirect: { name: 'dashboard' },
   },
 ]
-
-import { isAuthSessionActive } from '@/api'
 
 export const router = createRouter({
   history: createWebHistory(),

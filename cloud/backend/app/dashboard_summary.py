@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from .currency import organisation_country_code
-from .event_sales import build_event_sales_report
 from .event_status import ALLOWED_STATUSES, PI_VISIBLE_STATUSES, normalize_status
-from .models import Article, ArticleCategory, Event, Organisation, Waiter
+from .models import Article, ArticleCategory, EdgeOrderItem, Event, Organisation, Waiter
 from .onboarding_tasks import build_onboarding_tasks, is_onboarding_dismissed
 from .payment_types_config import payment_types_from_event
 from .twint_qr import has_twint_qr
@@ -120,35 +120,102 @@ def _catalog_counts(db: Session, organisation_id: int) -> dict[str, int]:
 
 
 def _aggregate_sales(db: Session, events: list[Event], organisation: Organisation) -> dict[str, Any]:
+    """Compute per-event and aggregate sales totals using a single SQL query.
+
+    Uses set-oriented GROUP BY on EdgeOrderItem (normalized mirrors) instead of
+    calling build_event_sales_report once per production event. This avoids
+    O(events × orders) full-scan behaviour on the dashboard.
+
+    Source of truth: normalized EdgeOrderItem mirrors.  Any intentional
+    discrepancy vs the legacy payload-scanner path is documented in
+    tests/test_busy_event_reporting.py.
+    """
     prod_events = [e for e in events if normalize_status(e.status) == "prod"]
+    currency = "CHF"
+
+    # Resolve currency from first available event
+    for ev in prod_events:
+        from .currency import event_currency
+        currency = event_currency(ev, "CHF")
+        break
+
+    if not prod_events:
+        return {
+            "currency": currency,
+            "country_code": organisation_country_code(organisation, "CH"),
+            "totals": {
+                "distinct_orders_count": 0,
+                "line_cents": 0,
+                "paid_cents": 0,
+                "open_cents": 0,
+            },
+            "by_event": [],
+        }
+
+    prod_event_ids = [e.id for e in prod_events]
+
+    # Single aggregation query across all prod events
+    rows = (
+        db.query(
+            EdgeOrderItem.event_id,
+            func.sum(EdgeOrderItem.line_total_cents).label("line_cents"),
+            func.sum(
+                case((EdgeOrderItem.payment_status == "paid", EdgeOrderItem.line_total_cents), else_=0)
+            ).label("paid_cents"),
+            # Distinct order count: use submission_id when available, fall back to row id
+            func.count(
+                func.distinct(
+                    func.coalesce(EdgeOrderItem.submission_id, -EdgeOrderItem.id)
+                )
+            ).label("distinct_orders_count"),
+        )
+        .filter(
+            EdgeOrderItem.organisation_id == organisation.id,
+            EdgeOrderItem.event_id.in_(prod_event_ids),
+        )
+        .group_by(EdgeOrderItem.event_id)
+        .all()
+    )
+
+    totals_by_event: dict[int, dict[str, Any]] = {
+        row.event_id: {
+            "line_cents": int(row.line_cents or 0),
+            "paid_cents": int(row.paid_cents or 0),
+            "distinct_orders_count": int(row.distinct_orders_count or 0),
+        }
+        for row in rows
+    }
+
     by_event: list[dict[str, Any]] = []
     total_orders = 0
     total_line = 0
     total_paid = 0
     total_open = 0
-    currency = "CHF"
 
-    for event in prod_events:
-        report = build_event_sales_report(db, event)
-        totals = report["totals"]
-        currency = report.get("currency") or currency
+    for ev in prod_events:
+        t = totals_by_event.get(ev.id, {"line_cents": 0, "paid_cents": 0, "distinct_orders_count": 0})
+        line = t["line_cents"]
+        paid = t["paid_cents"]
+        orders = t["distinct_orders_count"]
+        open_cents = max(0, line - paid)
+
         by_event.append(
             {
-                "event_id": event.id,
-                "name": event.name,
-                "status": normalize_status(event.status),
-                "start": event.start.isoformat() if event.start else None,
-                "end": event.end.isoformat() if event.end else None,
-                "distinct_orders_count": totals.get("distinct_orders_count") or 0,
-                "line_cents": totals.get("line_cents") or 0,
-                "paid_cents": totals.get("paid_cents") or 0,
-                "open_cents": totals.get("open_cents") or 0,
+                "event_id": ev.id,
+                "name": ev.name,
+                "status": normalize_status(ev.status),
+                "start": ev.start.isoformat() if ev.start else None,
+                "end": ev.end.isoformat() if ev.end else None,
+                "distinct_orders_count": orders,
+                "line_cents": line,
+                "paid_cents": paid,
+                "open_cents": open_cents,
             }
         )
-        total_orders += int(totals.get("distinct_orders_count") or 0)
-        total_line += int(totals.get("line_cents") or 0)
-        total_paid += int(totals.get("paid_cents") or 0)
-        total_open += int(totals.get("open_cents") or 0)
+        total_orders += orders
+        total_line += line
+        total_paid += paid
+        total_open += open_cents
 
     by_event.sort(key=lambda row: -(row["line_cents"] or 0))
 

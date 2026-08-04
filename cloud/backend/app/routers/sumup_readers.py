@@ -70,6 +70,38 @@ def _require_connected_org(db: Session, organisation: Organisation) -> None:
         raise api_error("validation_failed", status.HTTP_409_CONFLICT)
 
 
+def _sync_reader_statuses_from_sumup(
+    db: Session,
+    organisation: Organisation,
+    readers: list[SumupReader],
+) -> None:
+    """Refresh persisted pairing status from SumUp's merchant reader list."""
+    if not readers or not organisation.sumup_merchant_code:
+        return
+    try:
+        access_token = get_valid_access_token(db, organisation)
+        remote = sumup_client.list_readers(access_token, organisation.sumup_merchant_code)
+    except (sumup_client.SumupConfigError, sumup_client.SumupApiError):
+        # Keep local snapshots if SumUp is unreachable; list still works offline.
+        return
+
+    by_id: dict[str, str] = {}
+    for item in remote:
+        reader_id = item.get("id")
+        remote_status = item.get("status")
+        if isinstance(reader_id, str) and reader_id and isinstance(remote_status, str) and remote_status:
+            by_id[reader_id] = remote_status
+
+    dirty = False
+    for reader in readers:
+        remote_status = by_id.get(reader.sumup_reader_id)
+        if remote_status and remote_status != reader.status:
+            reader.status = remote_status
+            dirty = True
+    if dirty:
+        commit_or_raise(db)
+
+
 @router.get("/organisations/{organisation_id}/readers", response_model=list[SumupReaderResponse])
 def list_org_readers(
     organisation_id: int,
@@ -85,6 +117,8 @@ def list_org_readers(
         .order_by(SumupReader.label)
         .all()
     )
+    if organisation.sumup_merchant_code and organisation.sumup_refresh_token:
+        _sync_reader_statuses_from_sumup(db, organisation, readers)
     return [_reader_response(reader) for reader in readers]
 
 

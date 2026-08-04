@@ -14,6 +14,7 @@ if _shared_pkg.is_dir() and str(_shared_pkg) not in sys.path:
     sys.path.insert(0, str(_shared_pkg))
 
 import json
+import os
 from collections.abc import Generator
 from dataclasses import dataclass
 from unittest.mock import patch
@@ -75,7 +76,9 @@ def mock_printer_tcp(monkeypatch):
 def isolated_engine() -> Generator[Engine, None, None]:
     """In-memory SQLite engine; replaces app.database.engine for the test."""
     import app.database as database
+    from app.bundle_cache import invalidate_bundle_cache
 
+    invalidate_bundle_cache()
     engine = create_engine(
         "sqlite:///?cache=shared",
         connect_args={"check_same_thread": False},
@@ -98,6 +101,7 @@ def isolated_engine() -> Generator[Engine, None, None]:
     try:
         yield engine
     finally:
+        invalidate_bundle_cache()
         database.engine = previous_engine
         database.SessionLocal = previous_session_local
         print_worker.SessionLocal = previous_print_session
@@ -115,10 +119,13 @@ def db_session(isolated_engine) -> Generator[Session, None, None]:
 
 
 def _seed_bundle(Session: sessionmaker[Session], bundle: dict) -> None:
+    from app.bundle_cache import invalidate_bundle_cache
+
     db = Session()
     try:
         db.add(SyncedBundle(id=1, json_body=json.dumps(bundle)))
         db.commit()
+        invalidate_bundle_cache()
     finally:
         db.close()
 
@@ -139,9 +146,19 @@ def api_context(isolated_engine, bundle) -> Generator[ApiTestContext, None, None
             session.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with patch("app.main.run_migrations"), patch("app.main.ensure_default_synced_bundle"):
-        with TestClient(app) as test_client:
-            yield ApiTestContext(client=test_client, Session=Session)
+    # Keep print jobs under test control (run_print_job_sync); background
+    # wake-on-commit would race assertions that expect status=queued.
+    previous_print_worker = os.environ.get("PRINT_WORKER_ENABLED")
+    os.environ["PRINT_WORKER_ENABLED"] = "0"
+    try:
+        with patch("app.main.run_migrations"), patch("app.main.ensure_default_synced_bundle"):
+            with TestClient(app) as test_client:
+                yield ApiTestContext(client=test_client, Session=Session)
+    finally:
+        if previous_print_worker is None:
+            os.environ.pop("PRINT_WORKER_ENABLED", None)
+        else:
+            os.environ["PRINT_WORKER_ENABLED"] = previous_print_worker
     app.dependency_overrides.clear()
 
 

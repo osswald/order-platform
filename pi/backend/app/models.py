@@ -1,6 +1,17 @@
 """Local SQLite state for on-prem Pi."""
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 
 from .database import Base
 from .models_operational import (  # noqa: F401
@@ -30,6 +41,29 @@ class SyncedBundle(Base):
     __tablename__ = "synced_bundle"
     id = Column(Integer, primary_key=True, default=1)
     json_body = Column(Text, nullable=False, default="{}")
+    etag = Column(String(128), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class LocalStockState(Base):
+    """Absolute local monitored stock overrides (catalogue ⊕ overlay = effective)."""
+
+    __tablename__ = "local_stock_state"
+    __table_args__ = (
+        UniqueConstraint(
+            "event_id",
+            "entity_kind",
+            "entity_id",
+            name="uq_local_stock_state_event_kind_id",
+        ),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    entity_kind = Column(String(32), nullable=False)  # article | ingredient
+    entity_id = Column(Integer, nullable=False)
+    in_stock = Column(Float, nullable=False, default=0)
+    monitor_stock = Column(Boolean, nullable=False, default=True)
+    sellable = Column(Boolean, nullable=False, default=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
@@ -63,7 +97,8 @@ class PrintJob(Base):
     printer_host = Column(String(255), nullable=False)
     printer_port = Column(Integer, nullable=False, default=9100)
     escpos_payload = Column(Text, nullable=False)
-    status = Column(String(32), nullable=False, default="queued")
+    render_context_json = Column(Text, nullable=True)
+    status = Column(String(32), nullable=False, default="queued", index=True)
     last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -107,6 +142,7 @@ class StationPickup(Base):
 
 class KitchenTicket(Base):
     __tablename__ = "kitchen_tickets"
+    __table_args__ = (Index("ix_kitchen_tickets_event_status", "event_id", "status"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
     local_order_id = Column(Integer, nullable=False, index=True)
     order_submission_id = Column(Integer, nullable=True, index=True)

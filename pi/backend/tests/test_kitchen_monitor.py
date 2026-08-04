@@ -8,8 +8,13 @@ from app.models import KitchenTicket, KitchenTicketLine, PrintJob
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle
 
 
-def _slip_text(job: PrintJob) -> str:
-    return base64.b64decode(job.escpos_payload).decode("cp858", errors="replace")
+def _slip_text(job: PrintJob, db=None) -> str:
+    from app.print_render import ensure_print_job_payload
+
+    if db is not None and not job.escpos_payload and job.render_context_json:
+        raw = ensure_print_job_payload(db, job)
+        return raw.decode("cp858", errors="replace")
+    return base64.b64decode(job.escpos_payload or "").decode("cp858", errors="replace")
 
 pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
 
@@ -138,7 +143,7 @@ def test_kitchen_partial_print_two_of_five(client_session):
         assert ticket.status == "partial"
         assert line.qty_printed == 2
         job = db.query(PrintJob).filter(PrintJob.station_uuid == "st-kitchen").one()
-        text = _slip_text(job)
+        text = _slip_text(job, db)
         assert "TEILDRUCK" in text
         assert "Noch offen" in text
         assert "3" in text
@@ -180,7 +185,7 @@ def test_kitchen_partial_print_multi_line(client_session):
     db = Session()
     try:
         job = db.query(PrintJob).filter(PrintJob.station_uuid == "st-kitchen").one()
-        text = _slip_text(job)
+        text = _slip_text(job, db)
         assert "TEILDRUCK" in text
         assert "Noch offen" in text
         assert "Bier" in text
@@ -213,7 +218,7 @@ def test_kitchen_complete_print_has_no_teildruck_banner(client_session):
     db = Session()
     try:
         job = db.query(PrintJob).filter(PrintJob.station_uuid == "st-kitchen").one()
-        text = _slip_text(job)
+        text = _slip_text(job, db)
         assert "TEILDRUCK" not in text
         assert "Noch offen" not in text
     finally:

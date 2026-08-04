@@ -9,6 +9,8 @@
       }}<template v-if="sumupDeviceLabel"> · SumUp: {{ sumupDeviceLabel }}</template>
     </p>
 
+    <PiUnreachableBanner />
+
     <div v-if="failedCount > 0" class="card print-fail-banner">
       <p>
         <strong>{{ failedCount }} Druckfehler</strong>
@@ -20,19 +22,44 @@
     </div>
 
     <div class="hub-actions">
-      <button type="button" class="btn primary hub-btn" @click="router.push({ name: 'table-new' })">
-        Neue Bestellung
+      <button
+        type="button"
+        class="btn primary hub-btn"
+        :disabled="gating"
+        @click="goGated({ name: 'table-new' })"
+      >
+        {{ gating ? 'Prüfe Verbindung…' : 'Neue Bestellung' }}
       </button>
-      <button type="button" class="btn hub-btn" @click="router.push({ name: 'table-settle-keypad' })">
+      <button
+        type="button"
+        class="btn hub-btn"
+        :disabled="gating"
+        @click="goGated({ name: 'table-settle-keypad' })"
+      >
         Tisch abrechnen
       </button>
-      <button type="button" class="btn hub-btn" @click="router.push({ name: 'tables-open' })">
+      <button
+        type="button"
+        class="btn hub-btn"
+        :disabled="gating"
+        @click="goGated({ name: 'tables-open' })"
+      >
         Offene Tische
       </button>
-      <button type="button" class="btn hub-btn" @click="router.push({ name: 'collective-open' })">
+      <button
+        type="button"
+        class="btn hub-btn"
+        :disabled="gating"
+        @click="goGated({ name: 'collective-open' })"
+      >
         Sammelrechnungen
       </button>
-      <button type="button" class="btn hub-btn" @click="router.push({ name: 'stock' })">
+      <button
+        type="button"
+        class="btn hub-btn"
+        :disabled="gating"
+        @click="goGated({ name: 'stock' })"
+      >
         Lagerbestand
       </button>
       <button
@@ -91,10 +118,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { isAndroidApp } from '@/api'
+import PiUnreachableBanner from '@/components/PiUnreachableBanner.vue'
 import TestBetriebPill from '@/components/TestBetriebPill.vue'
 import { useEventContext } from '@/composables/useEventContext'
+import { usePiConnectivity } from '@/composables/usePiConnectivity'
 import { maybeEndShiftOnSwitch } from '@/composables/useShiftSession'
 import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
 import { bundle } from '@/store'
@@ -110,9 +139,11 @@ import {
 const router = useRouter()
 const { event, waiter, setWaiter, selectedEventId } = useEventContext()
 const { failedCount, loadFailedJobs } = useStationPrintFailures()
+const { ensureReachable } = usePiConnectivity()
 const androidApp = computed(() => isAndroidApp())
 const bluetoothPrinting = computed(() => bluetoothPrintingEnabled(event.value))
 const isTest = computed(() => isEventTest(event.value?.status as string | undefined))
+const gating = ref(false)
 const readerListOpen = ref(false)
 
 const sumupReaders = computed(() => getBundleSumupReaders(bundle.value))
@@ -128,6 +159,18 @@ const sumupDeviceLabel = computed(() => {
 const canSwitchSumupDevice = computed(
   () => allowsSumupConnected.value && sumupReaders.value.length > 1,
 )
+
+async function goGated(to: RouteLocationRaw) {
+  if (gating.value) return
+  gating.value = true
+  try {
+    const ok = await ensureReachable()
+    if (!ok) return
+    await router.push(to)
+  } finally {
+    gating.value = false
+  }
+}
 
 onMounted(() => {
   const eventId = selectedEventId.value

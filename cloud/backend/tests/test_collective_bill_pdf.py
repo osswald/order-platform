@@ -6,7 +6,11 @@ from uuid import uuid4
 
 import pytest
 from app.database import Base, SessionLocal
-from app.event_collective_bills import build_single_collective_bill, upsert_collective_bill_from_payload
+from app.event_collective_bills import (
+    build_single_collective_bill,
+    collective_bill_uuid_from_payload,
+    upsert_collective_bill_from_payload,
+)
 from app.main import app
 from app.models import (
     Appliance,
@@ -98,6 +102,7 @@ def _seed_collective_bill(db, event, *, bill_uuid: str = "cb-pdf-1") -> None:
             appliance_id=1,
             organisation_id=event.organisation_id,
             event_id=event.id,
+            collective_bill_uuid=collective_bill_uuid_from_payload(payload),
             payload=payload,
         )
     )
@@ -154,7 +159,8 @@ def test_build_collective_bill_pdf_section_totals_multi_order(db_session):
                 appliance_id=1,
                 organisation_id=event.organisation_id,
                 event_id=event.id,
-                payload=payload,
+                collective_bill_uuid=collective_bill_uuid_from_payload(payload),
+            payload=payload,
             )
         )
     db.commit()
@@ -188,6 +194,7 @@ def test_build_collective_bill_pdf_paid_without_payment_details(db_session):
             appliance_id=1,
             organisation_id=event.organisation_id,
             event_id=event.id,
+            collective_bill_uuid=collective_bill_uuid_from_payload(payload),
             payload=payload,
         )
     )
@@ -229,6 +236,7 @@ def test_build_collective_bill_pdf_note_with_addition(db_session):
             appliance_id=1,
             organisation_id=event.organisation_id,
             event_id=event.id,
+            collective_bill_uuid=collective_bill_uuid_from_payload(payload),
             payload=payload,
         )
     )
@@ -327,6 +335,7 @@ def _pdf_route_fixture() -> tuple[str, int, str]:
                 appliance_id=db.query(Appliance).first().id,
                 organisation_id=org.id,
                 event_id=ev.id,
+                collective_bill_uuid=bill_uuid,
                 payload=payload,
             )
         )

@@ -161,10 +161,164 @@ def apply_stock_to_bundle(
     return {"articles": updated_articles, "ingredients": updated_ingredients}
 
 
-def save_bundle(db, bundle: dict) -> None:
+def clear_local_stock_overlay(db) -> None:
+    from .models import LocalStockState
+
+    db.query(LocalStockState).delete()
+
+
+def merge_local_stock_overlay(db, bundle: dict) -> dict:
+    """Apply durable local stock overrides onto a catalogue baseline (in place)."""
+    from .models import LocalStockState
+
+    rows = db.query(LocalStockState).all()
+    if not rows:
+        return bundle
+
+    by_event: dict[int, dict[str, dict[int, Any]]] = {}
+    for row in rows:
+        bucket = by_event.setdefault(int(row.event_id), {"article": {}, "ingredient": {}})
+        kind = str(row.entity_kind)
+        if kind not in bucket:
+            continue
+        bucket[kind][int(row.entity_id)] = row
+
+    for ev in bundle.get("events", []) or []:
+        if not isinstance(ev, dict):
+            continue
+        eid = int(ev.get("id"))
+        ov = by_event.get(eid)
+        if not ov:
+            continue
+        arts = ev.setdefault("articles", {})
+        ingredients = ev.setdefault("ingredients", {})
+        for aid, row in ov["article"].items():
+            key = str(aid)
+            art = _article_entry(arts, aid)
+            if not isinstance(art, dict):
+                continue
+            qty = row.in_stock
+            # Articles historically use int stock; preserve int when whole.
+            if isinstance(qty, float) and qty == int(qty):
+                qty = int(qty)
+            art.update(
+                {
+                    "monitor_stock": bool(row.monitor_stock),
+                    "in_stock": qty,
+                    "sellable": bool(row.sellable),
+                }
+            )
+            arts[key] = art
+        for iid, row in ov["ingredient"].items():
+            key = str(iid)
+            ing = _ingredient_entry(ingredients, iid)
+            if not isinstance(ing, dict):
+                continue
+            ing.update(
+                {
+                    "monitor_stock": bool(row.monitor_stock),
+                    "in_stock": float(row.in_stock),
+                    "sellable": bool(row.sellable),
+                }
+            )
+            ingredients[key] = ing
+        _sync_additions_lists(arts)
+        _recompute_composite_sellable(arts, ingredients)
+    return bundle
+
+
+def _upsert_overlay_entity(
+    db,
+    *,
+    event_id: int,
+    entity_kind: str,
+    entity_id: int,
+    in_stock: float | int,
+    monitor_stock: bool,
+    sellable: bool,
+) -> None:
+    from .models import LocalStockState
+
+    row = (
+        db.query(LocalStockState)
+        .filter(
+            LocalStockState.event_id == int(event_id),
+            LocalStockState.entity_kind == entity_kind,
+            LocalStockState.entity_id == int(entity_id),
+        )
+        .first()
+    )
+    if not row:
+        row = LocalStockState(
+            event_id=int(event_id),
+            entity_kind=entity_kind,
+            entity_id=int(entity_id),
+        )
+        db.add(row)
+    row.in_stock = float(in_stock)
+    row.monitor_stock = bool(monitor_stock)
+    row.sellable = bool(sellable)
+
+
+def persist_local_stock(
+    db,
+    bundle: dict,
+    *,
+    event_ids: set[int] | None = None,
+) -> None:
+    """Persist monitored stock from ``bundle`` into the overlay; update process cache.
+
+    Does **not** rewrite ``SyncedBundle.json_body``.
+    """
+    from .bundle_cache import set_bundle_cache
+
+    for ev in bundle.get("events", []) or []:
+        if not isinstance(ev, dict):
+            continue
+        eid = int(ev.get("id"))
+        if event_ids is not None and eid not in event_ids:
+            continue
+        arts = ev.get("articles") or {}
+        ingredients = ev.get("ingredients") or {}
+        for art in arts.values():
+            if not isinstance(art, dict) or not art.get("monitor_stock"):
+                continue
+            aid = art.get("id")
+            if aid is None:
+                continue
+            _upsert_overlay_entity(
+                db,
+                event_id=eid,
+                entity_kind="article",
+                entity_id=int(aid),
+                in_stock=art.get("in_stock") if art.get("in_stock") is not None else 0,
+                monitor_stock=True,
+                sellable=bool(art.get("sellable")),
+            )
+        for ing in ingredients.values():
+            if not isinstance(ing, dict) or not ing.get("monitor_stock"):
+                continue
+            iid = ing.get("id")
+            if iid is None:
+                continue
+            _upsert_overlay_entity(
+                db,
+                event_id=eid,
+                entity_kind="ingredient",
+                entity_id=int(iid),
+                in_stock=ing.get("in_stock") if ing.get("in_stock") is not None else 0.0,
+                monitor_stock=True,
+                sellable=bool(ing.get("sellable")),
+            )
+    set_bundle_cache(bundle)
+
+
+def persist_catalogue_bundle(db, bundle: dict, *, etag: str | None = None) -> None:
+    """Replace durable catalogue baseline, clear stock overlay, refresh cache."""
     import json
     from datetime import datetime
 
+    from .bundle_cache import set_bundle_cache
     from .instant_collective_bill import ensure_instant_collective_bills_for_bundle
     from .models import SyncedBundle
 
@@ -174,6 +328,15 @@ def save_bundle(db, bundle: dict) -> None:
     if row:
         row.json_body = body
         row.updated_at = now
+        if etag is not None:
+            row.etag = etag
     else:
-        db.add(SyncedBundle(id=1, json_body=body, updated_at=now))
+        db.add(SyncedBundle(id=1, json_body=body, etag=etag, updated_at=now))
+    clear_local_stock_overlay(db)
     ensure_instant_collective_bills_for_bundle(db, bundle)
+    set_bundle_cache(bundle)
+
+
+def save_bundle(db, bundle: dict) -> None:
+    """Persist local stock overrides from ``bundle`` (stock path; no catalogue rewrite)."""
+    persist_local_stock(db, bundle)

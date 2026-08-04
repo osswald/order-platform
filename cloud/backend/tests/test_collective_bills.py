@@ -4,7 +4,11 @@ from datetime import UTC, datetime
 
 import pytest
 from app.database import Base
-from app.event_collective_bills import build_event_collective_bills_list, upsert_collective_bill_from_payload
+from app.event_collective_bills import (
+    build_event_collective_bills_list,
+    collective_bill_uuid_from_payload,
+    upsert_collective_bill_from_payload,
+)
 from app.event_sales import line_unit_cents
 from app.models import (
     Appliance,
@@ -70,6 +74,7 @@ def test_upsert_and_list_collective_bills(db_session):
             appliance_id=1,
             organisation_id=1,
             event_id=event.id,
+            collective_bill_uuid=collective_bill_uuid_from_payload(payload),
             payload=payload,
         )
     )
@@ -154,6 +159,7 @@ def test_list_collective_bills_with_article_additions(db_session):
             appliance_id=1,
             organisation_id=1,
             event_id=event.id,
+            collective_bill_uuid=collective_bill_uuid_from_payload(payload),
             payload=payload,
         )
     )
@@ -183,6 +189,7 @@ def test_collective_bill_order_count_distinct_order_numbers(db_session):
                 appliance_id=1,
                 organisation_id=1,
                 event_id=event.id,
+                collective_bill_uuid=collective_bill_uuid_from_payload(shared),
                 payload={**shared, "client_order_id": cid},
             )
         )
@@ -220,6 +227,7 @@ def test_collective_bill_dedupes_stale_snapshots(db_session):
         organisation_id=1,
         event_id=event.id,
         created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+        collective_bill_uuid=shared_uuid,
         payload={
             "client_order_id": logical_cid,
             "collective_bill_uuid": shared_uuid,
@@ -237,6 +245,7 @@ def test_collective_bill_dedupes_stale_snapshots(db_session):
         organisation_id=1,
         event_id=event.id,
         created_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+        collective_bill_uuid=shared_uuid,
         payload={
             "client_order_id": logical_cid,
             "collective_bill_uuid": shared_uuid,
@@ -289,6 +298,7 @@ def test_collective_bill_snapshotted_addon_not_double_priced(db_session):
             appliance_id=1,
             organisation_id=1,
             event_id=event.id,
+            collective_bill_uuid=collective_bill_uuid_from_payload(payload),
             payload=payload,
         )
     )
@@ -314,6 +324,7 @@ def test_closed_collective_bill_shows_paid_positions(db_session):
             organisation_id=1,
             event_id=event.id,
             created_at=datetime(2026, 6, 1, 10, 0, tzinfo=UTC),
+            collective_bill_uuid=bill_uuid,
             payload={
                 "client_order_id": logical_cid,
                 "collective_bill_uuid": bill_uuid,
@@ -330,6 +341,7 @@ def test_closed_collective_bill_shows_paid_positions(db_session):
             organisation_id=1,
             event_id=event.id,
             created_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
+            collective_bill_uuid=bill_uuid,
             payload={
                 "client_order_id": logical_cid,
                 "collective_bill_uuid": bill_uuid,
@@ -376,14 +388,16 @@ def test_partial_pay_merges_paid_and_open_allocations(db_session):
                 appliance_id=1,
                 organisation_id=1,
                 event_id=event.id,
-                payload=open_payload,
+                collective_bill_uuid=collective_bill_uuid_from_payload(open_payload),
+            payload=open_payload,
             ),
             EdgeSubmittedOrder(
                 client_order_id="chunk-partial",
                 appliance_id=1,
                 organisation_id=1,
                 event_id=event.id,
-                payload=paid_payload,
+                collective_bill_uuid=collective_bill_uuid_from_payload(paid_payload),
+            payload=paid_payload,
             ),
         ]
     )

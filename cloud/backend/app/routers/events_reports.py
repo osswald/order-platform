@@ -31,7 +31,7 @@ from ..schemas.events import (
     EventTransactionsPageRead,
 )
 from ..tenancy import TenantContext, get_current_tenant
-from .events_helpers import get_event_for_configuration
+from .events_helpers import get_event_for_configuration, get_event_for_reporting
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ def read_event_sales_report(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     return build_event_sales_report(db, event)
 
 
@@ -109,7 +109,7 @@ def read_event_transactions(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     return build_event_transactions_page(
         db,
         event,
@@ -133,7 +133,7 @@ def read_event_cash_sessions(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     return build_cash_sessions_page(
         db,
         event,
@@ -151,7 +151,7 @@ def read_event_sales_report_v3(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     return build_sales_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
 
 
@@ -168,7 +168,7 @@ def read_event_stats(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     try:
         return build_event_stats(
             db,
@@ -201,7 +201,7 @@ def read_event_payment_batches_v3(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     return build_payment_batches_report_v3(db, organisation_id=event.organisation_id, event_id=event.id)
 
 
@@ -213,7 +213,7 @@ def read_event_bookkeeping(
     current_user: User = Depends(get_current_user),
     tenant: TenantContext = Depends(get_current_tenant),
 ):
-    event = get_event_for_configuration(db, current_user, event_id, tenant.hire_company_id)
+    event = get_event_for_reporting(db, current_user, event_id, tenant.hire_company_id)
     result = build_event_bookkeeping_report(
         db,
         organisation_id=event.organisation_id,
