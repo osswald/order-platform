@@ -297,6 +297,22 @@ def test_alembic_revision_ids_fit_version_num_column():
     )
 
 
+def test_011_collective_bill_backfill_sql_is_safe_for_postgres_json():
+    """payload is Postgres json (not jsonb); jsonb-only ? breaks production upgrades."""
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "alembic"
+        / "versions"
+        / "011_edge_submitted_order_collective_bill_uuid.py"
+    )
+    source = path.read_text(encoding="utf-8")
+    assert "payload ?" not in source
+    assert "payload->>'collective_bill_uuid'" in source
+    assert "IS NOT NULL" in source
+
+
 def test_ensure_alembic_version_num_capacity_stores_long_revision():
     from app.database import (
         ALEMBIC_VERSION_NUM_MAX_LEN,
