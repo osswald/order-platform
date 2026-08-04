@@ -373,6 +373,7 @@ def apply_schema_patches() -> None:
     _patch_article_label_length()
     _patch_edge_order_item_fiscal_columns()
     _patch_edge_order_items_ordered_at()
+    _patch_edge_submitted_order_collective_bill_uuid()
     _patch_edge_operational_snapshot_tables()
     _patch_event_waiter_register_subsidiary_columns()
     _ensure_accounting_tax_code_defaults_table()
@@ -543,6 +544,39 @@ def _backfill_edge_order_items_ordered_at_from_payload() -> None:
     except Exception:
         db.rollback()
         log.exception("Failed to backfill edge_order_items.ordered_at from payload")
+    finally:
+        db.close()
+
+
+def _patch_edge_submitted_order_collective_bill_uuid() -> None:
+    _add_column_if_missing(
+        "edge_submitted_orders",
+        "collective_bill_uuid",
+        "ALTER TABLE edge_submitted_orders ADD COLUMN collective_bill_uuid VARCHAR(36)",
+        "ALTER TABLE edge_submitted_orders ADD COLUMN IF NOT EXISTS collective_bill_uuid VARCHAR(36)",
+    )
+    try:
+        inspector = inspect(engine)
+        if "edge_submitted_orders" not in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_edge_submitted_orders_event_id_collective_bill_uuid "
+                "ON edge_submitted_orders (event_id, collective_bill_uuid)"
+            )
+        )
+    from .event_collective_bills import backfill_edge_submitted_order_collective_bill_uuids
+
+    db = SessionLocal()
+    try:
+        backfill_edge_submitted_order_collective_bill_uuids(db)
+        db.commit()
+    except Exception:
+        db.rollback()
+        log.exception("Failed to backfill edge_submitted_orders.collective_bill_uuid")
     finally:
         db.close()
 

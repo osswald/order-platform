@@ -171,7 +171,11 @@ const waitersInActiveOrganisation = computed(() =>
 
 async function fetchWaiters() {
   try {
-    waiters.value = await apiJson<WaiterRead[]>('/waiters/')
+    waiters.value = await apiJson<WaiterRead[]>(
+      props.activeOrganisationId != null
+        ? `/waiters/?organisation_id=${props.activeOrganisationId}`
+        : '/waiters/',
+    )
   } catch {
     message.value = t('waiters.loadError')
     messageType.value = 'error'

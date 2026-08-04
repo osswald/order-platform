@@ -643,7 +643,11 @@ watch([searchQuery, categoryFilter, typeFilter, statusFilter, () => props.active
 
 async function fetchArticles() {
   try {
-    articles.value = await apiJson<ArticleRead[]>('/articles/')
+    articles.value = await apiJson<ArticleRead[]>(
+      props.activeOrganisationId != null
+        ? `/articles/?organisation_id=${props.activeOrganisationId}`
+        : '/articles/',
+    )
   } catch {
     message.value = t('articles.loadError')
     messageType.value = 'error'
@@ -995,9 +999,7 @@ async function deleteArticle(id: number | string) {
 }
 
 onMounted(async () => {
-  await fetchCategories()
-  await fetchArticles()
-  await fetchIngredientCatalog()
+  await Promise.all([fetchCategories(), fetchArticles(), fetchIngredientCatalog()])
 })
 
 watch(

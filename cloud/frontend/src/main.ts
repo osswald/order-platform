@@ -1,22 +1,23 @@
 import { createApp, watch } from 'vue'
 import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
 import { de as vuetifyDe, en as vuetifyEn } from 'vuetify/locale'
 import DateFnsAdapter from '@date-io/date-fns'
 import { de as dateFnsDe } from 'date-fns/locale/de'
 import { enUS as dateFnsEnUS } from 'date-fns/locale/en-US'
 import 'vuetify/styles'
-import '@mdi/font/css/materialdesignicons.css'
 import App from './App.vue'
 import { router } from './router/index'
 import { i18n } from './i18n'
 import { resolveInitialTheme } from './utils/themePreference'
+import { mdiNamedSvg, mdiSvgAliases } from './icons/mdiNamedSvg'
 
 const vuetify = createVuetify({
-  // VDateInput is included in the v4 core components namespace (no separate labs import).
-  components: { ...components },
-  directives,
+  // Components/directives are auto-imported by vite-plugin-vuetify (treeshake).
+  icons: {
+    defaultSet: 'mdi',
+    aliases: mdiSvgAliases,
+    sets: { mdi: mdiNamedSvg },
+  },
   locale: {
     locale: 'de',
     fallback: 'en',

@@ -78,7 +78,7 @@ def test_event_collective_bill_pdf_route_smoke():
     from uuid import uuid4
 
     from app.database import SessionLocal
-    from app.event_collective_bills import upsert_collective_bill_from_payload
+    from app.event_collective_bills import collective_bill_uuid_from_payload, upsert_collective_bill_from_payload
     from app.models import Appliance, EdgeSubmittedOrder, Event, HireCompany, Organisation, User
     from app.roles import ROLE_TENANT_ADMIN
     from app.security import get_password_hash
@@ -124,6 +124,7 @@ def test_event_collective_bill_pdf_route_smoke():
                 appliance_id=appliance.id,
                 organisation_id=org.id,
                 event_id=ev.id,
+                collective_bill_uuid=collective_bill_uuid_from_payload(payload),
                 payload=payload,
             )
         )
@@ -199,6 +200,7 @@ def test_event_transactions_route_tolerates_malformed_line():
                 appliance_id=appliance.id,
                 organisation_id=event.organisation_id,
                 event_id=event_id,
+                collective_bill_uuid=None,
                 payload={
                     "client_order_id": f"malformed-{suffix}",
                     "payment_status": "paid",

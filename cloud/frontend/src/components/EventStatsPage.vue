@@ -690,7 +690,11 @@ async function loadEvent() {
 
 async function loadArticles() {
   try {
-    const articles = await apiJson<ArticleRead[]>('/articles/')
+    const articles = await apiJson<ArticleRead[]>(
+      props.activeOrganisationId != null
+        ? `/articles/?organisation_id=${props.activeOrganisationId}`
+        : '/articles/',
+    )
     const nameMap = new Map<number, string>()
     const categoryByArticle = new Map<number, number>()
     const categoryNameMap = new Map<number, string>()
@@ -741,29 +745,25 @@ async function loadStats() {
   }
 }
 
-onMounted(async () => {
+async function loadPage() {
   if (props.activeOrganisationId == null) {
     eventLoading.value = false
     return
   }
-  await loadEvent()
-  await loadConfiguration()
-  await loadArticles()
+  await Promise.all([loadEvent(), loadConfiguration(), loadArticles()])
   if (event.value) {
     await loadStats()
   }
+}
+
+onMounted(() => {
+  void loadPage()
 })
 
 watch(
   () => route.params.id,
-  async () => {
-    if (props.activeOrganisationId == null) return
-    await loadEvent()
-    await loadConfiguration()
-    await loadArticles()
-    if (event.value) {
-      await loadStats()
-    }
+  () => {
+    void loadPage()
   },
 )
 </script>

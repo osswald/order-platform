@@ -18,7 +18,7 @@ from .event_sales import (
     payment_type_label,
 )
 from .locale_format import format_bucket_label
-from .models import Article, ArticleCategory, EdgeOrderItem
+from .models import Article, ArticleCategory, EdgeOrderItem, Event
 
 ARTICLE_TIMELINE_BUCKET_COUNT = 24
 ALLOWED_BUCKET_COUNTS = (12, 24, 48)
@@ -80,8 +80,31 @@ def event_article_ids(db: Session, *, event_id: int, organisation_id: int) -> se
     return ids
 
 
+def event_article_ids_from_event(event: Event) -> set[int]:
+    """Extract article IDs from a pre-loaded event (avoids an extra DB query)."""
+    ids: set[int] = set()
+    for station in event.stations or []:
+        for article in station.articles or []:
+            ids.add(int(article.id))
+    return ids
+
+
 def event_category_ids(db: Session, *, event_id: int, organisation_id: int) -> set[int]:
     allowed_articles = event_article_ids(db, event_id=event_id, organisation_id=organisation_id)
+    if not allowed_articles:
+        return set()
+    rows = (
+        db.query(Article.article_category_id)
+        .filter(Article.id.in_(allowed_articles))
+        .distinct()
+        .all()
+    )
+    return {int(category_id) for (category_id,) in rows if category_id is not None}
+
+
+def event_category_ids_from_event(db: Session, event: Event) -> set[int]:
+    """Compute category IDs from a pre-loaded event (avoids an extra DB query for article IDs)."""
+    allowed_articles = event_article_ids_from_event(event)
     if not allowed_articles:
         return set()
     rows = (
@@ -397,19 +420,22 @@ def build_event_stats(
     selected_ids = list(dict.fromkeys(article_ids or []))
     selected_category_ids = list(dict.fromkeys(category_ids or []))
 
-    allowed = event_article_ids(db, event_id=event_id, organisation_id=organisation_id)
-    invalid = [aid for aid in selected_ids if aid not in allowed]
-    if invalid:
-        raise ValueError("invalid_article_ids")
-
-    allowed_categories = event_category_ids(db, event_id=event_id, organisation_id=organisation_id)
-    invalid_categories = [cid for cid in selected_category_ids if cid not in allowed_categories]
-    if invalid_categories:
-        raise ValueError("invalid_category_ids")
-
-    article_category_by_id = _article_category_map(db, organisation_id=organisation_id, article_ids=allowed)
-
+    # Load event once for validation + name maps (avoids repeat DB hits)
     event = _load_event_for_reporting(db, organisation_id=organisation_id, event_id=event_id)
+
+    if selected_ids or selected_category_ids:
+        allowed = event_article_ids_from_event(event) if event else set()
+        invalid = [aid for aid in selected_ids if aid not in allowed]
+        if invalid:
+            raise ValueError("invalid_article_ids")
+
+        allowed_categories = event_category_ids_from_event(db, event) if event else set()
+        invalid_categories = [cid for cid in selected_category_ids if cid not in allowed_categories]
+        if invalid_categories:
+            raise ValueError("invalid_category_ids")
+
+    article_category_by_id = _article_category_map(db, organisation_id=organisation_id, article_ids=event_article_ids_from_event(event) if event else set())
+
     if event:
         maps = _build_name_maps(db, event)
     else:
@@ -431,17 +457,15 @@ def build_event_stats(
         .filter(
             EdgeOrderItem.organisation_id == organisation_id,
             EdgeOrderItem.event_id == event_id,
+            EdgeOrderItem.ordered_at >= start,
+            EdgeOrderItem.ordered_at <= end,
         )
         .order_by(EdgeOrderItem.id.asc())
         .all()
     )
 
-    range_rows: list[EdgeOrderItem] = []
-    for row in all_rows:
-        ts = effective_ordered_at(row)
-        if ts is None or ts < start or ts > end:
-            continue
-        range_rows.append(row)
+    # range_rows = items within the time window (all_rows is already filtered)
+    range_rows = all_rows
 
     rows: list[EdgeOrderItem] = []
     for row in range_rows:
@@ -458,7 +482,7 @@ def build_event_stats(
         rows.append(row)
 
     article_names: dict[int, str] = {}
-    for row in all_rows:
+    for row in range_rows:
         if row.article_id is not None:
             article_names[int(row.article_id)] = str(row.article_name or f"Artikel {row.article_id}")
     for aid in selected_ids:
