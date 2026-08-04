@@ -50,7 +50,7 @@ def upgrade() -> None:
                 UPDATE edge_submitted_orders
                 SET collective_bill_uuid = NULLIF(TRIM(payload->>'collective_bill_uuid'), '')
                 WHERE collective_bill_uuid IS NULL
-                  AND payload ? 'collective_bill_uuid'
+                  AND payload->>'collective_bill_uuid' IS NOT NULL
                 """
             )
         )
