@@ -2,15 +2,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { computed, ref } from 'vue'
-import type { EdgeBundleEvent } from '@/types/api'
+import type { EdgeBundleEvent, EdgeBundleResponse } from '@/types/api'
+import * as store from '@/store'
 
-const push = vi.fn()
-const eventRef = ref<EdgeBundleEvent | null>(null)
-const waiterRef = ref({ uuid: 'w-1', name: 'Anna' })
-const selectedEventIdRef = ref(1)
-const ensureReachable = vi.fn(async () => true)
-const status = ref<'unknown' | 'reachable' | 'unreachable'>('reachable')
-const probing = ref(false)
+const ctx = vi.hoisted(() => ({
+  push: vi.fn(),
+  setWaiter: vi.fn(),
+  maybeEndShiftOnSwitch: vi.fn(async () => true),
+  ensureReachable: vi.fn(async () => true),
+  event: null as ReturnType<typeof ref<EdgeBundleEvent | null>> | null,
+  waiter: null as ReturnType<
+    typeof ref<{
+      uuid: string
+      name: string
+      sumupReaderId?: string
+      sumupReaderLabel?: string
+    }>
+  > | null,
+  selectedEventId: null as ReturnType<typeof ref<number>> | null,
+  status: null as ReturnType<typeof ref<'unknown' | 'reachable' | 'unreachable'>> | null,
+  probing: null as ReturnType<typeof ref<boolean>> | null,
+}))
 
 vi.mock('@/api', () => ({
   isAndroidApp: vi.fn(() => false),
@@ -18,10 +30,10 @@ vi.mock('@/api', () => ({
 
 vi.mock('@/composables/useEventContext', () => ({
   useEventContext: () => ({
-    event: eventRef,
-    waiter: waiterRef,
-    setWaiter: vi.fn(),
-    selectedEventId: selectedEventIdRef,
+    event: ctx.event,
+    waiter: ctx.waiter,
+    setWaiter: ctx.setWaiter,
+    selectedEventId: ctx.selectedEventId,
   }),
 }))
 
@@ -33,30 +45,54 @@ vi.mock('@/composables/useStationPrintFailures', () => ({
 }))
 
 vi.mock('@/composables/useShiftSession', () => ({
-  maybeEndShiftOnSwitch: vi.fn(async () => true),
+  maybeEndShiftOnSwitch: ctx.maybeEndShiftOnSwitch,
 }))
 
 vi.mock('@/composables/usePiConnectivity', () => ({
   usePiConnectivity: () => ({
-    status,
-    probing,
-    unreachable: computed(() => status.value === 'unreachable'),
-    ensureReachable,
-    probeNow: vi.fn(async () => status.value === 'reachable'),
+    status: ctx.status,
+    probing: ctx.probing,
+    unreachable: computed(() => ctx.status?.value === 'unreachable'),
+    ensureReachable: ctx.ensureReachable,
+    probeNow: vi.fn(async () => ctx.status?.value === 'reachable'),
   }),
 }))
+
+ctx.event = ref<EdgeBundleEvent | null>(null)
+ctx.waiter = ref({ uuid: 'w-1', name: 'Anna' })
+ctx.selectedEventId = ref(1)
+ctx.status = ref<'unknown' | 'reachable' | 'unreachable'>('reachable')
+ctx.probing = ref(false)
+
+const { push, setWaiter, maybeEndShiftOnSwitch, ensureReachable } = ctx
+const eventRef = ctx.event!
+const waiterRef = ctx.waiter!
+const selectedEventIdRef = ctx.selectedEventId!
+const status = ctx.status!
+const probing = ctx.probing!
 
 import { isAndroidApp } from '@/api'
 import WaiterHubView from './WaiterHubView.vue'
 
-function baseEvent(statusValue: string): EdgeBundleEvent {
+function baseEvent(statusValue: string, paymentTypes: string[] = ['cash']): EdgeBundleEvent {
   return {
     id: 1,
     name: 'Sommerfest',
     currency: 'CHF',
     payment_mode: 'pay_later',
     status: statusValue,
+    payment_types: paymentTypes,
   } as EdgeBundleEvent
+}
+
+function bundleWithReaders(
+  readers: { sumup_reader_id: string; label: string }[],
+): EdgeBundleResponse {
+  return {
+    organisation_id: 1,
+    events: [],
+    sumup_readers: readers,
+  } as unknown as EdgeBundleResponse
 }
 
 function mountHub() {
@@ -83,6 +119,9 @@ async function clickHubButton(wrapper: ReturnType<typeof mountHub>, label: strin
 describe('WaiterHubView', () => {
   beforeEach(() => {
     push.mockReset()
+    setWaiter.mockReset()
+    maybeEndShiftOnSwitch.mockReset()
+    maybeEndShiftOnSwitch.mockResolvedValue(true)
     ensureReachable.mockReset()
     ensureReachable.mockResolvedValue(true)
     status.value = 'reachable'
@@ -90,6 +129,7 @@ describe('WaiterHubView', () => {
     eventRef.value = baseEvent('test')
     waiterRef.value = { uuid: 'w-1', name: 'Anna' }
     selectedEventIdRef.value = 1
+    store.bundle.value = null
     vi.mocked(isAndroidApp).mockReturnValue(false)
   })
 
@@ -167,5 +207,87 @@ describe('WaiterHubView', () => {
     }
     expect(push).not.toHaveBeenCalled()
     expect(ensureReachable).toHaveBeenCalled()
+  })
+
+  it('shows SumUp label and switch when bound with multiple readers', async () => {
+    eventRef.value = baseEvent('test', ['cash', 'sumup_connected'])
+    waiterRef.value = {
+      uuid: 'w-1',
+      name: 'Anna',
+      sumupReaderId: 'r1',
+      sumupReaderLabel: 'Bar',
+    }
+    store.bundle.value = bundleWithReaders([
+      { sumup_reader_id: 'r1', label: 'Bar' },
+      { sumup_reader_id: 'r2', label: 'Terrasse' },
+    ])
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('SumUp: Bar')
+    expect(wrapper.text()).toContain('SumUp-Gerät wechseln')
+  })
+
+  it('updates waiter session on device switch without shift end or login', async () => {
+    eventRef.value = baseEvent('test', ['cash', 'sumup_connected'])
+    waiterRef.value = {
+      uuid: 'w-1',
+      name: 'Anna',
+      sumupReaderId: 'r1',
+      sumupReaderLabel: 'Bar',
+    }
+    store.bundle.value = bundleWithReaders([
+      { sumup_reader_id: 'r1', label: 'Bar' },
+      { sumup_reader_id: 'r2', label: 'Terrasse' },
+    ])
+    const wrapper = mountHub()
+    await flushPromises()
+
+    await wrapper.get('button.sumup-switch-btn').trigger('click')
+    const rows = wrapper.findAll('button.waiter-row')
+    const terrasse = rows.find((r) => r.text().includes('Terrasse'))
+    expect(terrasse).toBeTruthy()
+    await terrasse!.trigger('click')
+
+    expect(setWaiter).toHaveBeenCalledWith({
+      uuid: 'w-1',
+      name: 'Anna',
+      sumupReaderId: 'r2',
+      sumupReaderLabel: 'Terrasse',
+    })
+    expect(maybeEndShiftOnSwitch).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalledWith({ name: 'login' })
+  })
+
+  it('hides switch with a single reader but still shows bound label', async () => {
+    eventRef.value = baseEvent('test', ['cash', 'sumup_connected'])
+    waiterRef.value = {
+      uuid: 'w-1',
+      name: 'Anna',
+      sumupReaderId: 'r1',
+      sumupReaderLabel: 'Bar',
+    }
+    store.bundle.value = bundleWithReaders([{ sumup_reader_id: 'r1', label: 'Bar' }])
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).toContain('SumUp: Bar')
+    expect(wrapper.text()).not.toContain('SumUp-Gerät wechseln')
+  })
+
+  it('hides SumUp label and switch when sumup_connected is not enabled', async () => {
+    eventRef.value = baseEvent('test', ['cash'])
+    waiterRef.value = {
+      uuid: 'w-1',
+      name: 'Anna',
+      sumupReaderId: 'r1',
+      sumupReaderLabel: 'Bar',
+    }
+    store.bundle.value = bundleWithReaders([
+      { sumup_reader_id: 'r1', label: 'Bar' },
+      { sumup_reader_id: 'r2', label: 'Terrasse' },
+    ])
+    const wrapper = mountHub()
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('SumUp: Bar')
+    expect(wrapper.text()).not.toContain('SumUp-Gerät wechseln')
   })
 })
