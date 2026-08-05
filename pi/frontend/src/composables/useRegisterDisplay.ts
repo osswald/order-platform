@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/api'
 import type { RegisterDisplayPayload } from '@/types/api'
+import { absolutePublicUrl } from '@/utils/publicOrigin'
 import { useCart } from './useCart'
 import { useEventContext } from './useEventContext'
 
@@ -57,9 +58,7 @@ export function useRegisterDisplay() {
   }
 
   function registerDisplayUrl(): string {
-    const path = registerDisplayPath()
-    if (typeof window === 'undefined') return path
-    return `${window.location.origin}${path}`
+    return absolutePublicUrl(registerDisplayPath())
   }
 
   async function pushDisplayPayload(payload: Partial<RegisterDisplayPayload>): Promise<void> {

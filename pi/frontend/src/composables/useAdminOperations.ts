@@ -1,8 +1,9 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '@/api'
+import { api, isAndroidApp } from '@/api'
 import { useBundle } from '@/composables/useBundle'
 import { assignKitchenMonitorSlugs } from '@/utils/kitchenMonitorSlug'
+import { absolutePublicUrl } from '@/utils/publicOrigin'
 import type {
   EdgeBundleEvent,
   PrinterTestStationPrintsResponse,
@@ -69,8 +70,7 @@ export function useAdminOperations() {
   })
 
   function absoluteUrl(path: string) {
-    if (typeof window === 'undefined') return path
-    return `${window.location.origin}${path}`
+    return absolutePublicUrl(path)
   }
 
   function eventQuery() {
@@ -147,8 +147,12 @@ export function useAdminOperations() {
 
   function openKitchen(slug: string) {
     selectedEventId.value = opsEventId.value
-    const url = kitchenUrlForSlug(slug)
-    window.open(url, '_blank', 'noopener,noreferrer')
+    const query = eventQuery()
+    if (isAndroidApp()) {
+      void router.push({ name: 'kitchen', params: { printerSlug: slug }, query })
+      return
+    }
+    window.open(kitchenUrlForSlug(slug), '_blank', 'noopener,noreferrer')
   }
 
   async function copyKitchenUrl(url: string) {
@@ -178,9 +182,19 @@ export function useAdminOperations() {
   }
 
   function openDisplay() {
+    if (!opsRegisterUuid.value) return
+    selectedEventId.value = opsEventId.value
+    const query = eventQuery()
+    if (isAndroidApp()) {
+      void router.push({
+        name: 'register-display',
+        params: { registerUuid: opsRegisterUuid.value },
+        query,
+      })
+      return
+    }
     const url = displayUrl.value
     if (!url) return
-    selectedEventId.value = opsEventId.value
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 

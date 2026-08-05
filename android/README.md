@@ -149,6 +149,19 @@ npm run build -- --mode android
 
 Then run `./gradlew assembleDebug` again (copies `dist/` into assets).
 
+## Kitchen / pickup / customer display (immersive)
+
+On **kitchen monitor**, **pickup**, and **register customer display** routes, the app hides the Android status and navigation bars (swipe from an edge briefly reveals them). Waiter order/pay screens stay non-immersive with safe insets.
+
+**Typical kitchen tablet setup**
+
+1. Install the APK; set **Pi-API Basis-URL** to the venue Pi (e.g. `http://192.168.192.10`).
+2. Admin → Betrieb → **Küchenmonitor** → **Monitor öffnen** (opens in-app; immersive).
+3. Optional: Android **screen pinning** so staff cannot leave the app easily.
+4. **URL kopieren** uses the Pi-API base (not `appassets.androidplatform.net`) so the same link works in Chrome on another device — note Chrome still shows its address bar over plain HTTP.
+
+Manual QA: open kitchen → bars hidden; navigate back to Admin → bars restored; order screen still clears the status bar.
+
 ## Google Play Store
 
 Distribution uses **Option B**: one Play Store APK for all venues. Default API base is the venue LAN IP; if the Pi is unreachable, the bundled app shows **Pi-Verbindung** setup. Google Play reviewers use **Demo** → `https://play-review.demo.vendiqo.ch`.
@@ -171,8 +184,9 @@ CI: GitHub Actions workflow **Android release** (manual dispatch) builds and upl
 
 | Path | Purpose |
 |------|---------|
-| `app/src/main/java/ch/vendiqo/app/MainActivity.kt` | WebView shell, insets, load URL |
-| `app/src/main/java/ch/vendiqo/app/AndroidAppBridge.kt` | JS bridge for APK version (`AndroidApp`) |
+| `app/src/main/java/ch/vendiqo/app/MainActivity.kt` | WebView shell, insets, immersive, load URL |
+| `app/src/main/java/ch/vendiqo/app/AndroidAppBridge.kt` | JS bridge for APK version + immersive (`AndroidApp`) |
+| `app/src/main/java/ch/vendiqo/app/ImmersiveModeController.kt` | System-bar hide/show preference |
 | `app/src/main/java/ch/vendiqo/app/BluetoothPrinterBridge.kt` | JS bridge for ESC/POS |
 | `app/src/main/java/ch/vendiqo/app/AndroidTerminalStub.kt` | No-op stub for legacy `AndroidTerminal` JS calls |
 | `app/src/main/assets/public/` | Bundled frontend (generated, gitignored) |

@@ -1,6 +1,8 @@
 export interface AppRouteMeta {
   title?: string
   fullscreen?: boolean
+  /** Hide Android system bars (kitchen / pickup / customer display). */
+  immersive?: boolean
   hideNav?: boolean
   nav?: boolean
   navLabel?: string

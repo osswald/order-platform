@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { bundleWithRegisters, defaultBundle } from '@tests/fixtures/bundle'
 import type { EdgeBundleEvent } from '@/types/api'
+import { setApiBase } from '@/api/base'
 
 const bundleRef = ref(defaultBundle())
 const selectedEventIdRef = ref<number | null>(1)
+const routerPush = vi.fn()
+const windowOpen = vi.fn()
 
 vi.mock('@/composables/useBundle', () => ({
   useBundle: () => ({
@@ -31,7 +34,7 @@ vi.mock('vue-router', () => ({
       }
       return { href: `/kitchen/${loc.params?.printerSlug || 'station'}${query}` }
     },
-    push: vi.fn(),
+    push: routerPush,
   }),
 }))
 
@@ -52,6 +55,13 @@ describe('useAdminOperations', () => {
   beforeEach(() => {
     bundleRef.value = defaultBundle()
     selectedEventIdRef.value = 1
+    routerPush.mockReset()
+    windowOpen.mockReset()
+    vi.stubGlobal('open', windowOpen)
+    vi.unstubAllEnvs()
+    localStorage.clear()
+    setApiBase('http://192.168.192.10')
+    vi.stubGlobal('location', { origin: 'http://192.168.192.10' })
   })
 
   it('hides event select when only one event is available', () => {
@@ -118,5 +128,51 @@ describe('useAdminOperations', () => {
     expect(opsEventId.value).toBe(1)
     expect(displayUrl.value).toContain('/register/register-1/display')
     expect(displayUrl.value).toContain('event=1')
+  })
+
+  it('uses Pi API base for kitchen URLs on Android (not appassets)', () => {
+    vi.stubEnv('VITE_ANDROID_APP', 'true')
+    vi.stubGlobal('location', { origin: 'https://appassets.androidplatform.net' })
+    setApiBase('http://192.168.192.10')
+    bundleRef.value = bundleWithKitchenMonitors()
+    const { kitchenMonitorRows } = useAdminOperations()
+    expect(kitchenMonitorRows.value[0].url).toMatch(/^http:\/\/192\.168\.192\.10\/kitchen\//)
+    expect(kitchenMonitorRows.value[0].url).toContain('event=1')
+    expect(kitchenMonitorRows.value[0].url).not.toContain('appassets')
+  })
+
+  it('opens kitchen via router.push on Android', () => {
+    vi.stubEnv('VITE_ANDROID_APP', 'true')
+    bundleRef.value = bundleWithKitchenMonitors()
+    const { openKitchen, opsEventId } = useAdminOperations()
+    openKitchen('grill')
+    expect(opsEventId.value).toBe(1)
+    expect(routerPush).toHaveBeenCalledWith({
+      name: 'kitchen',
+      params: { printerSlug: 'grill' },
+      query: { event: '1' },
+    })
+    expect(windowOpen).not.toHaveBeenCalled()
+  })
+
+  it('opens kitchen via window.open when not Android', () => {
+    bundleRef.value = bundleWithKitchenMonitors()
+    const { openKitchen } = useAdminOperations()
+    openKitchen('grill')
+    expect(windowOpen).toHaveBeenCalled()
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it('opens customer display via router.push on Android', () => {
+    vi.stubEnv('VITE_ANDROID_APP', 'true')
+    bundleRef.value = bundleWithRegisters()
+    const { openDisplay } = useAdminOperations()
+    openDisplay()
+    expect(routerPush).toHaveBeenCalledWith({
+      name: 'register-display',
+      params: { registerUuid: 'register-1' },
+      query: { event: '1' },
+    })
+    expect(windowOpen).not.toHaveBeenCalled()
   })
 })

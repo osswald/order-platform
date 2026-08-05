@@ -75,3 +75,10 @@ describe('android fullscreen safe layout (sheet sources)', () => {
     )
   })
 })
+
+describe('android immersive kitchen layout', () => {
+  it('kitchen monitor does not force permanent safe-top padding', () => {
+    const vue = readSrc('views', 'KitchenMonitorView.vue')
+    expect(vue).not.toMatch(/safe-top/)
+  })
+})

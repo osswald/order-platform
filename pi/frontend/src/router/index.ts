@@ -148,7 +148,13 @@ const routes: RouteRecordRaw[] = [
     path: '/kitchen/:printerSlug/:view?',
     name: 'kitchen',
     component: () => import('../views/KitchenMonitorView.vue'),
-    meta: { title: 'Küche', requiresBundle: true, requiresEvent: true, fullscreen: true },
+    meta: {
+      title: 'Küche',
+      requiresBundle: true,
+      requiresEvent: true,
+      fullscreen: true,
+      immersive: true,
+    },
   },
   {
     path: '/registers',
@@ -178,13 +184,25 @@ const routes: RouteRecordRaw[] = [
     path: '/register/:registerUuid/display',
     name: 'register-display',
     component: () => import('../views/RegisterDisplayView.vue'),
-    meta: { title: 'Kundendisplay', requiresBundle: true, requiresEvent: true, fullscreen: true },
+    meta: {
+      title: 'Kundendisplay',
+      requiresBundle: true,
+      requiresEvent: true,
+      fullscreen: true,
+      immersive: true,
+    },
   },
   {
     path: '/pickup',
     name: 'pickup',
     component: () => import('../views/PickupScreenView.vue'),
-    meta: { title: 'Pickup', requiresBundle: true, requiresEvent: true, fullscreen: true },
+    meta: {
+      title: 'Pickup',
+      requiresBundle: true,
+      requiresEvent: true,
+      fullscreen: true,
+      immersive: true,
+    },
   },
   {
     path: '/table/new',

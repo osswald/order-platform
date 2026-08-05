@@ -71,6 +71,7 @@ import EmulatedReceiptsPanel from '@/components/EmulatedReceiptsPanel.vue'
 import ReceiptBottomSheet from '@/components/ReceiptBottomSheet.vue'
 import { isAndroidApp } from '@/api'
 import { applyAndroidSafeAreaInsets } from '@/utils/androidInsets'
+import { useAndroidImmersiveDisplay } from '@/composables/useAndroidImmersiveDisplay'
 import { useBundle } from '@/composables/useBundle'
 import { useBundleRefresh } from '@/composables/useBundleRefresh'
 import {
@@ -133,6 +134,7 @@ watch([emulatedPrinter, isWide], syncHostedDemoBodyClass, { immediate: true })
 
 useBundleRefresh()
 usePiConnectivityKeepalive()
+useAndroidImmersiveDisplay()
 
 watch(
   [() => waiter.value?.uuid, selectedEventId],
