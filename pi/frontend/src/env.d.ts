@@ -25,9 +25,11 @@ interface AndroidBridgeResult {
 interface Window {
   AndroidPrinter?: Record<string, (...args: unknown[]) => unknown>
   AndroidTerminal?: Record<string, (...args: unknown[]) => unknown>
-  /** Native APK metadata (versionName / versionCode). */
+  /** Native APK metadata (versionName / versionCode) and immersive system UI. */
   AndroidApp?: {
     getAppInfo?: () => string | Record<string, unknown>
+    /** Hide/show Android status + navigation bars (sticky swipe to peek). */
+    setImmersiveMode?: (enabled: boolean) => void
   }
   AndroidInsets?: {
     getSystemBarInsetsJson?: () => string

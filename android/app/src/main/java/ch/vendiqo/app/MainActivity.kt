@@ -13,12 +13,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var printerBridge: BluetoothPrinterBridge
+    private lateinit var immersiveController: ImmersiveModeController
 
     private val insetsBridge =
         AndroidInsetsBridge { resources.displayMetrics.density }
@@ -40,6 +43,18 @@ class MainActivity : ComponentActivity() {
         webView.setBackgroundColor(Color.parseColor("#0f172a"))
         setContentView(webView)
         ViewCompat.requestApplyInsets(webView)
+
+        val insetsController = WindowCompat.getInsetsController(window, webView)
+        immersiveController =
+            ImmersiveModeController { enabled ->
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                if (enabled) {
+                    insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                } else {
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+            }
 
         ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
             val insetTypes =
@@ -83,7 +98,11 @@ class MainActivity : ComponentActivity() {
         printerBridge = BluetoothPrinterBridge(this)
         val terminalBridge = AndroidTerminalStub()
         val networkBridge = AndroidNetworkBridge()
-        val appBridge = AndroidAppBridge()
+        val appBridge =
+            AndroidAppBridge(
+                immersive = immersiveController,
+                mainHandler = android.os.Handler(mainLooper),
+            )
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
         webView.addJavascriptInterface(terminalBridge, "AndroidTerminal")
         webView.addJavascriptInterface(appBridge, "AndroidApp")
