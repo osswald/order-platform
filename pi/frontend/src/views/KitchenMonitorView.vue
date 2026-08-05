@@ -175,10 +175,14 @@ async function onCompletePrint(ticket: KitchenOrderTicket) {
 
 <style scoped>
 .kitchen-monitor {
+  --kitchen-zoom: 0.8;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: 100dvh;
+  /* Same density as ~80% browser zoom: more columns + smaller chrome. */
+  zoom: var(--kitchen-zoom);
+  width: calc(100% / var(--kitchen-zoom));
+  height: calc(100dvh / var(--kitchen-zoom));
   padding: 0.25rem;
   overflow: hidden;
 }

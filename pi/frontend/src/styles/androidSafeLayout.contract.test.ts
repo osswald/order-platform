@@ -81,4 +81,12 @@ describe('android immersive kitchen layout', () => {
     const vue = readSrc('views', 'KitchenMonitorView.vue')
     expect(vue).not.toMatch(/safe-top/)
   })
+
+  it('kitchen monitor uses 80% CSS zoom with compensating size', () => {
+    const vue = readSrc('views', 'KitchenMonitorView.vue')
+    expect(vue).toMatch(/--kitchen-zoom:\s*0\.8/)
+    expect(vue).toMatch(/zoom:\s*var\(--kitchen-zoom\)/)
+    expect(vue).toMatch(/width:\s*calc\(100% \/ var\(--kitchen-zoom\)\)/)
+    expect(vue).toMatch(/height:\s*calc\(100dvh \/ var\(--kitchen-zoom\)\)/)
+  })
 })

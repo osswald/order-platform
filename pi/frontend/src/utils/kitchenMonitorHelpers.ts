@@ -41,7 +41,15 @@ export function formatElapsedMinutes(ms: number): string {
 }
 
 export const KITCHEN_MIN_COLUMN_WIDTH_PX = 260
-export const KITCHEN_ORDER_GAP_PX = 8
+export const KITCHEN_ORDER_GAP_PX = 6
+/** Matches ~80% browser zoom so ~4 tickets fit on typical tablet landscape. */
+export const KITCHEN_DISPLAY_ZOOM = 0.8
+
+/** Layout width seen by column math when the monitor root is CSS-zoomed. */
+export function kitchenLayoutWidthForViewport(viewportWidthPx: number, zoom = KITCHEN_DISPLAY_ZOOM): number {
+  if (zoom <= 0) return viewportWidthPx
+  return viewportWidthPx / zoom
+}
 
 export function computeKitchenColumnLayout(
   containerWidth: number,

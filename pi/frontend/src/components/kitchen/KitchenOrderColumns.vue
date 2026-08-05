@@ -4,6 +4,7 @@ import type { EdgeBundleEvent, KitchenOrderTicket, KitchenTicketLineEntry } from
 import {
   computeKitchenColumnLayout,
   KITCHEN_MIN_COLUMN_WIDTH_PX,
+  KITCHEN_ORDER_GAP_PX,
 } from '@/utils/kitchenMonitorHelpers'
 import KitchenTicketColumn from './KitchenTicketColumn.vue'
 
@@ -50,7 +51,10 @@ onUnmounted(() => {
   <div
     ref="containerRef"
     class="order-columns"
-    :style="{ '--ticket-width': `${ticketWidthPx}px` }"
+    :style="{
+      '--ticket-width': `${ticketWidthPx}px`,
+      '--order-gap': `${KITCHEN_ORDER_GAP_PX}px`,
+    }"
   >
     <p v-if="!orders.length" class="empty">Keine offenen Bestellungen.</p>
     <div v-for="ticket in orders" :key="ticket.id" class="order-slot">
@@ -69,7 +73,7 @@ onUnmounted(() => {
 
 <style scoped>
 .order-columns {
-  --order-gap: 0.5rem;
+  --order-gap: 6px;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
