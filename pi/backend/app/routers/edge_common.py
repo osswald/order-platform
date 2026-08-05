@@ -480,6 +480,8 @@ def _create_print_job_for_lines(
     from ..print_render import dump_render_context, make_render_context
 
     station_payload = {**payload, "lines": station_lines}
+    if pickup_code is not None:
+        station_payload["pickup_code"] = pickup_code
     if kitchen_partial_print:
         station_payload["kitchen_partial_print"] = True
         station_payload["kitchen_excluded_lines"] = kitchen_excluded_lines or []

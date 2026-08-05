@@ -241,3 +241,90 @@ def test_ready_ttl_expires_station_pickup_independently(client):
         assert db.query(StationPickup).filter(StationPickup.id == bar_id).one().pickup_status == "picked_up"
     finally:
         db.close()
+
+
+def _slip_text(db, job: PrintJob) -> str:
+    from app.print_render import ensure_print_job_payload
+
+    return ensure_print_job_payload(db, job).decode("cp858", errors="replace")
+
+
+def _render_pickup_code(job: PrintJob) -> str | None:
+    ctx = json.loads(job.render_context_json or "{}")
+    payload = ctx.get("payload") if isinstance(ctx, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    code = payload.get("pickup_code")
+    return str(code) if code else None
+
+
+def test_direct_station_print_includes_station_pickup_code(client):
+    """Bar has no kitchen monitor → station_order slip must hero that station's code."""
+    c, Session = client
+    r = _multi_station_order(c)
+    assert r.status_code == 200, r.text
+    oid = r.json()["local_order_id"]
+
+    db = Session()
+    try:
+        job = (
+            db.query(PrintJob)
+            .filter(
+                PrintJob.local_order_id == oid,
+                PrintJob.job_kind == "station_order",
+                PrintJob.station_uuid == "st-bar",
+            )
+            .one()
+        )
+        assert _render_pickup_code(job) == "A2"
+        text = _slip_text(db, job)
+        assert "A2" in text
+    finally:
+        db.close()
+
+
+def test_kitchen_print_uses_station_code_not_first_order_code(client):
+    """Kitchen station allocated second: list shows A2; printed slip must also use A2, not A1."""
+    c, Session = client
+    # Bar line first → A1 (direct); Grill line second → A2 (kitchen monitor)
+    r = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": None,
+            "order_source": "cash_register",
+            "cash_register_uuid": "reg-1",
+            "lines": [
+                {"article_id": 20, "qty": 1, "note": "", "additions": []},
+                {"article_id": 10, "qty": 1, "note": "", "additions": []},
+            ],
+            "payments": [{"type": "cash", "amount_cents": 1700}],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["pickup_codes"] == ["A1", "A2"]
+    assert body["pickup_code"] == "A1"
+    oid = body["local_order_id"]
+
+    kitchen = c.get("/v1/kitchen/orders", params={"event_id": 1, "station_uuid": "st-kitchen"})
+    assert kitchen.status_code == 200, kitchen.text
+    ticket = kitchen.json()["orders"][0]
+    assert ticket["pickup_code"] == "A2"
+    assert ticket["local_order_id"] == oid
+
+    printed = c.post(f"/v1/kitchen/tickets/{ticket['id']}/print")
+    assert printed.status_code == 200, printed.text
+    job_id = printed.json()["print_job_id"]
+    assert job_id
+
+    db = Session()
+    try:
+        job = db.query(PrintJob).filter(PrintJob.id == job_id).one()
+        assert job.job_kind == "kitchen_ticket"
+        assert _render_pickup_code(job) == "A2"
+        text = _slip_text(db, job)
+        assert "A2" in text
+    finally:
+        db.close()
