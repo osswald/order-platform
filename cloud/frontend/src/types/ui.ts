@@ -211,6 +211,8 @@ export interface EventStockItemLocal {
   monitor_stock: boolean
   initial_in_stock: number
   in_stock: number
+  org_price: number
+  price: number | null
 }
 
 export interface EventIngredientStockItemLocal {

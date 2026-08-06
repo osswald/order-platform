@@ -102,6 +102,9 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
         )
     }
     stock_map = load_stock_map(db, event.id, ids)
+    from .event_prices import effective_article_price, load_price_map
+
+    price_map = load_price_map(db, event.id, ids)
     base_ids = bundle_article_ids(event)
     links_by_base = load_links_for_bases(db, base_ids)
     ingredient_links_by_base = load_ingredient_links_for_bases(db, ids) if ingredients_on else {}
@@ -129,7 +132,7 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
             "id": aid,
             "name": a.name,
             "label": a.label,
-            "price": a.price,
+            "price": effective_article_price(a, price_map),
             "import_article_number": a.import_article_number,
             "description": a.description,
             "unit": a.unit,
@@ -137,7 +140,12 @@ def article_snapshot_for_event(db: Session, event: Event) -> dict[str, Any]:
             **fields,
         }
         if not a.is_addition and aid in links_by_base:
-            entry["additions"] = build_additions_for_base(links_by_base.get(aid, []), arts, stock_map)
+            entry["additions"] = build_additions_for_base(
+                links_by_base.get(aid, []),
+                arts,
+                stock_map,
+                price_map=price_map,
+            )
         if ingredients_on and aid in ingredient_links_by_base:
             recipe = build_ingredients_for_base(ingredient_links_by_base.get(aid, []), ingredients_map)
             entry["ingredients"] = recipe

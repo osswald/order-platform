@@ -13,6 +13,8 @@ class EventStockItemRead(BaseModel):
     monitor_stock: bool
     initial_in_stock: int | None = None
     in_stock: int | None = None
+    org_price: float
+    price: float | None = None
 
 
 class EventIngredientStockItemRead(BaseModel):
@@ -34,6 +36,7 @@ class EventStockItemIn(BaseModel):
     monitor_stock: bool = False
     initial_in_stock: int | None = Field(None, ge=0)
     in_stock: int | None = Field(None, ge=0)
+    price: float | None = Field(None, ge=0)
 
     @model_validator(mode="after")
     def normalize(self):

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..auth_deps import get_current_user
 from ..db_errors import commit_or_raise
 from ..deps import get_db
+from ..event_prices import load_price_map, upsert_price_overrides
 from ..i18n.errors import api_error
 from ..ingredient_stock import ensure_ingredient_stock_rows, upsert_ingredient_stock_rows
 from ..ingredients import article_ids_with_ingredients, organisation_ingredients_enabled
@@ -33,6 +34,7 @@ def _event_stock_response(db: Session, event) -> EventStockListRead:
     if organisation_ingredients_enabled(db, event.organisation_id):
         composite = article_ids_with_ingredients(db, bundle_article_ids(event))
     art_by_id = {a.id: a for a in db.query(Article).filter(Article.id.in_([r.article_id for r in rows])).all()}
+    price_map = load_price_map(db, event.id, set(art_by_id.keys()))
     items = []
     for row in rows:
         if row.article_id in composite:
@@ -48,6 +50,8 @@ def _event_stock_response(db: Session, event) -> EventStockListRead:
                 monitor_stock=row.monitor_stock,
                 initial_in_stock=row.baseline_in_stock,
                 in_stock=row.in_stock,
+                org_price=float(art.price),
+                price=price_map.get(art.id),
             )
         )
     items.sort(key=lambda x: x.name.lower())
@@ -157,11 +161,21 @@ def put_event_stock(
                     {
                         "article_id": i.article_id,
                         "monitor_stock": i.monitor_stock,
-                        **i.model_dump(exclude={"article_id", "monitor_stock"}, exclude_unset=True),
+                        **i.model_dump(
+                            exclude={"article_id", "monitor_stock", "price"},
+                            exclude_unset=True,
+                        ),
                     }
                     for i in body.items
                 ],
             )
+            price_items = [
+                {"article_id": i.article_id, "price": i.price}
+                for i in body.items
+                if "price" in i.model_fields_set
+            ]
+            if price_items:
+                upsert_price_overrides(db, event, price_items)
         if body.ingredients and organisation_ingredients_enabled(db, event.organisation_id):
             upsert_ingredient_stock_rows(
                 db,

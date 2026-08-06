@@ -19,12 +19,13 @@ Add-ons and variants extend articles with configurable extras. On the article de
 
 Articles are not duplicated per event. In event configuration under **App layouts** you choose which articles appear on which layouts.
 
-## Stock levels
+## Stock and event prices
 
-Stock is maintained per event and station under **Stock items**, not in the global article master.
+Stock levels and optional event prices are maintained under **Stock items**, not in the global article master. **Catalogue price** comes from the article catalogue; an empty **Event price** field uses that catalogue price. A set event price applies only to that event (including additions in the list).
 
 ## Tips
 
 - Consistent categories simplify layout maintenance
 - Inactive articles remain in the master but do not appear in new station or layout assignments
-- Price changes apply to future sales; running events may have their own bundles
+- Catalogue price changes apply to events without an override; overrides remain until cleared
+- Running events pick up updated prices on the next catalogue bundle pull

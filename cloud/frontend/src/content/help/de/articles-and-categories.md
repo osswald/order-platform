@@ -19,12 +19,13 @@ Zusatzoptionen (Additions, Varianten) erweitern Artikel um konfigurierbare Extra
 
 Artikel werden nicht pro Event dupliziert. In der Event-Konfiguration unter **App-Layouts** legen Sie fest, welche Artikel auf welchen Layouts erscheinen.
 
-## Bestände
+## Bestände und Eventpreise
 
-Lagerstände werden pro Event und Station unter **Lagerartikel** gepflegt, nicht im globalen Artikelstamm.
+Lagerstände und optionale Eventpreise werden unter **Lagerartikel** gepflegt, nicht im globalen Artikelstamm. Der **Stammpreis** kommt aus dem Artikelkatalog; ein leeres **Eventpreis**-Feld verwendet diesen Stammpreis. Ein gesetzter Eventpreis gilt nur für dieses Event (inkl. Zusätze in der Liste).
 
 ## Tipps
 
 - Einheitliche Kategorien erleichtern die Layout-Pflege
 - Inaktive Artikel bleiben im Stamm, erscheinen aber nicht in neuen Stations- oder Layout-Zuweisungen
-- Preisänderungen wirken auf künftige Verkäufe; laufende Events können eigene Bundles haben
+- Preisänderungen am Stamm wirken auf Events ohne Override; Overrides bleiben bis sie geleert werden
+- Laufende Events erhalten aktualisierte Preise über das nächste Katalog-Bundle

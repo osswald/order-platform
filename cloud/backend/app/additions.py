@@ -57,7 +57,11 @@ def build_additions_for_base(
     links: list[ArticleAdditionLink],
     arts: dict[int, Article],
     stock_map: dict,
+    price_map: dict[int, float] | None = None,
 ) -> list[dict[str, Any]]:
+    from .event_prices import effective_article_price
+
+    overrides = price_map or {}
     out: list[dict[str, Any]] = []
     for link in links:
         add_art = arts.get(link.addition_article_id)
@@ -69,7 +73,7 @@ def build_additions_for_base(
                 "article_id": add_art.id,
                 "name": add_art.name,
                 "label": add_art.label,
-                "price": add_art.price,
+                "price": effective_article_price(add_art, overrides),
                 "sort_order": link.sort_order,
                 "preselected": bool(link.preselected),
                 "combine_on_kitchen_display": bool(link.combine_on_kitchen_display),
