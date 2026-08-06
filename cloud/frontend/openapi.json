@@ -2102,6 +2102,191 @@
         }
       }
     },
+    "/organisations/{organisation_id}/first-event-setup/dismiss": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Dismiss Organisation First Event Setup",
+        "operationId": "dismiss_organisation_first_event_setup_organisations__organisation_id__first_event_setup_dismiss_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/first-event-setup/complete": {
+      "post": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Complete Organisation First Event Setup",
+        "operationId": "complete_organisation_first_event_setup_organisations__organisation_id__first_event_setup_complete_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organisations/{organisation_id}/first-event-setup": {
+      "patch": {
+        "tags": [
+          "organisations"
+        ],
+        "summary": "Update Organisation First Event Setup",
+        "operationId": "update_organisation_first_event_setup_organisations__organisation_id__first_event_setup_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirstEventSetupUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstEventSetupRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organisations/{organisation_id}/onboarding/dismiss": {
       "post": {
         "tags": [
@@ -12528,6 +12713,9 @@
           },
           "onboarding": {
             "$ref": "#/components/schemas/OnboardingRead"
+          },
+          "first_event_setup": {
+            "$ref": "#/components/schemas/FirstEventSetupRead"
           }
         },
         "type": "object",
@@ -12542,7 +12730,8 @@
           "lendings",
           "attention",
           "sales",
-          "onboarding"
+          "onboarding",
+          "first_event_setup"
         ],
         "title": "DashboardSummaryRead"
       },
@@ -14223,6 +14412,57 @@
           "source_waiter_id"
         ],
         "title": "EventWaiterConfigRead"
+      },
+      "FirstEventSetupRead": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          },
+          "dismissed": {
+            "type": "boolean",
+            "title": "Dismissed"
+          },
+          "in_progress_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Progress Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "completed",
+          "dismissed"
+        ],
+        "title": "FirstEventSetupRead"
+      },
+      "FirstEventSetupUpdate": {
+        "properties": {
+          "in_progress_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Progress Event Id"
+          }
+        },
+        "type": "object",
+        "title": "FirstEventSetupUpdate"
       },
       "HTTPValidationError": {
         "properties": {

@@ -171,6 +171,15 @@
     "attentionMessages": {
       "config_starting_soon": "«{name}» startet bald und ist noch in Konfiguration.",
       "missing_twint_qr": "«{name}»: TWINT aktiv, aber kein QR-Code hinterlegt."
+    },
+    "firstEventSetup": {
+      "title": "Erste Veranstaltung einrichten",
+      "subtitle": "Geführter Weg zu Katalog, Station und App-Layout — Geräte kommen später.",
+      "start": "Einrichtung starten",
+      "continue": "Einrichtung fortsetzen",
+      "dismiss": "Ausblenden",
+      "dismissFailed": "Ausblenden fehlgeschlagen.",
+      "classicCreate": "Stattdessen klassisch Veranstaltung anlegen"
     }
   },
   "applianceType": {
@@ -1380,5 +1389,61 @@
     "onboardingFailed": "Onboarding fehlgeschlagen.",
     "statusUpdated": "Status aktualisiert.",
     "refreshFailed": "Aktualisierung fehlgeschlagen."
+  },
+  "firstEventSetup": {
+    "wizard": {
+      "title": "Erste Veranstaltung",
+      "subtitle": "Menü, Kellner und Event in wenigen Schritten.",
+      "loadFailed": "Einrichtung konnte nicht geladen werden.",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "steps": {
+        "menu": "Menü",
+        "waiters": "Kellner",
+        "event": "Veranstaltung",
+        "station": "Station",
+        "layout": "Layout",
+        "done": "Fertig"
+      },
+      "menuHint": "Lege mindestens eine Artikelgruppe und einen Artikel an.",
+      "menuReady": "{count} Artikel vorhanden — du kannst weitermachen.",
+      "categoryName": "Artikelgruppe",
+      "articleName": "Artikel",
+      "articlePrice": "Preis",
+      "addArticle": "Weiteren Artikel",
+      "categoryRequired": "Bitte eine Artikelgruppe angeben.",
+      "articleRequired": "Bitte mindestens einen Artikel angeben.",
+      "waitersHint": "Lege mindestens einen Kellner mit PIN an.",
+      "waitersReady": "{count} Kellner vorhanden — du kannst weitermachen.",
+      "waiterName": "Kellnername",
+      "waiterPin": "PIN",
+      "waiterRequired": "Bitte einen Kellner angeben.",
+      "eventHint": "Name und Zeitraum der Veranstaltung. Erweiterte Optionen folgen später.",
+      "eventName": "Name",
+      "eventStart": "Beginn",
+      "eventEnd": "Ende",
+      "eventRequired": "Bitte einen Namen angeben.",
+      "eventDatesRequired": "Bitte Beginn und Ende angeben.",
+      "eventAlreadyCreated": "Veranstaltung «{name}» ist angelegt — weiter zur Station.",
+      "eventMissing": "Keine Veranstaltung in der Einrichtung.",
+      "stationHint": "Eine Verkaufsstelle mit Artikeln und zugewiesenen Kellnern.",
+      "stationName": "Station",
+      "stationArticles": "Artikel an der Station",
+      "eventWaiters": "Kellner für die Veranstaltung",
+      "stationRequired": "Bitte einen Stationsnamen angeben.",
+      "stationArticlesRequired": "Bitte mindestens einen Artikel wählen.",
+      "eventWaitersRequired": "Bitte mindestens einen Kellner wählen.",
+      "layoutHint": "Wir schlagen Buttons aus den Stationsartikeln vor.",
+      "layoutName": "Layout-Name",
+      "layoutSuggest": "{count} Buttons werden angelegt.",
+      "finish": "Abschliessen",
+      "skipContinue": "Weiter",
+      "doneTitle": "Erste Veranstaltung ist bereit.",
+      "doneHint": "Du kannst jetzt im gehosteten Pi testen. Physische Geräte sind unabhängig und blockieren dich nicht.",
+      "devicesNone": "Noch keine Geräteausleihe — Vendiqo kann Geräte später bereitstellen.",
+      "devicesCurrent": "{count} Gerät(e) aktuell ausgeliehen.",
+      "devicesPlanned": "{count} geplante Ausleihe(n).",
+      "openEvent": "Veranstaltung öffnen",
+      "backToDashboard": "Zum Dashboard"
+    }
   }
 }

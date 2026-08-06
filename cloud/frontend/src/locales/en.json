@@ -144,7 +144,9 @@
     "cancel": "Cancel",
     "back": "Back",
     "next": "Next",
-    "emDash": "—"
+    "emDash": "—",
+    "loading": "Loading…",
+    "noOrganisation": "No organisation selected."
   },
   "organisations": {
     "config": {
@@ -291,5 +293,72 @@
     "themeSystem": "System",
     "themeUpdated": "Appearance saved.",
     "themeUpdateFailed": "Could not save appearance."
+  },
+  "dashboard": {
+    "firstEventSetup": {
+      "title": "Set up your first event",
+      "subtitle": "A guided path for catalogue, station, and app layout — devices can come later.",
+      "start": "Start setup",
+      "continue": "Continue setup",
+      "dismiss": "Dismiss",
+      "dismissFailed": "Could not dismiss.",
+      "classicCreate": "Create event the classic way instead"
+    }
+  },
+  "firstEventSetup": {
+    "wizard": {
+      "title": "First event",
+      "subtitle": "Menu, waiters, and event in a few steps.",
+      "loadFailed": "Could not load setup.",
+      "saveFailed": "Could not save.",
+      "steps": {
+        "menu": "Menu",
+        "waiters": "Waiters",
+        "event": "Event",
+        "station": "Station",
+        "layout": "Layout",
+        "done": "Done"
+      },
+      "menuHint": "Create at least one category and one article.",
+      "menuReady": "{count} articles ready — you can continue.",
+      "categoryName": "Article category",
+      "articleName": "Article",
+      "articlePrice": "Price",
+      "addArticle": "Add another article",
+      "categoryRequired": "Please enter a category name.",
+      "articleRequired": "Please enter at least one article.",
+      "waitersHint": "Create at least one waiter with a PIN.",
+      "waitersReady": "{count} waiters ready — you can continue.",
+      "waiterName": "Waiter name",
+      "waiterPin": "PIN",
+      "waiterRequired": "Please enter a waiter.",
+      "eventHint": "Name and date range. Advanced options come later.",
+      "eventName": "Name",
+      "eventStart": "Start",
+      "eventEnd": "End",
+      "eventRequired": "Please enter a name.",
+      "eventDatesRequired": "Please enter start and end.",
+      "eventAlreadyCreated": "Event “{name}” already exists — continue to station.",
+      "eventMissing": "No event in this setup.",
+      "stationHint": "One point of sale with articles and assigned waiters.",
+      "stationName": "Station",
+      "stationArticles": "Station articles",
+      "eventWaiters": "Event waiters",
+      "stationRequired": "Please enter a station name.",
+      "stationArticlesRequired": "Please select at least one article.",
+      "eventWaitersRequired": "Please select at least one waiter.",
+      "layoutHint": "We suggest buttons from the station articles.",
+      "layoutName": "Layout name",
+      "layoutSuggest": "{count} buttons will be created.",
+      "finish": "Finish",
+      "skipContinue": "Continue",
+      "doneTitle": "Your first event is ready.",
+      "doneHint": "You can test on the hosted Pi. Physical devices are independent and do not block you.",
+      "devicesNone": "No appliance lending yet — Vendiqo can provide devices later.",
+      "devicesCurrent": "{count} appliance(s) currently lent.",
+      "devicesPlanned": "{count} planned lending(s).",
+      "openEvent": "Open event",
+      "backToDashboard": "Back to dashboard"
+    }
   }
 }

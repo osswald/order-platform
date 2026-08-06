@@ -22,6 +22,13 @@ class OnboardingRead(BaseModel):
     tasks: list[OnboardingTaskRead] = Field(default_factory=list)
 
 
+class FirstEventSetupRead(BaseModel):
+    available: bool
+    completed: bool
+    dismissed: bool
+    in_progress_event_id: int | None = None
+
+
 class DashboardCatalogRead(BaseModel):
     waiters: int
     articles: int
@@ -77,3 +84,4 @@ class DashboardSummaryRead(BaseModel):
     attention: list[DashboardAttentionItemRead]
     sales: DashboardSalesRead
     onboarding: OnboardingRead
+    first_event_setup: FirstEventSetupRead

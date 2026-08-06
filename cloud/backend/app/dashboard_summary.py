@@ -10,6 +10,10 @@ from sqlalchemy.orm import Session
 
 from .currency import organisation_country_code
 from .event_status import ALLOWED_STATUSES, PI_VISIBLE_STATUSES, normalize_status
+from .first_event_setup import (
+    first_event_setup_state,
+    maybe_auto_complete_first_event_setup,
+)
 from .models import Article, ArticleCategory, EdgeOrderItem, Event, Organisation, Waiter
 from .onboarding_tasks import build_onboarding_tasks, is_onboarding_dismissed
 from .payment_types_config import payment_types_from_event
@@ -238,6 +242,7 @@ def build_organisation_dashboard_summary(
     events: list[Event],
     *,
     user_id: int | None = None,
+    include_hire_company_onboarding: bool = True,
 ) -> dict[str, Any]:
     organisation_id = organisation.id
     organisation_name = organisation.name
@@ -250,6 +255,9 @@ def build_organisation_dashboard_summary(
         if user_id is not None
         else False
     )
+    if maybe_auto_complete_first_event_setup(db, organisation):
+        db.commit()
+        db.refresh(organisation)
 
     return {
         "organisation_id": organisation_id,
@@ -263,6 +271,12 @@ def build_organisation_dashboard_summary(
         "attention": build_attention_items(events, now),
         "sales": _aggregate_sales(db, events, organisation),
         "onboarding": build_onboarding_tasks(
-            db, organisation, events, dismissed=dismissed, user_id=user_id
+            db,
+            organisation,
+            events,
+            dismissed=dismissed,
+            user_id=user_id,
+            include_hire_company_tasks=include_hire_company_onboarding,
         ),
+        "first_event_setup": first_event_setup_state(organisation),
     }

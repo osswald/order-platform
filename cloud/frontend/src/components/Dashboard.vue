@@ -80,6 +80,14 @@
         </RouterLink>
       </div>
 
+      <DashboardFirstEventSetupCard
+        v-if="summary.first_event_setup && activeOrganisationId != null"
+        :organisation-id="activeOrganisationId"
+        :first-event-setup="summary.first_event_setup"
+        @dismissed="reload"
+        @updated="reload"
+      />
+
       <DashboardOnboardingCard
         v-if="summary.onboarding && activeOrganisationId != null"
         :organisation-id="activeOrganisationId"
@@ -190,6 +198,7 @@ import { eventStatusColor } from '../utils/eventStatus'
 import { formatMoney } from '../utils/money'
 import VqDataTable from './VqDataTable.vue'
 import DashboardOnboardingCard from './DashboardOnboardingCard.vue'
+import DashboardFirstEventSetupCard from './DashboardFirstEventSetupCard.vue'
 
 const { t } = useI18n()
 
