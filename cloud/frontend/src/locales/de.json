@@ -1113,6 +1113,8 @@
       "monitorStock": "Bestand führen",
       "initialStock": "Anfangsbestand",
       "currentStock": "Aktueller Bestand",
+      "orgPrice": "Stammpreis",
+      "eventPrice": "Eventpreis",
       "stock": "Bestand",
       "ingredientsTitle": "Zutaten",
       "ingredient": "Zutat",

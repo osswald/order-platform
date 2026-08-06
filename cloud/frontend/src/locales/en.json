@@ -116,6 +116,8 @@
       "monitorStock": "Track stock",
       "initialStock": "Initial stock",
       "currentStock": "Current stock",
+      "orgPrice": "Catalogue price",
+      "eventPrice": "Event price",
       "stock": "Stock"
     },
     "config": {

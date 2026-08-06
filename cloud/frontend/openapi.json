@@ -13955,6 +13955,18 @@
               }
             ],
             "title": "In Stock"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
           }
         },
         "type": "object",
@@ -14002,6 +14014,21 @@
               }
             ],
             "title": "In Stock"
+          },
+          "org_price": {
+            "type": "number",
+            "title": "Org Price"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
           }
         },
         "type": "object",
@@ -14009,7 +14036,8 @@
           "id",
           "name",
           "label",
-          "monitor_stock"
+          "monitor_stock",
+          "org_price"
         ],
         "title": "EventStockItemRead"
       },

@@ -415,8 +415,21 @@ def apply_schema_patches() -> None:
     )
     _ensure_organisation_position_comments_table()
     _ensure_ingredients_tables()
+    _ensure_event_article_prices_table()
     _ensure_user_organisation_onboarding_dismissals_table()
     _ensure_user_organisation_onboarding_task_states_table()
+
+
+def _ensure_event_article_prices_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_article_prices" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventArticlePrice
+
+    EventArticlePrice.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_user_organisation_onboarding_task_states_table() -> None:
