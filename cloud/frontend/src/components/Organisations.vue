@@ -38,7 +38,7 @@
 
           <template #geraete>
             <template v-if="orgApplianceLendings">
-              <div class="org-lendings-toolbar">
+              <div v-if="canManageTenant" class="org-lendings-toolbar">
                 <v-btn color="primary" type="button" @click="lendingDialogVisible = true">
                   {{ $t('organisations.lendAppliances') }}
                 </v-btn>

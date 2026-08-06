@@ -395,6 +395,24 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN color_palette TEXT",
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS color_palette JSON",
     )
+    _add_column_if_missing(
+        "organisations",
+        "first_event_setup_completed_at",
+        "ALTER TABLE organisations ADD COLUMN first_event_setup_completed_at DATETIME",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS first_event_setup_completed_at TIMESTAMP WITH TIME ZONE",
+    )
+    _add_column_if_missing(
+        "organisations",
+        "first_event_setup_dismissed_at",
+        "ALTER TABLE organisations ADD COLUMN first_event_setup_dismissed_at DATETIME",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS first_event_setup_dismissed_at TIMESTAMP WITH TIME ZONE",
+    )
+    _add_column_if_missing(
+        "organisations",
+        "first_event_setup_event_id",
+        "ALTER TABLE organisations ADD COLUMN first_event_setup_event_id INTEGER",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS first_event_setup_event_id INTEGER",
+    )
     _ensure_organisation_position_comments_table()
     _ensure_ingredients_tables()
     _ensure_user_organisation_onboarding_dismissals_table()

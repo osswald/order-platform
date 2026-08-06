@@ -343,6 +343,7 @@ def build_onboarding_tasks(
     *,
     dismissed: bool,
     user_id: int | None = None,
+    include_hire_company_tasks: bool = True,
 ) -> dict[str, Any]:
     if dismissed:
         return {"dismissed": True, "tasks": []}
@@ -409,6 +410,20 @@ def build_onboarding_tasks(
             "target_query": {"section": section},
             "target_event_id": event_id,
         }
+
+    # First-sale tasks for all users; hire-company / optional finance kept for tenant admins.
+    customer_first_sale_ids = frozenset(
+        {
+            "create_waiter",
+            "create_article_group",
+            "create_article",
+            "create_event",
+            "add_event_waiter",
+            "add_station",
+            "add_article_to_station",
+            "create_app_layout",
+        }
+    )
 
     tasks: list[dict[str, Any]] = [
         _task(
@@ -546,6 +561,9 @@ def build_onboarding_tasks(
             **event_target("lager", "set_stock"),
         ),
     ]
+
+    if not include_hire_company_tasks:
+        tasks = [task for task in tasks if task["id"] in customer_first_sale_ids]
 
     finalized_tasks = [task for task in (finalize_task(task) for task in tasks) if task is not None]
     return {"dismissed": False, "tasks": finalized_tasks}

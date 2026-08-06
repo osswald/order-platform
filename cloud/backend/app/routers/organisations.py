@@ -9,11 +9,17 @@ from ..auth_deps import get_current_user
 from ..dashboard_summary import build_organisation_dashboard_summary
 from ..db_errors import commit_or_raise
 from ..deps import get_db
+from ..first_event_setup import (
+    complete_first_event_setup,
+    dismiss_first_event_setup,
+    first_event_setup_state,
+    set_first_event_setup_in_progress_event,
+)
 from ..i18n.errors import api_error
 from ..models import ApplianceLending, Event, HireCompany, Organisation, User, UserOrganisationOnboardingDismissal
 from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..reference_countries import country_response, get_country_or_404
-from ..schemas.dashboard import DashboardSummaryRead
+from ..schemas.dashboard import DashboardSummaryRead, FirstEventSetupRead
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
 from ..tenancy import (
     TenantContext,
@@ -27,9 +33,14 @@ from ..tenancy import (
     readable_events_query,
     readable_organisations,
 )
+from ..user_access import can_manage_tenant
 from .appliances import _assert_lending_is_planned, _utc_today
 
 router = APIRouter()
+
+
+class FirstEventSetupUpdate(BaseModel):
+    in_progress_event_id: int | None = None
 
 
 class CountryRead(BaseModel):
@@ -208,7 +219,69 @@ def read_organisation_dashboard_summary(
         .order_by(Event.start.desc())
         .all()
     )
-    return build_organisation_dashboard_summary(db, organisation, events, user_id=current_user.id)
+    return build_organisation_dashboard_summary(
+        db,
+        organisation,
+        events,
+        user_id=current_user.id,
+        include_hire_company_onboarding=can_manage_tenant(current_user),
+    )
+
+
+@router.post(
+    "/{organisation_id}/first-event-setup/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def dismiss_organisation_first_event_setup(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    organisation = ensure_user_can_use_organisation(
+        db, current_user, organisation_id, tenant.hire_company_id
+    )
+    dismiss_first_event_setup(organisation)
+    commit_or_raise(db)
+    return None
+
+
+@router.post(
+    "/{organisation_id}/first-event-setup/complete",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def complete_organisation_first_event_setup(
+    organisation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    organisation = ensure_user_can_use_organisation(
+        db, current_user, organisation_id, tenant.hire_company_id
+    )
+    complete_first_event_setup(organisation)
+    commit_or_raise(db)
+    return None
+
+
+@router.patch(
+    "/{organisation_id}/first-event-setup",
+    response_model=FirstEventSetupRead,
+)
+def update_organisation_first_event_setup(
+    organisation_id: int,
+    body: FirstEventSetupUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    organisation = ensure_user_can_use_organisation(
+        db, current_user, organisation_id, tenant.hire_company_id
+    )
+    set_first_event_setup_in_progress_event(db, organisation, body.in_progress_event_id)
+    commit_or_raise(db)
+    db.refresh(organisation)
+    return FirstEventSetupRead(**first_event_setup_state(organisation))
 
 
 @router.post(

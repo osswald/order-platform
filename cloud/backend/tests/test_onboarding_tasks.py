@@ -351,3 +351,51 @@ def test_per_task_dismiss_hides_task(db):
     tasks = _task_map(build_onboarding_tasks(db, org, [], dismissed=False, user_id=1))
     assert "create_waiter" not in tasks
     assert "create_article_group" in tasks
+
+
+def test_customer_first_sale_onboarding_excludes_hire_company_and_optional_tasks(db):
+    org = _seed_org(db)
+    db.commit()
+    tasks = _task_map(
+        build_onboarding_tasks(
+            db,
+            org,
+            [],
+            dismissed=False,
+            include_hire_company_tasks=False,
+        )
+    )
+    assert "appliance_lending" not in tasks
+    assert "configure_vat" not in tasks
+    assert "configure_accounting" not in tasks
+    assert "create_addon_linked" not in tasks
+    assert "enable_cash_registers" not in tasks
+    assert "add_cash_register" not in tasks
+    assert "set_stock" not in tasks
+    assert "create_waiter" in tasks
+    assert "create_article_group" in tasks
+    assert "create_article" in tasks
+    assert "create_event" in tasks
+    assert "add_event_waiter" in tasks
+    assert "add_station" in tasks
+    assert "add_article_to_station" in tasks
+    assert "create_app_layout" in tasks
+
+
+def test_hire_company_onboarding_keeps_lending_and_optional_tasks(db):
+    org = _seed_org(db)
+    db.commit()
+    tasks = _task_map(
+        build_onboarding_tasks(
+            db,
+            org,
+            [],
+            dismissed=False,
+            include_hire_company_tasks=True,
+        )
+    )
+    assert "appliance_lending" in tasks
+    assert "configure_vat" in tasks
+    assert "create_addon_linked" in tasks
+    assert "enable_cash_registers" in tasks
+    assert "set_stock" in tasks

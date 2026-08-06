@@ -120,4 +120,9 @@ def test_build_organisation_dashboard_summary(db):
     assert "sales" in summary
     assert "onboarding" in summary
     assert summary["onboarding"]["dismissed"] is False
+    assert "first_event_setup" in summary
+    assert summary["first_event_setup"]["available"] is True
+    assert summary["first_event_setup"]["completed"] is False
+    assert summary["first_event_setup"]["dismissed"] is False
+    assert summary["first_event_setup"]["in_progress_event_id"] is None
     assert summary["sales"]["totals"]["distinct_orders_count"] == 0

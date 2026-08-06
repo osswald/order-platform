@@ -329,6 +329,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organisations/{organisation_id}/first-event-setup/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss Organisation First Event Setup */
+        post: operations["dismiss_organisation_first_event_setup_organisations__organisation_id__first_event_setup_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organisations/{organisation_id}/first-event-setup/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Organisation First Event Setup */
+        post: operations["complete_organisation_first_event_setup_organisations__organisation_id__first_event_setup_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organisations/{organisation_id}/first-event-setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Organisation First Event Setup */
+        patch: operations["update_organisation_first_event_setup_organisations__organisation_id__first_event_setup_patch"];
+        trace?: never;
+    };
     "/organisations/{organisation_id}/onboarding/dismiss": {
         parameters: {
             query?: never;
@@ -2475,6 +2526,7 @@ export interface components {
             attention: components["schemas"]["DashboardAttentionItemRead"][];
             sales: components["schemas"]["DashboardSalesRead"];
             onboarding: components["schemas"]["OnboardingRead"];
+            first_event_setup: components["schemas"]["FirstEventSetupRead"];
         };
         /** EdgeBundleRead */
         EdgeBundleRead: {
@@ -3127,6 +3179,22 @@ export interface components {
             source_waiter_id: number | null;
             /** Subsidiary Code */
             subsidiary_code?: string | null;
+        };
+        /** FirstEventSetupRead */
+        FirstEventSetupRead: {
+            /** Available */
+            available: boolean;
+            /** Completed */
+            completed: boolean;
+            /** Dismissed */
+            dismissed: boolean;
+            /** In Progress Event Id */
+            in_progress_event_id?: number | null;
+        };
+        /** FirstEventSetupUpdate */
+        FirstEventSetupUpdate: {
+            /** In Progress Event Id */
+            in_progress_event_id?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -6103,6 +6171,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardSummaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_organisation_first_event_setup_organisations__organisation_id__first_event_setup_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_organisation_first_event_setup_organisations__organisation_id__first_event_setup_complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_organisation_first_event_setup_organisations__organisation_id__first_event_setup_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirstEventSetupUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstEventSetupRead"];
                 };
             };
             /** @description Validation Error */

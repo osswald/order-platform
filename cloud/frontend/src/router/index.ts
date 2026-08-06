@@ -29,6 +29,12 @@ const routes = [
     component: () => import('../components/Dashboard.vue'),
     meta: orgScoped,
   },
+  {
+    path: '/first-event-setup',
+    name: 'first-event-setup',
+    component: () => import('../components/FirstEventSetupWizard.vue'),
+    meta: orgScoped,
+  },
   ...listDetailRoutes({
     path: '/events',
     listName: 'events',

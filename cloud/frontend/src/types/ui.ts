@@ -352,6 +352,13 @@ export interface DashboardOnboarding {
   tasks: OnboardingTask[]
 }
 
+export interface FirstEventSetupState {
+  available: boolean
+  completed: boolean
+  dismissed: boolean
+  in_progress_event_id: number | null
+}
+
 export interface DashboardSalesEventRow {
   event_id: number
   name: string
@@ -380,6 +387,7 @@ export interface DashboardSummary {
   }
   attention: DashboardAttentionItem[]
   onboarding: DashboardOnboarding
+  first_event_setup: FirstEventSetupState
   sales: {
     currency: string
     country_code: string
