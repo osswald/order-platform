@@ -3019,6 +3019,8 @@ export interface components {
             initial_in_stock?: number | null;
             /** In Stock */
             in_stock?: number | null;
+            /** Price */
+            price?: number | null;
         };
         /** EventStockItemRead */
         EventStockItemRead: {
@@ -3034,6 +3036,10 @@ export interface components {
             initial_in_stock?: number | null;
             /** In Stock */
             in_stock?: number | null;
+            /** Org Price */
+            org_price: number;
+            /** Price */
+            price?: number | null;
         };
         /** EventStockListRead */
         EventStockListRead: {

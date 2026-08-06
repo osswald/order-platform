@@ -259,6 +259,15 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
     if stock_items:
         upsert_stock_rows(db, new_event, stock_items)
 
+    from .event_prices import copy_price_overrides
+
+    copy_price_overrides(
+        db,
+        source_event_id=source.id,
+        new_event=new_event,
+        allowed_article_ids=allowed,
+    )
+
     from .ingredient_stock import upsert_ingredient_stock_rows
     from .ingredients import ingredient_ids_for_event, organisation_ingredients_enabled
     from .models import EventIngredientStock

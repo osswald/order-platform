@@ -66,6 +66,7 @@ class EdgeBundleArticle(BaseModel):
 
     id: int
     name: str
+    # Effective sell price for this event (override ?? organisation Article.price).
     price: float
     additions: list[EdgeBundleArticleAddition] = Field(default_factory=list)
     ingredients: list[EdgeBundleArticleIngredient] = Field(default_factory=list)

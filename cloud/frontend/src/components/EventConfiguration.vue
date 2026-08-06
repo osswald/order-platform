@@ -94,6 +94,8 @@
           <EventStockTab
             :event-id="eventId"
             :stations="stationsLocal"
+            :currency="organisationCurrency"
+            :country-code="organisationCountryCode"
             @status-change="onStockStatusChange"
           />
         </template>

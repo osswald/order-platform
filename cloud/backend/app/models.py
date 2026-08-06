@@ -779,6 +779,17 @@ class EventArticleStock(Base):
     article = relationship("Article")
 
 
+class EventArticlePrice(Base):
+    """Sparse per-event sell-price override; absent row means use Article.price."""
+
+    __tablename__ = "event_article_prices"
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), primary_key=True)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
+    price = Column(Float, nullable=False)
+    event = relationship("Event", backref="article_prices")
+    article = relationship("Article")
+
+
 class EventIngredientStock(Base):
     """Per-event stock for ingredients used by composite articles."""
 

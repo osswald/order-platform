@@ -83,6 +83,22 @@
                 class="stock-qty-input"
               />
             </template>
+            <template #item.org_price="{ item }">
+              <span class="org-price">{{ formatOrgPrice(item.org_price) }}</span>
+            </template>
+            <template #item.price="{ item }">
+              <v-text-field
+                :model-value="item.price ?? ''"
+                type="number"
+                min="0"
+                step="0.01"
+                hide-details
+                density="compact"
+                class="stock-price-input"
+                :placeholder="formatOrgPrice(item.org_price)"
+                @update:model-value="(v) => onEventPriceInput(item, v)"
+              />
+            </template>
           </VqDataTable>
         </section>
       </template>
@@ -96,6 +112,11 @@ import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { stockGroupsForItems } from '@vendiqo/frontend-shared/stockByStation'
 import { useDirtyAutosave } from '../composables/useDirtyAutosave'
+import { formatPriceWithCurrency } from '../utils/localeFormat'
+import {
+  eventPriceOverrideForSave,
+  stockItemPriceFields,
+} from '../utils/eventStockPrices'
 import VqDataTable from './VqDataTable.vue'
 import type { EventStockListRead, EventStockUpdateIn } from '@/types/api'
 import { getErrorMessage } from '@/types/api'
@@ -108,15 +129,19 @@ import type {
 } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = withDefaults(
   defineProps<{
     eventId: number
     stations?: EventStationLocal[]
+    currency?: string
+    countryCode?: string
   }>(),
   {
     stations: () => [],
+    currency: 'CHF',
+    countryCode: 'CH',
   },
 )
 
@@ -128,12 +153,15 @@ const COL_NAME = { minWidth: '12rem' }
 const COL_UNIT = { width: '6rem', sortable: false }
 const COL_MONITOR = { width: '9rem', sortable: false, align: 'center' as const }
 const COL_QTY = { width: '8rem', sortable: false, align: 'end' as const }
+const COL_PRICE = { width: '9rem', sortable: false, align: 'end' as const }
 
 const stockHeaders = computed((): DataTableHeader[] => [
   { title: t('events.tabs.article'), key: 'name', ...COL_NAME },
   { title: t('events.tabs.monitorStock'), key: 'monitor_stock', ...COL_MONITOR },
   { title: t('events.tabs.initialStock'), key: 'initial_in_stock', ...COL_QTY },
   { title: t('events.tabs.currentStock'), key: 'in_stock', ...COL_QTY },
+  { title: t('events.tabs.orgPrice'), key: 'org_price', ...COL_PRICE },
+  { title: t('events.tabs.eventPrice'), key: 'price', ...COL_PRICE },
 ])
 
 const ingredientHeaders = computed((): DataTableHeader[] => [
@@ -153,6 +181,14 @@ const stockGroups = computed(() =>
   stockGroupsForItems(itemsLocal.value, props.stations as Parameters<typeof stockGroupsForItems>[1]),
 )
 
+function formatOrgPrice(amount: number): string {
+  return formatPriceWithCurrency(amount, props.currency, locale.value, props.countryCode)
+}
+
+function onEventPriceInput(item: EventStockItemLocal, raw: unknown) {
+  item.price = eventPriceOverrideForSave(raw as number | string | null | undefined)
+}
+
 function stockPayloadSnapshot(): EventStockUpdateIn {
   return {
     ingredients: ingredientsLocal.value.map((row) => ({
@@ -166,6 +202,7 @@ function stockPayloadSnapshot(): EventStockUpdateIn {
       monitor_stock: !!row.monitor_stock,
       initial_in_stock: row.monitor_stock ? (row.initial_in_stock ?? 0) : null,
       in_stock: row.monitor_stock ? (row.in_stock ?? 0) : null,
+      price: eventPriceOverrideForSave(row.price),
     })),
   }
 }
@@ -188,6 +225,7 @@ function applyStockItems(data: EventStockListRead) {
     monitor_stock: !!row.monitor_stock,
     initial_in_stock: row.monitor_stock ? (row.initial_in_stock ?? row.in_stock ?? 0) : 0,
     in_stock: row.monitor_stock ? (row.in_stock ?? 0) : 0,
+    ...stockItemPriceFields(row),
   }))
 }
 
@@ -267,8 +305,12 @@ defineExpose({
 </script>
 
 <style scoped>
-.stock-qty-input {
+.stock-qty-input,
+.stock-price-input {
   max-width: 8rem;
+}
+.org-price {
+  white-space: nowrap;
 }
 .stock-group {
   margin-bottom: 1.5rem;
@@ -310,6 +352,13 @@ defineExpose({
   width: 8rem;
 }
 
+.event-stock-tab :deep(.stock-table th:nth-child(5)),
+.event-stock-tab :deep(.stock-table td:nth-child(5)),
+.event-stock-tab :deep(.stock-table th:nth-child(6)),
+.event-stock-tab :deep(.stock-table td:nth-child(6)) {
+  width: 9rem;
+}
+
 .ingredients-group :deep(.stock-table th:nth-child(2)),
 .ingredients-group :deep(.stock-table td:nth-child(2)) {
   width: 6rem;
@@ -328,7 +377,8 @@ defineExpose({
 }
 
 @media (max-width: 992px) {
-  .stock-qty-input {
+  .stock-qty-input,
+  .stock-price-input {
     max-width: 100%;
   }
 }
