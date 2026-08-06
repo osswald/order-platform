@@ -3,11 +3,9 @@ import type { KitchenOrderTicket } from '@/types/api'
 import {
   computeKitchenColumnLayout,
   formatElapsedMinutes,
-  KITCHEN_DISPLAY_ZOOM,
   KITCHEN_MIN_COLUMN_WIDTH_PX,
   KITCHEN_ORDER_GAP_PX,
   kitchenArticleDisplayName,
-  kitchenLayoutWidthForViewport,
   kitchenLineAdditionLabels,
   sortTicketsByWaitTime,
   ticketElapsedMs,
@@ -70,11 +68,8 @@ describe('computeKitchenColumnLayout', () => {
     expect(computeKitchenColumnLayout(200).columnCount).toBe(1)
   })
 
-  it('fits four columns on tablet landscape at 80% display zoom', () => {
-    expect(KITCHEN_DISPLAY_ZOOM).toBe(0.8)
-    // ~1024 CSS px tablet width → layout width under 80% zoom compensation
-    const layoutWidth = kitchenLayoutWidthForViewport(1024)
-    const { columnCount, columnWidthPx } = computeKitchenColumnLayout(layoutWidth)
+  it('fits four columns on tablet landscape without CSS zoom', () => {
+    const { columnCount, columnWidthPx } = computeKitchenColumnLayout(1024)
     expect(columnCount).toBeGreaterThanOrEqual(4)
     expect(columnWidthPx).toBeGreaterThanOrEqual(KITCHEN_MIN_COLUMN_WIDTH_PX)
   })
