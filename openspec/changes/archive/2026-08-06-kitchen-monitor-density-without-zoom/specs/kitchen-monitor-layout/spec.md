@@ -1,9 +1,18 @@
-# kitchen-monitor-layout Specification
+## REMOVED Requirements
 
-## Purpose
-Kitchen Bestellungen column density and horizontal spacing for wall/tablet kitchen monitors, without CSS zoom that inflates the layout containing block.
+### Requirement: Kitchen monitor uses 80% display zoom
 
-## Requirements
+**Reason**: CSS zoom with compensating width broke Produkte flex-wrap and clipped kitchen header controls.
+
+**Migration**: Density via lower `KITCHEN_MIN_COLUMN_WIDTH_PX` (and existing column gap) without changing containing-block width; no CSS `zoom` on the kitchen root.
+
+### Requirement: Four ticket columns on tablet landscape under display zoom
+
+**Reason**: Replaced by the same four-column goal measured against the real (non-zoom-compensated) container width.
+
+**Migration**: Use “Four ticket columns on tablet landscape without zoom”.
+
+## ADDED Requirements
 
 ### Requirement: Kitchen monitor fills the viewport without CSS zoom
 
