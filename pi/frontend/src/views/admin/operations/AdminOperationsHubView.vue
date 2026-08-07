@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1>Betrieb</h1>
-    <p class="muted">Testdruck, Pickup Screen und Display-URLs.</p>
+    <p class="muted">Testdruck, Lasttest, Pickup Screen und Display-URLs.</p>
 
     <div v-if="!bundle || !events.length" class="card">
       <p class="muted">Keine Events im Bundle. Zuerst Konfiguration laden.</p>
@@ -59,6 +59,18 @@
           </svg>
         </template>
       </AdminTopicButton>
+
+      <AdminTopicButton
+        v-if="isTestEvent"
+        label="Lasttest"
+        :to="{ name: 'admin-operations-load-test' }"
+      >
+        <template #icon>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+        </template>
+      </AdminTopicButton>
     </div>
 
     <button type="button" class="btn" style="width: 100%; margin-top: 1.5rem" @click="goBack">Zurück</button>
@@ -66,12 +78,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminTopicButton from '@/components/AdminTopicButton.vue'
 import { useAdminOperations } from '@/composables/useAdminOperations'
+import { isEventTest } from '@/utils/eventStatus'
 
 const router = useRouter()
-const { bundle, events, hasKitchenMonitor, hasCashRegisters } = useAdminOperations()
+const { bundle, events, hasKitchenMonitor, hasCashRegisters, opsEvent } = useAdminOperations()
+const isTestEvent = computed(() => isEventTest(opsEvent.value?.status))
 
 function goBack() {
   router.push({ name: 'admin' })

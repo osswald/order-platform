@@ -27,6 +27,7 @@ function mountHub() {
       { path: '/admin/operations/kitchen', name: 'admin-operations-kitchen', component: { template: '<div/>' } },
       { path: '/admin/operations/pickup', name: 'admin-operations-pickup', component: { template: '<div/>' } },
       { path: '/admin/operations/display', name: 'admin-operations-display', component: { template: '<div/>' } },
+      { path: '/admin/operations/load-test', name: 'admin-operations-load-test', component: { template: '<div/>' } },
     ],
   })
   return mount(AdminOperationsHubView, { global: { plugins: [router] } })
@@ -37,6 +38,7 @@ describe('AdminOperationsHubView', () => {
     const base = bundleWithRegisters()
     const ev = base.events![0] as EdgeBundleEvent
     ev.kitchen_monitors_enabled = true
+    ev.status = 'test'
     ev.configuration = {
       ...ev.configuration,
       kitchen_monitors: [{ printer_appliance_id: 1, label: 'Grill', sort_order: 0 }],
@@ -52,6 +54,7 @@ describe('AdminOperationsHubView', () => {
     expect(wrapper.text()).toContain('Küchenmonitor')
     expect(wrapper.text()).toContain('Pickup Screen')
     expect(wrapper.text()).toContain('Kundendisplay')
+    expect(wrapper.text()).toContain('Lasttest')
     expect(wrapper.findAll('.admin-topic-btn').length).toBeGreaterThanOrEqual(2)
   })
 })

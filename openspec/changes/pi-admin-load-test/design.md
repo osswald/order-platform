@@ -21,9 +21,9 @@ See proposal.md for motivation. Pi already has Admin → Betrieb tools (Testdruc
 ## Decisions
 
 ### 1. Job module + HTTP surface (not frontend timer)
-**Choice:** In-process asyncio task with module-level status dict (same spirit as `sync_status`), started via `POST /v1/load-test/start`, polled via `GET /v1/load-test/status`, stopped via `POST /v1/load-test/stop`.  
-**Why:** Survives leaving the admin page; matches “backend job, progress in frontend.”  
-**Alternatives:** Frontend-only setInterval (fragile on sleep/navigation); durable job table (rejected — no persist required).
+**Choice:** Background daemon thread running the burst loop, with module-level status dict (same spirit as `sync_status`), started via `POST /v1/load-test/start`, polled via `GET /v1/load-test/status`, stopped via `POST /v1/load-test/stop`. Concurrent actors within a burst use a thread pool.  
+**Why:** Survives leaving the admin page; matches “backend job, progress in frontend.” A thread (vs asyncio task on the request loop) also works under the FastAPI TestClient and keeps SQLite `SessionLocal` usage simple.  
+**Alternatives:** Frontend-only setInterval (fragile on sleep/navigation); durable job table (rejected — no persist required); asyncio.create_task on the app loop (fine under uvicorn, awkward under TestClient).
 
 ### 2. Invoke domain logic in-process, not HTTP-to-self
 **Choice:** Call shared create/settle/receipt helpers (or router service functions) from the job with a DB session, rather than looping `httpx` to localhost.  
@@ -31,9 +31,9 @@ See proposal.md for motivation. Pi already has Admin → Betrieb tools (Testdruc
 **Alternatives:** Self-HTTP (closer to real clients but noisier); raw ORM inserts (skips print/outbox — unacceptable).
 
 ### 3. Burst concurrency
-**Choice:** Within each burst, `asyncio.gather` (or thread pool if sync SQLAlchemy blocks) one task per actor; SQLite may serialize writes — that still models “several waiters posted at once” contention. Cap outstanding burst work to configured actors only.  
+**Choice:** Within each burst, a `ThreadPoolExecutor` runs one worker per actor; SQLite may serialize writes — that still models “several waiters posted at once” contention. Cap outstanding burst work to configured actors only.  
 **Why:** User asked to simulate simultaneous waiter posts.  
-**Alternatives:** Strict serial creates (rejected).
+**Alternatives:** Strict serial creates (rejected); asyncio.gather + to_thread (equivalent, more moving parts with the threaded job loop).
 
 ### 4. Minute boundary
 **Choice:** After a burst completes, sleep until `started_at + burst_index * 60s` (or remaining sleep to next minute wall). Do not start the next burst early if the previous burst overran; skip/catch up by starting immediately then aligning. Prefer: if burst took >60s, start next immediately and continue until total reached (document overrun).  
