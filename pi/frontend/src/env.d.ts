@@ -30,6 +30,11 @@ interface Window {
     getAppInfo?: () => string | Record<string, unknown>
     /** Hide/show Android status + navigation bars (sticky swipe to peek). */
     setImmersiveMode?: (enabled: boolean) => void
+    /**
+     * Start dial-up modem handshake (volume + sample). Completion is a
+     * `vendiqo-modem-handshake` CustomEvent on window with `detail.ok`.
+     */
+    playModemHandshake?: () => void
   }
   AndroidInsets?: {
     getSystemBarInsetsJson?: () => string

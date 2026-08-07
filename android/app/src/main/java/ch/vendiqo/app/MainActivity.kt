@@ -2,6 +2,7 @@ package ch.vendiqo.app
 
 import android.annotation.SuppressLint
 import android.graphics.Color
+import android.media.AudioManager
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebChromeClient
@@ -22,6 +23,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var printerBridge: BluetoothPrinterBridge
     private lateinit var immersiveController: ImmersiveModeController
+    private lateinit var modemHandshake: ModemHandshakeController
+    private lateinit var appBridge: AndroidAppBridge
 
     private val insetsBridge =
         AndroidInsetsBridge { resources.displayMetrics.density }
@@ -98,10 +101,18 @@ class MainActivity : ComponentActivity() {
         printerBridge = BluetoothPrinterBridge(this)
         val terminalBridge = AndroidTerminalStub()
         val networkBridge = AndroidNetworkBridge()
-        val appBridge =
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        modemHandshake =
+            ModemHandshakeController(
+                volume = AudioManagerVolumeControl(audioManager),
+                playerFactory = { RawModemSamplePlayer(this, R.raw.modem56k) },
+            )
+        appBridge =
             AndroidAppBridge(
                 immersive = immersiveController,
                 mainHandler = android.os.Handler(mainLooper),
+                modemHandshake = modemHandshake,
+                webViewProvider = { if (::webView.isInitialized) webView else null },
             )
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
         webView.addJavascriptInterface(terminalBridge, "AndroidTerminal")
@@ -140,6 +151,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (::appBridge.isInitialized) {
+            appBridge.cancelModemHandshake()
+        }
         if (::webView.isInitialized) {
             webView.destroy()
         }

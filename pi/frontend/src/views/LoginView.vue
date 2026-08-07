@@ -77,6 +77,7 @@
       <button type="button" class="btn" @click="router.push({ name: 'events' })">Anderes Event</button>
       <button type="button" class="btn" @click="router.push({ name: 'event-mode' })">Modus wechseln</button>
     </footer>
+    <ModemConnectingOverlay :open="modemConnecting" />
   </div>
 </template>
 
@@ -84,11 +85,16 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import PinNumberInput from '@/components/PinNumberInput.vue'
+import ModemConnectingOverlay from '@/components/ModemConnectingOverlay.vue'
 import { useWaiterSession } from '@/composables/useWaiterSession'
 import { bundle, setRegisterSession } from '@/store'
 import { ensureShiftForSubject } from '@/composables/useShiftSession'
 import { getErrorMessage } from '@/types/api'
 import type { WaiterSession } from '@/types/cart'
+import {
+  awaitAndroidModemHandshake,
+  shouldRunEdiModemHandshake,
+} from '@/utils/ediModemLogin'
 import {
   autoSelectSumupReader,
   eventNeedsSumupReaderPicker,
@@ -111,6 +117,7 @@ const sumupReaderId = ref<string | null>(null)
 const readerListOpen = ref(false)
 const pin = ref('')
 const err = ref('')
+const modemConnecting = ref(false)
 
 const sumupReaders = computed(() => getBundleSumupReaders(bundle.value))
 const showSumupReaderPicker = computed(() =>
@@ -197,6 +204,14 @@ async function login() {
     err.value = getErrorMessage(e, 'Schicht konnte nicht gestartet werden')
     setWaiter(null)
     return
+  }
+  if (shouldRunEdiModemHandshake(session.name)) {
+    modemConnecting.value = true
+    try {
+      await awaitAndroidModemHandshake()
+    } finally {
+      modemConnecting.value = false
+    }
   }
   const redir = route.query.redirect
   if (typeof redir === 'string' && redir.startsWith('/')) {
