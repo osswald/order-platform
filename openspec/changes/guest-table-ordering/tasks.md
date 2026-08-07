@@ -23,16 +23,17 @@
 
 - [ ] 4.1 Add failing tests for guest catalog visibility (unmonitored always shown; monitored hidden when `in_stock` < threshold) and Pi soft-gate using edge last-seen vs configured minutes
 - [ ] 4.2 Implement public guest APIs: resolve QR/token → event/table; serve guest menu catalog with stock rules; create draft order; cancel only before pay
-- [ ] 4.3 Implement payment-session boundary (provider-agnostic): awaiting_payment → paid | failed | cancelled; on paid, place order in Pi pull inbox without cloud stock deduction
-- [ ] 4.4 Implement edge endpoints for Pi to pull pending paid guest orders and ack apply (idempotent by guest order id); ensure auth refreshes last-seen
-- [ ] 4.5 Rate-limit and authz-scope public guest endpoints; reject checkout when Pi soft-gate is active
+- [ ] 4.3 Implement SumUp online checkout create for guest orders (org merchant credentials); map checkout lifecycle awaiting_payment → paid | failed | cancelled; on verified paid, place order in Pi pull inbox without cloud stock deduction
+- [ ] 4.4 Wire SumUp webhook/retrieve verification so paid is never based only on the widget client callback; ensure guest checkouts are distinct from Solo reader checkout rows/flows
+- [ ] 4.5 Implement edge endpoints for Pi to pull pending paid guest orders and ack apply (idempotent by guest order id); ensure auth refreshes last-seen
+- [ ] 4.6 Rate-limit and authz-scope public guest endpoints; reject checkout when Pi soft-gate is active
 
 ## 5. Guest frontend (`order.vendiqo.ch`)
 
-- [ ] 5.1 Scaffold guest frontend package (Vue 3 / Vite / Node 24) separate from admin, with deploy/host wiring notes for the order subdomain
-- [ ] 5.2 Implement QR landing → menu browse by guest categories → cart → pay (stub provider) → stay-at-table confirmation with table number
+- [ ] 5.1 Scaffold guest frontend package (Vue 3 / Vite / Node 24) separate from admin, with deploy/host wiring notes for the order subdomain and CSP allowlist for the SumUp Payment Widget script
+- [ ] 5.2 Implement QR landing → menu browse by guest categories → cart → mount SumUp Payment Widget (no TWINT/APM offer) → stay-at-table confirmation with table number after server-confirmed pay
 - [ ] 5.3 Implement soft unavailable message and blocked pay when API reports Pi offline beyond threshold; allow browse
-- [ ] 5.4 Add guest frontend tests for catalog filtering display, cancel-before-pay, and offline soft-gate UX
+- [ ] 5.4 Add guest frontend tests for catalog filtering display, cancel-before-pay, offline soft-gate UX, and widget mount/pay happy-path (mocked SumUp)
 
 ## 6. Pi guest-order pull and local apply
 
@@ -45,4 +46,4 @@
 
 - [ ] 7.1 Run cloud backend, Pi backend, cloud frontend, and guest frontend tests for touched areas
 - [ ] 7.2 Run `./scripts/lint.sh` on staged/changed areas
-- [ ] 7.3 Update privacy/hosting notes if required for the new guest host; note payment-rail follow-up in change docs
+- [ ] 7.3 Update privacy/hosting notes if required for the new guest host and SumUp widget; document that guest pay is SumUp Payment Widget only (no TWINT)

@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the public guest self-order runtime: QR entry, prepaid per-phone orders bound to a table for routing, stay-at-table confirmation, stock visibility, Pi-offline soft gate, and the cloud paid-order inbox awaiting Pi pull.
+Define the public guest self-order runtime: QR entry, prepaid per-phone orders bound to a table for routing, SumUp Payment Widget checkout, stay-at-table confirmation, stock visibility, Pi-offline soft gate, and the cloud paid-order inbox awaiting Pi pull.
 
 ## ADDED Requirements
 
@@ -17,6 +17,34 @@ The system MUST accept guest checkouts only through the cloud guest ordering sur
 
 - **WHEN** guest payment for an order succeeds
 - **THEN** the order MUST be stored as paid and pending Pi pull
+
+### Requirement: SumUp Payment Widget for guest pay
+
+Guest payment MUST use the SumUp Payment Widget embedded on the guest order host. The cloud MUST create a SumUp online checkout for the event organisation’s SumUp merchant and return the checkout id to the guest UI. The cloud MUST mark the guest order paid only after verified SumUp checkout success (API retrieve and/or webhook), not solely from the widget client callback. Guest pay MUST NOT use SumUp Solo reader checkouts or SumUp Hosted Checkout redirect.
+
+#### Scenario: Widget checkout create
+
+- **WHEN** a guest starts payment for a draft order and the Pi soft-gate allows checkout
+- **THEN** the cloud MUST create a SumUp online checkout and the guest UI MUST mount the Payment Widget with that checkout id
+
+#### Scenario: Server confirms paid
+
+- **WHEN** SumUp reports the checkout as successful and cloud verification succeeds
+- **THEN** the guest order MUST become paid and enter the Pi pull inbox
+
+#### Scenario: Client callback alone is insufficient
+
+- **WHEN** the Payment Widget reports success to the browser but cloud has not verified SumUp checkout status
+- **THEN** the order MUST NOT enter the Pi pull inbox
+
+### Requirement: TWINT not offered for guest orders
+
+The guest payment surface MUST NOT offer TWINT (or present TWINT as an available guest payment method). Staff POS TWINT behavior is unchanged by this capability.
+
+#### Scenario: Guest pay methods exclude TWINT
+
+- **WHEN** a guest reaches the payment step
+- **THEN** TWINT MUST NOT be available as a guest payment option
 
 ### Requirement: One phone creates one guest order
 

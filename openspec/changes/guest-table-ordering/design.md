@@ -6,14 +6,16 @@ See proposal.md for motivation. Today orders are created on the Pi (`waiter` / `
 
 **Goals:**
 
-- Cloud-hosted guest runtime (`order.vendiqo.ch`) with prepaid rounds that only enter Pi after payment.
+- Cloud-hosted guest runtime (`order.vendiqo.ch`) with prepaid rounds (SumUp Payment Widget) that only enter Pi after verified payment.
 - Admin-configurable guest menu (categories from station articles), thresholds, and printable table QRs.
 - Feature-gated Pi poller that pulls/acks paid guest orders and reuses local kitchen/stock/print paths.
 - Keep waiter table service and settlement semantics unchanged.
 
 **Non-Goals:**
 
-- Choosing or integrating a concrete payment provider (SumUp checkout, TWINT, Stripe, …).
+- SumUp Hosted Checkout (redirect) for guest pay — Payment Widget is the chosen collection UI.
+- TWINT (or other APMs) on the guest pay surface.
+- Changing staff POS payments (`sumup`, `sumup_connected` Solo readers, cash, event TWINT QR).
 - Shared multi-guest carts or seat-level ordering.
 - Guest access to venue Wi‑Fi or Pi LAN APIs.
 - Replacing staff `app_layouts` with the guest menu.
@@ -55,9 +57,19 @@ Cloud compares `now - edge_credential.last_seen_at` (server appliance for the ev
 
 QR carries event public id (or opaque event slug), `table_number`, and a rotatable table/event token. Each checkout creates a new guest order (no join-table session). QR artwork places the human-readable table number in the center; print/PDF from Guest menu tab for a table range.
 
-### D8 — Payment provider boundary (deferred)
+### D8 — SumUp Payment Widget (online checkout)
 
-Expose an abstract **payment session** lifecycle (`create` → `awaiting_payment` → `paid` | `failed` | `cancelled`) with webhook/confirm hooks. No provider wired in this change; guest pay UI can stub or no-op behind a feature flag for integration tests until a follow-up selects the rail.
+Guest pay uses SumUp **online** checkouts + **Payment Widget**, not Solo reader checkouts and not Hosted Checkout.
+
+Flow:
+
+1. Cloud creates a SumUp checkout (`POST /v0.1/checkouts`) for the event organisation’s SumUp merchant (amount, currency, reference = guest order id).
+2. Guest frontend mounts the Payment Widget with `checkoutId` on `order.vendiqo.ch` (HTTPS; CSP allows SumUp gateway script).
+3. Widget handles card entry / 3DS; client `onResponse` is UX-only.
+4. Cloud marks the guest order **paid** only after verified checkout status (retrieve and/or webhook), then moves it to the Pi pull inbox.
+5. TWINT and other APMs are **not** offered for guest orders (configure/hide widget APM options accordingly; do not promise TWINT on guest UI).
+
+**Alternatives considered:** Hosted Checkout (rejected for this change — leaves origin, weaker stay-at-table continuity); Solo reader (rejected — staff device, not guest phone); TWINT on guest (explicitly out of scope).
 
 ### D9 — Guest order lifecycle
 
@@ -76,13 +88,15 @@ Guest cancel only while not `paid`. Idempotent Pi apply/ack by stable `guest_ord
 - **[Risk] Tokenized QR leaks** → Rotatable tokens; bind to event; rate-limit public APIs.
 - **[Trade-off] Separate poller vs sync loop** → More moving parts; faster/lighter guest delivery without coupling to fat bundle pulls.
 - **[Trade-off] New frontend package** → Deploy/DNS cost; cleaner than shipping guest UI inside admin.
+- **[Risk] Org merchant lacks online checkout** → Guest pay fails until SumUp online payments are enabled for that merchant; surface a clear admin/guest error. Solo-only orgs are not enough.
+- **[Risk] Widget CSP / 3DS on mobile browsers** → Follow SumUp widget HTTPS/CSP guidance; test iOS/Android Safari/Chrome early.
 
 ## Migration Plan
 
 1. Ship cloud models/APIs + admin Guest menu tab (feature off by default).
-2. Deploy `order.vendiqo.ch` guest app (pay stub until rail chosen).
+2. Deploy `order.vendiqo.ch` guest app with SumUp Payment Widget wired to online checkout create + webhook verify.
 3. Ship Pi poller behind feature detection from bundle/event flag.
-4. Enable per event; print QRs; validate pull/kitchen with test payments.
+4. Enable per event (requires org SumUp online checkout capability); print QRs; validate pay → pull → kitchen.
 5. Rollback: disable event flag (poller idle, guest soft-closed); inbox drains or remains unpaid-path only.
 
 ## Open Questions
@@ -90,4 +104,4 @@ Guest cancel only while not `paid`. Idempotent Pi apply/ack by stable `guest_ord
 - Default guest-order poll interval (suggest 5–15s; tune in implementation).
 - Exact public URL path shape (`/e/{id}/t/{n}` vs signed opaque link).
 - Whether waiter UI shows read-only “recent guest orders on this table” in MVP or later.
-- Concrete payment provider (explicitly deferred).
+- Exact SumUp widget config flags to suppress APMs/TWINT for guest (confirm against current SumUp widget docs at implement time).
