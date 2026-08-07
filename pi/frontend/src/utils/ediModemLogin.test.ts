@@ -64,6 +64,21 @@ describe('awaitAndroidModemHandshake', () => {
     await expect(awaitAndroidModemHandshake(1000)).resolves.toBe(true)
   })
 
+  it('invokes playModemHandshake on the bridge object (Android WebView this-binding)', async () => {
+    const bridge = {
+      playModemHandshake(this: unknown) {
+        if (this !== bridge) {
+          throw new Error("Java bridge method can't be invoked on a non-injected object")
+        }
+        window.dispatchEvent(
+          new CustomEvent(MODEM_HANDSHAKE_EVENT, { detail: { ok: true } }),
+        )
+      },
+    }
+    window.AndroidApp = bridge
+    await expect(awaitAndroidModemHandshake(1000)).resolves.toBe(true)
+  })
+
   it('resolves false on soft-fail event so login can continue', async () => {
     window.AndroidApp = {
       playModemHandshake: () => {
