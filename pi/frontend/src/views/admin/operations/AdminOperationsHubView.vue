@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1>Betrieb</h1>
-    <p class="muted">Testdruck, Lasttest, Pickup Screen und Display-URLs.</p>
+    <p class="muted">Testdruck, Pickup Screen und Display-URLs.</p>
 
     <div v-if="!bundle || !events.length" class="card">
       <p class="muted">Keine Events im Bundle. Zuerst Konfiguration laden.</p>
@@ -86,7 +86,7 @@ import { isEventTest } from '@/utils/eventStatus'
 
 const router = useRouter()
 const { bundle, events, hasKitchenMonitor, hasCashRegisters, opsEvent } = useAdminOperations()
-const isTestEvent = computed(() => isEventTest(opsEvent.value?.status))
+const isTestEvent = computed(() => isEventTest(opsEvent.value?.status as string | undefined))
 
 function goBack() {
   router.push({ name: 'admin' })

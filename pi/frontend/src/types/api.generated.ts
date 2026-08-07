@@ -913,6 +913,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/load-test/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Load Test Status */
+        get: operations["load_test_status_v1_load_test_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/load-test/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Load Test Start */
+        post: operations["load_test_start_v1_load_test_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/load-test/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Load Test Stop */
+        post: operations["load_test_stop_v1_load_test_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/purge-operational": {
         parameters: {
             query?: never;
@@ -1576,6 +1627,85 @@ export interface components {
             /** Additions */
             additions?: components["schemas"]["LineAdditionIn"][];
             discount?: components["schemas"]["DiscountIn"] | null;
+        };
+        /** LoadTestStartBody */
+        LoadTestStartBody: {
+            /** Event Id */
+            event_id: number;
+            /**
+             * Waiter Count
+             * @default 0
+             */
+            waiter_count: number;
+            /**
+             * Cash Register Count
+             * @default 0
+             */
+            cash_register_count: number;
+            /**
+             * Table Min
+             * @default 1
+             */
+            table_min: number;
+            /**
+             * Table Max
+             * @default 40
+             */
+            table_max: number;
+            /** Total Orders */
+            total_orders: number;
+            /**
+             * Burst Interval Seconds
+             * @default 60
+             */
+            burst_interval_seconds: number;
+            /** Rng Seed */
+            rng_seed?: number | null;
+        };
+        /** LoadTestStatusResponse */
+        LoadTestStatusResponse: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "running" | "stopping" | "done" | "failed";
+            /** Event Id */
+            event_id?: number | null;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Placed
+             * @default 0
+             */
+            placed: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Receipts Printed
+             * @default 0
+             */
+            receipts_printed: number;
+            /**
+             * Current Burst
+             * @default 0
+             */
+            current_burst: number;
+            /**
+             * Total Bursts
+             * @default 0
+             */
+            total_bursts: number;
+            /** Last Error */
+            last_error?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
         };
         /** LocalOrderCreate */
         LocalOrderCreate: {
@@ -4096,6 +4226,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncPushResponse"];
+                };
+            };
+        };
+    };
+    load_test_status_v1_load_test_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoadTestStatusResponse"];
+                };
+            };
+        };
+    };
+    load_test_start_v1_load_test_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoadTestStartBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoadTestStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    load_test_stop_v1_load_test_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoadTestStatusResponse"];
                 };
             };
         };

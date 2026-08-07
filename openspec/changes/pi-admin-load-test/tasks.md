@@ -29,6 +29,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Run Pi backend pytest for new/affected tests
-- [ ] 5.2 Run Pi frontend Vitest for new/affected tests
-- [ ] 5.3 Run `./scripts/lint.sh --staged` (or full) before commit
+- [x] 5.1 Run Pi backend pytest for new/affected tests
+- [x] 5.2 Run Pi frontend Vitest for new/affected tests
+- [x] 5.3 Run `./scripts/lint.sh --staged` (or full) before commit

@@ -103,12 +103,12 @@ describe('Lasttest admin UI', () => {
   it('shows Lasttest tile only for test events', async () => {
     const wrapper = mountHub()
     await flushPromises()
-    expect(wrapper.text()).toContain('Lasttest')
+    expect(wrapper.findAll('.admin-topic-btn').some((b) => b.text().includes('Lasttest'))).toBe(true)
 
     bundleRef.value = testBundle('prod')
     await nextTick()
     await flushPromises()
-    expect(wrapper.text()).not.toContain('Lasttest')
+    expect(wrapper.findAll('.admin-topic-btn').some((b) => b.text().includes('Lasttest'))).toBe(false)
   })
 
   it('shows form caps from event waiters and registers', async () => {

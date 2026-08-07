@@ -2421,6 +2421,89 @@
         }
       }
     },
+    "/v1/load-test/status": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Load Test Status",
+        "operationId": "load_test_status_v1_load_test_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadTestStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/load-test/start": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Load Test Start",
+        "operationId": "load_test_start_v1_load_test_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadTestStartBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadTestStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/load-test/stop": {
+      "post": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Load Test Stop",
+        "operationId": "load_test_stop_v1_load_test_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadTestStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/ops/purge-operational": {
       "post": {
         "tags": [
@@ -4355,6 +4438,173 @@
           "qty"
         ],
         "title": "LineSelection"
+      },
+      "LoadTestStartBody": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "waiter_count": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Waiter Count",
+            "default": 0
+          },
+          "cash_register_count": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Cash Register Count",
+            "default": 0
+          },
+          "table_min": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 1.0,
+            "title": "Table Min",
+            "default": 1
+          },
+          "table_max": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 1.0,
+            "title": "Table Max",
+            "default": 40
+          },
+          "total_orders": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Total Orders"
+          },
+          "burst_interval_seconds": {
+            "type": "number",
+            "maximum": 600.0,
+            "minimum": 0.05,
+            "title": "Burst Interval Seconds",
+            "default": 60.0
+          },
+          "rng_seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rng Seed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "total_orders"
+        ],
+        "title": "LoadTestStartBody"
+      },
+      "LoadTestStatusResponse": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "running",
+              "stopping",
+              "done",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "placed": {
+            "type": "integer",
+            "title": "Placed",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "receipts_printed": {
+            "type": "integer",
+            "title": "Receipts Printed",
+            "default": 0
+          },
+          "current_burst": {
+            "type": "integer",
+            "title": "Current Burst",
+            "default": 0
+          },
+          "total_bursts": {
+            "type": "integer",
+            "title": "Total Bursts",
+            "default": 0
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "LoadTestStatusResponse"
       },
       "LocalOrderCreate": {
         "properties": {
