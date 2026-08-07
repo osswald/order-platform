@@ -41,12 +41,14 @@ export function awaitAndroidModemHandshake(
     window.addEventListener(MODEM_HANDSHAKE_EVENT, onEvent as EventListener)
 
     try {
-      const play = window.AndroidApp?.playModemHandshake
-      if (typeof play !== 'function') {
+      const bridge = window.AndroidApp
+      // Must invoke on the injected bridge object — extracting the method and
+      // calling it unbound throws in Android WebView ("non-injected object").
+      if (!bridge || typeof bridge.playModemHandshake !== 'function') {
         finish(false)
         return
       }
-      play()
+      bridge.playModemHandshake()
     } catch {
       finish(false)
     }
