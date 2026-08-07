@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
                 mainHandler = android.os.Handler(mainLooper),
                 modemHandshake = modemHandshake,
                 webViewProvider = { if (::webView.isInitialized) webView else null },
+                softKeyboardHider = softKeyboardHiderForActivity(this),
             )
         webView.addJavascriptInterface(printerBridge, "AndroidPrinter")
         webView.addJavascriptInterface(terminalBridge, "AndroidTerminal")

@@ -3,6 +3,7 @@ import { isAndroidApp } from '@/api'
 import {
   MODEM_HANDSHAKE_EVENT,
   awaitAndroidModemHandshake,
+  blurActiveInput,
   isEdiWaiterName,
   shouldRunEdiModemHandshake,
 } from './ediModemLogin'
@@ -39,6 +40,18 @@ describe('shouldRunEdiModemHandshake', () => {
   })
 })
 
+describe('blurActiveInput', () => {
+  it('blurs the active element when it is an HTMLElement', () => {
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    expect(document.activeElement).toBe(input)
+    blurActiveInput()
+    expect(document.activeElement).not.toBe(input)
+    input.remove()
+  })
+})
+
 describe('awaitAndroidModemHandshake', () => {
   beforeEach(() => {
     delete window.AndroidApp
@@ -51,6 +64,22 @@ describe('awaitAndroidModemHandshake', () => {
 
   it('soft-fails when bridge method is missing', async () => {
     await expect(awaitAndroidModemHandshake(50)).resolves.toBe(false)
+  })
+
+  it('blurs the active input before starting the handshake', async () => {
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    window.AndroidApp = {
+      playModemHandshake: () => {
+        window.dispatchEvent(
+          new CustomEvent(MODEM_HANDSHAKE_EVENT, { detail: { ok: true } }),
+        )
+      },
+    }
+    await awaitAndroidModemHandshake(1000)
+    expect(document.activeElement).not.toBe(input)
+    input.remove()
   })
 
   it('resolves true when native event reports ok', async () => {
