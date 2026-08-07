@@ -1,7 +1,8 @@
 import { isAndroidApp } from '@/api'
 
 export const MODEM_HANDSHAKE_EVENT = 'vendiqo-modem-handshake'
-export const MODEM_HANDSHAKE_TIMEOUT_MS = 20_000
+/** Must exceed the bundled modem sample (~18s) plus native overhead. */
+export const MODEM_HANDSHAKE_TIMEOUT_MS = 25_000
 
 /** Waiter display name match for the Android dial-up easter egg. */
 export function isEdiWaiterName(name: string | null | undefined): boolean {
@@ -10,6 +11,14 @@ export function isEdiWaiterName(name: string | null | undefined): boolean {
 
 export function shouldRunEdiModemHandshake(name: string | null | undefined): boolean {
   return isAndroidApp() && isEdiWaiterName(name)
+}
+
+/** Blur the focused field so the soft keyboard can dismiss before the overlay. */
+export function blurActiveInput(): void {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) {
+    active.blur()
+  }
 }
 
 type ModemHandshakeDetail = { ok?: boolean }
@@ -22,6 +31,7 @@ type ModemHandshakeDetail = { ok?: boolean }
 export function awaitAndroidModemHandshake(
   timeoutMs: number = MODEM_HANDSHAKE_TIMEOUT_MS,
 ): Promise<boolean> {
+  blurActiveInput()
   return new Promise((resolve) => {
     let settled = false
     const finish = (ok: boolean) => {

@@ -1,10 +1,12 @@
 <template>
   <div
     v-if="open"
+    ref="overlayEl"
     class="modem-connecting-overlay"
     role="status"
     aria-live="polite"
     aria-busy="true"
+    tabindex="-1"
   >
     <div class="modem-connecting-panel">
       <div class="modem-connecting-spinner" aria-hidden="true" />
@@ -14,9 +16,24 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { nextTick, ref, watch } from 'vue'
+import { blurActiveInput } from '@/utils/ediModemLogin'
+
+const props = defineProps<{
   open: boolean
 }>()
+
+const overlayEl = ref<HTMLElement | null>(null)
+
+watch(
+  () => props.open,
+  async (isOpen) => {
+    if (!isOpen) return
+    blurActiveInput()
+    await nextTick()
+    overlayEl.value?.focus({ preventScroll: true })
+  },
+)
 </script>
 
 <style scoped>
@@ -29,6 +46,7 @@ defineProps<{
   justify-content: center;
   background: rgba(15, 23, 42, 0.85);
   pointer-events: all;
+  outline: none;
 }
 
 .modem-connecting-panel {

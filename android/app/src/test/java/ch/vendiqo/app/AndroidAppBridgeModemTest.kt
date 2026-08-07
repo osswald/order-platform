@@ -30,6 +30,7 @@ class AndroidAppBridgeModemTest {
     fun playModemHandshakeRunsControllerAndCompletes() {
         val volume = FakeVolume(volume = 4, max = 16)
         var playerStarted = false
+        var keyboardHidden = false
         val handshake =
             ModemHandshakeController(
                 volume = volume,
@@ -49,10 +50,12 @@ class AndroidAppBridgeModemTest {
                 modemHandshake = handshake,
                 mainHandler = null,
                 webViewProvider = { null },
+                softKeyboardHider = SoftKeyboardHider { keyboardHidden = true },
             )
 
         bridge.playModemHandshake()
 
+        assertTrue(keyboardHidden)
         assertTrue(playerStarted)
         assertEquals(4, volume.getVolume())
         assertFalse(handshake.isRunning)

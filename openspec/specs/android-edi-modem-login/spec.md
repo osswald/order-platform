@@ -36,7 +36,7 @@ While the easter egg is active, the UI SHALL show a full-viewport overlay with a
 
 ### Requirement: Volume bump, modem playback, and restore
 
-On Android, the easter egg SHALL save the current media stream volume, set media volume to approximately 75% of the stream maximum, play the first 15 seconds of the bundled dial-up modem sample (derived from the public-domain Wikimedia Commons file Dial up modem noises.ogg), and restore the previously saved media volume when playback ends or the easter egg aborts.
+On Android, the easter egg SHALL save the current media stream volume, set media volume to approximately 75% of the stream maximum, play the first 18 seconds of the bundled dial-up modem sample (derived from the public-domain Wikimedia Commons file Dial up modem noises.ogg), and restore the previously saved media volume when playback ends or the easter egg aborts. While the connecting overlay is shown, the soft keyboard SHALL be dismissed so it does not remain visible over the overlay.
 
 #### Scenario: Successful playback restores volume
 
@@ -44,6 +44,11 @@ On Android, the easter egg SHALL save the current media stream volume, set media
 - **THEN** media volume is restored to the value saved at the start of the easter egg
 - **AND** the overlay is dismissed
 - **AND** the waiter hub is shown
+
+#### Scenario: Soft keyboard dismissed for overlay
+
+- **WHEN** the easter egg starts after a PIN login that left the soft keyboard open
+- **THEN** the soft keyboard is dismissed while the connecting overlay is shown
 
 ### Requirement: Soft-fail never blocks login
 
@@ -63,7 +68,7 @@ If modem playback cannot start or fails mid-flight (including missing bundled au
 
 ### Requirement: Attribution for bundled modem sample
 
-The Android app MUST ship a short attribution note for the bundled sample stating the Wikimedia Commons source, author (William Termini), public-domain dedication, and that only the first 15 seconds are included.
+The Android app MUST ship a short attribution note for the bundled sample stating the Wikimedia Commons source, author (William Termini), public-domain dedication, and that only the first 18 seconds are included.
 
 #### Scenario: Attribution present in repository or app docs
 

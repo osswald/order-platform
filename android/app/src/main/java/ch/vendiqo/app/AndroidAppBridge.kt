@@ -11,6 +11,7 @@ class AndroidAppBridge(
     private val mainHandler: Handler? = null,
     private val modemHandshake: ModemHandshakeController? = null,
     private val webViewProvider: (() -> WebView?)? = null,
+    private val softKeyboardHider: SoftKeyboardHider? = null,
 ) {
     @JavascriptInterface
     fun getAppInfo(): String {
@@ -43,6 +44,7 @@ class AndroidAppBridge(
     @JavascriptInterface
     fun playModemHandshake() {
         val run = Runnable {
+            softKeyboardHider?.hide()
             val handshake = modemHandshake
             if (handshake == null) {
                 dispatchModemHandshakeResult(ok = false)
