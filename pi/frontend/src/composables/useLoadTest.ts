@@ -36,7 +36,7 @@ export function useLoadTest() {
   const { opsEvent, opsEventId, cashRegisters, busy } = useAdminOperations()
   const { showToast } = useBundle()
 
-  const isTestEvent = computed(() => isEventTest(opsEvent.value?.status))
+  const isTestEvent = computed(() => isEventTest(opsEvent.value?.status as string | undefined))
 
   const eventWaiters = computed(() => {
     const cfg = opsEvent.value?.configuration
