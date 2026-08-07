@@ -74,6 +74,12 @@ const routes: RouteRecordRaw[] = [
             component: () => import('../views/admin/operations/AdminOperationsCustomerDisplayView.vue'),
             meta: { title: 'Kundendisplay' },
           },
+          {
+            path: 'load-test',
+            name: 'admin-operations-load-test',
+            component: () => import('../views/admin/operations/AdminOperationsLoadTestView.vue'),
+            meta: { title: 'Lasttest' },
+          },
         ],
       },
       {
