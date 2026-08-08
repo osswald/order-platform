@@ -691,6 +691,25 @@ def submit_operational_chunk(
 
     from ..event_collective_bills import collective_bill_uuid_from_payload
 
+    # Pi outbox uses a new chunk_id per enqueue, but submissions keep a stable
+    # payload client_order_id. Ack already-mirrored orders so retries cannot
+    # double-deduct stock (409 stock_insufficient) under a fresh chunk_id.
+    business_order_id = str(payload.get("client_order_id") or "").strip()
+    if business_order_id and entity_type not in {"cash_session", "cash_drawer", "kitchen_tickets"}:
+        want_entity = entity_type or "submission"
+        prior_submission = (
+            db.query(EdgeSubmittedOrder)
+            .filter(
+                EdgeSubmittedOrder.event_id == body.event_id,
+                EdgeSubmittedOrder.organisation_id == ctx.organisation_id,
+                EdgeSubmittedOrder.payload["client_order_id"].as_string() == business_order_id,
+                EdgeSubmittedOrder.payload["entity_type"].as_string() == want_entity,
+            )
+            .first()
+        )
+        if prior_submission is not None:
+            return EdgeOperationalChunkAck(chunk_id=body.chunk_id, status="acked", accepted=0)
+
     # Only denormalize membership for order-like chunks; cash/kitchen entities stay NULL.
     bill_uuid = (
         None
