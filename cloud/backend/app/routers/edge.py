@@ -38,9 +38,6 @@ from ..models import (
     EdgePaymentBatch,
     EdgeSubmittedOrder,
     Event,
-    EventAppLayout,
-    EventAppLayoutCell,
-    EventStation,
     Organisation,
     OrganisationPositionComment,
     SumupReader,
@@ -53,6 +50,7 @@ from ..security import get_password_hash, verify_password
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..twint_qr import twint_qr_data_url_for_event
 from .events import serialize_event_configuration
+from .events_helpers import event_configuration_load_options
 
 router = APIRouter()
 PAIRING_CODE_PATTERN = re.compile(r"\D+")
@@ -141,19 +139,19 @@ def get_edge_server_appliance(
     return ApplianceEdgeContext(appliance, lending.organisation_id, edge_credential=edge_credential)
 
 
+def _edge_event_bundle_load_options():
+    """Eager-load options for edge bundle / snapshot event trees.
+
+    Reuses configuration selectinload options so multi-collection JOINs cannot
+    cartesian-explode (OOM) under Pi sync traffic.
+    """
+    return event_configuration_load_options(include_layout_cells=True)
+
+
 def _load_event_for_org(db: Session, event_id: int, organisation_id: int) -> Event | None:
     return (
         db.query(Event)
-        .options(
-            joinedload(Event.organisation),
-            joinedload(Event.stations).joinedload(EventStation.articles),
-            joinedload(Event.event_waiters),
-            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
-            joinedload(Event.cash_registers),
-            joinedload(Event.voucher_definitions),
-            joinedload(Event.kitchen_monitor_printers),
-            joinedload(Event.stations).joinedload(EventStation.printer_rules),
-        )
+        .options(*_edge_event_bundle_load_options())
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
     )
@@ -163,16 +161,7 @@ def _active_events_for_org(db: Session, organisation_id: int) -> list[Event]:
     now = datetime.now(UTC)
     return (
         db.query(Event)
-        .options(
-            joinedload(Event.organisation),
-            joinedload(Event.stations).joinedload(EventStation.articles),
-            joinedload(Event.event_waiters),
-            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
-            joinedload(Event.cash_registers),
-            joinedload(Event.voucher_definitions),
-            joinedload(Event.kitchen_monitor_printers),
-            joinedload(Event.stations).joinedload(EventStation.printer_rules),
-        )
+        .options(*_edge_event_bundle_load_options())
         .filter(
             Event.organisation_id == organisation_id,
             Event.status.in_(tuple(PI_VISIBLE_STATUSES)),
@@ -208,16 +197,7 @@ def _emulated_printer_hosts(event: Event) -> dict[str, dict]:
 def _load_event_bundle_row(db: Session, event_id: int, organisation_id: int) -> Event | None:
     return (
         db.query(Event)
-        .options(
-            joinedload(Event.organisation),
-            joinedload(Event.stations).joinedload(EventStation.articles),
-            joinedload(Event.event_waiters),
-            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
-            joinedload(Event.cash_registers),
-            joinedload(Event.voucher_definitions),
-            joinedload(Event.kitchen_monitor_printers),
-            joinedload(Event.stations).joinedload(EventStation.printer_rules),
-        )
+        .options(*_edge_event_bundle_load_options())
         .filter(Event.id == event_id, Event.organisation_id == organisation_id)
         .first()
     )
