@@ -19,33 +19,51 @@ import { ref, watch } from 'vue'
 const props = withDefaults(
   defineProps<{
     maxLength?: number
+    /** When provided (including via v-model), parent owns the value; local state stays in sync. */
+    modelValue?: string
+    /** When true (default), emit `complete` once length reaches maxLength. */
+    autoComplete?: boolean
   }>(),
-  { maxLength: 6 },
+  { maxLength: 6, autoComplete: true },
 )
 
 const emit = defineEmits<{
   complete: [pin: string]
+  'update:modelValue': [value: string]
 }>()
 
-const value = ref('')
+const value = ref(props.modelValue ?? '')
 const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+
+watch(
+  () => props.modelValue,
+  (v) => {
+    if (v !== undefined && v !== value.value) {
+      value.value = v
+    }
+  },
+)
+
+function setValue(next: string) {
+  value.value = next
+  emit('update:modelValue', next)
+  if (props.autoComplete && next.length === props.maxLength) {
+    emit('complete', next)
+  }
+}
 
 function press(d: string) {
   if (value.value.length >= props.maxLength) return
-  value.value += d
+  setValue(value.value + d)
 }
 
 function clear() {
-  value.value = ''
+  setValue('')
 }
 
 function backspace() {
-  value.value = value.value.slice(0, -1)
+  setValue(value.value.slice(0, -1))
 }
-
-watch(value, (v) => {
-  if (v.length === props.maxLength) emit('complete', v)
-})
 
 defineExpose({ clear })
 </script>

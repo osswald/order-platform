@@ -4,15 +4,12 @@
     class="shift-overlay"
     role="dialog"
     aria-modal="true"
-    :style="overlayStyle"
   >
     <div class="shift-card">
       <h2>Schicht starten</h2>
       <p class="muted">Wechselgeld / Kassenbestand eingeben</p>
-      <label class="field-label">
-        Betrag (CHF)
-        <input v-model="shiftOpenAmountChf" type="text" inputmode="decimal" class="input amount-input" />
-      </label>
+      <p class="field-label">Betrag (CHF)</p>
+      <MoneyKeypad v-model="amountCents" currency="CHF" />
       <div class="actions">
         <button type="button" class="btn" @click="cancelShiftOpen">Abbrechen</button>
         <button type="button" class="btn primary" @click="confirmShiftOpen">Start</button>
@@ -23,18 +20,25 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useKeyboardBottomInset } from '@/composables/useKeyboardBottomInset'
+import MoneyKeypad from '@/components/MoneyKeypad.vue'
 import {
   shiftOpenDialogOpen,
   shiftOpenAmountChf,
   confirmShiftOpen,
   cancelShiftOpen,
+  formatCentsChf,
 } from '@/composables/useShiftSession'
 
-const keyboardBottomInset = useKeyboardBottomInset()
-const overlayStyle = computed(() => ({
-  paddingBottom: `calc(1rem + ${keyboardBottomInset.value}px)`,
-}))
+const amountCents = computed({
+  get() {
+    const n = parseFloat(String(shiftOpenAmountChf.value || '').replace(',', '.'))
+    if (Number.isNaN(n) || n < 0) return 0
+    return Math.round(n * 100)
+  },
+  set(cents: number) {
+    shiftOpenAmountChf.value = formatCentsChf(cents)
+  },
+})
 </script>
 
 <style scoped>
@@ -63,12 +67,9 @@ const overlayStyle = computed(() => ({
 .field-label {
   display: block;
   margin-top: 1rem;
+  margin-bottom: 0.35rem;
   font-size: 0.875rem;
   font-weight: 600;
-}
-.amount-input {
-  margin-top: 0.35rem;
-  font-size: 1.25rem;
 }
 .actions {
   display: flex;

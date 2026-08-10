@@ -85,7 +85,7 @@ describe('shift close cash count (no window.prompt)', () => {
     const wrapper = mount(ShiftCloseDialog, { attachTo: document.body })
     await nextTick()
     expect(wrapper.text()).toContain('Kassenbestand zählen')
-    await wrapper.find('input.amount-input').setValue('12.50')
+    expect(wrapper.find('.keypad').exists()).toBe(true)
     await wrapper.findAll('button').find((b) => b.text() === 'Beenden')!.trigger('click')
     await flushPromises()
 

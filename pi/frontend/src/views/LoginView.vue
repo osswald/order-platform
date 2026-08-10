@@ -66,9 +66,9 @@
         </div>
         <div class="field">
           <label>PIN</label>
-          <PinNumberInput v-model="pin" :maxlength="12" @submit="login" />
+          <PinKeypad v-model="pin" :max-length="12" :auto-complete="false" />
         </div>
-        <button type="submit" class="btn primary">Anmelden</button>
+        <button type="submit" class="btn primary" :disabled="!pin">Anmelden</button>
         <p v-if="err" class="err-msg">{{ err }}</p>
         </form>
       </div>
@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import PinNumberInput from '@/components/PinNumberInput.vue'
+import PinKeypad from '@/components/PinKeypad.vue'
 import ModemConnectingOverlay from '@/components/ModemConnectingOverlay.vue'
 import { useWaiterSession } from '@/composables/useWaiterSession'
 import { bundle, setRegisterSession } from '@/store'
@@ -173,6 +173,7 @@ async function login() {
   }
   if (w.pin !== pin.value) {
     err.value = 'PIN ungültig.'
+    pin.value = ''
     return
   }
   if (showSumupReaderPicker.value && !sumupReaderId.value) {
