@@ -161,3 +161,54 @@ def test_operational_chunk_duplicate_does_not_double_deduct():
         assert row.in_stock == 17
     finally:
         db.close()
+
+
+def test_operational_chunk_same_order_new_chunk_id_does_not_double_deduct():
+    """Pi may re-enqueue an already-synced order under a fresh outbox chunk_id."""
+    headers, event_id, article_id = _edge_stock_fixture(in_stock=5)
+    order_cid = f"order-{uuid4().hex}"
+    first = client.post(
+        "/edge/v1/sync/operational/chunk",
+        headers=headers,
+        json={
+            "chunk_id": f"chunk-{uuid4().hex}",
+            "event_id": event_id,
+            "entity_type": "submission",
+            "payload": {
+                "client_order_id": order_cid,
+                "payment_status": "open",
+                "lines": [{"article_id": article_id, "qty": 5, "unit_cents": 500}],
+            },
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["accepted"] == 1
+
+    # Stock is now 0; a new chunk_id for the same Pi order must ack, not 409.
+    second = client.post(
+        "/edge/v1/sync/operational/chunk",
+        headers=headers,
+        json={
+            "chunk_id": f"chunk-{uuid4().hex}",
+            "event_id": event_id,
+            "entity_type": "submission",
+            "payload": {
+                "client_order_id": order_cid,
+                "payment_status": "open",
+                "lines": [{"article_id": article_id, "qty": 5, "unit_cents": 500}],
+            },
+        },
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["accepted"] == 0
+
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(EventArticleStock)
+            .filter(EventArticleStock.event_id == event_id, EventArticleStock.article_id == article_id)
+            .one()
+        )
+        assert row.in_stock == 0
+    finally:
+        db.close()
