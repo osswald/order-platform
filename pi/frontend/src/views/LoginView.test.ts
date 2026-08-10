@@ -6,10 +6,12 @@ import type { EdgeBundleEvent } from '@/types/api'
 import { resetStore } from '@tests/helpers/resetStore'
 import * as store from '@/store'
 
-const ensureShiftForSubject = vi.fn(async () => undefined)
+const { ensureShiftForSubject } = vi.hoisted(() => ({
+  ensureShiftForSubject: vi.fn(async () => undefined),
+}))
 
 vi.mock('@/composables/useShiftSession', () => ({
-  ensureShiftForSubject: (...args: unknown[]) => ensureShiftForSubject(...args),
+  ensureShiftForSubject,
 }))
 
 vi.mock('@/utils/ediModemLogin', () => ({
