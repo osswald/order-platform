@@ -14,6 +14,7 @@
       </header>
       <label class="field-label">Name</label>
       <input
+        v-if="useNativeInput"
         ref="inputEl"
         v-model="name"
         type="text"
@@ -24,6 +25,12 @@
         @compositionend="onNameInput"
         @keydown.enter.prevent="submit"
       />
+      <template v-else>
+        <div class="text-display text-input" aria-live="polite">
+          {{ name || 'z. B. Personal' }}
+        </div>
+        <SoftKeyboard v-model="name" :maxlength="128" />
+      </template>
       <button
         type="button"
         class="btn primary confirm-btn"
@@ -38,7 +45,9 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { isAndroidApp } from '@/api/base'
 import { useKeyboardBottomInset } from '@/composables/useKeyboardBottomInset'
+import SoftKeyboard from './SoftKeyboard.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -62,10 +71,11 @@ const emit = defineEmits<{
 
 const name = ref('')
 const inputEl = ref<HTMLInputElement | null>(null)
+const useNativeInput = computed(() => isAndroidApp())
 const keyboardBottomInset = useKeyboardBottomInset()
 
 const sheetStyle = computed(() => ({
-  '--keyboard-bottom': `${keyboardBottomInset.value}px`,
+  '--keyboard-bottom': useNativeInput.value ? `${keyboardBottomInset.value}px` : '0px',
 }))
 
 /** Must read reactive `name` only — DOM inputEl.value is not a Vue dependency. */
@@ -77,7 +87,7 @@ watch(
     if (v) {
       name.value = props.initialName
       await nextTick()
-      inputEl.value?.focus()
+      if (useNativeInput.value) inputEl.value?.focus()
     }
   },
 )
@@ -94,8 +104,9 @@ function onCancel() {
 }
 
 function submit() {
-  // Prefer the live DOM value so Enter during IME composition still submits.
-  const trimmed = (inputEl.value?.value ?? name.value).trim()
+  const trimmed = (
+    useNativeInput.value ? (inputEl.value?.value ?? name.value) : name.value
+  ).trim()
   if (!trimmed || props.busy) return
   name.value = trimmed
   emit('confirm', trimmed)
@@ -149,6 +160,11 @@ function submit() {
   border-radius: 0.5rem;
   border: 1px solid var(--border);
   font-size: 1rem;
+}
+.text-display {
+  min-height: 2.75rem;
+  color: var(--text);
+  opacity: 0.95;
 }
 .confirm-btn {
   width: 100%;

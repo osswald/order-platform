@@ -49,12 +49,19 @@
             </button>
           </div>
           <input
+            v-if="useNativeTextInput"
             v-model="draftNote"
             type="text"
             class="text-input comment-input"
             maxlength="512"
             placeholder="Kommentar eingeben…"
           />
+          <template v-else>
+            <div class="text-display text-input comment-input" aria-live="polite">
+              {{ draftNote || 'Kommentar eingeben…' }}
+            </div>
+            <SoftKeyboard v-model="draftNote" :maxlength="512" />
+          </template>
         </template>
 
         <template v-else-if="activeSection === 'discount' && discountsEnabled">
@@ -89,25 +96,17 @@
               >
                 {{ p }}%
               </button>
-              <button
-                type="button"
-                class="chip-btn"
-                :class="{ active: customPercent }"
-                @click.stop="customPercent = true"
-              >
-                Andere
-              </button>
+                <button
+                  type="button"
+                  class="chip-btn"
+                  :class="{ active: customPercent }"
+                  @click.stop="startCustomPercent"
+                >
+                  Andere
+                </button>
             </div>
             <div v-if="customPercent" class="percent-input-row">
-              <input
-                v-model.number="draftPercent"
-                type="number"
-                min="0"
-                max="100"
-                class="text-input"
-                inputmode="numeric"
-              />
-              <span>%</span>
+              <PercentKeypad v-model="draftPercent" />
             </div>
           </template>
 
@@ -154,6 +153,9 @@ import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent, PositionCommentPre
 import type { CartLine } from '@/types/cart'
 import { useKeyboardBottomInset } from '@/composables/useKeyboardBottomInset'
 import MoneyKeypad from './MoneyKeypad.vue'
+import PercentKeypad from './PercentKeypad.vue'
+import SoftKeyboard from './SoftKeyboard.vue'
+import { isAndroidApp } from '@/api/base'
 import {
   applyDiscountCents,
   formatMoney,
@@ -163,8 +165,9 @@ import {
 import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
 
 const keyboardBottomInset = useKeyboardBottomInset()
+const useNativeTextInput = computed(() => isAndroidApp())
 const sheetStyle = computed(() => ({
-  '--keyboard-bottom': `${keyboardBottomInset.value}px`,
+  '--keyboard-bottom': useNativeTextInput.value ? `${keyboardBottomInset.value}px` : '0px',
 }))
 
 const props = withDefaults(
@@ -278,6 +281,11 @@ watch(
 function pickPercent(p: number) {
   customPercent.value = false
   draftPercent.value = p
+}
+
+function startCustomPercent() {
+  customPercent.value = true
+  draftPercent.value = 0
 }
 
 function closeSheet() {
@@ -399,6 +407,11 @@ function submit() {
   line-height: 1.25;
   color: var(--text);
   background: var(--bg);
+}
+.text-display {
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  box-sizing: border-box;
 }
 .percent-input-row span {
   color: var(--text);

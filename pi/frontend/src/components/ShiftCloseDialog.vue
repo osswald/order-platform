@@ -4,7 +4,6 @@
     class="shift-overlay"
     role="dialog"
     aria-modal="true"
-    :style="overlayStyle"
   >
     <div class="shift-card">
       <h2>Schicht beenden</h2>
@@ -12,15 +11,8 @@
       <p v-if="shiftCloseExpectedLabel" class="muted expected">
         Erwartet ca. {{ shiftCloseExpectedLabel }}
       </p>
-      <label class="field-label">
-        Betrag (CHF)
-        <input
-          v-model="shiftCloseAmountChf"
-          type="text"
-          inputmode="decimal"
-          class="input amount-input"
-        />
-      </label>
+      <p class="field-label">Betrag (CHF)</p>
+      <MoneyKeypad v-model="amountCents" currency="CHF" />
       <p v-if="shiftCloseError" class="err">{{ shiftCloseError }}</p>
       <div class="actions">
         <button type="button" class="btn" @click="cancelShiftClose">Abbrechen</button>
@@ -32,20 +24,27 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useKeyboardBottomInset } from '@/composables/useKeyboardBottomInset'
+import MoneyKeypad from '@/components/MoneyKeypad.vue'
 import {
   cancelShiftClose,
   confirmShiftClose,
+  formatCentsChf,
   shiftCloseAmountChf,
   shiftCloseDialogOpen,
   shiftCloseError,
   shiftCloseExpectedLabel,
 } from '@/composables/useShiftSession'
 
-const keyboardBottomInset = useKeyboardBottomInset()
-const overlayStyle = computed(() => ({
-  paddingBottom: `calc(1rem + ${keyboardBottomInset.value}px)`,
-}))
+const amountCents = computed({
+  get() {
+    const n = parseFloat(String(shiftCloseAmountChf.value || '').replace(',', '.'))
+    if (Number.isNaN(n) || n < 0) return 0
+    return Math.round(n * 100)
+  },
+  set(cents: number) {
+    shiftCloseAmountChf.value = formatCentsChf(cents)
+  },
+})
 </script>
 
 <style scoped>
@@ -78,12 +77,9 @@ const overlayStyle = computed(() => ({
 .field-label {
   display: block;
   margin-top: 1rem;
+  margin-bottom: 0.35rem;
   font-size: 0.875rem;
   font-weight: 600;
-}
-.amount-input {
-  margin-top: 0.35rem;
-  font-size: 1.25rem;
 }
 .err {
   margin: 0.5rem 0 0;

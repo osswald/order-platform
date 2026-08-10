@@ -49,21 +49,13 @@
               type="button"
               class="chip-btn"
               :class="{ active: customPercent }"
-              @click.stop="customPercent = true"
+              @click.stop="startCustomPercent"
             >
               Andere
             </button>
           </div>
           <div v-if="customPercent" class="percent-input-row">
-            <input
-              v-model.number="draftPercent"
-              type="number"
-              min="0"
-              max="100"
-              class="text-input"
-              inputmode="numeric"
-            />
-            <span>%</span>
+            <PercentKeypad v-model="draftPercent" />
           </div>
         </template>
 
@@ -106,6 +98,7 @@ import { useKeyboardBottomInset } from '@/composables/useKeyboardBottomInset'
 import type { DiscountIn, EdgeBundleArticle, EdgeBundleEvent } from '@/types/api'
 import type { CartLine } from '@/types/cart'
 import MoneyKeypad from './MoneyKeypad.vue'
+import PercentKeypad from './PercentKeypad.vue'
 import {
   applyDiscountCents,
   formatMoney,
@@ -198,6 +191,11 @@ watch(
 function pickPercent(p: number) {
   customPercent.value = false
   draftPercent.value = p
+}
+
+function startCustomPercent() {
+  customPercent.value = true
+  draftPercent.value = 0
 }
 
 function closeSheet() {
