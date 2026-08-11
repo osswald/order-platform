@@ -51,12 +51,24 @@ for wf in "$DEPLOY_WF" "$CLEANUP_WF"; do
     '[[:space:]]git fetch --ff-only'
   assert_file_contains "$name fetches origin main without --ff-only" "$wf" \
     '[[:space:]]git fetch origin main'
+  # Dirty tracked files on the VPS block merge; reset before clean/merge.
+  assert_file_contains "$name resets hard before merge (discard local tracked edits)" "$wf" \
+    '[[:space:]]git reset --hard HEAD'
   assert_file_contains "$name merges with --ff-only" "$wf" \
     '[[:space:]]git merge --ff-only origin/main'
   # Untracked hosted Caddy snippets must survive clean; deleting play-review.caddy
   # leaves Caddy without a TLS site block after the next reload.
   assert_file_contains "$name git clean excludes hosted-snippets" "$wf" \
     'git clean -fd -e cloud/hosted-snippets'
+  # reset must run before merge so dirty edge.py (etc.) cannot abort sync.
+  if ! awk '
+    /git reset --hard HEAD/ { reset=1 }
+    /git merge --ff-only origin\/main/ { merge=1; if (!reset) exit 1 }
+    END { if (!reset || !merge) exit 1 }
+  ' "$wf"; then
+    echo "FAIL: $name must run git reset --hard HEAD before git merge --ff-only" >&2
+    failures=$((failures + 1))
+  fi
 done
 
 assert_file_lacks "play-review-deploy.yml is not triggered by pull_request" "$DEPLOY_WF" \

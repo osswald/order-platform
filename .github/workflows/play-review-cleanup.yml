@@ -23,6 +23,8 @@ jobs:
             cd "${{ secrets.PLAY_REVIEW_DEPLOY_PATH }}"
             # Plain fetch: older VPS git has no fetch --ff-only; merge enforces FF.
             git fetch origin main
+            # Discard local tracked edits that would block merge (deploy checkout).
+            git reset --hard HEAD
             # Keep hosted Caddy snippets (play-review TLS route).
             git clean -fd -e cloud/hosted-snippets
             git merge --ff-only origin/main
