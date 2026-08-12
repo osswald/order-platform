@@ -8,9 +8,13 @@ Under **Lending** (Administration), hire-company admins see all rentals for the 
 
 ## Create a rental
 
-Use **New rental** or click a day: organisation, date range, and optional label. Devices are optional — a rental is a dated container first.
+Use **New rental** or click an empty day: organisation, date range, and optional label. Devices are optional — a rental is a dated container first.
 
 The calendar shows the label when set, otherwise the organisation name.
+
+## Edit a rental
+
+Click a bar in the month or year view to edit: change label and dates, remove planned devices or return current ones, and delete when allowed (empty or planned-only). The organisation cannot be changed after create. Rentals with a current device out or returned history cannot be deleted.
 
 ## Appliance lendings
 
