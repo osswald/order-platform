@@ -3809,6 +3809,22 @@
             }
           },
           {
+            "name": "organisation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organisation Id"
+            }
+          },
+          {
             "name": "X-Hire-Company-Id",
             "in": "header",
             "required": false,
@@ -11935,6 +11951,28 @@
           "segment": {
             "type": "string",
             "title": "Segment"
+          },
+          "rental_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rental Id"
+          },
+          "rental_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rental Display Name"
           }
         },
         "type": "object",
@@ -13635,6 +13673,28 @@
             "type": "string",
             "format": "date",
             "title": "End Date"
+          },
+          "rental_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rental Id"
+          },
+          "rental_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rental Display Name"
           }
         },
         "type": "object",
@@ -17618,6 +17678,28 @@
             "type": "string",
             "format": "date",
             "title": "End Date"
+          },
+          "rental_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rental Id"
+          },
+          "rental_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rental Display Name"
           }
         },
         "type": "object",

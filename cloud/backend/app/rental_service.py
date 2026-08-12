@@ -62,6 +62,11 @@ def assert_valid_range(start_date: date, end_date: date) -> None:
         raise api_error("rental_end_before_start", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
+def ranges_strictly_overlap(start_a: date, end_a: date, start_b: date, end_b: date) -> bool:
+    """True when inclusive ranges share more than a single endpoint day (handover touch allowed)."""
+    return start_a < end_b and start_b < end_a
+
+
 def find_open_overlap(
     db: Session,
     *,
@@ -70,15 +75,59 @@ def find_open_overlap(
     end_date: date,
     exclude_lending_id: int | None = None,
 ) -> ApplianceLending | None:
+    # Endpoint-touch (A ends D, B starts D) is allowed; interior overlap is not.
     query = db.query(ApplianceLending).filter(
         ApplianceLending.appliance_id == appliance_id,
         ApplianceLending.returned_at.is_(None),
-        ApplianceLending.start_date <= end_date,
-        ApplianceLending.end_date >= start_date,
+        ApplianceLending.start_date < end_date,
+        ApplianceLending.end_date > start_date,
     )
     if exclude_lending_id is not None:
         query = query.filter(ApplianceLending.id != exclude_lending_id)
     return query.first()
+
+
+def open_lendings_covering_day(
+    lendings: list[ApplianceLending] | tuple[ApplianceLending, ...] | None,
+    day: date,
+) -> list[ApplianceLending]:
+    return [
+        row
+        for row in (lendings or [])
+        if row.returned_at is None and row.start_date <= day <= row.end_date
+    ]
+
+
+def select_active_lending_for_day(
+    lendings: list[ApplianceLending] | tuple[ApplianceLending, ...] | None,
+    day: date,
+) -> ApplianceLending | None:
+    """Prefer the open lending that starts on ``day`` (handover arrival); else lowest id."""
+    covering = open_lendings_covering_day(lendings, day)
+    if not covering:
+        return None
+    starting = [row for row in covering if row.start_date == day]
+    pool = starting if starting else covering
+    return min(pool, key=lambda row: row.id)
+
+
+def index_active_lendings_by_appliance(
+    lendings: list[ApplianceLending] | tuple[ApplianceLending, ...] | None,
+    day: date,
+) -> dict[int, ApplianceLending]:
+    by_appliance: dict[int, list[ApplianceLending]] = {}
+    for row in lendings or []:
+        if row.returned_at is not None:
+            continue
+        if not (row.start_date <= day <= row.end_date):
+            continue
+        by_appliance.setdefault(row.appliance_id, []).append(row)
+    result: dict[int, ApplianceLending] = {}
+    for appliance_id, group in by_appliance.items():
+        chosen = select_active_lending_for_day(group, day)
+        if chosen is not None:
+            result[appliance_id] = chosen
+    return result
 
 
 def assign_appliance_to_rental(

@@ -46,6 +46,7 @@ from ..models import (
 )
 from ..payment_types_config import payment_types_from_event
 from ..rate_limit import EDGE_PAIR_RATE_LIMIT, EDGE_WRITE_RATE_LIMIT, edge_client_key, limiter
+from ..rental_service import select_active_lending_for_day
 from ..security import get_password_hash, verify_password
 from ..stock import apply_stock_deductions, article_snapshot_for_event
 from ..twint_qr import twint_qr_data_url_for_event
@@ -111,7 +112,7 @@ def get_edge_server_appliance(
         raise api_error("invalid_device_credentials", status.HTTP_401_UNAUTHORIZED)
 
     today = _utc_today()
-    lending = (
+    covering = (
         db.query(ApplianceLending)
         .options(joinedload(ApplianceLending.organisation))
         .filter(
@@ -120,8 +121,9 @@ def get_edge_server_appliance(
             ApplianceLending.start_date <= today,
             ApplianceLending.end_date >= today,
         )
-        .first()
+        .all()
     )
+    lending = select_active_lending_for_day(covering, today)
     if not lending:
         raise api_error("no_active_lending_today", status.HTTP_403_FORBIDDEN)
     org = lending.organisation

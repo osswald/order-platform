@@ -16,9 +16,10 @@ from ..first_event_setup import (
     set_first_event_setup_in_progress_event,
 )
 from ..i18n.errors import api_error
-from ..models import ApplianceLending, Event, HireCompany, Organisation, User, UserOrganisationOnboardingDismissal
+from ..models import ApplianceLending, Event, HireCompany, Organisation, Rental, User, UserOrganisationOnboardingDismissal
 from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..reference_countries import country_response, get_country_or_404
+from ..rental_service import rental_display_name
 from ..schemas.dashboard import DashboardSummaryRead, FirstEventSetupRead
 from ..tax_code_validation import apply_organisation_vat_settings, ensure_tax_code_for_country
 from ..tenancy import (
@@ -109,6 +110,8 @@ class OrgApplianceLendingItem(BaseModel):
     appliance_type: str
     start_date: date
     end_date: date
+    rental_id: int | None = None
+    rental_display_name: str | None = None
 
 
 class OrganisationApplianceLendingsRead(BaseModel):
@@ -166,7 +169,10 @@ def read_organisation_appliance_lendings(
     today = datetime.now(UTC).date()
     rows = (
         db.query(ApplianceLending)
-        .options(joinedload(ApplianceLending.appliance))
+        .options(
+            joinedload(ApplianceLending.appliance),
+            joinedload(ApplianceLending.rental).joinedload(Rental.organisation),
+        )
         .filter(ApplianceLending.organisation_id == organisation_id)
         .order_by(ApplianceLending.start_date.desc(), ApplianceLending.id.desc())
         .all()
@@ -180,6 +186,7 @@ def read_organisation_appliance_lendings(
         appliance = row.appliance
         if appliance and appliance.hire_company_id != tenant.hire_company_id:
             continue
+        rental = row.rental
         item = OrgApplianceLendingItem(
             lending_id=row.id,
             appliance_id=row.appliance_id,
@@ -187,6 +194,8 @@ def read_organisation_appliance_lendings(
             appliance_type=appliance.type if appliance else "",
             start_date=row.start_date,
             end_date=row.end_date,
+            rental_id=row.rental_id,
+            rental_display_name=rental_display_name(rental) if rental is not None else None,
         )
         if row.returned_at is not None:
             past.append(item)

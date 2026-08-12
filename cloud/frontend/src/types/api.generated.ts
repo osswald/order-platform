@@ -2040,6 +2040,10 @@ export interface components {
             returned_at: string | null;
             /** Segment */
             segment: string;
+            /** Rental Id */
+            rental_id?: number | null;
+            /** Rental Display Name */
+            rental_display_name?: string | null;
         };
         /** AppliancePairingSessionRead */
         AppliancePairingSessionRead: {
@@ -2610,6 +2614,10 @@ export interface components {
              * Format: date
              */
             end_date: string;
+            /** Rental Id */
+            rental_id?: number | null;
+            /** Rental Display Name */
+            rental_display_name?: string | null;
         };
         /** DashboardAttentionItemRead */
         DashboardAttentionItemRead: {
@@ -4079,6 +4087,10 @@ export interface components {
              * Format: date
              */
             end_date: string;
+            /** Rental Id */
+            rental_id?: number | null;
+            /** Rental Display Name */
+            rental_display_name?: string | null;
         };
         /** OrganisationApplianceLendingsRead */
         OrganisationApplianceLendingsRead: {
@@ -7425,6 +7437,7 @@ export interface operations {
             query?: {
                 from?: string | null;
                 to?: string | null;
+                organisation_id?: number | null;
             };
             header?: {
                 "X-Hire-Company-Id"?: string | null;

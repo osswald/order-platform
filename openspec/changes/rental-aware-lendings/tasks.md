@@ -1,14 +1,14 @@
 ## 1. Backend overlap and active-day resolution
 
-- [ ] 1.1 Add failing tests for handover-day assign (end D + start D allowed), interior overlap still rejected, and return-day re-lend
-- [ ] 1.2 Change `find_open_overlap` (and lend_check filters) to strict endpoint-touch semantics; update existing overlap tests
-- [ ] 1.3 Add failing edge/active-lending tests for two open lendings covering today; implement prefer-arriving (`start_date == today`, else lowest id)
-- [ ] 1.4 Apply the same active-day helper anywhere appliance “lent today” status is resolved
+- [x] 1.1 Add failing tests for handover-day assign (end D + start D allowed), interior overlap still rejected, and return-day re-lend
+- [x] 1.2 Change `find_open_overlap` (and lend_check filters) to strict endpoint-touch semantics; update existing overlap tests
+- [x] 1.3 Add failing edge/active-lending tests for two open lendings covering today; implement prefer-arriving (`start_date == today`, else lowest id)
+- [x] 1.4 Apply the same active-day helper anywhere appliance “lent today” status is resolved
 
 ## 2. Backend lending DTOs and rental list filter
 
-- [ ] 2.1 Add `organisation_id` query filter on `GET /rentals/` if missing; cover with a tenant-scoped test
-- [ ] 2.2 Extend appliance and organisation lending response schemas with `rental_id` and `rental_display_name`; tests assert fields present
+- [x] 2.1 Add `organisation_id` query filter on `GET /rentals/` if missing; cover with a tenant-scoped test
+- [x] 2.2 Extend appliance and organisation lending response schemas with `rental_id` and `rental_display_name`; tests assert fields present
 - [ ] 2.3 Export OpenAPI and regenerate cloud frontend API types; commit both artifacts
 
 ## 3. Calendar edit — add appliance

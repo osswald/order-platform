@@ -78,6 +78,19 @@ def test_create_lending_with_duration_days_sets_end_date():
 
     appliance = client.get(f"/appliances/{appliance_id}", headers={"Authorization": f"Bearer {token}"})
     assert appliance.json()["lending_status"] == "lent"
+    hist = appliance.json()["lendings"][0]
+    assert hist["rental_id"] is not None
+    assert hist["rental_display_name"]
+
+    org_rows = client.get(
+        f"/organisations/{org_id}/appliance-lendings",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert org_rows.status_code == 200, org_rows.text
+    current = org_rows.json()["current"]
+    assert len(current) == 1
+    assert current[0]["rental_id"] == hist["rental_id"]
+    assert current[0]["rental_display_name"] == hist["rental_display_name"]
 
 
 def test_create_lending_with_end_date_derives_duration():
