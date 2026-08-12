@@ -3,6 +3,7 @@ import {
   clipRangeToMonth,
   groupFleetByType,
   occupancyOnDay,
+  rentalCanDelete,
   rentalDisplayName,
   rentalIsFilled,
   rentalsOverlappingMonth,
@@ -28,6 +29,19 @@ describe('rentalIsFilled', () => {
   it('is empty when there are no open lendings', () => {
     expect(rentalIsFilled([])).toBe(false)
     expect(rentalIsFilled([{ returned_at: '2026-06-15T00:00:00Z' }])).toBe(false)
+  })
+})
+
+describe('rentalCanDelete', () => {
+  it('allows delete for empty or planned-only rentals', () => {
+    expect(rentalCanDelete([])).toBe(true)
+    expect(rentalCanDelete([{ segment: 'future' }])).toBe(true)
+  })
+
+  it('blocks delete when a current or past lending exists', () => {
+    expect(rentalCanDelete([{ segment: 'current' }])).toBe(false)
+    expect(rentalCanDelete([{ segment: 'past' }])).toBe(false)
+    expect(rentalCanDelete([{ segment: 'future' }, { segment: 'current' }])).toBe(false)
   })
 })
 

@@ -8,9 +8,13 @@ Unter **Ausleihe** (Verwaltung) sehen Verleiher-Admins alle Ausleihen des aktive
 
 ## Ausleihe anlegen
 
-Über **Neue Ausleihe** oder einen Klick auf einen Tag: Organisation, Zeitraum und optionale Bezeichnung. Geräte sind nicht nötig — die Ausleihe ist zuerst ein Zeitraum.
+Über **Neue Ausleihe** oder einen Klick auf einen leeren Tag: Organisation, Zeitraum und optionale Bezeichnung. Geräte sind nicht nötig — die Ausleihe ist zuerst ein Zeitraum.
 
 Die Anzeige nutzt die Bezeichnung, sonst den Organisationsnamen.
+
+## Ausleihe bearbeiten
+
+Klick auf einen Balken im Monat oder Jahr öffnet die Bearbeitung: Bezeichnung und Zeitraum ändern, Geräte entfernen (geplant) oder zurücknehmen (aktuell), und Löschen wenn erlaubt (leer oder nur geplant). Die Organisation lässt sich nach dem Anlegen nicht mehr ändern. Ausleihen mit aktueller Gerätebelegung oder Historie können nicht gelöscht werden.
 
 ## Geräteausleihen
 

@@ -13,9 +13,9 @@
 
     <div class="toolbar">
       <v-btn-toggle v-model="view" mandatory density="compact" variant="outlined">
-        <v-btn value="month">{{ $t('rentals.month') }}</v-btn>
-        <v-btn value="year">{{ $t('rentals.year') }}</v-btn>
-        <v-btn value="fleet">{{ $t('rentals.fleet') }}</v-btn>
+        <v-btn value="month" data-testid="view-month">{{ $t('rentals.month') }}</v-btn>
+        <v-btn value="year" data-testid="view-year">{{ $t('rentals.year') }}</v-btn>
+        <v-btn value="fleet" data-testid="view-fleet">{{ $t('rentals.fleet') }}</v-btn>
       </v-btn-toggle>
       <div class="nav-period">
         <v-btn icon="mdi-chevron-left" :aria-label="$t('rentals.prev')" @click="shift(-1)" />
@@ -39,15 +39,17 @@
         @click="openCreate(cell.iso)"
       >
         <span class="day-num">{{ cell.date.getDate() }}</span>
-        <span
+        <button
           v-for="bar in barsOnDay(cell.iso)"
           :key="bar.id"
+          type="button"
           class="rental-chip"
           :class="{ 'rental-chip--empty': !bar.filled }"
           :style="{ background: organisationBarColor(bar.organisationId) }"
+          @click.stop="openEdit(bar.id)"
         >
           {{ bar.displayName }}
-        </span>
+        </button>
       </button>
     </div>
 
@@ -62,16 +64,18 @@
       >
         <div class="year-label">{{ monthName }}</div>
         <div class="year-track">
-          <span
+          <button
             v-for="bar in barsInMonth(monthIndex)"
             :key="bar.id"
+            type="button"
             class="year-bar"
             :class="{ 'year-bar--empty': !bar.filled }"
             :style="yearBarStyle(bar, monthIndex)"
             :title="bar.displayName"
+            @click.stop="openEdit(bar.id)"
           >
             {{ bar.displayName }}
-          </span>
+          </button>
         </div>
       </div>
     </div>
@@ -101,11 +105,20 @@
       </div>
     </div>
 
-    <v-dialog v-model="dialogOpen" max-width="28rem">
+    <v-dialog v-model="dialogOpen" max-width="32rem">
       <v-card>
-        <v-card-title>{{ assignAppliance ? $t('rentals.assignTitle') : $t('rentals.createTitle') }}</v-card-title>
+        <v-card-title>{{ dialogTitle }}</v-card-title>
         <v-card-text>
+          <p v-if="dialogError" class="error mb-3">{{ dialogError }}</p>
+
+          <template v-if="dialogMode === 'edit'">
+            <p data-testid="org-readonly" class="org-readonly mb-3">
+              <span class="muted">{{ $t('common.organisation') }}:</span>
+              {{ editRental?.organisation_name }}
+            </p>
+          </template>
           <v-select
+            v-else
             v-model="form.organisationId"
             :items="organisationItems"
             item-title="title"
@@ -114,14 +127,55 @@
             hide-details="auto"
             class="mb-3"
           />
+
           <v-text-field v-model="form.label" :label="$t('rentals.labelOptional')" hide-details="auto" class="mb-3" />
           <v-text-field v-model="form.startDate" type="date" :label="$t('lending.startDate')" hide-details="auto" class="mb-3" />
           <v-text-field v-model="form.endDate" type="date" :label="$t('lending.endDate')" hide-details="auto" />
+
+          <div v-if="dialogMode === 'edit'" class="lendings-block">
+            <h4>{{ $t('rentals.devices') }}</h4>
+            <p v-if="!(editRental?.lendings?.length)" class="muted">{{ $t('rentals.noDevices') }}</p>
+            <ul v-else class="lending-list">
+              <li v-for="row in editRental?.lendings || []" :key="row.id" class="lending-row">
+                <span>
+                  {{ row.appliance_name || `#${row.appliance_id}` }}
+                  <span class="muted">({{ segmentLabel(row.segment) }})</span>
+                </span>
+                <v-btn
+                  v-if="row.segment === 'future'"
+                  size="small"
+                  data-testid="lending-unassign"
+                  :loading="lendingBusyId === row.id"
+                  @click="unassignLending(row.id)"
+                >
+                  {{ $t('rentals.unassignDevice') }}
+                </v-btn>
+                <v-btn
+                  v-else-if="row.segment === 'current'"
+                  size="small"
+                  data-testid="lending-return"
+                  :loading="lendingBusyId === row.id"
+                  @click="unassignLending(row.id)"
+                >
+                  {{ $t('rentals.returnDevice') }}
+                </v-btn>
+              </li>
+            </ul>
+          </div>
         </v-card-text>
         <v-card-actions>
+          <v-btn
+            v-if="dialogMode === 'edit' && canDeleteEdit"
+            color="error"
+            data-testid="rental-delete"
+            :loading="deleting"
+            @click="deleteRental"
+          >
+            {{ $t('rentals.delete') }}
+          </v-btn>
           <v-spacer />
           <v-btn variant="outlined" @click="dialogOpen = false">{{ $t('common.cancel') }}</v-btn>
-          <v-btn color="primary" :loading="saving" @click="saveDialog">{{ $t('common.save') }}</v-btn>
+          <v-btn color="primary" data-testid="rental-save" :loading="saving" @click="saveDialog">{{ $t('common.save') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -143,6 +197,7 @@ import {
   occupancyOnDay,
   organisationBarColor,
   parseIsoDate,
+  rentalCanDelete,
   rentalsOverlappingMonth,
   type FleetOccupancy,
   type FleetTypeGroup,
@@ -151,6 +206,7 @@ import {
 import { currentLocale } from '../i18n'
 
 type CalendarView = 'month' | 'year' | 'fleet'
+type DialogMode = 'create' | 'edit' | 'assign'
 
 const { t } = useI18n()
 const view = ref<CalendarView>('month')
@@ -162,8 +218,13 @@ const rentals = ref<RentalBar[]>([])
 const fleetGroups = ref<FleetTypeGroup[]>([])
 const organisations = ref<OrganisationRead[]>([])
 const dialogOpen = ref(false)
+const dialogMode = ref<DialogMode>('create')
+const dialogError = ref('')
 const saving = ref(false)
+const deleting = ref(false)
+const lendingBusyId = ref<number | null>(null)
 const assignAppliance = ref<number | null>(null)
+const editRental = ref<RentalRead | null>(null)
 const form = reactive({
   organisationId: null as number | null,
   label: '',
@@ -212,6 +273,14 @@ const organisationItems = computed(() =>
   organisations.value.map((org) => ({ title: org.name, value: org.id })),
 )
 
+const dialogTitle = computed(() => {
+  if (dialogMode.value === 'edit') return t('rentals.editTitle')
+  if (assignAppliance.value != null) return t('rentals.assignTitle')
+  return t('rentals.createTitle')
+})
+
+const canDeleteEdit = computed(() => rentalCanDelete(editRental.value?.lendings ?? []))
+
 function toBar(row: RentalRead): RentalBar {
   return {
     id: row.id,
@@ -221,6 +290,12 @@ function toBar(row: RentalRead): RentalBar {
     endDate: row.end_date,
     filled: row.filled,
   }
+}
+
+function segmentLabel(segment: string): string {
+  if (segment === 'future') return t('rentals.segmentPlanned')
+  if (segment === 'current') return t('rentals.segmentCurrent')
+  return t('rentals.segmentPast')
 }
 
 function rangeForView(): { from: string; to: string } {
@@ -316,6 +391,9 @@ function goToday() {
 }
 
 function openCreate(iso?: string, endIso?: string) {
+  dialogMode.value = 'create'
+  dialogError.value = ''
+  editRental.value = null
   assignAppliance.value = null
   form.organisationId = organisations.value[0]?.id ?? null
   form.label = ''
@@ -330,8 +408,30 @@ function openCreateForMonth(monthIndex: number) {
   openCreate(start, end)
 }
 
+async function openEdit(rentalId: number) {
+  dialogMode.value = 'edit'
+  dialogError.value = ''
+  assignAppliance.value = null
+  dialogOpen.value = true
+  try {
+    const row = await apiJson<RentalRead>(`/rentals/${rentalId}`)
+    editRental.value = row
+    form.organisationId = row.organisation_id
+    form.label = row.label ?? ''
+    form.startDate = row.start_date
+    form.endDate = row.end_date
+  } catch (err: unknown) {
+    dialogOpen.value = false
+    message.value = isApiError(err) ? err.message || t('rentals.loadError') : t('rentals.loadError')
+    messageType.value = 'error'
+  }
+}
+
 function onFleetCell(appliance: { id: number; occupancies: FleetOccupancy[] }, iso: string) {
   if (occupancyOnDay(appliance.occupancies, iso)) return
+  dialogMode.value = 'assign'
+  dialogError.value = ''
+  editRental.value = null
   assignAppliance.value = appliance.id
   form.organisationId = organisations.value[0]?.id ?? null
   form.label = ''
@@ -341,14 +441,47 @@ function onFleetCell(appliance: { id: number; occupancies: FleetOccupancy[] }, i
 }
 
 async function saveDialog() {
-  if (form.organisationId == null) {
-    message.value = t('rentals.noOrganisation')
-    messageType.value = 'error'
+  dialogError.value = ''
+  if (form.endDate < form.startDate) {
+    dialogError.value = t('lending.endDateRangeError')
     return
   }
-  if (form.endDate < form.startDate) {
-    message.value = t('lending.endDateRangeError')
-    messageType.value = 'error'
+  if (dialogMode.value === 'edit') {
+    if (editRental.value == null) return
+    saving.value = true
+    try {
+      const updated = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: form.label.trim() || null,
+          start_date: form.startDate,
+          end_date: form.endDate,
+        }),
+      })
+      editRental.value = updated
+      message.value = t('rentals.updateSuccess')
+      messageType.value = 'success'
+      dialogOpen.value = false
+      await load()
+    } catch (err: unknown) {
+      dialogError.value = isApiError(err) ? err.message || t('rentals.saveFailed') : t('rentals.saveFailed')
+      try {
+        editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`)
+        form.label = editRental.value.label ?? ''
+        form.startDate = editRental.value.start_date
+        form.endDate = editRental.value.end_date
+      } catch {
+        // keep form values
+      }
+    } finally {
+      saving.value = false
+    }
+    return
+  }
+
+  if (form.organisationId == null) {
+    dialogError.value = t('rentals.noOrganisation')
     return
   }
   saving.value = true
@@ -384,10 +517,46 @@ async function saveDialog() {
     dialogOpen.value = false
     await load()
   } catch (err: unknown) {
-    message.value = isApiError(err) ? err.message || t('rentals.saveFailed') : t('rentals.saveFailed')
-    messageType.value = 'error'
+    dialogError.value = isApiError(err) ? err.message || t('rentals.saveFailed') : t('rentals.saveFailed')
   } finally {
     saving.value = false
+  }
+}
+
+async function unassignLending(lendingId: number) {
+  if (editRental.value == null) return
+  lendingBusyId.value = lendingId
+  dialogError.value = ''
+  try {
+    editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}/lendings/${lendingId}`, {
+      method: 'DELETE',
+    })
+    message.value = t('rentals.deviceActionSuccess')
+    messageType.value = 'success'
+    await load()
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.saveFailed') : t('rentals.saveFailed')
+  } finally {
+    lendingBusyId.value = null
+  }
+}
+
+async function deleteRental() {
+  if (editRental.value == null || !canDeleteEdit.value) return
+  if (!confirm(t('rentals.deleteConfirm', { name: editRental.value.display_name }))) return
+  deleting.value = true
+  dialogError.value = ''
+  try {
+    await apiJson(`/rentals/${editRental.value.id}`, { method: 'DELETE' })
+    message.value = t('rentals.deleteSuccess')
+    messageType.value = 'success'
+    dialogOpen.value = false
+    editRental.value = null
+    await load()
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.deleteFailed') : t('rentals.deleteFailed')
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -398,6 +567,12 @@ watch([view, cursor], () => {
 onMounted(() => {
   void loadOrganisations()
   void load()
+})
+
+defineExpose({
+  setViewForTest(next: CalendarView) {
+    view.value = next
+  },
 })
 </script>
 
@@ -465,6 +640,9 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 .rental-chip--empty,
 .year-bar--empty {
@@ -525,10 +703,38 @@ onMounted(() => {
 .fleet-cell--busy {
   cursor: default;
 }
+.org-readonly {
+  margin: 0;
+  font-weight: 600;
+}
+.lendings-block {
+  margin-top: 1rem;
+}
+.lendings-block h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.lending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.lending-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
 .error {
   color: rgb(var(--v-theme-error));
 }
 .success {
   color: rgb(var(--v-theme-success));
+}
+.mb-3 {
+  margin-bottom: 0.75rem;
 }
 </style>

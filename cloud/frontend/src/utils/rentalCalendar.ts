@@ -38,6 +38,11 @@ export function rentalIsFilled(lendings: Array<{ returned_at?: string | null }> 
   return (lendings ?? []).some((row) => !row.returned_at)
 }
 
+/** Mirrors server delete rules: empty or planned-only (future) lendings; not current/history. */
+export function rentalCanDelete(lendings: Array<{ segment: string }> | null | undefined): boolean {
+  return (lendings ?? []).every((row) => row.segment === 'future')
+}
+
 export function organisationBarColor(organisationId: number): string {
   const hue = (organisationId * 47) % 360
   return `hsl(${hue} 42% 42%)`

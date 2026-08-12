@@ -371,6 +371,17 @@ def test_patch_dates_updates_open_lendings_and_rolls_back_on_overlap():
     assert collide.json()["detail"]["code"] == "lending_overlap"
     still = client.get(f"/rentals/{first.json()['id']}", headers={"Authorization": f"Bearer {token}"}).json()
     assert still["end_date"] == (start + timedelta(days=3)).isoformat()
+    assert still["organisation_id"] == fx["org_id"]
+
+    # Organisation is not part of RentalUpdate; extra fields are ignored and org stays put.
+    relabel = client.patch(
+        f"/rentals/{first.json()['id']}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"label": "Kept org", "organisation_id": fx["foreign_org_id"]},
+    )
+    assert relabel.status_code == 200, relabel.text
+    assert relabel.json()["label"] == "Kept org"
+    assert relabel.json()["organisation_id"] == fx["org_id"]
 
 
 def test_floating_lending_create_rejected():
