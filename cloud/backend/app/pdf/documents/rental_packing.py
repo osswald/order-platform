@@ -9,7 +9,7 @@ from babel.dates import format_date as babel_format_date
 from ...currency import organisation_country_code
 from ...i18n import t
 from ...models import HireCompany, Rental
-from ...rental_service import rental_display_name
+from ...rental_service import FLEET_TYPE_ORDER, rental_display_name
 from ..base import VqPdf
 from ..formatting import hire_company_issuer_lines, resolve_format_locale
 from ..logo import resolve_logo_for_hire_company
@@ -19,12 +19,33 @@ from ..tables import TableColumn, TableSpec, write_table_header, write_table_row
 CHECKBOX = "\u2610"
 
 
-def _device_label(appliance) -> str:
-    name = getattr(appliance, "name", None) or ""
+def _appliance_type_label(typ: str, locale: str) -> str:
+    translated = t(f"appliance_type.{typ}", locale)
+    # Missing keys fall back to the key path from i18n.t — use raw type then.
+    if translated.startswith("appliance_type."):
+        return typ or "—"
+    return translated
+
+
+def _device_label(appliance, *, locale: str) -> str:
+    name = (getattr(appliance, "name", None) or "").strip() or "—"
     typ = getattr(appliance, "type", None) or ""
-    if name and typ:
-        return f"{name} ({typ})"
-    return name or typ or "—"
+    type_label = _appliance_type_label(typ, locale) if typ else ""
+    if typ == "printer":
+        ip = (getattr(appliance, "ip_address", None) or "").strip() or "—"
+        if type_label:
+            return f"{name} ({type_label}, {ip})"
+        return f"{name} ({ip})"
+    if type_label:
+        return f"{name} ({type_label})"
+    return name
+
+
+def _type_sort_key(typ: str) -> tuple[int, str]:
+    try:
+        return (FLEET_TYPE_ORDER.index(typ), typ)
+    except ValueError:
+        return (len(FLEET_TYPE_ORDER), typ)
 
 
 def _format_calendar_date(value: date, *, locale: str, country_code: str | None) -> str:
@@ -91,8 +112,15 @@ def build_rental_packing_pdf(
     device_spec = _checklist_table_spec(pdf, locale, with_quantity=False)
     write_table_header(pdf, device_spec)
     if open_lendings:
-        for row in sorted(open_lendings, key=lambda lending: (_device_label(lending.appliance), lending.id)):
-            write_table_row(pdf, device_spec, [CHECKBOX, _device_label(row.appliance)])
+        for row in sorted(
+            open_lendings,
+            key=lambda lending: (
+                *_type_sort_key(lending.appliance.type or ""),
+                _device_label(lending.appliance, locale=locale),
+                lending.id,
+            ),
+        ):
+            write_table_row(pdf, device_spec, [CHECKBOX, _device_label(row.appliance, locale=locale)])
     else:
         pdf.write_muted(t("pdf.rental_packing.no_devices", locale))
 

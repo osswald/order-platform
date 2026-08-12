@@ -175,6 +175,7 @@ import { collatorLocale } from '../utils/localeFormat'
 import {
   applianceDisplayName,
   applianceTypeLabel,
+  compareApplianceTypes,
   defaultLendingEndDate,
   formatDeDate,
   inclusiveDurationDays,
@@ -281,7 +282,7 @@ const applianceOptionGroups = computed(() => {
     })
   }
   return [...byType.entries()]
-    .sort(([a], [b]) => applianceTypeLabel(a).localeCompare(applianceTypeLabel(b), locale))
+    .sort(([a], [b]) => compareApplianceTypes(a, b))
     .map(([type, items]) => ({
       type,
       label: applianceTypeLabel(type),

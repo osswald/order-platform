@@ -82,7 +82,7 @@ export function lendingRangeHint(
   })
 }
 
-export { applianceTypeLabel } from './applianceType'
+export { applianceTypeLabel, compareApplianceTypes } from './applianceType'
 
 export function applianceDisplayName(appliance: Pick<ApplianceRead, 'id' | 'name' | 'type' | 'ip_address'>): string {
   const base = appliance?.name ? appliance.name : `#${appliance?.id ?? '?'}`

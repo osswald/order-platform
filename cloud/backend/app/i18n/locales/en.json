@@ -69,5 +69,13 @@
       "no_devices": "No appliances assigned.",
       "no_zubehoer": "No accessories recorded."
     }
+  },
+  "appliance_type": {
+    "server": "Server",
+    "router": "Router",
+    "ap": "Access Point",
+    "printer": "Printer",
+    "mobile": "Mobile",
+    "tablet": "Tablet"
   }
 }
