@@ -105,7 +105,7 @@
           @click="onNavigate"
         />
         <v-list-item
-          v-if="isTenantAdminRole"
+          v-if="canAccessTenantAdmin"
           :to="{ name: 'tenant-settings' }"
           prepend-icon="mdi-briefcase-edit"
           :title="$t('nav.tenantSettings')"
@@ -199,7 +199,6 @@ const props = withDefaults(
     canAccessTenantAdmin?: boolean
     canAccessOrganisationSettings?: boolean
     canAccessUsers?: boolean
-    isTenantAdminRole?: boolean
     hireCompanies?: HireCompanyBrief[]
     activeHireCompanyId?: number | null
     showHireCompanyPicker?: boolean
@@ -211,7 +210,6 @@ const props = withDefaults(
     canAccessTenantAdmin: false,
     canAccessOrganisationSettings: false,
     canAccessUsers: false,
-    isTenantAdminRole: false,
     hireCompanies: () => [],
     activeHireCompanyId: null,
     showHireCompanyPicker: false,

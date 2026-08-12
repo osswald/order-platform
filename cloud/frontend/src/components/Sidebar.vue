@@ -5,7 +5,6 @@
       :can-access-tenant-admin="canAccessTenantAdmin"
       :can-access-organisation-settings="canAccessOrganisationSettings"
       :can-access-users="canAccessUsers"
-      :is-tenant-admin-role="isTenantAdminRole"
       :hire-companies="hireCompanies"
       :active-hire-company-id="activeHireCompanyId"
       :show-hire-company-picker="showHireCompanyPicker"
@@ -27,7 +26,6 @@ withDefaults(
     canAccessTenantAdmin?: boolean
     canAccessOrganisationSettings?: boolean
     canAccessUsers?: boolean
-    isTenantAdminRole?: boolean
     hireCompanies?: HireCompanyBrief[]
     activeHireCompanyId?: number | null
     showHireCompanyPicker?: boolean
@@ -39,7 +37,6 @@ withDefaults(
     canAccessTenantAdmin: false,
     canAccessOrganisationSettings: false,
     canAccessUsers: false,
-    isTenantAdminRole: false,
     hireCompanies: () => [],
     activeHireCompanyId: null,
     showHireCompanyPicker: false,
