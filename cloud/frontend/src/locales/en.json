@@ -227,7 +227,31 @@
   },
   "nav": {
     "ingredients": "Ingredients",
+    "rentals": "Lending",
     "sumupDevices": "SumUp devices"
+  },
+  "rentals": {
+    "title": "Lending",
+    "subtitle": "Rentals and fleet occupancy for the hire company.",
+    "month": "Month",
+    "year": "Year",
+    "fleet": "Fleet",
+    "today": "Today",
+    "prev": "Previous",
+    "next": "Next",
+    "create": "New rental",
+    "createTitle": "Create rental",
+    "assignTitle": "Assign appliance",
+    "label": "Label",
+    "labelOptional": "Label (optional)",
+    "emptyHint": "No rentals in this period.",
+    "loadError": "Could not load rentals.",
+    "createSuccess": "Rental created.",
+    "assignSuccess": "Appliance assigned.",
+    "saveFailed": "Could not save.",
+    "noOrganisation": "Please choose an organisation.",
+    "emptyBar": "no devices",
+    "clickDayHint": "Click a day to create a rental."
   },
   "sumupDevices": {
     "title": "SumUp devices",

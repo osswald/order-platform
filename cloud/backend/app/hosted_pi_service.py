@@ -20,6 +20,7 @@ from .models import (
     Event,
     HostedPiInstance,
     Organisation,
+    Rental,
 )
 from .security import get_password_hash
 
@@ -126,8 +127,18 @@ async def create_hosted_pi(
     db.flush()
 
     today = now.date()
+    rental = Rental(
+        hire_company_id=hire_company_id,
+        organisation_id=organisation.id,
+        start_date=today,
+        end_date=today + timedelta(days=1),
+        label=appliance.name,
+    )
+    db.add(rental)
+    db.flush()
     db.add(
         ApplianceLending(
+            rental_id=rental.id,
             appliance_id=appliance.id,
             organisation_id=organisation.id,
             start_date=today,

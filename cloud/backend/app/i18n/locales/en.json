@@ -13,7 +13,20 @@
     "sumup_oauth_missing_code": "SumUp callback was missing an authorization code.",
     "sumup_oauth_invalid_state": "SumUp connection expired or is invalid. Please connect again.",
     "sumup_oauth_config": "SumUp OAuth is not configured on the server.",
-    "organisation_not_found": "Organisation not found."
+    "organisation_not_found": "Organisation not found.",
+    "lending_overlap": "This appliance already has an open lending in that period.",
+    "lending_not_found": "Lending not found.",
+    "rental_required": "Appliance lendings must belong to a rental.",
+    "rental_not_found": "Rental not found.",
+    "rental_end_before_start": "End date must be on or after the start date.",
+    "rental_range_incomplete": "From and to dates must be provided together.",
+    "rental_has_current_lending": "Cannot delete a rental while appliances are currently lent.",
+    "rental_has_history": "Cannot delete a rental that has returned appliances.",
+    "appliance_not_lendable": "This appliance cannot be lent.",
+    "requires_verleiher_admin": "Hire-company administrator permission required.",
+    "organisation_not_in_verleiher": "Organisation does not belong to this hire company.",
+    "appliance_not_found": "Appliance not found.",
+    "appliance_not_in_verleiher": "Appliance does not belong to this hire company."
   },
   "pdf": {
     "common": {

@@ -87,6 +87,12 @@ export const helpCategories = [
         relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
       },
       {
+        slug: 'rental-calendar',
+        title: 'Ausleihe-Kalender',
+        summary: 'Monat, Jahr und Flotte: Ausleihen planen und Gerätebelegung sehen.',
+        relatedRoutes: ['rentals'],
+      },
+      {
         slug: 'tenant-settings',
         title: 'Verleiher-Einstellungen',
         summary: 'Verleiher-Stammdaten und Belegvorlagen auf Mandantenebene.',

@@ -51,4 +51,8 @@ describe('getArticlesForRoute', () => {
   it('returns empty list for unknown routes', () => {
     expect(getArticlesForRoute('unknown-route')).toEqual([])
   })
+
+  it('returns rental calendar help for rentals', () => {
+    expect(getArticlesForRoute('rentals').map((article) => article.slug)).toContain('rental-calendar')
+  })
 })

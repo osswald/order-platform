@@ -1,4 +1,4 @@
-"""Appliance lending create API: date range, overlap, planned vs active status."""
+"""Appliance lending create now goes through rentals; overlap and planned vs active status."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -50,28 +50,34 @@ def _lending_fixture(suffix: str) -> tuple[int, int, str]:
         db.close()
 
 
+def _create_rental(token: str, org_id: int, appliance_id: int, start, end):
+    return client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": org_id,
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "appliance_ids": [appliance_id],
+        },
+    )
+
+
 def test_create_lending_with_duration_days_sets_end_date():
     appliance_id, org_id, email = _lending_fixture("duration")
     token = _token_for(email, "secret")
     today = datetime.now(UTC).date()
+    end = today + timedelta(days=6)
 
-    response = client.post(
-        f"/appliances/{appliance_id}/lendings",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "organisation_id": org_id,
-            "start_date": today.isoformat(),
-            "duration_days": 7,
-        },
-    )
-    assert response.status_code == 200, response.text
-    lendings = response.json()["lendings"]
-    assert len(lendings) == 1
-    row = lendings[0]
+    response = _create_rental(token, org_id, appliance_id, today, end)
+    assert response.status_code == 201, response.text
+    row = response.json()["lendings"][0]
     assert row["start_date"] == today.isoformat()
-    assert row["end_date"] == (today + timedelta(days=6)).isoformat()
+    assert row["end_date"] == end.isoformat()
     assert row["segment"] == "current"
-    assert response.json()["lending_status"] == "lent"
+
+    appliance = client.get(f"/appliances/{appliance_id}", headers={"Authorization": f"Bearer {token}"})
+    assert appliance.json()["lending_status"] == "lent"
 
 
 def test_create_lending_with_end_date_derives_duration():
@@ -80,18 +86,9 @@ def test_create_lending_with_end_date_derives_duration():
     today = datetime.now(UTC).date()
     end = today + timedelta(days=6)
 
-    response = client.post(
-        f"/appliances/{appliance_id}/lendings",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "organisation_id": org_id,
-            "start_date": today.isoformat(),
-            "end_date": end.isoformat(),
-        },
-    )
-    assert response.status_code == 200, response.text
-    row = response.json()["lendings"][0]
-    assert row["end_date"] == end.isoformat()
+    response = _create_rental(token, org_id, appliance_id, today, end)
+    assert response.status_code == 201, response.text
+    assert response.json()["lendings"][0]["end_date"] == end.isoformat()
 
 
 def test_create_lending_rejects_overlap():
@@ -99,26 +96,10 @@ def test_create_lending_rejects_overlap():
     token = _token_for(email, "secret")
     today = datetime.now(UTC).date()
 
-    first = client.post(
-        f"/appliances/{appliance_id}/lendings",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "organisation_id": org_id,
-            "start_date": today.isoformat(),
-            "duration_days": 7,
-        },
-    )
-    assert first.status_code == 200, first.text
+    first = _create_rental(token, org_id, appliance_id, today, today + timedelta(days=6))
+    assert first.status_code == 201, first.text
 
-    second = client.post(
-        f"/appliances/{appliance_id}/lendings",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "organisation_id": org_id,
-            "start_date": (today + timedelta(days=3)).isoformat(),
-            "duration_days": 5,
-        },
-    )
+    second = _create_rental(token, org_id, appliance_id, today + timedelta(days=3), today + timedelta(days=7))
     assert second.status_code == 400
     assert second.json()["detail"]["code"] == "lending_overlap"
 
@@ -129,17 +110,28 @@ def test_planned_lending_not_marked_lent_until_start():
     today = datetime.now(UTC).date()
     future_start = today + timedelta(days=7)
 
+    response = _create_rental(token, org_id, appliance_id, future_start, future_start + timedelta(days=2))
+    assert response.status_code == 201, response.text
+    assert response.json()["lendings"][0]["segment"] == "future"
+    appliance = client.get(f"/appliances/{appliance_id}", headers={"Authorization": f"Bearer {token}"})
+    body = appliance.json()
+    assert body["lending_status"] == "available"
+    assert body["current_lending"] is None
+    assert body["lendings"][0]["segment"] == "future"
+
+
+def test_legacy_appliance_lending_post_requires_rental():
+    appliance_id, org_id, email = _lending_fixture("legacy-post")
+    token = _token_for(email, "secret")
+    today = datetime.now(UTC).date()
     response = client.post(
         f"/appliances/{appliance_id}/lendings",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "organisation_id": org_id,
-            "start_date": future_start.isoformat(),
-            "duration_days": 3,
+            "start_date": today.isoformat(),
+            "duration_days": 7,
         },
     )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["lending_status"] == "available"
-    assert body["current_lending"] is None
-    assert body["lendings"][0]["segment"] == "future"
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "rental_required"

@@ -8,7 +8,6 @@ from app.main import app
 from app.models import (
     Appliance,
     ApplianceEdgeCredential,
-    ApplianceLending,
     HireCompany,
     Organisation,
     OrganisationPositionComment,
@@ -18,7 +17,7 @@ from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
 
-from tests.helpers import country_id_by_code
+from tests.helpers import add_lending, country_id_by_code
 
 client = TestClient(app)
 
@@ -138,13 +137,12 @@ def test_edge_bundle_includes_position_comments_when_enabled():
         db.add(appliance)
         db.flush()
         today = datetime.now(UTC).date()
-        db.add(
-            ApplianceLending(
-                appliance_id=appliance.id,
-                organisation_id=org.id,
-                start_date=today - timedelta(days=1),
-                end_date=today + timedelta(days=1),
-            )
+        add_lending(
+            db,
+            appliance_id=appliance.id,
+            organisation_id=org.id,
+            start_date=today - timedelta(days=1),
+            end_date=today + timedelta(days=1),
         )
         cred = ApplianceEdgeCredential(
             appliance_id=appliance.id,

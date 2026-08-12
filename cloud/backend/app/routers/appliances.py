@@ -13,7 +13,7 @@ from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, User
 from ..security import get_password_hash
-from ..tenancy import TenantContext, ensure_org_in_tenant, get_current_tenant_admin
+from ..tenancy import TenantContext, get_current_tenant_admin
 
 router = APIRouter()
 
@@ -611,45 +611,8 @@ def create_appliance_lending(
     tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
     _get_appliance_in_tenant(db, appliance_id, tenant.hire_company_id)
-    ensure_org_in_tenant(db, body.organisation_id, tenant.hire_company_id)
-
-    # Inclusive end: duration_days calendar days including start_date.
-    end_date = body.start_date + timedelta(days=body.duration_days - 1)
-
-    open_overlap = (
-        db.query(ApplianceLending)
-        .filter(
-            ApplianceLending.appliance_id == appliance_id,
-            ApplianceLending.returned_at.is_(None),
-            ApplianceLending.start_date <= end_date,
-            ApplianceLending.end_date >= body.start_date,
-        )
-        .first()
-    )
-    if open_overlap:
-        raise api_error("lending_overlap", status.HTTP_400_BAD_REQUEST)
-
-    lending = ApplianceLending(
-        appliance_id=appliance_id,
-        organisation_id=body.organisation_id,
-        start_date=body.start_date,
-        end_date=end_date,
-        returned_at=None,
-    )
-    db.add(lending)
-    commit_or_raise(db)
-
-    today = _utc_today()
-    appliance = (
-        db.query(Appliance)
-        .options(
-            joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
-            joinedload(Appliance.edge_credentials),
-        )
-        .filter(Appliance.id == appliance_id)
-        .first()
-    )
-    return _appliance_to_read(appliance, today=today, active_by_appliance_id=None, include_lendings=True)
+    del body
+    raise api_error("rental_required", status.HTTP_400_BAD_REQUEST)
 
 
 @router.post(

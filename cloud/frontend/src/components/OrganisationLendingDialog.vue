@@ -188,14 +188,6 @@ const canPickAppliances = computed(() => isValidLendingRange(startDate.value, en
 
 const rangeHint = computed(() => lendingRangeHint(startDate.value, endDate.value))
 
-const applianceById = computed(() => {
-  const map = new Map<number, ApplianceRead>()
-  for (const a of appliances.value) {
-    map.set(a.id, a)
-  }
-  return map
-})
-
 const lendableAppliances = computed(() =>
   appliances.value.filter((a) => a.lendable !== false),
 )
@@ -307,52 +299,33 @@ async function submit() {
   submitFailures.value = []
 
   const start = toIsoDate(startDate.value)
-  const duration = inclusiveDurationDays(startDate.value, endDate.value)
+  const end = toIsoDate(endDate.value)
   const orgId = props.organisationId
-  let ok = 0
-  const failures: LendingSubmitFailure[] = []
-  const failedIds: number[] = []
-
-  for (const applianceId of selectedIds.value) {
-    const appliance = applianceById.value.get(applianceId)
-    const name = appliance ? applianceDisplayName(appliance) : `#${applianceId}`
-    try {
-      await apiJson(`/appliances/${applianceId}/lendings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organisation_id: orgId,
-          start_date: start,
-          duration_days: duration,
-        }),
-      })
-      ok += 1
-    } catch (err: unknown) {
-      failures.push({
-        name,
-        detail: isApiError(err) ? err.message || t('lending.requestFailed') : t('lending.requestFailed'),
-      })
-      failedIds.push(applianceId)
-    }
+  if (!start || !end) {
+    submitting.value = false
+    return
   }
 
-  submitFailures.value = failures
-  const total = selectedIds.value.length
-  if (ok === total) {
-    submitMessage.value = ok === 1
-      ? t('lending.createdOne', { count: ok })
-      : t('lending.createdMany', { count: ok })
+  try {
+    await apiJson('/rentals/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organisation_id: orgId,
+        start_date: start,
+        end_date: end,
+        appliance_ids: selectedIds.value,
+      }),
+    })
+    const count = selectedIds.value.length
+    submitMessage.value = count === 1
+      ? t('lending.createdOne', { count })
+      : t('lending.createdMany', { count })
     submitMessageType.value = 'success'
     emit('completed')
     close()
-  } else if (ok > 0) {
-    submitMessage.value = t('lending.partialSuccess', { ok, total })
-    submitMessageType.value = 'warn'
-    emit('completed')
-    selectedIds.value = failedIds
-    await fetchAppliances()
-  } else {
-    submitMessage.value = t('lending.createFailed')
+  } catch (err: unknown) {
+    submitMessage.value = isApiError(err) ? err.message || t('lending.createFailed') : t('lending.createFailed')
     submitMessageType.value = 'error'
   }
   submitting.value = false

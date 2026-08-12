@@ -12,7 +12,6 @@ from app.event_config_validation import (
 from app.main import app
 from app.models import (
     Appliance,
-    ApplianceLending,
     Event,
     HireCompany,
     Organisation,
@@ -25,7 +24,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from tests.helpers import country_id_by_code, ensure_country
+from tests.helpers import add_lending, country_id_by_code, ensure_country
 
 client = TestClient(app)
 
@@ -84,14 +83,15 @@ def _add_lending(
 ):
     start_d = start.date() if isinstance(start, datetime) else start
     end_d = end.date() if isinstance(end, datetime) else end
-    row = ApplianceLending(
+    row = add_lending(
+        db,
         appliance_id=appliance_id,
         organisation_id=1,
         start_date=start_d,
         end_date=end_d,
         returned_at=returned_at,
+        hire_company_id=1,
     )
-    db.add(row)
     db.commit()
     return row
 
@@ -222,15 +222,16 @@ def test_configuration_api_lists_planned_printer():
     lend_end = lend_start + timedelta(days=2)
 
     lend_resp = client.post(
-        f"/appliances/{printer_id}/lendings",
+        "/rentals/",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "organisation_id": org_id,
             "start_date": lend_start.isoformat(),
             "end_date": lend_end.isoformat(),
+            "appliance_ids": [printer_id],
         },
     )
-    assert lend_resp.status_code == 200, lend_resp.text
+    assert lend_resp.status_code == 201, lend_resp.text
 
     cfg_resp = client.get(
         f"/events/{event_id}/configuration",

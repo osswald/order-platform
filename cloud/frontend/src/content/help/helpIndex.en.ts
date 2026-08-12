@@ -87,6 +87,12 @@ export const helpCategories = [
         relatedRoutes: ['organisations', 'organisations-detail', 'organisations-new'],
       },
       {
+        slug: 'rental-calendar',
+        title: 'Lending calendar',
+        summary: 'Month, year, and fleet views to plan rentals and see device occupancy.',
+        relatedRoutes: ['rentals'],
+      },
+      {
         slug: 'tenant-settings',
         title: 'Tenant settings',
         summary: 'Hire-company profile and receipt templates at tenant level.',

@@ -126,6 +126,13 @@
           @click="onNavigate"
         />
         <v-list-item
+          v-if="canAccessTenantAdmin"
+          :to="{ name: 'rentals' }"
+          prepend-icon="mdi-calendar-month"
+          :title="$t('nav.rentals')"
+          @click="onNavigate"
+        />
+        <v-list-item
           v-if="isPlatformAdmin"
           :to="{ name: 'countries' }"
           prepend-icon="mdi-earth"

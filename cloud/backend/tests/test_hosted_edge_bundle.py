@@ -8,7 +8,6 @@ from app.main import app
 from app.models import (
     Appliance,
     ApplianceEdgeCredential,
-    ApplianceLending,
     Event,
     HireCompany,
     HostedPiInstance,
@@ -17,7 +16,7 @@ from app.models import (
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
 
-from tests.helpers import country_id_by_code
+from tests.helpers import add_lending, country_id_by_code
 
 client = TestClient(app)
 
@@ -53,13 +52,12 @@ def test_hosted_bundle_includes_config_event():
         db.add(appliance)
         db.flush()
         today = now.date()
-        db.add(
-            ApplianceLending(
-                appliance_id=appliance.id,
-                organisation_id=org.id,
-                start_date=today,
-                end_date=today + timedelta(days=1),
-            )
+        add_lending(
+            db,
+            appliance_id=appliance.id,
+            organisation_id=org.id,
+            start_date=today,
+            end_date=today + timedelta(days=1),
         )
         cred = ApplianceEdgeCredential(
             appliance_id=appliance.id,

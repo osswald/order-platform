@@ -36,6 +36,7 @@ from .routers import (
     position_comments,
     public_rental_inquiry,
     receipt_printing,
+    rentals,
     sumup_connect,
     sumup_edge,
     sumup_readers,
@@ -166,6 +167,7 @@ app.include_router(position_comments.router, tags=["position-comments"])
 app.include_router(color_palette.router, tags=["color-palette"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])
+app.include_router(rentals.router, prefix="/rentals", tags=["rentals"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(events.router, prefix="/events", tags=["events"])
 app.include_router(hosted_pi.router, prefix="/events", tags=["hosted-pi"])
