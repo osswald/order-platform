@@ -11,6 +11,7 @@ import {
   rentalDisplayName,
   rentalIsFilled,
   openRentalApplianceNames,
+  rentalApplianceLabel,
   rentalsOverlappingMonth,
   rentalsOverlappingYear,
   yearBarsWithLanes,
@@ -57,6 +58,35 @@ describe('openRentalApplianceNames', () => {
         { appliance_id: 1, appliance_name: 'Pi-01', returned_at: null },
       ]),
     ).toEqual(['Pi-01'])
+  })
+
+  it('appends printer IP in parentheses', () => {
+    expect(
+      openRentalApplianceNames([
+        {
+          appliance_id: 9,
+          appliance_name: 'Drucker-01',
+          appliance_type: 'printer',
+          appliance_ip_address: '192.168.1.50',
+          returned_at: null,
+        },
+      ]),
+    ).toEqual(['Drucker-01 (192.168.1.50)'])
+  })
+})
+
+describe('rentalApplianceLabel', () => {
+  it('keeps non-printer names unchanged', () => {
+    expect(rentalApplianceLabel({ id: 1, name: 'Hera', type: 'server' })).toBe('Hera')
+  })
+
+  it('adds IP for printers and falls back to em dash', () => {
+    expect(
+      rentalApplianceLabel({ id: 2, name: 'Zephyrus', type: 'printer', ip_address: '10.0.0.1' }),
+    ).toBe('Zephyrus (10.0.0.1)')
+    expect(rentalApplianceLabel({ id: 3, name: 'Juba', type: 'printer', ip_address: null })).toBe(
+      'Juba (—)',
+    )
   })
 })
 
@@ -247,8 +277,8 @@ describe('fleet occupancy', () => {
 
   it('keeps type group order and lists unassigned appliances', () => {
     const groups = groupFleetByType([
-      { type: 'printer', appliances: [{ id: 2, name: 'Drucker-01', type: 'printer', occupancies: [] }] },
-      { type: 'server', appliances: [{ id: 1, name: 'Pi-01', type: 'server', occupancies: [] }] },
+      { type: 'printer', appliances: [{ id: 2, name: 'Drucker-01', type: 'printer', ipAddress: '10.0.0.1', occupancies: [] }] },
+      { type: 'server', appliances: [{ id: 1, name: 'Pi-01', type: 'server', ipAddress: null, occupancies: [] }] },
     ])
     expect(groups.map((g) => g.type)).toEqual(['server', 'printer'])
     expect(groups[1].appliances[0].occupancies).toEqual([])

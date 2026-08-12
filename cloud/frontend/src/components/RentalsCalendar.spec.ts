@@ -66,6 +66,17 @@ function mockListPayload(rows = [rental]) {
         sort_order: 0,
       }
     }
+    if (path.startsWith('/rentals/42/zubehoer-lines/') && init?.method === 'PATCH') {
+      const body = JSON.parse(String(init.body))
+      return {
+        id: 11,
+        rental_id: 42,
+        catalog_item_id: null,
+        label: body.label,
+        quantity: body.quantity ?? null,
+        sort_order: 0,
+      }
+    }
     if (path.startsWith('/rentals/42/zubehoer-lines/') && init?.method === 'DELETE') return null
     if (path.startsWith('/rentals/42/lendings/') && init?.method === 'DELETE') {
       return { ...rental, lendings: [] }
@@ -329,6 +340,70 @@ describe('RentalsCalendar edit', () => {
         body: JSON.stringify({ label: 'Kabelbinder' }),
       }),
     )
+  })
+
+  it('edits an existing zubehoer line via PATCH', async () => {
+    mockListPayload([
+      {
+        ...rental,
+        zubehoer_lines: [
+          {
+            id: 11,
+            rental_id: 42,
+            catalog_item_id: null,
+            label: 'Kabelbinder',
+            quantity: 2,
+            sort_order: 0,
+          },
+        ],
+      },
+    ])
+    const wrapper = await mountCalendar()
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid="zubehoer-line-edit"]').trigger('click')
+    await wrapper.find('[data-testid="zubehoer-edit-label"]').setValue('Kabelbinder XL')
+    await wrapper.find('[data-testid="zubehoer-edit-qty"]').setValue('5')
+    await wrapper.find('[data-testid="zubehoer-line-save"]').trigger('click')
+    await flushPromises()
+    expect(apiJson).toHaveBeenCalledWith(
+      '/rentals/42/zubehoer-lines/11',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ label: 'Kabelbinder XL', quantity: 5 }),
+      }),
+    )
+  })
+
+  it('shows printer IP in the assigned appliances list', async () => {
+    mockListPayload([
+      {
+        ...rental,
+        filled: true,
+        lendings: [
+          {
+            id: 7,
+            appliance_id: 9,
+            appliance_name: 'Zephyrus',
+            appliance_type: 'printer',
+            appliance_ip_address: '192.168.1.50',
+            start_date: '2026-06-12',
+            end_date: '2026-06-15',
+            returned_at: null,
+            segment: 'future',
+          },
+        ],
+      },
+    ])
+    const wrapper = await mountCalendar()
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.lending-label').text()).toContain('Zephyrus (192.168.1.50)')
+  })
+
+  it('labels the devices view tab as Geräte', async () => {
+    const wrapper = await mountCalendar()
+    expect(wrapper.find('[data-testid="view-fleet"]').text()).toContain('Geräte')
   })
 
   it('downloads packing list pdf from edit dialog', async () => {

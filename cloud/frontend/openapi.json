@@ -15715,6 +15715,17 @@
             "type": "string",
             "title": "Type"
           },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address"
+          },
           "occupancies": {
             "items": {
               "$ref": "#/components/schemas/FleetOccupancyRead"
@@ -18715,6 +18726,17 @@
           "appliance_type": {
             "type": "string",
             "title": "Appliance Type"
+          },
+          "appliance_ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appliance Ip Address"
           },
           "start_date": {
             "type": "string",

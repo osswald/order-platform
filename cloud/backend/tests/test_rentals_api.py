@@ -58,7 +58,12 @@ def _tenant_fixture(suffix: str, *, with_org_user: bool = False):
             is_superuser=False,
         )
         pi = Appliance(hire_company_id=company.id, type="server", name="Pi-01")
-        printer = Appliance(hire_company_id=company.id, type="printer", name="Drucker-01")
+        printer = Appliance(
+            hire_company_id=company.id,
+            type="printer",
+            name="Drucker-01",
+            ip_address="192.168.1.50",
+        )
         db.add_all([admin, other_admin, pi, printer])
         org_user = None
         if with_org_user:
@@ -583,6 +588,29 @@ def test_fleet_groups_by_type_and_hides_empty_rentals():
     assert pi["occupancies"][0]["display_name"] == "Openair 2026"
     printer = next(a for a in groups["printer"] if a["id"] == fx["printer_id"])
     assert printer["occupancies"] == []
+    assert printer["ip_address"] == "192.168.1.50"
+    assert pi.get("ip_address") in (None, "")
+
+
+def test_rental_lending_includes_printer_ip():
+    fx = _tenant_fixture("lending-ip")
+    token = _token_for(fx["email"])
+    start = datetime.now(UTC).date() + timedelta(days=20)
+    end = start + timedelta(days=1)
+    created = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "appliance_ids": [fx["printer_id"]],
+        },
+    )
+    assert created.status_code == 201, created.text
+    lending = created.json()["lendings"][0]
+    assert lending["appliance_type"] == "printer"
+    assert lending["appliance_ip_address"] == "192.168.1.50"
 
 
 def date_in_next_month():

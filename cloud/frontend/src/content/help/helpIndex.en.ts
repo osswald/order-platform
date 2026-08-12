@@ -89,7 +89,7 @@ export const helpCategories = [
       {
         slug: 'rental-calendar',
         title: 'Lending calendar',
-        summary: 'Month, year, and fleet views to plan rentals and see device occupancy.',
+        summary: 'Month, year, and devices views to plan rentals and see device occupancy.',
         relatedRoutes: ['rentals'],
       },
       {

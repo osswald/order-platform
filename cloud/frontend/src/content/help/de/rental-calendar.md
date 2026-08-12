@@ -4,7 +4,7 @@ Unter **Ausleihe** (Verwaltung) sehen Verleiher-Admins alle Ausleihen des aktive
 
 - **Monat** — Ausleihen als Balken über die Tage. Leere Ausleihen (ohne Geräte) erscheinen gestrichelt.
 - **Jahr** — Jahresüberblick mit Balken pro Monat.
-- **Flotte** — Geräte nach Typ, Tage als Spalten. Belegte Tage zeigen die Ausleihe; freie Zellen können zugeordnet werden.
+- **Geräte** — Geräte nach Typ, Tage als Spalten. Belegte Tage zeigen die Ausleihe; freie Zellen können zugeordnet werden.
 
 ## Ausleihe anlegen
 
@@ -18,7 +18,7 @@ Klick auf einen Balken im Monat oder Jahr öffnet die Bearbeitung: Bezeichnung u
 
 ## Zubehör und Packliste
 
-Im Bearbeitungsdialog können Sie **Zubehör**-Zeilen hinzufügen (aus dem Katalog unter Verleiher-Einstellungen oder als Freitext, mit optionaler Menge) und eine **Packliste PDF** herunterladen. Die PDF enthält offene Geräte und Zubehör als Checkliste — ohne Preise.
+Im Bearbeitungsdialog können Sie **Zubehör**-Zeilen hinzufügen (aus dem Katalog unter Verleiher-Einstellungen oder als Freitext, mit optionaler Menge), bearbeiten und löschen sowie eine **Packliste PDF** herunterladen. Die PDF enthält offene Geräte und Zubehör als Checkliste — ohne Preise.
 
 Der **Zubehör-Katalog** wird unter **Verleiher-Einstellungen** gepflegt.
 

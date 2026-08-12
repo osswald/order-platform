@@ -17,6 +17,8 @@ export function openRentalApplianceNames(
     | Array<{
         appliance_id: number
         appliance_name?: string | null
+        appliance_type?: string | null
+        appliance_ip_address?: string | null
         returned_at?: string | null
       }>
     | null
@@ -28,10 +30,31 @@ export function openRentalApplianceNames(
     if (row.returned_at) continue
     if (seen.has(row.appliance_id)) continue
     seen.add(row.appliance_id)
-    const trimmed = (row.appliance_name ?? '').trim()
-    names.push(trimmed || `#${row.appliance_id}`)
+    names.push(
+      rentalApplianceLabel({
+        id: row.appliance_id,
+        name: row.appliance_name,
+        type: row.appliance_type ?? '',
+        ip_address: row.appliance_ip_address,
+      }),
+    )
   }
   return names
+}
+
+/** Display name with printer IP in parentheses when present. */
+export function rentalApplianceLabel(appliance: {
+  id: number
+  name?: string | null
+  type: string
+  ip_address?: string | null
+}): string {
+  const base = (appliance.name ?? '').trim() || `#${appliance.id}`
+  if (appliance.type === 'printer') {
+    const ip = (appliance.ip_address ?? '').trim() || '—'
+    return `${base} (${ip})`
+  }
+  return base
 }
 
 export interface FleetOccupancy {
@@ -46,6 +69,7 @@ export interface FleetAppliance {
   id: number
   name: string | null
   type: string
+  ipAddress: string | null
   occupancies: FleetOccupancy[]
 }
 
