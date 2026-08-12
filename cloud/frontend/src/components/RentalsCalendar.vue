@@ -47,19 +47,38 @@
           class="month-week-bars"
           :style="{ minHeight: `${Math.max(monthLaneCount(weekIndex), 1) * 1.35}rem` }"
         >
-          <button
-            v-for="seg in segmentsInWeek(weekIndex)"
+          <v-tooltip
+            v-for="{ seg, rental } in segmentsWithRental(weekIndex)"
             :key="`${seg.rentalId}-${seg.weekIndex}-${seg.startCol}`"
-            type="button"
-            class="month-bar"
-            :class="{ 'month-bar--empty': !seg.filled }"
-            :style="monthBarStyle(seg)"
-            :title="seg.displayName"
-            data-testid="month-rental-bar"
-            @click.stop="openEdit(seg.rentalId)"
+            location="top"
+            open-delay="250"
           >
-            {{ seg.displayName }}
-          </button>
+            <template #activator="{ props: tipProps }">
+              <button
+                v-bind="tipProps"
+                type="button"
+                class="month-bar"
+                :class="{ 'month-bar--empty': !seg.filled }"
+                :style="monthBarStyle(seg)"
+                data-testid="month-rental-bar"
+                @click.stop="openEdit(seg.rentalId)"
+              >
+                {{ seg.displayName }}
+              </button>
+            </template>
+            <div class="rental-tooltip" data-testid="rental-bar-tooltip">
+              <div class="rental-tooltip-title">{{ rental.displayName }}</div>
+              <div v-if="rental.organisationName !== rental.displayName">
+                {{ rental.organisationName }}
+              </div>
+              <div>{{ formatRentalRange(rental.startDate, rental.endDate) }}</div>
+              <div class="rental-tooltip-devices">{{ $t('rentals.devices') }}</div>
+              <ul v-if="rental.applianceNames.length" class="rental-tooltip-list">
+                <li v-for="name in rental.applianceNames" :key="name">{{ name }}</li>
+              </ul>
+              <div v-else class="muted">{{ $t('rentals.noDevices') }}</div>
+            </div>
+          </v-tooltip>
         </div>
       </div>
     </div>
@@ -78,19 +97,36 @@
           class="year-track"
           :style="{ height: `${Math.max(yearLaneCount(monthIndex), 1) * 1.45}rem` }"
         >
-          <button
+          <v-tooltip
             v-for="bar in yearBarsForMonth(monthIndex)"
             :key="bar.id"
-            type="button"
-            class="year-bar"
-            :class="{ 'year-bar--empty': !bar.filled }"
-            :style="yearBarStyle(bar, monthIndex)"
-            :title="bar.displayName"
-            data-testid="year-rental-bar"
-            @click.stop="openEdit(bar.id)"
+            location="top"
+            open-delay="250"
           >
-            {{ bar.displayName }}
-          </button>
+            <template #activator="{ props: tipProps }">
+              <button
+                v-bind="tipProps"
+                type="button"
+                class="year-bar"
+                :class="{ 'year-bar--empty': !bar.filled }"
+                :style="yearBarStyle(bar, monthIndex)"
+                data-testid="year-rental-bar"
+                @click.stop="openEdit(bar.id)"
+              >
+                {{ bar.displayName }}
+              </button>
+            </template>
+            <div class="rental-tooltip" data-testid="rental-bar-tooltip">
+              <div class="rental-tooltip-title">{{ bar.displayName }}</div>
+              <div v-if="bar.organisationName !== bar.displayName">{{ bar.organisationName }}</div>
+              <div>{{ formatRentalRange(bar.startDate, bar.endDate) }}</div>
+              <div class="rental-tooltip-devices">{{ $t('rentals.devices') }}</div>
+              <ul v-if="bar.applianceNames.length" class="rental-tooltip-list">
+                <li v-for="name in bar.applianceNames" :key="name">{{ name }}</li>
+              </ul>
+              <div v-else class="muted">{{ $t('rentals.noDevices') }}</div>
+            </div>
+          </v-tooltip>
         </div>
       </div>
     </div>
@@ -313,6 +349,7 @@ import {
   monthBarSegments,
   monthWeeks,
   occupancyOnDay,
+  openRentalApplianceNames,
   organisationBarColor,
   parseIsoDate,
   rentalCanDelete,
@@ -322,6 +359,7 @@ import {
   type MonthBarSegment,
   type RentalBar,
 } from '../utils/rentalCalendar'
+import { formatDate } from '../utils/localeFormat'
 import { currentLocale } from '../i18n'
 
 type CalendarView = 'month' | 'year' | 'fleet'
@@ -588,10 +626,30 @@ function toBar(row: RentalRead): RentalBar {
     id: row.id,
     displayName: row.display_name,
     organisationId: row.organisation_id,
+    organisationName: row.organisation_name,
     startDate: row.start_date,
     endDate: row.end_date,
     filled: row.filled,
+    applianceNames: openRentalApplianceNames(row.lendings),
   }
+}
+
+function formatRentalRange(startDate?: string, endDate?: string): string {
+  if (!startDate || !endDate) return '—'
+  return `${formatDate(startDate, currentLocale())} – ${formatDate(endDate, currentLocale())}`
+}
+
+function rentalById(id: number): RentalBar | undefined {
+  return rentals.value.find((row) => row.id === id)
+}
+
+function segmentsWithRental(weekIndex: number): Array<{ seg: MonthBarSegment; rental: RentalBar }> {
+  const out: Array<{ seg: MonthBarSegment; rental: RentalBar }> = []
+  for (const seg of segmentsInWeek(weekIndex)) {
+    const rental = rentalById(seg.rentalId)
+    if (rental) out.push({ seg, rental })
+  }
+  return out
 }
 
 function segmentLabel(segment: string): string {
@@ -1001,6 +1059,23 @@ defineExpose({
   position: absolute;
   height: 1.15rem;
   box-sizing: border-box;
+}
+.rental-tooltip {
+  max-width: 16rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.rental-tooltip-title {
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+.rental-tooltip-devices {
+  margin-top: 0.35rem;
+  font-weight: 600;
+}
+.rental-tooltip-list {
+  margin: 0.15rem 0 0;
+  padding-left: 1.1rem;
 }
 .month-bar--empty,
 .year-bar--empty {
