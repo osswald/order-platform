@@ -110,7 +110,10 @@ async function mountCalendar(path = '/rentals') {
       stubs: {
         ...vuetifyStubs(),
         HelpLink: { template: '<div />' },
-        ApplianceTypeChip: { template: '<span />' },
+        ApplianceTypeChip: {
+          props: ['type'],
+          template: '<span v-bind="$attrs" :data-type="type">{{ type }}</span>',
+        },
         'v-tooltip': {
           template:
             '<div class="v-tooltip-stub"><slot name="activator" :props="{}" /><div class="v-tooltip-content"><slot /></div></div>',
@@ -121,6 +124,7 @@ async function mountCalendar(path = '/rentals') {
         'v-card-text': { template: '<div class="card-text"><slot /></div>' },
         'v-card-actions': { template: '<div class="card-actions"><slot /></div>' },
         'v-spacer': { template: '<div />' },
+        'v-list-item': { template: '<div class="v-list-item"><slot /></div>' },
         'v-btn-toggle': {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -153,7 +157,14 @@ async function mountCalendar(path = '/rentals') {
           emits: ['update:modelValue'],
           inheritAttrs: false,
           template:
-            '<select v-bind="$attrs" :disabled="disabled" :aria-label="label" @change="$emit(\'update:modelValue\', Number($event.target.value))"><option v-for="item in items || []" :key="item.value" :value="item.value">{{ item.title }}</option></select>',
+            '<div class="v-select-stub" v-bind="$attrs">' +
+            '<select :disabled="disabled" :aria-label="label" @change="$emit(\'update:modelValue\', Number($event.target.value))">' +
+            '<option v-for="item in items || []" :key="item.value" :value="item.value">{{ item.title }}</option>' +
+            '</select>' +
+            '<div v-for="item in items || []" :key="`slot-${item.value}`" class="v-select-item-slot">' +
+            '<slot name="item" :item="{ raw: item, title: item.title, value: item.value }" :props="{}" />' +
+            '</div>' +
+            '</div>',
         },
       },
     },
@@ -359,6 +370,36 @@ describe('RentalsCalendar edit', () => {
     await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="rental-delete"]').exists()).toBe(false)
+  })
+
+  it('shows appliance type chips in the assigned list and add dropdown', async () => {
+    mockListPayload([
+      {
+        ...rental,
+        filled: true,
+        lendings: [
+          {
+            id: 7,
+            appliance_id: 1,
+            appliance_name: 'Pi-01',
+            appliance_type: 'server',
+            start_date: '2026-06-12',
+            end_date: '2026-06-15',
+            returned_at: null,
+            segment: 'future',
+          },
+        ],
+      },
+    ])
+    const wrapper = await mountCalendar()
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
+    await flushPromises()
+    const assigned = wrapper.find('[data-testid="lending-appliance-type"]')
+    expect(assigned.exists()).toBe(true)
+    expect(assigned.attributes('data-type')).toBe('server')
+    const addChip = wrapper.find('[data-testid="add-appliance-type"]')
+    expect(addChip.exists()).toBe(true)
+    expect(addChip.attributes('data-type')).toBe('server')
   })
 
   it('unassigns a planned lending via DELETE lendings endpoint', async () => {

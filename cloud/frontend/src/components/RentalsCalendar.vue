@@ -189,9 +189,12 @@
             <p v-if="!(editRental?.lendings?.length)" class="muted">{{ $t('rentals.noDevices') }}</p>
             <ul v-else class="lending-list">
               <li v-for="row in editRental?.lendings || []" :key="row.id" class="lending-row">
-                <span>
-                  {{ row.appliance_name || `#${row.appliance_id}` }}
-                  <span class="muted">({{ segmentLabel(row.segment) }})</span>
+                <span class="lending-label">
+                  <ApplianceTypeChip :type="row.appliance_type" data-testid="lending-appliance-type" />
+                  <span>
+                    {{ row.appliance_name || `#${row.appliance_id}` }}
+                    <span class="muted">({{ segmentLabel(row.segment) }})</span>
+                  </span>
                 </span>
                 <v-btn
                   v-if="row.segment === 'future'"
@@ -225,7 +228,25 @@
                 :loading="loadingAddAppliances"
                 data-testid="rental-add-appliance-pick"
                 class="zubehoer-pick"
-              />
+              >
+                <template #item="{ item, props: itemProps }">
+                  <v-list-item v-bind="itemProps" :title="undefined">
+                    <div class="appliance-pick-row">
+                      <ApplianceTypeChip
+                        :type="appliancePickType(item)"
+                        data-testid="add-appliance-type"
+                      />
+                      <span>{{ appliancePickTitle(item) }}</span>
+                    </div>
+                  </v-list-item>
+                </template>
+                <template #selection="{ item }">
+                  <div class="appliance-pick-row">
+                    <ApplianceTypeChip :type="appliancePickType(item)" />
+                    <span>{{ appliancePickTitle(item) }}</span>
+                  </div>
+                </template>
+              </v-select>
               <v-btn
                 size="small"
                 data-testid="rental-add-appliance"
@@ -473,6 +494,7 @@ const addApplianceItems = computed(() =>
     .map((row) => ({
       title: row.name || `#${row.id}`,
       value: row.id,
+      type: row.type,
     })),
 )
 
@@ -650,6 +672,14 @@ function segmentsWithRental(weekIndex: number): Array<{ seg: MonthBarSegment; re
     if (rental) out.push({ seg, rental })
   }
   return out
+}
+
+function appliancePickType(item: { type?: string; raw?: { type?: string } }): string {
+  return item.raw?.type || item.type || ''
+}
+
+function appliancePickTitle(item: { title?: string; raw?: { title?: string } }): string {
+  return item.raw?.title || item.title || ''
 }
 
 function segmentLabel(segment: string): string {
@@ -1159,6 +1189,13 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+.lending-label,
+.appliance-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 .zubehoer-block {
   margin-top: 1rem;
