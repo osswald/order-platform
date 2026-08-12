@@ -1,6 +1,6 @@
 <template>
-  <div class="rentals-calendar">
-    <div class="rentals-header">
+  <div class="rentals-calendar vq-page">
+    <div class="vq-page-header">
       <div>
         <h1>{{ $t('rentals.title') }}</h1>
         <p class="muted">{{ $t('rentals.subtitle') }}</p>
@@ -1178,18 +1178,13 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 0.25rem 0 2rem;
 }
-.rentals-header,
 .toolbar,
 .nav-period,
 .header-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-.rentals-header {
-  justify-content: space-between;
 }
 .toolbar {
   flex-wrap: wrap;
