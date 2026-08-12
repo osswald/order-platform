@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assignColumnLanes,
+  assignIntervalLanes,
   clipRangeToMonth,
   groupFleetByType,
+  monthBarSegments,
+  monthWeeks,
   occupancyOnDay,
   rentalCanDelete,
   rentalDisplayName,
   rentalIsFilled,
   rentalsOverlappingMonth,
   rentalsOverlappingYear,
+  yearBarsWithLanes,
 } from './rentalCalendar'
 
 describe('rentalDisplayName', () => {
@@ -73,6 +78,106 @@ describe('calendar overlap', () => {
   it('clips a multi-day rental to the visible month', () => {
     const clipped = clipRangeToMonth('2026-06-12', '2026-06-15', 2026, 5)
     expect(clipped).toEqual({ start: '2026-06-12', end: '2026-06-15' })
+  })
+})
+
+describe('lane packing', () => {
+  it('puts overlapping intervals on separate lanes', () => {
+    const lanes = assignIntervalLanes([
+      { id: 1, start: '2026-09-17', end: '2026-09-21' },
+      { id: 2, start: '2026-09-17', end: '2026-09-21' },
+      { id: 3, start: '2026-09-22', end: '2026-09-24' },
+    ])
+    expect(lanes.get(1)).toBe(0)
+    expect(lanes.get(2)).toBe(1)
+    expect(lanes.get(3)).toBe(0)
+  })
+
+  it('packs column ranges within a week', () => {
+    const lanes = assignColumnLanes([
+      { id: 1, startCol: 0, endCol: 2 },
+      { id: 2, startCol: 1, endCol: 3 },
+      { id: 3, startCol: 3, endCol: 4 },
+    ])
+    expect(lanes.get(1)).toBe(0)
+    expect(lanes.get(2)).toBe(1)
+    expect(lanes.get(3)).toBe(0)
+  })
+
+  it('stacks overlapping year-month bars on separate lanes', () => {
+    const bars = yearBarsWithLanes(
+      [
+        {
+          id: 21,
+          displayName: 'SBB',
+          organisationId: 3,
+          startDate: '2026-09-17',
+          endDate: '2026-09-21',
+          filled: false,
+        },
+        {
+          id: 22,
+          displayName: 'SBB',
+          organisationId: 3,
+          startDate: '2026-09-17',
+          endDate: '2026-09-21',
+          filled: false,
+        },
+      ],
+      2026,
+      8,
+    )
+    expect(bars).toHaveLength(2)
+    expect(new Set(bars.map((b) => b.lane)).size).toBe(2)
+  })
+})
+
+describe('month spanning bars', () => {
+  it('emits one segment per week for a multi-day rental', () => {
+    // Fri 12 Jun – Mon 15 Jun 2026 spans two week rows (not one chip per day).
+    const segments = monthBarSegments(
+      [
+        {
+          id: 1,
+          displayName: 'FC St.Gallen',
+          organisationId: 9,
+          startDate: '2026-06-12',
+          endDate: '2026-06-15',
+          filled: false,
+        },
+      ],
+      2026,
+      5,
+    )
+    expect(segments).toHaveLength(2)
+    expect(segments.every((seg) => seg.rentalId === 1)).toBe(true)
+    expect(segments[0].endCol).toBeGreaterThanOrEqual(segments[0].startCol)
+  })
+
+  it('keeps a within-week rental as a single bar', () => {
+    const segments = monthBarSegments(
+      [
+        {
+          id: 1,
+          displayName: 'Short',
+          organisationId: 9,
+          startDate: '2026-06-08',
+          endDate: '2026-06-11',
+          filled: true,
+        },
+      ],
+      2026,
+      5,
+    )
+    expect(segments).toHaveLength(1)
+    expect(segments[0].startCol).toBe(0)
+    expect(segments[0].endCol).toBe(3)
+  })
+
+  it('builds week rows of seven cells', () => {
+    const weeks = monthWeeks(2026, 5)
+    expect(weeks.length).toBeGreaterThanOrEqual(4)
+    expect(weeks.every((week) => week.length === 7)).toBe(true)
   })
 })
 
