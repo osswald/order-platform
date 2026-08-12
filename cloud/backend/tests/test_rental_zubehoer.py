@@ -115,6 +115,21 @@ def test_add_line_from_catalog_snapshots_label_and_default_quantity():
     assert detail.json()["zubehoer_lines"][0]["label"] == "Thermopapier"
 
 
+def test_add_line_from_catalog_allows_quantity_override():
+    fx = _tenant_fixture("zubehoer-qty-override")
+    token = _token_for(fx["email"])
+    catalog = _create_catalog_item(token, "Thermopapier", default_quantity=2)
+    rental = _create_rental(token, fx["org_id"])
+    line = client.post(
+        f"/rentals/{rental['id']}/zubehoer-lines",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"catalog_item_id": catalog["id"], "quantity": 7},
+    )
+    assert line.status_code == 201, line.text
+    assert line.json()["quantity"] == 7
+    assert line.json()["label"] == "Thermopapier"
+
+
 def test_free_text_line_without_catalog():
     fx = _tenant_fixture("zubehoer-free")
     token = _token_for(fx["email"])

@@ -342,6 +342,29 @@ describe('RentalsCalendar edit', () => {
     )
   })
 
+  it('adds zubehoer from catalog with chosen quantity', async () => {
+    const wrapper = await mountCalendar()
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
+    await flushPromises()
+    const pick = wrapper.find('[data-testid="zubehoer-catalog-pick"] select')
+    await pick.setValue('5')
+    await pick.trigger('change')
+    await flushPromises()
+    expect((wrapper.find('[data-testid="zubehoer-catalog-qty"]').element as HTMLInputElement).value).toBe(
+      '2',
+    )
+    await wrapper.find('[data-testid="zubehoer-catalog-qty"]').setValue('4')
+    await wrapper.find('[data-testid="zubehoer-add-catalog"]').trigger('click')
+    await flushPromises()
+    expect(apiJson).toHaveBeenCalledWith(
+      '/rentals/42/zubehoer-lines',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ catalog_item_id: 5, quantity: 4 }),
+      }),
+    )
+  })
+
   it('edits an existing zubehoer line via PATCH', async () => {
     mockListPayload([
       {

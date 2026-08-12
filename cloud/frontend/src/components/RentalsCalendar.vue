@@ -336,6 +336,16 @@
                 clearable
                 data-testid="zubehoer-catalog-pick"
                 class="zubehoer-pick"
+                @update:model-value="onCatalogPick"
+              />
+              <v-text-field
+                v-model="catalogQty"
+                type="number"
+                min="1"
+                :label="$t('rentals.qtyOptional')"
+                hide-details="auto"
+                class="zubehoer-qty"
+                data-testid="zubehoer-catalog-qty"
               />
               <v-btn
                 size="small"
@@ -464,6 +474,7 @@ const zubehoerAdding = ref(false)
 const packingPdfLoading = ref(false)
 const catalogItems = ref<RentalZubehoerCatalogRead[]>([])
 const pickCatalogId = ref<number | null>(null)
+const catalogQty = ref('')
 const freeTextLabel = ref('')
 const freeTextQty = ref('')
 const editingZubehoerId = ref<number | null>(null)
@@ -615,10 +626,28 @@ async function addApplianceToRental() {
 
 function resetZubehoerDraft() {
   pickCatalogId.value = null
+  catalogQty.value = ''
   freeTextLabel.value = ''
   freeTextQty.value = ''
   pickApplianceId.value = null
   cancelZubehoerEdit()
+}
+
+function onCatalogPick(id: number | null) {
+  if (id == null) {
+    catalogQty.value = ''
+    return
+  }
+  const item = catalogItems.value.find((row) => row.id === id)
+  catalogQty.value = item?.default_quantity != null ? String(item.default_quantity) : ''
+}
+
+function parseOptionalQty(raw: string): number | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  const qty = Number.parseInt(trimmed, 10)
+  if (Number.isFinite(qty) && qty >= 1) return qty
+  return undefined
 }
 
 function startZubehoerEdit(line: RentalZubehoerLineRead) {
@@ -664,14 +693,20 @@ async function addFromCatalog() {
   if (editRental.value == null || pickCatalogId.value == null) return
   zubehoerAdding.value = true
   dialogError.value = ''
+  const payload: { catalog_item_id: number; quantity?: number } = {
+    catalog_item_id: pickCatalogId.value,
+  }
+  const qty = parseOptionalQty(catalogQty.value)
+  if (qty != null) payload.quantity = qty
   try {
     await apiJson(`/rentals/${editRental.value.id}/zubehoer-lines`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ catalog_item_id: pickCatalogId.value }),
+      body: JSON.stringify(payload),
     })
     editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`)
     pickCatalogId.value = null
+    catalogQty.value = ''
   } catch (err: unknown) {
     dialogError.value = isApiError(err) ? err.message || t('rentals.zubehoerSaveFailed') : t('rentals.zubehoerSaveFailed')
   } finally {
@@ -683,12 +718,9 @@ async function addFreeTextLine() {
   if (editRental.value == null) return
   const label = freeTextLabel.value.trim()
   if (!label) return
-  const qtyTrimmed = freeTextQty.value.trim()
   const payload: { label: string; quantity?: number } = { label }
-  if (qtyTrimmed) {
-    const qty = Number.parseInt(qtyTrimmed, 10)
-    if (Number.isFinite(qty) && qty >= 1) payload.quantity = qty
-  }
+  const qty = parseOptionalQty(freeTextQty.value)
+  if (qty != null) payload.quantity = qty
   zubehoerAdding.value = true
   dialogError.value = ''
   try {
