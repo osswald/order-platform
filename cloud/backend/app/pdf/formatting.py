@@ -46,3 +46,20 @@ def organisation_issuer_lines(organisation) -> list[str]:
     if city_line:
         lines.append(city_line)
     return lines
+
+
+def hire_company_issuer_lines(hire_company) -> list[str]:
+    lines: list[str] = []
+    if hire_company is None:
+        return lines
+    if getattr(hire_company, "name", None):
+        lines.append(str(hire_company.name))
+    address = getattr(hire_company, "address", None)
+    if address:
+        lines.append(str(address))
+    zip_code = getattr(hire_company, "zip", None) or ""
+    city = getattr(hire_company, "city", None) or ""
+    city_line = " ".join(part for part in (str(zip_code).strip(), str(city).strip()) if part)
+    if city_line:
+        lines.append(city_line)
+    return lines

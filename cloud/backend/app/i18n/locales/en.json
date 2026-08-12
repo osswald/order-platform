@@ -22,6 +22,8 @@
     "rental_range_incomplete": "From and to dates must be provided together.",
     "rental_has_current_lending": "Cannot delete a rental while appliances are currently lent.",
     "rental_has_history": "Cannot delete a rental that has returned appliances.",
+    "rental_zubehoer_catalog_not_found": "Accessory catalog item not found.",
+    "rental_zubehoer_line_not_found": "Accessory line not found.",
     "appliance_not_lendable": "This appliance cannot be lent.",
     "requires_verleiher_admin": "Hire-company administrator permission required.",
     "organisation_not_in_verleiher": "Organisation does not belong to this hire company.",
@@ -54,6 +56,18 @@
       "amount": "Amount",
       "no_note": "—",
       "section_total": "Total"
+    },
+    "rental_packing": {
+      "title": "Packing list",
+      "rental": "Rental: {name}",
+      "organisation": "Organisation: {name}",
+      "dates": "Period: {range}",
+      "devices_heading": "Appliances",
+      "zubehoer_heading": "Accessories",
+      "item": "Item",
+      "qty": "Qty",
+      "no_devices": "No appliances assigned.",
+      "no_zubehoer": "No accessories recorded."
     }
   }
 }

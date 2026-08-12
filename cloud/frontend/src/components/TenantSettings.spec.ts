@@ -40,6 +40,7 @@ describe('TenantSettings', () => {
         stubs: {
           ...vuetifyStubs(),
           ReceiptPrintingSection: { template: '<div />' },
+          RentalZubehoerCatalogSection: { template: '<div data-testid="zubehoer-catalog-section" />' },
           FormLabel: { template: '<label><slot /></label>' },
         },
       },
@@ -53,5 +54,26 @@ describe('TenantSettings', () => {
 
     expect(apiJson).toHaveBeenCalledWith('/hire-companies/2')
     expect(wrapper.find('input').element.value).toBe('Tenant B')
+  })
+
+  it('renders zubehoer catalog section', async () => {
+    vi.mocked(apiJson).mockImplementation(async (path: string) => {
+      if (path === '/countries/') return [{ id: 3, code: 'CH', name: 'Schweiz' }]
+      if (path === '/hire-companies/1') return companyPayload(1, 'Tenant A')
+      throw new Error('not found')
+    })
+    const wrapper = mount(TenantSettings, {
+      props: { activeHireCompanyId: 1 },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          ReceiptPrintingSection: { template: '<div />' },
+          RentalZubehoerCatalogSection: { template: '<div data-testid="zubehoer-catalog-section" />' },
+          FormLabel: { template: '<label><slot /></label>' },
+        },
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="zubehoer-catalog-section"]').exists()).toBe(true)
   })
 })

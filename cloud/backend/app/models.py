@@ -54,6 +54,11 @@ class HireCompany(Base):
     organisations = relationship("Organisation", back_populates="hire_company")
     appliances = relationship("Appliance", back_populates="hire_company")
     rentals = relationship("Rental", back_populates="hire_company")
+    zubehoer_catalog = relationship(
+        "RentalZubehoerCatalogItem",
+        back_populates="hire_company",
+        cascade="all, delete-orphan",
+    )
     users = relationship("User", back_populates="hire_company", foreign_keys="User.hire_company_id")
     country = relationship("Country", back_populates="hire_companies")
 
@@ -271,6 +276,47 @@ class Rental(Base):
     hire_company = relationship("HireCompany", back_populates="rentals")
     organisation = relationship("Organisation", back_populates="rentals")
     lendings = relationship("ApplianceLending", back_populates="rental", cascade="all, delete-orphan")
+    zubehoer_lines = relationship(
+        "RentalZubehoerLine",
+        back_populates="rental",
+        cascade="all, delete-orphan",
+        order_by="RentalZubehoerLine.sort_order, RentalZubehoerLine.id",
+    )
+
+
+class RentalZubehoerCatalogItem(Base):
+    """Tenant-scoped catalog of recurring rental accessories (Zubehör)."""
+
+    __tablename__ = "rental_zubehoer_catalog"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    default_quantity = Column(Integer, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    hire_company = relationship("HireCompany", back_populates="zubehoer_catalog")
+    lines = relationship("RentalZubehoerLine", back_populates="catalog_item")
+
+
+class RentalZubehoerLine(Base):
+    """Accessory line on a rental for packing lists."""
+
+    __tablename__ = "rental_zubehoer_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rental_id = Column(Integer, ForeignKey("rentals.id", ondelete="CASCADE"), nullable=False, index=True)
+    catalog_item_id = Column(
+        Integer,
+        ForeignKey("rental_zubehoer_catalog.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    label = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    rental = relationship("Rental", back_populates="zubehoer_lines")
+    catalog_item = relationship("RentalZubehoerCatalogItem", back_populates="lines")
 
 
 class ApplianceLending(Base):

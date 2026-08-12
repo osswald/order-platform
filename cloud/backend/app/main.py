@@ -36,6 +36,7 @@ from .routers import (
     position_comments,
     public_rental_inquiry,
     receipt_printing,
+    rental_zubehoer_catalog,
     rentals,
     sumup_connect,
     sumup_edge,
@@ -168,6 +169,11 @@ app.include_router(color_palette.router, tags=["color-palette"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 app.include_router(appliances.router, prefix="/appliances", tags=["appliances"])
 app.include_router(rentals.router, prefix="/rentals", tags=["rentals"])
+app.include_router(
+    rental_zubehoer_catalog.router,
+    prefix="/rental-zubehoer-catalog",
+    tags=["rental-zubehoer"],
+)
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(events.router, prefix="/events", tags=["events"])
 app.include_router(hosted_pi.router, prefix="/events", tags=["hosted-pi"])

@@ -47,6 +47,7 @@ def get_rental_in_tenant(db: Session, rental_id: int, hire_company_id: int) -> R
         .options(
             joinedload(Rental.organisation),
             joinedload(Rental.lendings).joinedload(ApplianceLending.appliance),
+            joinedload(Rental.zubehoer_lines),
         )
         .filter(Rental.id == rental_id, Rental.hire_company_id == hire_company_id)
         .first()

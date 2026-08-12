@@ -16,3 +16,11 @@ def resolve_logo_for_event(event) -> tuple[str, bytes]:
             if result is not None:
                 return result
     return "image/png", asset_bytes(VENDIQO_LOGO)
+
+
+def resolve_logo_for_hire_company(hire_company) -> tuple[str, bytes]:
+    if hire_company is not None and has_receipt_logo(hire_company):
+        result = receipt_logo_bytes(hire_company)
+        if result is not None:
+            return result
+    return "image/png", asset_bytes(VENDIQO_LOGO)

@@ -52,6 +52,7 @@
         :title="$t('hireCompanies.receiptTemplatesTitle')"
         :hint="$t('hireCompanies.receiptTemplatesHint')"
       />
+      <RentalZubehoerCatalogSection :hire-company-id="hireCompanyId" />
       <div class="actions">
         <v-btn color="primary" type="submit">{{ $t('common.save') }}</v-btn>
       </div>
@@ -67,6 +68,7 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import HelpLink from './HelpLink.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
+import RentalZubehoerCatalogSection from './RentalZubehoerCatalogSection.vue'
 import { apiJson } from '../api'
 import { useCountries } from '../composables/useCountries'
 import { rules, validateForm, type ValidatableForm } from '../utils/formRules.js'

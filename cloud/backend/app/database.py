@@ -313,6 +313,7 @@ def apply_schema_patches() -> None:
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
     _ensure_rentals_and_lending_rental_id()
+    _ensure_rental_zubehoer_tables()
     _patch_organisation_stripe_connect()
     _patch_organisation_sumup_connect()
     _ensure_sumup_tables()
@@ -1204,6 +1205,21 @@ def _ensure_rentals_and_lending_rental_id() -> None:
             conn.execute(text("ALTER TABLE appliance_lendings ALTER COLUMN rental_id SET NOT NULL"))
     except Exception:
         return
+
+
+def _ensure_rental_zubehoer_tables() -> None:
+    try:
+        inspector = inspect(engine)
+        table_names = inspector.get_table_names()
+    except Exception:
+        return
+    if "rentals" not in table_names:
+        return
+
+    from .models import RentalZubehoerCatalogItem, RentalZubehoerLine
+
+    RentalZubehoerCatalogItem.__table__.create(bind=engine, checkfirst=True)
+    RentalZubehoerLine.__table__.create(bind=engine, checkfirst=True)
 
 
 def _relax_appliances_organisation_id() -> None:

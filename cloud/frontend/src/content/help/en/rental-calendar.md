@@ -16,6 +16,12 @@ The calendar shows the label when set, otherwise the organisation name.
 
 Click a bar in the month or year view to edit: change label and dates, remove planned devices or return current ones, and delete when allowed (empty or planned-only). The organisation cannot be changed after create. Rentals with a current device out or returned history cannot be deleted.
 
+## Accessories and packing list
+
+In the edit dialog you can add **accessories** lines (from the catalog under hire-company settings or as free text, with optional quantity) and download a **packing list PDF**. The PDF lists open appliances and accessories as a checklist — no prices.
+
+Maintain the **accessories catalog** under **Hire company settings**.
+
 ## Appliance lendings
 
 The main-menu **Appliance lendings** page remains the read-only device list for the active organisation.
