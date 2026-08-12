@@ -197,6 +197,12 @@ describe('RentalsCalendar edit', () => {
     vi.useRealTimers()
   })
 
+  it('uses shared vq-page chrome on the calendar root', async () => {
+    const wrapper = await mountCalendar()
+    expect(wrapper.find('.rentals-calendar').classes()).toContain('vq-page')
+    expect(wrapper.find('.vq-page-header').exists()).toBe(true)
+  })
+
   it('renders a multi-day rental as week-spanning bars, not one chip per day', async () => {
     const wrapper = await mountCalendar()
     // Fri–Mon spans two week rows → two bars, not four daily chips.
