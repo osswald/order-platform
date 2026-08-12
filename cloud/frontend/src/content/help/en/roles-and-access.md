@@ -6,7 +6,7 @@ Vendiqo operator with access to all hire companies.
 
 - Create and manage hire companies (**Hire companies**)
 - Choose **Active hire company** in the sidebar — API requests send the `X-Hire-Company-Id` header
-- Full access within the selected hire company
+- Full access within the selected hire company, including **Tenant settings** (master data, accessories catalog)
 
 ## Hire company admin
 

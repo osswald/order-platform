@@ -6,7 +6,7 @@ Vendiqo-Betreiber mit Zugriff auf alle Verleiher.
 
 - Verleiher anlegen und verwalten (**Verleiher**)
 - **Aktiven Verleiher** in der Seitenleiste wählen — API-Anfragen senden den Header `X-Hire-Company-Id`
-- Voller Zugriff innerhalb des gewählten Verleihers
+- Voller Zugriff innerhalb des gewählten Verleihers, inkl. **Verleiher-Einstellungen** (Stammdaten, Zubehör-Katalog)
 
 ## Verleiher-Admin
 
