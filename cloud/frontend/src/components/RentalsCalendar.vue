@@ -444,6 +444,7 @@ import {
   type MonthBarSegment,
   type RentalBar,
 } from '../utils/rentalCalendar'
+import { compareApplianceTypes } from '../utils/applianceType'
 import { formatDate } from '../utils/localeFormat'
 import { currentLocale } from '../i18n'
 
@@ -559,6 +560,12 @@ const assignedOpenApplianceIds = computed(() => {
 const addApplianceItems = computed(() =>
   addApplianceCandidates.value
     .filter((row) => row.lendable !== false && !assignedOpenApplianceIds.value.has(row.id))
+    .slice()
+    .sort(
+      (a, b) =>
+        compareApplianceTypes(a.type, b.type) ||
+        (a.name || `#${a.id}`).localeCompare(b.name || `#${b.id}`, undefined, { sensitivity: 'base' }),
+    )
     .map((row) => ({
       title: rentalApplianceLabel({
         id: row.id,

@@ -255,6 +255,34 @@ def test_packing_pdf_lists_open_lendings_only():
     text = _pdf_text(response.content)
     assert "Pi-01" not in text
     assert "Drucker-01" in text
+    assert "Drucker" in text
+    assert "192.168.1.50" in text
+
+
+def test_packing_pdf_uses_localized_type_labels_and_type_order():
+    fx = _tenant_fixture("zubehoer-pdf-order")
+    token = _token_for(fx["email"])
+    today = datetime.now(UTC).date()
+    rental = _create_rental(token, fx["org_id"], start=today, end=today + timedelta(days=2))
+    client.post(
+        f"/rentals/{rental['id']}/appliances",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"appliance_id": fx["printer_id"]},
+    )
+    client.post(
+        f"/rentals/{rental['id']}/appliances",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"appliance_id": fx["pi_id"]},
+    )
+    response = client.get(
+        f"/rentals/{rental['id']}/packing-list.pdf",
+        headers={"Authorization": f"Bearer {token}", "Accept-Language": "de"},
+    )
+    assert response.status_code == 200
+    text = _pdf_text(response.content)
+    assert "Pi-01 (Server)" in text
+    assert "Drucker-01 (Drucker, 192.168.1.50)" in text
+    assert text.index("Pi-01") < text.index("Drucker-01")
 
 
 def test_packing_pdf_zubehoer_quantity_only_when_set():

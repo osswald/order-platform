@@ -4,11 +4,12 @@ import {
   applianceTypeColor,
   applianceTypeIcon,
   applianceTypeLabel,
+  compareApplianceTypes,
 } from './applianceType'
 
 describe('applianceType', () => {
-  it('lists all six backend-allowed types', () => {
-    expect(APPLIANCE_TYPES).toEqual(['server', 'printer', 'mobile', 'tablet', 'router', 'ap'])
+  it('lists all six backend-allowed types in display order', () => {
+    expect(APPLIANCE_TYPES).toEqual(['server', 'router', 'ap', 'printer', 'mobile', 'tablet'])
     expect(APPLIANCE_TYPES).toHaveLength(6)
   })
 
@@ -28,5 +29,13 @@ describe('applianceType', () => {
     expect(applianceTypeIcon('unknown')).toBe('mdi-devices')
     expect(applianceTypeColor('unknown')).toBe('default')
     expect(applianceTypeLabel('unknown')).toBe('unknown')
+  })
+
+  it('compares types in server → router → ap → printer → mobile → tablet order', () => {
+    expect(compareApplianceTypes('server', 'router')).toBeLessThan(0)
+    expect(compareApplianceTypes('ap', 'printer')).toBeLessThan(0)
+    expect(compareApplianceTypes('printer', 'mobile')).toBeLessThan(0)
+    expect(compareApplianceTypes('tablet', 'server')).toBeGreaterThan(0)
+    expect(compareApplianceTypes('other', 'server')).toBeGreaterThan(0)
   })
 })

@@ -185,11 +185,11 @@
   },
   "applianceType": {
     "server": "Server",
+    "router": "Router",
+    "ap": "Access Point",
     "printer": "Drucker",
     "mobile": "Mobil",
-    "tablet": "Tablet",
-    "router": "Router",
-    "ap": "Access Point"
+    "tablet": "Tablet"
   },
   "lending": {
     "day": "Tag",

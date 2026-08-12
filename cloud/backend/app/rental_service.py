@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from .i18n.errors import api_error
 from .models import Appliance, ApplianceLending, Organisation, Rental
 
-FLEET_TYPE_ORDER = ("server", "printer", "mobile", "tablet", "router", "ap")
+FLEET_TYPE_ORDER = ("server", "router", "ap", "printer", "mobile", "tablet")
 
 
 def utc_today() -> date:
