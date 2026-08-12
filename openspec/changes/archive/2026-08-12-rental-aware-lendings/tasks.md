@@ -33,6 +33,6 @@
 
 ## 6. Verify
 
-- [ ] 6.1 Run cloud backend pytest for rentals, appliance lending, and edge active-lending coverage
-- [ ] 6.2 Run cloud frontend Vitest for calendar, appliances, organisations lend flows
-- [ ] 6.3 Run `./scripts/lint.sh --staged` (or full) before commit
+- [x] 6.1 Run cloud backend pytest for rentals, appliance lending, and edge active-lending coverage
+- [x] 6.2 Run cloud frontend Vitest for calendar, appliances, organisations lend flows
+- [x] 6.3 Run `./scripts/lint.sh --staged` (or full) before commit

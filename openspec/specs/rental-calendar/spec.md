@@ -66,28 +66,87 @@ The calendar surface SHALL show all rentals of the active Verleiher in a month v
 
 ### Requirement: Fleet month view shows appliances by type and day
 
-The same surface SHALL offer a month fleet view whose Y-axis lists the tenant’s non-hosted appliances grouped by type and whose X-axis is the calendar days of the selected month. A cell or bar MUST appear only where an appliance has an open lending that overlaps that day, labelled with the rental display name. Appliances with no lending that month MUST still appear as empty rows. Empty rentals MUST NOT occupy fleet cells.
+The same surface SHALL offer a month Geräte (devices) view — formerly referred to as fleet — whose Y-axis lists the tenant’s non-hosted appliances grouped by type (stable order: server, router, ap, printer, mobile, tablet, then any others) and whose X-axis is the calendar days of the selected month. A cell or bar MUST appear only where an appliance has an open lending that overlaps that day, labelled with the rental display name. Appliances with no lending that month MUST still appear as empty rows. Empty rentals MUST NOT occupy Geräte cells. Appliance rows SHOULD show IP when available.
 
 #### Scenario: Assigned device occupies its days
 
 - **WHEN** Pi-01 is assigned to a rental 12–15 June
-- **AND** the user opens the June fleet view
+- **AND** the user opens the June Geräte view
 - **THEN** Pi-01’s row is occupied on the 12th through 15th with that rental’s display name
 
 #### Scenario: Type grouping
 
-- **WHEN** the fleet includes servers and printers
+- **WHEN** the Geräte view includes servers and printers
 - **THEN** those appliances are listed under type group headings (server, printer, and other types present)
 
-#### Scenario: Unassigned appliance is an empty row
+#### Scenario: Empty appliance still listed
 
-- **WHEN** an appliance has no open lending in the visible month
-- **THEN** it still appears on the Y-axis with no occupancy bars
+- **WHEN** an appliance has no open lending in the selected month
+- **THEN** it still appears as an empty row in its type group
 
-#### Scenario: Empty rental does not appear on the fleet
+#### Scenario: Empty rental does not appear on the Geräte view
 
-- **WHEN** a rental has no appliance lendings during the visible month
-- **THEN** no fleet cell is occupied for that rental
+- **WHEN** a rental has no open appliance lendings
+- **THEN** no Geräte cell is occupied for that rental
+
+### Requirement: Month bars span continuous day ranges within each week
+
+On month view, each rental MUST render as continuous bar segment(s) across the days it occupies within a week row, not as one discrete chip per day. Multi-week rentals MAY produce one segment per week row they cross.
+
+#### Scenario: Multi-day rental is week-spanning bars
+
+- **WHEN** a rental runs Friday through Monday and the user is on that month view
+- **THEN** the rental appears as continuous bars on the affected week rows
+- **AND** it is not shown as one separate chip for each calendar day
+
+### Requirement: Overlapping year rentals use separate lanes
+
+On year view, when two or more rentals overlap in time within a month track, the calendar SHALL place them on separate vertical lanes so bars remain distinguishable.
+
+#### Scenario: Concurrent year rentals stack
+
+- **WHEN** two rentals overlap on the same year-view month track
+- **THEN** they appear on different lanes
+- **AND** both remain clickable for edit
+
+### Requirement: Calendar bars expose rental summary tooltips
+
+Month and year rental bars SHALL provide a tooltip (or equivalent hover/focus summary) that includes organisation name, inclusive date range, and the names of open appliances on that rental (from the list payload). Empty-device rentals MUST still show organisation and dates.
+
+#### Scenario: Month bar tooltip lists devices
+
+- **WHEN** a rental has open appliance lendings
+- **AND** the user opens the tooltip on its month bar
+- **THEN** the summary includes organisation, dates, and those appliance names
+
+### Requirement: Assign and edit device lists show appliance type chips
+
+In the rental edit/assign surfaces, assigned appliances and the add-device picker SHALL show the appliance type chip (icon and localized type label) beside the appliance name.
+
+#### Scenario: Type chip visible when adding a device
+
+- **WHEN** a tenant admin opens the add-device control on rental edit
+- **THEN** each available appliance option shows its type chip with the appliance name
+
+### Requirement: Devices view shows printer IP addresses
+
+The calendar’s Geräte (devices/fleet) month view, rental edit device list, and bar tooltips SHALL include an appliance IP address when one is known (e.g. printers). Missing IPs MUST NOT block rendering the row or bar.
+
+#### Scenario: Fleet row shows printer IP
+
+- **WHEN** a printer appliance has an IP address configured
+- **AND** the user opens the Geräte month view
+- **THEN** that appliance’s row shows the IP address
+
+### Requirement: Deleting a rental keeps the calendar surface visible
+
+After a successful rental delete from the edit dialog, the UI SHALL show a success message and MUST keep the month/year/Geräte calendar views available (reloaded without the deleted rental). Delete MUST NOT replace the entire calendar with only the toast message.
+
+#### Scenario: Calendar remains after delete
+
+- **WHEN** a tenant admin deletes an empty or planned-only rental
+- **THEN** a success message is shown
+- **AND** the calendar grid for the current view remains visible without that rental
 
 ### Requirement: Hire-company users can create a rental from the calendar
 
@@ -161,7 +220,7 @@ The edit surface SHALL allow changing the rental label and inclusive start/end d
 
 ### Requirement: Edit dialog manages assigned devices and delete when allowed
 
-The edit surface SHALL list the rental’s appliance lendings and allow removing a planned lending or returning a current lending without deleting the rental. It SHALL offer delete/cancel when the rental may be deleted under existing rules (empty, or planned-only with no current open lending). Delete MUST be unavailable or rejected when a current open lending exists.
+The edit surface SHALL list the rental’s appliance lendings and allow adding an available appliance, removing a planned lending, or returning a current lending without deleting the rental. It SHALL offer delete/cancel when the rental may be deleted under existing rules (empty, or planned-only with no current open lending). Delete MUST be unavailable or rejected when a current open lending exists. Lending dates are not independently editable; only membership changes.
 
 #### Scenario: Unassign planned device
 
@@ -176,6 +235,11 @@ The edit surface SHALL list the rental’s appliance lendings and allow removing
 - **THEN** that lending is marked returned
 - **AND** the rental remains
 
+#### Scenario: Add available device
+
+- **WHEN** a tenant admin adds an available appliance from the edit dialog
+- **THEN** that appliance appears in the rental’s lending list as an open lending
+
 #### Scenario: Delete empty or planned-only rental
 
 - **WHEN** a tenant admin deletes a rental that has no current open lending and is empty or planned-only
@@ -188,6 +252,30 @@ The edit surface SHALL list the rental’s appliance lendings and allow removing
 - **WHEN** a rental has a current open lending
 - **THEN** delete is not offered or is rejected
 - **AND** the rental remains until the current lending is returned
+
+### Requirement: Edit dialog can add appliances to a rental
+
+The rental edit surface SHALL allow a tenant admin to assign additional available appliances to the rental being edited (membership add). Create-rental from the calendar MUST remain without a device picker (empty rental first). Adding a device MUST use the same assign and overlap rules as other assign paths. Unassign planned and return current behaviour remains unchanged.
+
+#### Scenario: Add device from edit dialog
+
+- **WHEN** a tenant admin opens edit for a rental
+- **AND** chooses an available appliance to add
+- **THEN** an open lending for that appliance is created on the rental
+- **AND** the device list updates without closing the dialog unless the product chooses to
+
+#### Scenario: Add blocked by interior overlap
+
+- **WHEN** the chosen appliance has an open lending that strictly overlaps the rental dates
+- **THEN** the add is rejected
+- **AND** the dialog shows an error
+- **AND** no new lending is created
+
+#### Scenario: Create dialog stays empty of devices
+
+- **WHEN** a tenant admin opens create rental from the calendar
+- **THEN** the create surface does not offer an appliance multi-picker
+- **AND** the rental can still be created with zero devices
 
 ### Requirement: Rental edit includes Zubehör and packing list download
 
