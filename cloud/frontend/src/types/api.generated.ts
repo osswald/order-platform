@@ -606,6 +606,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rentals/{rental_id}/zubehoer-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Zubehoer Lines */
+        get: operations["list_zubehoer_lines_rentals__rental_id__zubehoer_lines_get"];
+        put?: never;
+        /** Create Zubehoer Line */
+        post: operations["create_zubehoer_line_rentals__rental_id__zubehoer_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rentals/{rental_id}/zubehoer-lines/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Zubehoer Line */
+        delete: operations["delete_zubehoer_line_rentals__rental_id__zubehoer_lines__line_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Zubehoer Line */
+        patch: operations["update_zubehoer_line_rentals__rental_id__zubehoer_lines__line_id__patch"];
+        trace?: never;
+    };
     "/rentals/": {
         parameters: {
             query?: never;
@@ -692,6 +728,59 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/rentals/{rental_id}/packing-list.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Rental Packing Pdf */
+        get: operations["read_rental_packing_pdf_rentals__rental_id__packing_list_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rental-zubehoer-catalog/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Catalog */
+        get: operations["list_catalog_rental_zubehoer_catalog__get"];
+        put?: never;
+        /** Create Catalog Item */
+        post: operations["create_catalog_item_rental_zubehoer_catalog__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rental-zubehoer-catalog/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Catalog Item */
+        delete: operations["delete_catalog_item_rental_zubehoer_catalog__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Catalog Item */
+        patch: operations["update_catalog_item_rental_zubehoer_catalog__item_id__patch"];
         trace?: never;
     };
     "/users/": {
@@ -4404,6 +4493,8 @@ export interface components {
             filled: boolean;
             /** Lendings */
             lendings: components["schemas"]["RentalLendingRead"][];
+            /** Zubehoer Lines */
+            zubehoer_lines?: components["schemas"]["RentalZubehoerLineRead"][];
         };
         /** RentalUpdate */
         RentalUpdate: {
@@ -4413,6 +4504,85 @@ export interface components {
             end_date?: string | null;
             /** Label */
             label?: string | null;
+        };
+        /** RentalZubehoerCatalogCreate */
+        RentalZubehoerCatalogCreate: {
+            /** Name */
+            name: string;
+            /** Default Quantity */
+            default_quantity?: number | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** RentalZubehoerCatalogRead */
+        RentalZubehoerCatalogRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Default Quantity */
+            default_quantity: number | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** RentalZubehoerCatalogUpdate */
+        RentalZubehoerCatalogUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Default Quantity */
+            default_quantity?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** RentalZubehoerLineCreate */
+        RentalZubehoerLineCreate: {
+            /** Catalog Item Id */
+            catalog_item_id?: number | null;
+            /** Label */
+            label?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** RentalZubehoerLineRead */
+        RentalZubehoerLineRead: {
+            /** Id */
+            id: number;
+            /** Rental Id */
+            rental_id: number;
+            /** Catalog Item Id */
+            catalog_item_id: number | null;
+            /** Label */
+            label: string;
+            /** Quantity */
+            quantity: number | null;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** RentalZubehoerLineUpdate */
+        RentalZubehoerLineUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /** SalesAdditionLineRead */
         SalesAdditionLineRead: {
@@ -7110,6 +7280,146 @@ export interface operations {
             };
         };
     };
+    list_zubehoer_lines_rentals__rental_id__zubehoer_lines_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalZubehoerLineRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_zubehoer_line_rentals__rental_id__zubehoer_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalZubehoerLineCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalZubehoerLineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_zubehoer_line_rentals__rental_id__zubehoer_lines__line_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_zubehoer_line_rentals__rental_id__zubehoer_lines__line_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalZubehoerLineUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalZubehoerLineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_rentals_rentals__get: {
         parameters: {
             query?: {
@@ -7372,6 +7682,174 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RentalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_rental_packing_pdf_rentals__rental_id__packing_list_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+                "accept-language"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_catalog_rental_zubehoer_catalog__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalZubehoerCatalogRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_catalog_item_rental_zubehoer_catalog__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalZubehoerCatalogCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalZubehoerCatalogRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_catalog_item_rental_zubehoer_catalog__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_catalog_item_rental_zubehoer_catalog__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalZubehoerCatalogUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalZubehoerCatalogRead"];
                 };
             };
             /** @description Validation Error */

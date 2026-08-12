@@ -35,6 +35,8 @@
     "rental_range_incomplete": "Von- und Bis-Datum müssen gemeinsam angegeben werden.",
     "rental_has_current_lending": "Aktive Ausleihe kann nicht gelöscht werden, solange Geräte ausgeliehen sind.",
     "rental_has_history": "Ausleihe mit zurückgegebenen Geräten kann nicht gelöscht werden.",
+    "rental_zubehoer_catalog_not_found": "Zubehör-Katalogeintrag nicht gefunden.",
+    "rental_zubehoer_line_not_found": "Zubehör-Zeile nicht gefunden.",
     "appliance_not_lendable": "Dieses Gerät kann nicht ausgeliehen werden.",
     "event_not_found": "Veranstaltung nicht gefunden.",
     "no_twint_qr": "Kein TWINT-QR-Code für diese Veranstaltung.",
@@ -212,6 +214,18 @@
       "amount": "Betrag",
       "no_note": "—",
       "section_total": "Total"
+    },
+    "rental_packing": {
+      "title": "Packliste",
+      "rental": "Ausleihe: {name}",
+      "organisation": "Organisation: {name}",
+      "dates": "Zeitraum: {range}",
+      "devices_heading": "Geräte",
+      "zubehoer_heading": "Zubehör",
+      "item": "Bezeichnung",
+      "qty": "Menge",
+      "no_devices": "Keine Geräte zugeordnet.",
+      "no_zubehoer": "Kein Zubehör erfasst."
     }
   }
 }

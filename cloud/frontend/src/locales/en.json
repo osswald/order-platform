@@ -265,7 +265,16 @@
     "segmentPast": "past",
     "noOrganisation": "Please choose an organisation.",
     "emptyBar": "no devices",
-    "clickDayHint": "Click a day to create a rental."
+    "clickDayHint": "Click a day to create a rental.",
+    "zubehoer": "Accessories",
+    "noZubehoer": "No accessories recorded.",
+    "addFromCatalog": "From catalog",
+    "addZubehoer": "Add",
+    "freeTextLabel": "Free text",
+    "qtyOptional": "Quantity (optional)",
+    "zubehoerSaveFailed": "Could not save accessories.",
+    "packingListPdf": "Packing list PDF",
+    "packingListPdfFailed": "Could not download packing list."
   },
   "sumupDevices": {
     "title": "SumUp devices",

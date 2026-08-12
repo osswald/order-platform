@@ -258,7 +258,16 @@
     "segmentPast": "vergangen",
     "noOrganisation": "Bitte eine Organisation wählen.",
     "emptyBar": "ohne Geräte",
-    "clickDayHint": "Tag anklicken, um eine Ausleihe anzulegen."
+    "clickDayHint": "Tag anklicken, um eine Ausleihe anzulegen.",
+    "zubehoer": "Zubehör",
+    "noZubehoer": "Kein Zubehör erfasst.",
+    "addFromCatalog": "Aus Katalog",
+    "addZubehoer": "Hinzufügen",
+    "freeTextLabel": "Freitext",
+    "qtyOptional": "Menge (optional)",
+    "zubehoerSaveFailed": "Zubehör konnte nicht gespeichert werden.",
+    "packingListPdf": "Packliste PDF",
+    "packingListPdfFailed": "Packliste konnte nicht heruntergeladen werden."
   },
   "waiters": {
     "title": "Kellner",
@@ -427,7 +436,19 @@
     "noHireCompany": "Kein Verleiher zugewiesen.",
     "saved": "Verleiher gespeichert.",
     "saveError": "Verleiher konnte nicht gespeichert werden.",
-    "loadError": "Verleiher konnte nicht geladen werden."
+    "loadError": "Verleiher konnte nicht geladen werden.",
+    "zubehoer": {
+      "title": "Zubehör-Katalog",
+      "hint": "Wiederverwendbare Zubehör-Positionen für Ausleihen (z. B. Thermopapier, Kabel).",
+      "add": "Eintrag hinzufügen",
+      "edit": "Eintrag bearbeiten",
+      "empty": "Noch keine Katalogeinträge.",
+      "defaultQtyOptional": "Standardmenge (optional)",
+      "active": "Aktiv",
+      "inactive": "inaktiv",
+      "deleteConfirm": "Katalogeintrag wirklich löschen?",
+      "loadError": "Zubehör-Katalog konnte nicht geladen werden."
+    }
   },
   "hireCompanies": {
     "title": "Verleiher",

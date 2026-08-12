@@ -8,9 +8,10 @@ import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 vi.mock('../api', () => ({
   apiJson: vi.fn(),
+  apiFetch: vi.fn(),
 }))
 
-import { apiJson } from '../api'
+import { apiFetch, apiJson } from '../api'
 
 const org = { id: 9, name: 'FC St.Gallen' }
 const rental = {
@@ -24,7 +25,10 @@ const rental = {
   display_name: 'Openair 2026',
   filled: false,
   lendings: [] as Array<Record<string, unknown>>,
+  zubehoer_lines: [] as Array<Record<string, unknown>>,
 }
+
+const catalogItem = { id: 5, name: 'Thermopapier', default_quantity: 2, sort_order: 0, is_active: true }
 
 const i18n = createI18n({
   legacy: false,
@@ -32,17 +36,37 @@ const i18n = createI18n({
   messages: { de },
 })
 
+let deletedRentalIds = new Set<number>()
+
 function mockListPayload(rows = [rental]) {
   vi.mocked(apiJson).mockImplementation(async (path: string, init?: RequestInit) => {
     if (path === '/organisations/') return [org]
-    if (path.startsWith('/rentals/?from=')) return rows
+    if (path === '/rental-zubehoer-catalog/') return [catalogItem]
+    if (path.startsWith('/rentals/?from=')) {
+      return rows.filter((row) => !deletedRentalIds.has(row.id))
+    }
     if (path === '/rentals/42') return rows[0] ?? rental
     if (path === '/rentals/' && init?.method === 'POST') return { ...rental, id: 99 }
     if (path === '/rentals/42' && init?.method === 'PATCH') {
       const body = JSON.parse(String(init.body))
       return { ...rental, ...body, organisation_id: 9, organisation_name: 'FC St.Gallen', display_name: body.label || 'FC St.Gallen' }
     }
-    if (path === '/rentals/42' && init?.method === 'DELETE') return null
+    if (path === '/rentals/42' && init?.method === 'DELETE') {
+      deletedRentalIds.add(42)
+      return null
+    }
+    if (path === '/rentals/42/zubehoer-lines' && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body))
+      return {
+        id: 11,
+        rental_id: 42,
+        catalog_item_id: body.catalog_item_id ?? null,
+        label: body.label ?? catalogItem.name,
+        quantity: body.quantity ?? catalogItem.default_quantity,
+        sort_order: 0,
+      }
+    }
+    if (path.startsWith('/rentals/42/zubehoer-lines/') && init?.method === 'DELETE') return null
     if (path.startsWith('/rentals/42/lendings/') && init?.method === 'DELETE') {
       return { ...rental, lendings: [] }
     }
@@ -94,8 +118,9 @@ async function mountCalendar(path = '/rentals') {
         'v-text-field': {
           props: ['modelValue', 'label', 'type', 'rules'],
           emits: ['update:modelValue'],
+          inheritAttrs: false,
           template:
-            '<label>{{ label }}<input :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /></label>',
+            '<label><span v-if="label">{{ label }}</span><input v-bind="$attrs" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /></label>',
         },
         'v-select': {
           props: ['modelValue', 'label', 'disabled', 'items', 'itemTitle', 'itemValue'],
@@ -114,6 +139,7 @@ describe('RentalsCalendar edit', () => {
     vi.clearAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-06-01T12:00:00Z'))
+    deletedRentalIds = new Set()
     mockListPayload()
   })
 
@@ -185,7 +211,41 @@ describe('RentalsCalendar edit', () => {
     await del.trigger('click')
     await flushPromises()
     expect(apiJson).toHaveBeenCalledWith('/rentals/42', expect.objectContaining({ method: 'DELETE' }))
+    expect(wrapper.findAll('.rental-chip')).toHaveLength(0)
     vi.unstubAllGlobals()
+  })
+
+  it('adds zubehoer free-text line in edit dialog', async () => {
+    const wrapper = await mountCalendar()
+    await wrapper.find('.rental-chip').trigger('click')
+    await flushPromises()
+    const labelInput = wrapper.find('[data-testid="zubehoer-free-text"]')
+    await labelInput.setValue('Kabelbinder')
+    await wrapper.find('[data-testid="zubehoer-add-free-text"]').trigger('click')
+    await flushPromises()
+    expect(apiJson).toHaveBeenCalledWith(
+      '/rentals/42/zubehoer-lines',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ label: 'Kabelbinder' }),
+      }),
+    )
+  })
+
+  it('downloads packing list pdf from edit dialog', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['%PDF'], { type: 'application/pdf' }),
+    } as Response)
+    const wrapper = await mountCalendar()
+    await wrapper.find('.rental-chip').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid="rental-packing-pdf"]').trigger('click')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/rentals/42/packing-list.pdf',
+      expect.objectContaining({ headers: expect.objectContaining({ 'Accept-Language': 'de' }) }),
+    )
   })
 
   it('hides delete when a current lending exists', async () => {

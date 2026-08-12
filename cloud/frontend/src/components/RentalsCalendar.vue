@@ -162,8 +162,87 @@
               </li>
             </ul>
           </div>
+
+          <div v-if="dialogMode === 'edit'" class="zubehoer-block">
+            <h4>{{ $t('rentals.zubehoer') }}</h4>
+            <p v-if="!(editRental?.zubehoer_lines?.length)" class="muted">{{ $t('rentals.noZubehoer') }}</p>
+            <ul v-else class="zubehoer-list">
+              <li v-for="line in editRental?.zubehoer_lines || []" :key="line.id" class="zubehoer-row">
+                <span>
+                  {{ line.label }}
+                  <span v-if="line.quantity != null" class="muted">({{ line.quantity }})</span>
+                </span>
+                <v-btn
+                  size="small"
+                  color="error"
+                  data-testid="zubehoer-line-delete"
+                  :loading="zubehoerBusyId === line.id"
+                  @click="removeZubehoerLine(line.id)"
+                >
+                  {{ $t('common.delete') }}
+                </v-btn>
+              </li>
+            </ul>
+            <div class="zubehoer-add-row">
+              <v-select
+                v-model="pickCatalogId"
+                :items="catalogPickItems"
+                item-title="title"
+                item-value="value"
+                :label="$t('rentals.addFromCatalog')"
+                hide-details="auto"
+                clearable
+                data-testid="zubehoer-catalog-pick"
+                class="zubehoer-pick"
+              />
+              <v-btn
+                size="small"
+                data-testid="zubehoer-add-catalog"
+                :disabled="pickCatalogId == null"
+                :loading="zubehoerAdding"
+                @click="addFromCatalog"
+              >
+                {{ $t('rentals.addZubehoer') }}
+              </v-btn>
+            </div>
+            <div class="zubehoer-add-row">
+              <v-text-field
+                v-model="freeTextLabel"
+                :label="$t('rentals.freeTextLabel')"
+                hide-details="auto"
+                class="zubehoer-pick"
+                data-testid="zubehoer-free-text"
+              />
+              <v-text-field
+                v-model="freeTextQty"
+                type="number"
+                min="1"
+                :label="$t('rentals.qtyOptional')"
+                hide-details="auto"
+                class="zubehoer-qty"
+              />
+              <v-btn
+                size="small"
+                data-testid="zubehoer-add-free-text"
+                :disabled="!freeTextLabel.trim()"
+                :loading="zubehoerAdding"
+                @click="addFreeTextLine"
+              >
+                {{ $t('rentals.addZubehoer') }}
+              </v-btn>
+            </div>
+          </div>
         </v-card-text>
         <v-card-actions>
+          <v-btn
+            v-if="dialogMode === 'edit'"
+            variant="outlined"
+            data-testid="rental-packing-pdf"
+            :loading="packingPdfLoading"
+            @click="downloadPackingPdf"
+          >
+            {{ $t('rentals.packingListPdf') }}
+          </v-btn>
           <v-btn
             v-if="dialogMode === 'edit' && canDeleteEdit"
             color="error"
@@ -187,9 +266,9 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HelpLink from './HelpLink.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
-import { apiJson } from '../api'
+import { apiFetch, apiJson } from '../api'
 import { isApiError } from '@/types/api'
-import type { FleetRead, OrganisationRead, RentalRead } from '@/types/api'
+import type { FleetRead, OrganisationRead, RentalRead, RentalZubehoerCatalogRead } from '@/types/api'
 import {
   clipRangeToMonth,
   isoDate,
@@ -223,6 +302,13 @@ const dialogError = ref('')
 const saving = ref(false)
 const deleting = ref(false)
 const lendingBusyId = ref<number | null>(null)
+const zubehoerBusyId = ref<number | null>(null)
+const zubehoerAdding = ref(false)
+const packingPdfLoading = ref(false)
+const catalogItems = ref<RentalZubehoerCatalogRead[]>([])
+const pickCatalogId = ref<number | null>(null)
+const freeTextLabel = ref('')
+const freeTextQty = ref('')
 const assignAppliance = ref<number | null>(null)
 const editRental = ref<RentalRead | null>(null)
 const form = reactive({
@@ -280,6 +366,114 @@ const dialogTitle = computed(() => {
 })
 
 const canDeleteEdit = computed(() => rentalCanDelete(editRental.value?.lendings ?? []))
+
+const catalogPickItems = computed(() =>
+  catalogItems.value
+    .filter((item) => item.is_active)
+    .map((item) => ({
+      title: item.default_quantity != null ? `${item.name} (${item.default_quantity})` : item.name,
+      value: item.id,
+    })),
+)
+
+async function loadCatalog() {
+  try {
+    catalogItems.value = await apiJson<RentalZubehoerCatalogRead[]>('/rental-zubehoer-catalog/')
+  } catch {
+    catalogItems.value = []
+  }
+}
+
+function resetZubehoerDraft() {
+  pickCatalogId.value = null
+  freeTextLabel.value = ''
+  freeTextQty.value = ''
+}
+
+async function addFromCatalog() {
+  if (editRental.value == null || pickCatalogId.value == null) return
+  zubehoerAdding.value = true
+  dialogError.value = ''
+  try {
+    await apiJson(`/rentals/${editRental.value.id}/zubehoer-lines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ catalog_item_id: pickCatalogId.value }),
+    })
+    editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`)
+    pickCatalogId.value = null
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.zubehoerSaveFailed') : t('rentals.zubehoerSaveFailed')
+  } finally {
+    zubehoerAdding.value = false
+  }
+}
+
+async function addFreeTextLine() {
+  if (editRental.value == null) return
+  const label = freeTextLabel.value.trim()
+  if (!label) return
+  const qtyTrimmed = freeTextQty.value.trim()
+  const payload: { label: string; quantity?: number } = { label }
+  if (qtyTrimmed) {
+    const qty = Number.parseInt(qtyTrimmed, 10)
+    if (Number.isFinite(qty) && qty >= 1) payload.quantity = qty
+  }
+  zubehoerAdding.value = true
+  dialogError.value = ''
+  try {
+    await apiJson(`/rentals/${editRental.value.id}/zubehoer-lines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`)
+    freeTextLabel.value = ''
+    freeTextQty.value = ''
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.zubehoerSaveFailed') : t('rentals.zubehoerSaveFailed')
+  } finally {
+    zubehoerAdding.value = false
+  }
+}
+
+async function removeZubehoerLine(lineId: number) {
+  if (editRental.value == null) return
+  zubehoerBusyId.value = lineId
+  dialogError.value = ''
+  try {
+    await apiJson(`/rentals/${editRental.value.id}/zubehoer-lines/${lineId}`, { method: 'DELETE' })
+    editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`)
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.zubehoerSaveFailed') : t('rentals.zubehoerSaveFailed')
+  } finally {
+    zubehoerBusyId.value = null
+  }
+}
+
+async function downloadPackingPdf() {
+  if (editRental.value == null) return
+  packingPdfLoading.value = true
+  dialogError.value = ''
+  try {
+    const response = await apiFetch(`/rentals/${editRental.value.id}/packing-list.pdf`, {
+      headers: { 'Accept-Language': currentLocale() === 'en' ? 'en' : 'de' },
+    })
+    if (!response.ok) throw new Error(t('rentals.packingListPdfFailed'))
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const safeName = (editRental.value.display_name || 'Packliste').replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-') || 'Packliste'
+    anchor.href = url
+    anchor.download = `Packliste-${safeName}.pdf`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  } catch (err: unknown) {
+    dialogError.value = err instanceof Error ? err.message : t('rentals.packingListPdfFailed')
+  } finally {
+    packingPdfLoading.value = false
+  }
+}
 
 function toBar(row: RentalRead): RentalBar {
   return {
@@ -412,7 +606,9 @@ async function openEdit(rentalId: number) {
   dialogMode.value = 'edit'
   dialogError.value = ''
   assignAppliance.value = null
+  resetZubehoerDraft()
   dialogOpen.value = true
+  void loadCatalog()
   try {
     const row = await apiJson<RentalRead>(`/rentals/${rentalId}`)
     editRental.value = row
@@ -544,17 +740,22 @@ async function unassignLending(lendingId: number) {
 async function deleteRental() {
   if (editRental.value == null || !canDeleteEdit.value) return
   if (!confirm(t('rentals.deleteConfirm', { name: editRental.value.display_name }))) return
+  const deletedId = editRental.value.id
   deleting.value = true
   dialogError.value = ''
   try {
-    await apiJson(`/rentals/${editRental.value.id}`, { method: 'DELETE' })
-    message.value = t('rentals.deleteSuccess')
-    messageType.value = 'success'
+    await apiJson(`/rentals/${deletedId}`, { method: 'DELETE' })
     dialogOpen.value = false
     editRental.value = null
     await load()
+    rentals.value = rentals.value.filter((row) => row.id !== deletedId)
+    message.value = t('rentals.deleteSuccess')
+    messageType.value = 'success'
   } catch (err: unknown) {
-    dialogError.value = isApiError(err) ? err.message || t('rentals.deleteFailed') : t('rentals.deleteFailed')
+    const errMsg = isApiError(err) ? err.message || t('rentals.deleteFailed') : t('rentals.deleteFailed')
+    dialogError.value = errMsg
+    message.value = errMsg
+    messageType.value = 'error'
   } finally {
     deleting.value = false
   }
@@ -727,6 +928,42 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+.zubehoer-block {
+  margin-top: 1rem;
+}
+.zubehoer-block h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.zubehoer-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.zubehoer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.zubehoer-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.zubehoer-pick {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+}
+.zubehoer-qty {
+  flex: 0 1 5rem;
+  max-width: 6rem;
 }
 .error {
   color: rgb(var(--v-theme-error));

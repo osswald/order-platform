@@ -7,8 +7,13 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..db_errors import commit_or_raise
 from ..deps import get_db
+from ..i18n.deps import get_locale
 from ..i18n.errors import api_error
-from ..models import Appliance, ApplianceLending, Rental
+from ..models import Appliance, ApplianceLending, HireCompany, Rental
+from ..pdf.documents.rental_packing import build_rental_packing_pdf
+from ..pdf.formatting import safe_filename
+from ..pdf.response import pdf_download_response
+from ..pdf.settings import PdfReportSettings
 from ..rental_service import (
     FLEET_TYPE_ORDER,
     apply_rental_dates,
@@ -23,8 +28,11 @@ from ..rental_service import (
     utc_today,
 )
 from ..tenancy import TenantContext, get_current_tenant_admin
+from . import rental_zubehoer_lines
+from .rental_zubehoer_lines import RentalZubehoerLineRead, _line_to_read
 
 router = APIRouter()
+router.include_router(rental_zubehoer_lines.router)
 
 
 class RentalLendingRead(BaseModel):
@@ -51,6 +59,7 @@ class RentalRead(BaseModel):
     display_name: str
     filled: bool
     lendings: list[RentalLendingRead]
+    zubehoer_lines: list[RentalZubehoerLineRead] = Field(default_factory=list)
 
 
 class RentalCreate(BaseModel):
@@ -126,6 +135,7 @@ def _lending_to_read(row: ApplianceLending, today: date) -> RentalLendingRead:
 def _rental_to_read(rental: Rental, today: date) -> RentalRead:
     org_name = rental.organisation.name if rental.organisation is not None else ""
     lendings = sorted(rental.lendings or [], key=lambda row: (row.start_date, row.id), reverse=True)
+    zubehoer_lines = sorted(rental.zubehoer_lines or [], key=lambda row: (row.sort_order, row.id))
     return RentalRead(
         id=rental.id,
         hire_company_id=rental.hire_company_id,
@@ -137,6 +147,7 @@ def _rental_to_read(rental: Rental, today: date) -> RentalRead:
         display_name=rental_display_name(rental),
         filled=rental_is_filled(rental),
         lendings=[_lending_to_read(row, today) for row in lendings],
+        zubehoer_lines=[_line_to_read(row) for row in zubehoer_lines],
     )
 
 
@@ -157,6 +168,7 @@ def list_rentals(
         .options(
             joinedload(Rental.organisation),
             joinedload(Rental.lendings).joinedload(ApplianceLending.appliance),
+            joinedload(Rental.zubehoer_lines),
         )
         .filter(Rental.hire_company_id == tenant.hire_company_id)
     )
@@ -342,3 +354,21 @@ def unassign_rental_lending(
     commit_or_raise(db)
     rental = get_rental_in_tenant(db, rental_id, tenant.hire_company_id)
     return _rental_to_read(rental, today)
+
+
+@router.get("/{rental_id}/packing-list.pdf")
+def read_rental_packing_pdf(
+    rental_id: int,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_current_tenant_admin),
+    locale: str = Depends(get_locale),
+):
+    rental = get_rental_in_tenant(db, rental_id, tenant.hire_company_id)
+    hire_company = db.query(HireCompany).filter(HireCompany.id == tenant.hire_company_id).first()
+    pdf_bytes = build_rental_packing_pdf(
+        rental=rental,
+        hire_company=hire_company,
+        settings=PdfReportSettings(locale=locale),
+    )
+    filename = f"Packliste-{safe_filename(rental_display_name(rental))}.pdf"
+    return pdf_download_response(pdf_bytes, filename)
