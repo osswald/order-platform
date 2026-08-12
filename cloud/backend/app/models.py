@@ -53,6 +53,7 @@ class HireCompany(Base):
     receipt_logo_data = Column(Text, nullable=True)
     organisations = relationship("Organisation", back_populates="hire_company")
     appliances = relationship("Appliance", back_populates="hire_company")
+    rentals = relationship("Rental", back_populates="hire_company")
     users = relationship("User", back_populates="hire_company", foreign_keys="User.hire_company_id")
     country = relationship("Country", back_populates="hire_companies")
 
@@ -156,6 +157,7 @@ class Organisation(Base):
     waiters = relationship("Waiter", back_populates="organisation", cascade="all, delete-orphan")
     article_categories = relationship("ArticleCategory", back_populates="organisation", cascade="all, delete-orphan")
     appliance_lendings = relationship("ApplianceLending", back_populates="organisation", cascade="all, delete-orphan")
+    rentals = relationship("Rental", back_populates="organisation", cascade="all, delete-orphan")
     position_comment_presets = relationship(
         "OrganisationPositionComment",
         back_populates="organisation",
@@ -251,16 +253,38 @@ class Appliance(Base):
     edge_credentials = relationship("ApplianceEdgeCredential", back_populates="appliance", cascade="all, delete-orphan")
 
 
+class Rental(Base):
+    """Dated hire-company booking container for an organisation. Devices are optional contents."""
+
+    __tablename__ = "rentals"
+    __table_args__ = (
+        Index("ix_rentals_hire_company_id_start_date_end_date", "hire_company_id", "start_date", "end_date"),
+        Index("ix_rentals_organisation_id_start_date", "organisation_id", "start_date"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    hire_company_id = Column(Integer, ForeignKey("hire_companies.id"), nullable=False, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False, index=True)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    label = Column(String(255), nullable=True)
+    hire_company = relationship("HireCompany", back_populates="rentals")
+    organisation = relationship("Organisation", back_populates="rentals")
+    lendings = relationship("ApplianceLending", back_populates="rental", cascade="all, delete-orphan")
+
+
 class ApplianceLending(Base):
     """Lend an appliance to an organisation for an inclusive calendar date range. Dates use server calendar days (UTC)."""
 
     __tablename__ = "appliance_lendings"
     id = Column(Integer, primary_key=True, index=True)
+    rental_id = Column(Integer, ForeignKey("rentals.id"), nullable=False, index=True)
     appliance_id = Column(Integer, ForeignKey("appliances.id"), nullable=False)
     organisation_id = Column(Integer, ForeignKey("organisations.id"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     returned_at = Column(DateTime(timezone=True), nullable=True)
+    rental = relationship("Rental", back_populates="lendings")
     appliance = relationship("Appliance", back_populates="lendings")
     organisation = relationship("Organisation", back_populates="appliance_lendings")
 

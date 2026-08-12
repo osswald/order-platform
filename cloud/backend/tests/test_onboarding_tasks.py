@@ -10,7 +10,6 @@ from app.models import (
     AccountingAccount,
     AccountingAccountPaymentTypeDefault,
     AccountingAccountTaxCodeDefault,
-    ApplianceLending,
     Article,
     ArticleAdditionLink,
     ArticleCategory,
@@ -35,7 +34,7 @@ from app.onboarding_tasks import (
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from tests.helpers import ensure_country
+from tests.helpers import add_lending, ensure_country
 
 
 @pytest.fixture
@@ -312,13 +311,13 @@ def test_appliance_lending_task(db):
 
     db.add(Appliance(id=1, hire_company_id=1, name="Pi", type="server"))
     today = date.today()
-    db.add(
-        ApplianceLending(
-            appliance_id=1,
-            organisation_id=1,
-            start_date=today,
-            end_date=today + timedelta(days=1),
-        )
+    add_lending(
+        db,
+        appliance_id=1,
+        organisation_id=1,
+        start_date=today,
+        end_date=today + timedelta(days=1),
+        hire_company_id=1,
     )
     db.commit()
     tasks = _task_map(build_onboarding_tasks(db, org, [], dismissed=False))

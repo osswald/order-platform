@@ -606,6 +606,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rentals/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rentals */
+        get: operations["list_rentals_rentals__get"];
+        put?: never;
+        /** Create Rental */
+        post: operations["create_rental_rentals__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rentals/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Fleet */
+        get: operations["read_fleet_rentals_fleet_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rentals/{rental_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Rental */
+        get: operations["read_rental_rentals__rental_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Rental */
+        delete: operations["delete_rental_rentals__rental_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Rental */
+        patch: operations["update_rental_rentals__rental_id__patch"];
+        trace?: never;
+    };
+    "/rentals/{rental_id}/appliances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign Rental Appliance */
+        post: operations["assign_rental_appliance_rentals__rental_id__appliances_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rentals/{rental_id}/lendings/{lending_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unassign Rental Lending */
+        delete: operations["unassign_rental_lending_rentals__rental_id__lendings__lending_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/": {
         parameters: {
             query?: never;
@@ -3202,6 +3290,52 @@ export interface components {
             /** In Progress Event Id */
             in_progress_event_id?: number | null;
         };
+        /** FleetApplianceRead */
+        FleetApplianceRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /** Type */
+            type: string;
+            /** Occupancies */
+            occupancies: components["schemas"]["FleetOccupancyRead"][];
+        };
+        /** FleetOccupancyRead */
+        FleetOccupancyRead: {
+            /** Rental Id */
+            rental_id: number;
+            /** Display Name */
+            display_name: string;
+            /** Organisation Id */
+            organisation_id: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+        };
+        /** FleetRead */
+        FleetRead: {
+            /** Year */
+            year: number;
+            /** Month */
+            month: number;
+            /** Groups */
+            groups: components["schemas"]["FleetTypeGroupRead"][];
+        };
+        /** FleetTypeGroupRead */
+        FleetTypeGroupRead: {
+            /** Type */
+            type: string;
+            /** Appliances */
+            appliances: components["schemas"]["FleetApplianceRead"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -4170,6 +4304,30 @@ export interface components {
              */
             bottom_line: string;
         };
+        /** RentalAssignAppliance */
+        RentalAssignAppliance: {
+            /** Appliance Id */
+            appliance_id: number;
+        };
+        /** RentalCreate */
+        RentalCreate: {
+            /** Organisation Id */
+            organisation_id: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Label */
+            label?: string | null;
+            /** Appliance Ids */
+            appliance_ids?: number[];
+        };
         /** RentalInquiryCreate */
         RentalInquiryCreate: {
             /** Name */
@@ -4192,6 +4350,69 @@ export interface components {
              * @default
              */
             website: string;
+        };
+        /** RentalLendingRead */
+        RentalLendingRead: {
+            /** Id */
+            id: number;
+            /** Appliance Id */
+            appliance_id: number;
+            /** Appliance Name */
+            appliance_name: string | null;
+            /** Appliance Type */
+            appliance_type: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Returned At */
+            returned_at: string | null;
+            /** Segment */
+            segment: string;
+        };
+        /** RentalRead */
+        RentalRead: {
+            /** Id */
+            id: number;
+            /** Hire Company Id */
+            hire_company_id: number;
+            /** Organisation Id */
+            organisation_id: number;
+            /** Organisation Name */
+            organisation_name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Label */
+            label: string | null;
+            /** Display Name */
+            display_name: string;
+            /** Filled */
+            filled: boolean;
+            /** Lendings */
+            lendings: components["schemas"]["RentalLendingRead"][];
+        };
+        /** RentalUpdate */
+        RentalUpdate: {
+            /** Start Date */
+            start_date?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Label */
+            label?: string | null;
         };
         /** SalesAdditionLineRead */
         SalesAdditionLineRead: {
@@ -6877,6 +7098,281 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rentals_rentals__get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_rental_rentals__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_fleet_rentals_fleet_get: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+            };
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_rental_rentals__rental_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rental_rentals__rental_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_rental_rentals__rental_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_rental_appliance_rentals__rental_id__appliances_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalAssignAppliance"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unassign_rental_lending_rentals__rental_id__lendings__lending_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                rental_id: number;
+                lending_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalRead"];
+                };
             };
             /** @description Validation Error */
             422: {

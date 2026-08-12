@@ -55,6 +55,35 @@ describe('useAuthSession', () => {
     expect(canAccessUsers.value).toBe(false)
   })
 
+  it('canAccessTenantAdmin is true for tenant admin', () => {
+    localStorage.setItem('auth_session', '1')
+    localStorage.setItem('user_role', 'tenant_admin')
+    localStorage.setItem('user_hire_company_id', '1')
+
+    const { canAccessTenantAdmin } = useAuthSession()
+    expect(canAccessTenantAdmin.value).toBe(true)
+  })
+
+  it('canAccessTenantAdmin is false for organisation admin and member', () => {
+    localStorage.setItem('auth_session', '1')
+    localStorage.setItem('user_role', 'organisation_admin')
+    expect(useAuthSession().canAccessTenantAdmin.value).toBe(false)
+
+    localStorage.setItem('user_role', 'member')
+    expect(useAuthSession().canAccessTenantAdmin.value).toBe(false)
+  })
+
+  it('canAccessTenantAdmin requires an active hire company for platform admin', () => {
+    localStorage.setItem('auth_session', '1')
+    localStorage.setItem('user_role', 'platform_admin')
+    localStorage.setItem('is_admin', 'true')
+
+    expect(useAuthSession().canAccessTenantAdmin.value).toBe(false)
+
+    localStorage.setItem('active_hire_company_id', '4')
+    expect(useAuthSession().canAccessTenantAdmin.value).toBe(true)
+  })
+
   it('initializes activeOrganisationId from localStorage', () => {
     localStorage.setItem('auth_session', '1')
     localStorage.setItem('active_organisation_id', '5')

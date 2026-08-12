@@ -312,6 +312,7 @@ def apply_schema_patches() -> None:
     )
     _relax_appliances_organisation_id()
     _patch_hire_companies_tenancy()
+    _ensure_rentals_and_lending_rental_id()
     _patch_organisation_stripe_connect()
     _patch_organisation_sumup_connect()
     _ensure_sumup_tables()
@@ -1156,6 +1157,53 @@ def _patch_hire_companies_tenancy() -> None:
             conn.execute(
                 text("ALTER TABLE appliances ALTER COLUMN hire_company_id SET NOT NULL"),
             )
+
+
+def _ensure_rentals_and_lending_rental_id() -> None:
+    """Create rentals, attach appliance_lendings.rental_id, backfill one rental per legacy lending."""
+    try:
+        inspector = inspect(engine)
+        table_names = inspector.get_table_names()
+    except Exception:
+        return
+    if "organisations" not in table_names or "appliance_lendings" not in table_names:
+        return
+
+    if "rentals" not in table_names:
+        from .models import Rental
+
+        Rental.__table__.create(bind=engine, checkfirst=True)
+
+    _add_column_if_missing(
+        "appliance_lendings",
+        "rental_id",
+        "ALTER TABLE appliance_lendings ADD COLUMN rental_id INTEGER",
+        "ALTER TABLE appliance_lendings ADD COLUMN IF NOT EXISTS rental_id INTEGER",
+    )
+
+    from .rental_backfill import backfill_appliance_lending_rentals
+
+    with engine.begin() as conn:
+        backfill_appliance_lending_rentals(conn)
+
+    if engine.dialect.name == "sqlite":
+        return
+    try:
+        inspector = inspect(engine)
+        lending_cols = {c["name"]: c for c in inspector.get_columns("appliance_lendings")}
+        rental_col = lending_cols.get("rental_id")
+        if rental_col is None or rental_col.get("nullable") is False:
+            return
+        with engine.connect() as conn:
+            leftover = conn.execute(
+                text("SELECT COUNT(*) FROM appliance_lendings WHERE rental_id IS NULL")
+            ).scalar()
+        if leftover:
+            return
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE appliance_lendings ALTER COLUMN rental_id SET NOT NULL"))
+    except Exception:
+        return
 
 
 def _relax_appliances_organisation_id() -> None:

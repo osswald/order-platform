@@ -9,7 +9,6 @@ from app.main import app
 from app.models import (
     Appliance,
     ApplianceEdgeCredential,
-    ApplianceLending,
     Event,
     HireCompany,
     Organisation,
@@ -19,7 +18,7 @@ from app.models import (
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
 
-from tests.helpers import country_id_by_code
+from tests.helpers import add_lending, country_id_by_code
 
 client = TestClient(app)
 
@@ -77,14 +76,13 @@ def _edge_sumup_fixture(
         db.add(appliance)
         db.flush()
         today = now.date()
-        db.add(
-            ApplianceLending(
-                appliance_id=appliance.id,
-                organisation_id=org.id,
-                start_date=today,
-                end_date=today,
-                returned_at=None,
-            )
+        add_lending(
+            db,
+            appliance_id=appliance.id,
+            organisation_id=org.id,
+            start_date=today,
+            end_date=today,
+            returned_at=None,
         )
         secret = f"secret-{suffix}"
         cred = ApplianceEdgeCredential(

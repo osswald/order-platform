@@ -8,7 +8,6 @@ from app.main import app
 from app.models import (
     Appliance,
     ApplianceEdgeCredential,
-    ApplianceLending,
     AppliancePairingSession,
     HireCompany,
     Organisation,
@@ -18,7 +17,7 @@ from app.roles import ROLE_TENANT_ADMIN
 from app.security import get_password_hash, verify_password
 from fastapi.testclient import TestClient
 
-from tests.helpers import country_id_by_code
+from tests.helpers import add_lending, country_id_by_code
 
 client = TestClient(app)
 
@@ -54,14 +53,13 @@ def _server_appliance_fixture(suffix: str) -> tuple[int, str]:
         db.add_all([user, appliance])
         db.flush()
         today = datetime.now(UTC).date()
-        db.add(
-            ApplianceLending(
-                appliance_id=appliance.id,
-                organisation_id=org.id,
-                start_date=today,
-                end_date=today,
-                returned_at=None,
-            )
+        add_lending(
+            db,
+            appliance_id=appliance.id,
+            organisation_id=org.id,
+            start_date=today,
+            end_date=today,
+            returned_at=None,
         )
         db.commit()
         return appliance.id, user.email

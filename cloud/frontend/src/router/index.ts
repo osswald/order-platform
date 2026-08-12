@@ -120,6 +120,12 @@ const routes = [
     component: () => import('../components/Appliances.vue'),
     meta: tenantAdminOnly,
   }),
+  {
+    path: '/rentals',
+    name: 'rentals',
+    component: () => import('../components/RentalsCalendar.vue'),
+    meta: tenantAdminOnly,
+  },
   ...listDetailRoutes({
     path: '/users',
     listName: 'users',

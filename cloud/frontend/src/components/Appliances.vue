@@ -364,7 +364,6 @@ import {
   applianceDisplayName,
   cancelPlannedLendingForAppliance,
   defaultLendingEndDate,
-  inclusiveDurationDays,
   isValidLendingRange,
   lendingRangeHint,
   toIsoDate,
@@ -816,15 +815,17 @@ async function submitLend() {
   if (!activeId.value || !canSubmitLend.value) return
   lendingMessage.value = ''
   try {
-    applianceDetail.value = await apiJson<ApplianceRead>(`/appliances/${activeId.value}/lendings`, {
+    await apiJson('/rentals/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         organisation_id: lendForm.value.organisationId,
         start_date: toIsoDate(lendForm.value.startDate),
-        duration_days: inclusiveDurationDays(lendForm.value.startDate, lendForm.value.endDate),
+        end_date: toIsoDate(lendForm.value.endDate),
+        appliance_ids: [activeId.value],
       }),
     })
+    await fetchApplianceDetail(activeId.value)
     await fetchAppliances()
     resetLendForm()
     lendingMessage.value = t('appliances.lending.lentCreated')
