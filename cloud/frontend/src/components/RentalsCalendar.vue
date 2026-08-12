@@ -28,32 +28,43 @@
     <p v-if="message" :class="messageType" data-testid="rentals-message">{{ message }}</p>
     <p v-if="loading" class="muted" data-testid="rentals-loading">{{ $t('common.loading') }}</p>
 
-    <div v-show="view === 'month'" class="month-grid">
+    <div v-show="view === 'month'" class="month-grid" data-testid="month-grid">
       <div v-for="wd in weekdayLabels" :key="wd" class="weekday">{{ wd }}</div>
-      <button
-        v-for="cell in monthCells"
-        :key="cell.iso"
-        type="button"
-        class="day-cell"
-        :class="{ 'day-cell--outside': !cell.inMonth }"
-        @click="openCreate(cell.iso)"
-      >
-        <span class="day-num">{{ cell.date.getDate() }}</span>
-        <button
-          v-for="bar in barsOnDay(cell.iso)"
-          :key="bar.id"
-          type="button"
-          class="rental-chip"
-          :class="{ 'rental-chip--empty': !bar.filled }"
-          :style="{ background: organisationBarColor(bar.organisationId) }"
-          @click.stop="openEdit(bar.id)"
+      <div v-for="(week, weekIndex) in monthWeekRows" :key="weekIndex" class="month-week">
+        <div class="month-week-days">
+          <button
+            v-for="cell in week"
+            :key="cell.iso"
+            type="button"
+            class="day-cell"
+            :class="{ 'day-cell--outside': !cell.inMonth }"
+            @click="openCreate(cell.iso)"
+          >
+            <span class="day-num">{{ cell.date.getDate() }}</span>
+          </button>
+        </div>
+        <div
+          class="month-week-bars"
+          :style="{ minHeight: `${Math.max(monthLaneCount(weekIndex), 1) * 1.35}rem` }"
         >
-          {{ bar.displayName }}
-        </button>
-      </button>
+          <button
+            v-for="seg in segmentsInWeek(weekIndex)"
+            :key="`${seg.rentalId}-${seg.weekIndex}-${seg.startCol}`"
+            type="button"
+            class="month-bar"
+            :class="{ 'month-bar--empty': !seg.filled }"
+            :style="monthBarStyle(seg)"
+            :title="seg.displayName"
+            data-testid="month-rental-bar"
+            @click.stop="openEdit(seg.rentalId)"
+          >
+            {{ seg.displayName }}
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div v-show="view === 'year'" class="year-view">
+    <div v-show="view === 'year'" class="year-view" data-testid="year-view">
       <div
         v-for="(monthName, monthIndex) in monthLabels"
         :key="monthIndex"
@@ -63,15 +74,19 @@
         @click="openCreateForMonth(monthIndex)"
       >
         <div class="year-label">{{ monthName }}</div>
-        <div class="year-track">
+        <div
+          class="year-track"
+          :style="{ height: `${Math.max(yearLaneCount(monthIndex), 1) * 1.45}rem` }"
+        >
           <button
-            v-for="bar in barsInMonth(monthIndex)"
+            v-for="bar in yearBarsForMonth(monthIndex)"
             :key="bar.id"
             type="button"
             class="year-bar"
             :class="{ 'year-bar--empty': !bar.filled }"
             :style="yearBarStyle(bar, monthIndex)"
             :title="bar.displayName"
+            data-testid="year-rental-bar"
             @click.stop="openEdit(bar.id)"
           >
             {{ bar.displayName }}
@@ -294,16 +309,17 @@ import { apiFetch, apiJson } from '../api'
 import { isApiError } from '@/types/api'
 import type { ApplianceRead, FleetRead, OrganisationRead, RentalRead, RentalZubehoerCatalogRead } from '@/types/api'
 import {
-  clipRangeToMonth,
   isoDate,
-  monthGrid,
+  monthBarSegments,
+  monthWeeks,
   occupancyOnDay,
   organisationBarColor,
   parseIsoDate,
   rentalCanDelete,
-  rentalsOverlappingMonth,
+  yearBarsWithLanes,
   type FleetOccupancy,
   type FleetTypeGroup,
+  type MonthBarSegment,
   type RentalBar,
 } from '../utils/rentalCalendar'
 import { currentLocale } from '../i18n'
@@ -368,7 +384,8 @@ const monthLabels = computed(() => {
   return Array.from({ length: 12 }, (_, i) => new Date(2026, i, 1).toLocaleDateString(loc, { month: 'short' }))
 })
 
-const monthCells = computed(() => monthGrid(year.value, month.value))
+const monthWeekRows = computed(() => monthWeeks(year.value, month.value))
+const monthSegments = computed(() => monthBarSegments(rentals.value, year.value, month.value))
 
 const fleetDays = computed(() => {
   const last = new Date(year.value, month.value + 1, 0).getDate()
@@ -637,25 +654,48 @@ async function loadOrganisations() {
   }
 }
 
-function barsOnDay(iso: string): RentalBar[] {
-  return rentals.value.filter((bar) => bar.startDate <= iso && iso <= bar.endDate)
+function segmentsInWeek(weekIndex: number): MonthBarSegment[] {
+  return monthSegments.value.filter((seg) => seg.weekIndex === weekIndex)
 }
 
-function barsInMonth(monthIndex: number): RentalBar[] {
-  return rentalsOverlappingMonth(rentals.value, year.value, monthIndex)
+function monthLaneCount(weekIndex: number): number {
+  const lanes = segmentsInWeek(weekIndex).map((seg) => seg.lane)
+  return lanes.length ? Math.max(...lanes) + 1 : 0
 }
 
-function yearBarStyle(bar: RentalBar, monthIndex: number) {
-  const clipped = clipRangeToMonth(bar.startDate, bar.endDate, year.value, monthIndex)
-  if (!clipped) return { display: 'none' }
+function monthBarStyle(seg: MonthBarSegment) {
+  const left = (seg.startCol / 7) * 100
+  const width = ((seg.endCol - seg.startCol + 1) / 7) * 100
+  return {
+    left: `${left}%`,
+    width: `${Math.max(width, 100 / 7)}%`,
+    top: `${seg.lane * 1.3}rem`,
+    background: organisationBarColor(seg.organisationId),
+  }
+}
+
+function yearBarsForMonth(monthIndex: number) {
+  return yearBarsWithLanes(rentals.value, year.value, monthIndex)
+}
+
+function yearLaneCount(monthIndex: number): number {
+  const bars = yearBarsForMonth(monthIndex)
+  return bars.length ? Math.max(...bars.map((bar) => bar.lane)) + 1 : 0
+}
+
+function yearBarStyle(
+  bar: RentalBar & { lane: number; clipStart: string; clipEnd: string },
+  monthIndex: number,
+) {
   const days = new Date(year.value, monthIndex + 1, 0).getDate()
-  const startDay = parseIsoDate(clipped.start).getDate()
-  const endDay = parseIsoDate(clipped.end).getDate()
+  const startDay = parseIsoDate(bar.clipStart).getDate()
+  const endDay = parseIsoDate(bar.clipEnd).getDate()
   const left = ((startDay - 1) / days) * 100
   const width = ((endDay - startDay + 1) / days) * 100
   return {
     left: `${left}%`,
     width: `${Math.max(width, 4)}%`,
+    top: `${0.15 + bar.lane * 1.35}rem`,
     background: organisationBarColor(bar.organisationId),
   }
 }
@@ -905,6 +945,19 @@ defineExpose({
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
 }
+.month-week {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  padding: 0.2rem 0 0.35rem;
+}
+.month-week-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
 .weekday {
   font-size: 0.75rem;
   font-weight: 700;
@@ -913,14 +966,11 @@ defineExpose({
   padding: 0.25rem;
 }
 .day-cell {
-  min-height: 6rem;
-  border: 1px solid rgba(var(--v-border-color), 0.2);
+  min-height: 1.6rem;
+  border: none;
   background: transparent;
   text-align: left;
-  padding: 0.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  padding: 0.1rem 0.25rem;
   cursor: pointer;
 }
 .day-cell--outside {
@@ -930,7 +980,11 @@ defineExpose({
   font-size: 0.8rem;
   font-weight: 600;
 }
-.rental-chip,
+.month-week-bars {
+  position: relative;
+  width: 100%;
+}
+.month-bar,
 .year-bar {
   color: #fff;
   border-radius: 0.25rem;
@@ -943,7 +997,12 @@ defineExpose({
   cursor: pointer;
   text-align: left;
 }
-.rental-chip--empty,
+.month-bar {
+  position: absolute;
+  height: 1.15rem;
+  box-sizing: border-box;
+}
+.month-bar--empty,
 .year-bar--empty {
   background: transparent !important;
   color: inherit;
@@ -958,18 +1017,17 @@ defineExpose({
   display: grid;
   grid-template-columns: 4rem 1fr;
   gap: 0.5rem;
-  align-items: center;
+  align-items: start;
   cursor: pointer;
 }
 .year-track {
   position: relative;
-  height: 1.5rem;
+  min-height: 1.5rem;
   background: rgba(var(--v-border-color), 0.08);
   border-radius: 0.25rem;
 }
 .year-bar {
   position: absolute;
-  top: 0.15rem;
   height: 1.2rem;
 }
 .fleet-group h3 {

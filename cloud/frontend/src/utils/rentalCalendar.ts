@@ -122,6 +122,135 @@ export function occupancyOnDay(occupancies: FleetOccupancy[], iso: string): Flee
   return occupancies.find((row) => row.startDate <= iso && iso <= row.endDate) ?? null
 }
 
+/** Pack inclusive date intervals into non-overlapping lanes (greedy by start). */
+export function assignIntervalLanes(
+  items: Array<{ id: number; start: string; end: string }>,
+): Map<number, number> {
+  const sorted = [...items].sort(
+    (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.id - b.id,
+  )
+  const laneEnds: string[] = []
+  const lanes = new Map<number, number>()
+  for (const item of sorted) {
+    let lane = laneEnds.findIndex((end) => end < item.start)
+    if (lane === -1) {
+      lane = laneEnds.length
+      laneEnds.push(item.end)
+    } else {
+      laneEnds[lane] = item.end
+    }
+    lanes.set(item.id, lane)
+  }
+  return lanes
+}
+
+/** Pack inclusive column ranges (0–6) into lanes within one week. */
+export function assignColumnLanes(
+  items: Array<{ id: number; startCol: number; endCol: number }>,
+): Map<number, number> {
+  const sorted = [...items].sort(
+    (a, b) => a.startCol - b.startCol || a.endCol - b.endCol || a.id - b.id,
+  )
+  const laneEnds: number[] = []
+  const lanes = new Map<number, number>()
+  for (const item of sorted) {
+    let lane = laneEnds.findIndex((end) => end < item.startCol)
+    if (lane === -1) {
+      lane = laneEnds.length
+      laneEnds.push(item.endCol)
+    } else {
+      laneEnds[lane] = item.endCol
+    }
+    lanes.set(item.id, lane)
+  }
+  return lanes
+}
+
+export function yearBarsWithLanes(
+  rentals: RentalBar[],
+  year: number,
+  month: number,
+): Array<RentalBar & { lane: number; clipStart: string; clipEnd: string }> {
+  const overlapping = rentalsOverlappingMonth(rentals, year, month)
+  const clipped = overlapping
+    .map((bar) => {
+      const clip = clipRangeToMonth(bar.startDate, bar.endDate, year, month)
+      if (!clip) return null
+      return { ...bar, clipStart: clip.start, clipEnd: clip.end }
+    })
+    .filter((row): row is RentalBar & { clipStart: string; clipEnd: string } => row != null)
+  const lanes = assignIntervalLanes(
+    clipped.map((bar) => ({ id: bar.id, start: bar.clipStart, end: bar.clipEnd })),
+  )
+  return clipped.map((bar) => ({ ...bar, lane: lanes.get(bar.id) ?? 0 }))
+}
+
+export interface MonthBarSegment {
+  rentalId: number
+  displayName: string
+  organisationId: number
+  filled: boolean
+  weekIndex: number
+  startCol: number
+  endCol: number
+  lane: number
+}
+
+/** One continuous bar segment per rental per week row in the month grid. */
+export function monthBarSegments(rentals: RentalBar[], year: number, month: number): MonthBarSegment[] {
+  const cells = monthGrid(year, month)
+  const weekCount = Math.floor(cells.length / 7)
+  const raw: Array<Omit<MonthBarSegment, 'lane'>> = []
+
+  for (const rental of rentals) {
+    const clipped = clipRangeToMonth(rental.startDate, rental.endDate, year, month)
+    if (!clipped) continue
+    for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
+      let startCol = -1
+      let endCol = -1
+      for (let col = 0; col < 7; col += 1) {
+        const cell = cells[weekIndex * 7 + col]
+        if (cell.iso >= clipped.start && cell.iso <= clipped.end) {
+          if (startCol === -1) startCol = col
+          endCol = col
+        }
+      }
+      if (startCol !== -1) {
+        raw.push({
+          rentalId: rental.id,
+          displayName: rental.displayName,
+          organisationId: rental.organisationId,
+          filled: rental.filled,
+          weekIndex,
+          startCol,
+          endCol,
+        })
+      }
+    }
+  }
+
+  const result: MonthBarSegment[] = []
+  for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
+    const weekRaw = raw.filter((seg) => seg.weekIndex === weekIndex)
+    const lanes = assignColumnLanes(
+      weekRaw.map((seg) => ({ id: seg.rentalId, startCol: seg.startCol, endCol: seg.endCol })),
+    )
+    for (const seg of weekRaw) {
+      result.push({ ...seg, lane: lanes.get(seg.rentalId) ?? 0 })
+    }
+  }
+  return result
+}
+
+export function monthWeeks(year: number, month: number): MonthCell[][] {
+  const cells = monthGrid(year, month)
+  const weeks: MonthCell[][] = []
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7))
+  }
+  return weeks
+}
+
 export function groupFleetByType(groups: FleetTypeGroup[]): FleetTypeGroup[] {
   const order = [...APPLIANCE_TYPES]
   const byType = new Map(groups.map((g) => [g.type, g]))

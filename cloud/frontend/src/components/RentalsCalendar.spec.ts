@@ -171,9 +171,38 @@ describe('RentalsCalendar edit', () => {
     vi.useRealTimers()
   })
 
+  it('renders a multi-day rental as week-spanning bars, not one chip per day', async () => {
+    const wrapper = await mountCalendar()
+    // Fri–Mon spans two week rows → two bars, not four daily chips.
+    expect(wrapper.findAll('[data-testid="month-rental-bar"]')).toHaveLength(2)
+  })
+
+  it('stacks overlapping year rentals on separate lanes', async () => {
+    mockListPayload([
+      rental,
+      {
+        ...rental,
+        id: 43,
+        label: 'Overlap',
+        display_name: 'Overlap',
+        start_date: '2026-06-12',
+        end_date: '2026-06-15',
+      },
+    ])
+    const wrapper = await mountCalendar()
+    ;(wrapper.vm as { setViewForTest: (v: string) => void }).setViewForTest('year')
+    await flushPromises()
+    const bars = wrapper.findAll('[data-testid="year-rental-bar"]')
+    expect(bars).toHaveLength(2)
+    const tops = bars.map((bar) => (bar.attributes('style') || '').match(/top:\s*([^;]+)/)?.[1])
+    expect(tops[0]).toBeTruthy()
+    expect(tops[1]).toBeTruthy()
+    expect(tops[0]).not.toBe(tops[1])
+  })
+
   it('opens edit when clicking a month rental bar, not create', async () => {
     const wrapper = await mountCalendar()
-    const chip = wrapper.find('.rental-chip')
+    const chip = wrapper.find('[data-testid="month-rental-bar"]')
     expect(chip.exists()).toBe(true)
     await chip.trigger('click')
     await flushPromises()
@@ -200,7 +229,7 @@ describe('RentalsCalendar edit', () => {
     const wrapper = await mountCalendar()
     ;(wrapper.vm as { setViewForTest: (v: string) => void }).setViewForTest('year')
     await flushPromises()
-    const bar = wrapper.find('.year-bar')
+    const bar = wrapper.find('[data-testid="year-rental-bar"]')
     expect(bar.exists()).toBe(true)
     await bar.trigger('click')
     await flushPromises()
@@ -210,7 +239,7 @@ describe('RentalsCalendar edit', () => {
 
   it('PATCHes label and dates on save', async () => {
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     const labelInput = wrapper.findAll('input').find((el) => el.attributes('type') !== 'date')!
     await labelInput.setValue('Updated')
@@ -228,7 +257,7 @@ describe('RentalsCalendar edit', () => {
   it('shows delete for empty rental and DELETEs on confirm', async () => {
     vi.stubGlobal('confirm', vi.fn(() => true))
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     const del = wrapper.find('[data-testid="rental-delete"]')
     expect(del.exists()).toBe(true)
@@ -239,13 +268,13 @@ describe('RentalsCalendar edit', () => {
     expect(listCalls.length).toBeGreaterThanOrEqual(2)
     expect(wrapper.find('.month-grid').isVisible()).toBe(true)
     expect(wrapper.find('[data-testid="rentals-message"]').text()).toContain('gelöscht')
-    expect(wrapper.findAll('.rental-chip')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="month-rental-bar"]')).toHaveLength(0)
     vi.unstubAllGlobals()
   })
 
   it('adds zubehoer free-text line in edit dialog', async () => {
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     const labelInput = wrapper.find('[data-testid="zubehoer-free-text"]')
     await labelInput.setValue('Kabelbinder')
@@ -266,7 +295,7 @@ describe('RentalsCalendar edit', () => {
       blob: async () => new Blob(['%PDF'], { type: 'application/pdf' }),
     } as Response)
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     await wrapper.find('[data-testid="rental-packing-pdf"]').trigger('click')
     await flushPromises()
@@ -296,7 +325,7 @@ describe('RentalsCalendar edit', () => {
       },
     ])
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="rental-delete"]').exists()).toBe(false)
   })
@@ -321,7 +350,7 @@ describe('RentalsCalendar edit', () => {
       },
     ])
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     await wrapper.find('[data-testid="lending-unassign"]').trigger('click')
     await flushPromises()
@@ -333,7 +362,7 @@ describe('RentalsCalendar edit', () => {
 
   it('adds an appliance from the edit dialog', async () => {
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="rental-add-appliance-pick"]').exists()).toBe(true)
     const vm = wrapper.vm as {
@@ -366,7 +395,7 @@ describe('RentalsCalendar edit', () => {
       throw new Error(`unexpected ${init?.method || 'GET'} ${path}`)
     })
     const wrapper = await mountCalendar()
-    await wrapper.find('.rental-chip').trigger('click')
+    await wrapper.find('[data-testid="month-rental-bar"]').trigger('click')
     await flushPromises()
     const vm = wrapper.vm as {
       setPickApplianceIdForTest: (id: number | null) => void
