@@ -155,6 +155,7 @@ def _rental_to_read(rental: Rental, today: date) -> RentalRead:
 def list_rentals(
     date_from: date | None = Query(None, alias="from"),
     date_to: date | None = Query(None, alias="to"),
+    organisation_id: int | None = Query(None),
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(get_current_tenant_admin),
 ):
@@ -172,6 +173,9 @@ def list_rentals(
         )
         .filter(Rental.hire_company_id == tenant.hire_company_id)
     )
+    if organisation_id is not None:
+        get_org_in_tenant(db, organisation_id, tenant.hire_company_id)
+        query = query.filter(Rental.organisation_id == organisation_id)
     if date_from is not None and date_to is not None:
         query = query.filter(Rental.start_date <= date_to, Rental.end_date >= date_from)
     rows = query.order_by(Rental.start_date, Rental.id).all()

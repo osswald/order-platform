@@ -238,6 +238,115 @@ def test_assign_inherits_rental_dates_and_overlap_rejected():
     assert client.get(f"/rentals/{other.json()['id']}", headers={"Authorization": f"Bearer {token}"}).json()["lendings"] == []
 
 
+def test_handover_day_assign_allowed_interior_overlap_rejected():
+    fx = _tenant_fixture("handover")
+    token = _token_for(fx["email"])
+    start = datetime.now(UTC).date() + timedelta(days=60)
+    end = start + timedelta(days=4)
+    first = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    handover = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": end.isoformat(),
+            "end_date": (end + timedelta(days=3)).isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert handover.status_code == 201, handover.text
+    assert len(handover.json()["lendings"]) == 1
+
+    interior = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": (end - timedelta(days=1)).isoformat(),
+            "end_date": (end + timedelta(days=2)).isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert interior.status_code == 400
+    assert interior.json()["detail"]["code"] == "lending_overlap"
+
+
+def test_return_day_allows_new_lending_same_day():
+    fx = _tenant_fixture("return-day")
+    token = _token_for(fx["email"])
+    today = datetime.now(UTC).date()
+    current = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": today.isoformat(),
+            "end_date": (today + timedelta(days=2)).isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert current.status_code == 201, current.text
+    lending_id = current.json()["lendings"][0]["id"]
+    returned = client.delete(
+        f"/rentals/{current.json()['id']}/lendings/{lending_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert returned.status_code == 200, returned.text
+    assert returned.json()["lendings"][0]["returned_at"] is not None
+
+    again = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": today.isoformat(),
+            "end_date": (today + timedelta(days=1)).isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert again.status_code == 201, again.text
+    assert again.json()["lendings"][0]["segment"] == "current"
+
+
+def test_identical_one_day_windows_handover_allowed():
+    fx = _tenant_fixture("same-day")
+    token = _token_for(fx["email"])
+    day = datetime.now(UTC).date() + timedelta(days=90)
+    first = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": day.isoformat(),
+            "end_date": day.isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert first.status_code == 201, first.text
+    second = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "organisation_id": fx["org_id"],
+            "start_date": day.isoformat(),
+            "end_date": day.isoformat(),
+            "appliance_ids": [fx["pi_id"]],
+        },
+    )
+    assert second.status_code == 201, second.text
+
+
 def test_unassign_planned_and_return_current_keep_rental():
     fx = _tenant_fixture("unassign")
     token = _token_for(fx["email"])
@@ -481,3 +590,27 @@ def date_in_next_month():
     if today.month == 12:
         return today.replace(year=today.year + 1, month=1, day=1)
     return today.replace(month=today.month + 1, day=1)
+
+
+def test_list_rentals_filters_by_organisation_id():
+    fx = _tenant_fixture("org-filter")
+    token = _token_for(fx["email"])
+    start = datetime.now(UTC).date() + timedelta(days=15)
+    end = start + timedelta(days=1)
+    created = client.post(
+        "/rentals/",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"organisation_id": fx["org_id"], "start_date": start.isoformat(), "end_date": end.isoformat()},
+    )
+    assert created.status_code == 201
+    listed = client.get(
+        f"/rentals/?organisation_id={fx['org_id']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert listed.status_code == 200
+    assert any(row["id"] == created.json()["id"] for row in listed.json())
+    foreign = client.get(
+        f"/rentals/?organisation_id={fx['foreign_org_id']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert foreign.status_code == 403

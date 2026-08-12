@@ -11,7 +11,13 @@ from ..auth_deps import get_current_user
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
-from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, User
+from ..models import Appliance, ApplianceEdgeCredential, ApplianceLending, AppliancePairingSession, Rental, User
+from ..rental_service import (
+    index_active_lendings_by_appliance,
+    ranges_strictly_overlap,
+    rental_display_name,
+    select_active_lending_for_day,
+)
 from ..security import get_password_hash
 from ..tenancy import TenantContext, get_current_tenant_admin
 
@@ -30,8 +36,8 @@ def _utc_today() -> date:
 
 
 def _intervals_overlap(a_start: date, a_end: date, b_start: date, b_end: date) -> bool:
-    """Inclusive interval overlap; used for documentation / tests — SQL uses equivalent column compares."""
-    return a_start <= b_end and b_start <= a_end
+    """Strict overlap (endpoint-touch handover allowed)."""
+    return ranges_strictly_overlap(a_start, a_end, b_start, b_end)
 
 
 def _assert_lending_is_planned(lending: ApplianceLending, today: date) -> None:
@@ -89,6 +95,8 @@ class CurrentLendingRead(BaseModel):
     organisation_name: str
     start_date: date
     end_date: date
+    rental_id: int | None = None
+    rental_display_name: str | None = None
 
 
 class ApplianceLendingRead(BaseModel):
@@ -99,6 +107,8 @@ class ApplianceLendingRead(BaseModel):
     end_date: date
     returned_at: datetime | None
     segment: str
+    rental_id: int | None = None
+    rental_display_name: str | None = None
 
 
 class ApplianceEdgeCredentialRead(BaseModel):
@@ -167,24 +177,21 @@ def _appliance_to_read(
     if active_by_appliance_id is not None:
         current_row = active_by_appliance_id.get(appliance.id)
     else:
-        for lending in getattr(appliance, "lendings", []) or []:
-            if (
-                lending.returned_at is None
-                and lending.start_date <= today <= lending.end_date
-            ):
-                current_row = lending
-                break
+        current_row = select_active_lending_for_day(getattr(appliance, "lendings", []) or [], today)
 
     current_lending: CurrentLendingRead | None = None
     lending_status = "available"
     if current_row is not None:
         lending_status = "lent"
         org_name = current_row.organisation.name if current_row.organisation else ""
+        rental = getattr(current_row, "rental", None)
         current_lending = CurrentLendingRead(
             organisation_id=current_row.organisation_id,
             organisation_name=org_name,
             start_date=current_row.start_date,
             end_date=current_row.end_date,
+            rental_id=current_row.rental_id,
+            rental_display_name=rental_display_name(rental) if rental is not None else None,
         )
 
     lendings_list: list[ApplianceLendingRead] | None = None
@@ -197,6 +204,7 @@ def _appliance_to_read(
         lendings_list = []
         for row in rows:
             org_name = row.organisation.name if row.organisation else ""
+            rental = getattr(row, "rental", None)
             lendings_list.append(
                 ApplianceLendingRead(
                     id=row.id,
@@ -206,6 +214,8 @@ def _appliance_to_read(
                     end_date=row.end_date,
                     returned_at=row.returned_at,
                     segment=_lending_segment(row, today),
+                    rental_id=row.rental_id,
+                    rental_display_name=rental_display_name(rental) if rental is not None else None,
                 )
             )
 
@@ -329,7 +339,10 @@ def read_appliances(
     appliance_ids = [a.id for a in appliances]
     active_rows = (
         db.query(ApplianceLending)
-        .options(joinedload(ApplianceLending.organisation))
+        .options(
+            joinedload(ApplianceLending.organisation),
+            joinedload(ApplianceLending.rental).joinedload(Rental.organisation),
+        )
         .filter(
             ApplianceLending.appliance_id.in_(appliance_ids),
             ApplianceLending.returned_at.is_(None),
@@ -338,7 +351,7 @@ def read_appliances(
         )
         .all()
     )
-    active_by_id = {row.appliance_id: row for row in active_rows}
+    active_by_id = index_active_lendings_by_appliance(active_rows, today)
 
     blocked_by_id: dict[int, str] = {}
     if lend_check_start is not None and lend_check_duration is not None:
@@ -349,8 +362,8 @@ def read_appliances(
             .filter(
                 ApplianceLending.appliance_id.in_(appliance_ids),
                 ApplianceLending.returned_at.is_(None),
-                ApplianceLending.start_date <= check_end,
-                ApplianceLending.end_date >= lend_check_start,
+                ApplianceLending.start_date < check_end,
+                ApplianceLending.end_date > lend_check_start,
             )
             .all()
         )
@@ -385,6 +398,7 @@ def read_appliance(
         db.query(Appliance)
         .options(
             joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
+            joinedload(Appliance.lendings).joinedload(ApplianceLending.rental).joinedload(Rental.organisation),
             joinedload(Appliance.edge_credentials),
         )
         .filter(Appliance.id == appliance_id)
@@ -466,7 +480,10 @@ def update_appliance(
     today = _utc_today()
     active_rows = (
         db.query(ApplianceLending)
-        .options(joinedload(ApplianceLending.organisation))
+        .options(
+            joinedload(ApplianceLending.organisation),
+            joinedload(ApplianceLending.rental).joinedload(Rental.organisation),
+        )
         .filter(
             ApplianceLending.appliance_id == appliance.id,
             ApplianceLending.returned_at.is_(None),
@@ -475,7 +492,7 @@ def update_appliance(
         )
         .all()
     )
-    active_by_id = {row.appliance_id: row for row in active_rows}
+    active_by_id = index_active_lendings_by_appliance(active_rows, today)
     return _appliance_to_read(appliance, today=today, active_by_appliance_id=active_by_id, include_lendings=False)
 
 
@@ -648,6 +665,7 @@ def return_appliance_lending(
         db.query(Appliance)
         .options(
             joinedload(Appliance.lendings).joinedload(ApplianceLending.organisation),
+            joinedload(Appliance.lendings).joinedload(ApplianceLending.rental).joinedload(Rental.organisation),
             joinedload(Appliance.edge_credentials),
         )
         .filter(Appliance.id == appliance_id)
