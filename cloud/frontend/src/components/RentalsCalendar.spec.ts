@@ -111,6 +111,10 @@ async function mountCalendar(path = '/rentals') {
         ...vuetifyStubs(),
         HelpLink: { template: '<div />' },
         ApplianceTypeChip: { template: '<span />' },
+        'v-tooltip': {
+          template:
+            '<div class="v-tooltip-stub"><slot name="activator" :props="{}" /><div class="v-tooltip-content"><slot /></div></div>',
+        },
         'v-dialog': { template: '<div v-if="modelValue"><slot /></div>', props: ['modelValue'] },
         'v-card': { template: '<div><slot /></div>' },
         'v-card-title': { template: '<div class="card-title"><slot /></div>' },
@@ -175,6 +179,33 @@ describe('RentalsCalendar edit', () => {
     const wrapper = await mountCalendar()
     // Fri–Mon spans two week rows → two bars, not four daily chips.
     expect(wrapper.findAll('[data-testid="month-rental-bar"]')).toHaveLength(2)
+  })
+
+  it('shows rental info and appliances in month bar tooltips', async () => {
+    mockListPayload([
+      {
+        ...rental,
+        lendings: [
+          {
+            id: 8,
+            appliance_id: 3,
+            appliance_name: 'Pi-01',
+            appliance_type: 'server',
+            start_date: rental.start_date,
+            end_date: rental.end_date,
+            returned_at: null,
+            segment: 'future',
+          },
+        ],
+      },
+    ])
+    const wrapper = await mountCalendar()
+    const tip = wrapper.find('[data-testid="rental-bar-tooltip"]')
+    expect(tip.exists()).toBe(true)
+    expect(tip.text()).toContain('Openair 2026')
+    expect(tip.text()).toContain('FC St.Gallen')
+    expect(tip.text()).toContain('Geräte')
+    expect(tip.text()).toContain('Pi-01')
   })
 
   it('stacks overlapping year rentals on separate lanes', async () => {

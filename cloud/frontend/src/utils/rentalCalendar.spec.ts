@@ -10,10 +10,23 @@ import {
   rentalCanDelete,
   rentalDisplayName,
   rentalIsFilled,
+  openRentalApplianceNames,
   rentalsOverlappingMonth,
   rentalsOverlappingYear,
   yearBarsWithLanes,
 } from './rentalCalendar'
+
+function bar(partial: Partial<Parameters<typeof rentalsOverlappingMonth>[0][number]> & { id: number; displayName: string }) {
+  return {
+    organisationId: 9,
+    organisationName: 'FC St.Gallen',
+    startDate: '2026-06-12',
+    endDate: '2026-06-15',
+    filled: false,
+    applianceNames: [] as string[],
+    ...partial,
+  }
+}
 
 describe('rentalDisplayName', () => {
   it('uses the label when set', () => {
@@ -23,6 +36,27 @@ describe('rentalDisplayName', () => {
   it('falls back to organisation name when label is empty', () => {
     expect(rentalDisplayName(null, 'FC St.Gallen')).toBe('FC St.Gallen')
     expect(rentalDisplayName('  ', 'FC St.Gallen')).toBe('FC St.Gallen')
+  })
+})
+
+describe('openRentalApplianceNames', () => {
+  it('lists open appliances and skips returned ones', () => {
+    expect(
+      openRentalApplianceNames([
+        { appliance_id: 1, appliance_name: 'Pi-01', returned_at: null },
+        { appliance_id: 2, appliance_name: 'Pi-02', returned_at: '2026-06-10T00:00:00Z' },
+        { appliance_id: 3, appliance_name: null, returned_at: null },
+      ]),
+    ).toEqual(['Pi-01', '#3'])
+  })
+
+  it('dedupes by appliance id', () => {
+    expect(
+      openRentalApplianceNames([
+        { appliance_id: 1, appliance_name: 'Pi-01', returned_at: null },
+        { appliance_id: 1, appliance_name: 'Pi-01', returned_at: null },
+      ]),
+    ).toEqual(['Pi-01'])
   })
 })
 
@@ -51,14 +85,14 @@ describe('rentalCanDelete', () => {
 })
 
 describe('calendar overlap', () => {
-  const rental = {
+  const rental = bar({
     id: 1,
     displayName: 'FC St.Gallen',
     organisationId: 9,
     startDate: '2026-06-12',
     endDate: '2026-06-15',
     filled: false,
-  }
+  })
 
   it('includes a June rental in the June month view', () => {
     const rows = rentalsOverlappingMonth([rental], 2026, 5)
@@ -107,22 +141,24 @@ describe('lane packing', () => {
   it('stacks overlapping year-month bars on separate lanes', () => {
     const bars = yearBarsWithLanes(
       [
-        {
+        bar({
           id: 21,
           displayName: 'SBB',
           organisationId: 3,
+          organisationName: 'SBB',
           startDate: '2026-09-17',
           endDate: '2026-09-21',
           filled: false,
-        },
-        {
+        }),
+        bar({
           id: 22,
           displayName: 'SBB',
           organisationId: 3,
+          organisationName: 'SBB',
           startDate: '2026-09-17',
           endDate: '2026-09-21',
           filled: false,
-        },
+        }),
       ],
       2026,
       8,
@@ -137,14 +173,14 @@ describe('month spanning bars', () => {
     // Fri 12 Jun – Mon 15 Jun 2026 spans two week rows (not one chip per day).
     const segments = monthBarSegments(
       [
-        {
+        bar({
           id: 1,
           displayName: 'FC St.Gallen',
           organisationId: 9,
           startDate: '2026-06-12',
           endDate: '2026-06-15',
           filled: false,
-        },
+        }),
       ],
       2026,
       5,
@@ -157,14 +193,14 @@ describe('month spanning bars', () => {
   it('keeps a within-week rental as a single bar', () => {
     const segments = monthBarSegments(
       [
-        {
+        bar({
           id: 1,
           displayName: 'Short',
           organisationId: 9,
           startDate: '2026-06-08',
           endDate: '2026-06-11',
           filled: true,
-        },
+        }),
       ],
       2026,
       5,

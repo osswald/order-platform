@@ -4,9 +4,34 @@ export interface RentalBar {
   id: number
   displayName: string
   organisationId: number
+  organisationName: string
   startDate: string
   endDate: string
   filled: boolean
+  applianceNames: string[]
+}
+
+/** Open (not returned) appliance labels for calendar tooltips. */
+export function openRentalApplianceNames(
+  lendings:
+    | Array<{
+        appliance_id: number
+        appliance_name?: string | null
+        returned_at?: string | null
+      }>
+    | null
+    | undefined,
+): string[] {
+  const names: string[] = []
+  const seen = new Set<number>()
+  for (const row of lendings ?? []) {
+    if (row.returned_at) continue
+    if (seen.has(row.appliance_id)) continue
+    seen.add(row.appliance_id)
+    const trimmed = (row.appliance_name ?? '').trim()
+    names.push(trimmed || `#${row.appliance_id}`)
+  }
+  return names
 }
 
 export interface FleetOccupancy {
