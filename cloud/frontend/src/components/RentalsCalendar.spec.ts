@@ -70,6 +70,28 @@ function mockListPayload(rows = [rental]) {
     if (path.startsWith('/rentals/42/lendings/') && init?.method === 'DELETE') {
       return { ...rental, lendings: [] }
     }
+    if (path === '/rentals/42/appliances' && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body))
+      return {
+        ...rental,
+        filled: true,
+        lendings: [
+          {
+            id: 8,
+            appliance_id: body.appliance_id,
+            appliance_name: 'Pi-01',
+            appliance_type: 'server',
+            start_date: rental.start_date,
+            end_date: rental.end_date,
+            returned_at: null,
+            segment: 'future',
+          },
+        ],
+      }
+    }
+    if (path.startsWith('/appliances/?')) {
+      return [{ id: 3, name: 'Pi-02', type: 'server', lendable: true }]
+    }
     if (path.startsWith('/rentals/fleet')) return { year: 2026, month: 6, groups: [] }
     throw new Error(`unexpected ${init?.method || 'GET'} ${path}`)
   })
@@ -123,9 +145,11 @@ async function mountCalendar(path = '/rentals') {
             '<label><span v-if="label">{{ label }}</span><input v-bind="$attrs" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /></label>',
         },
         'v-select': {
-          props: ['modelValue', 'label', 'disabled', 'items', 'itemTitle', 'itemValue'],
+          props: ['modelValue', 'label', 'disabled', 'items', 'itemTitle', 'itemValue', 'loading', 'clearable'],
+          emits: ['update:modelValue'],
+          inheritAttrs: false,
           template:
-            '<select data-testid="org-select" :disabled="disabled" :aria-label="label" @change="$emit(\'update:modelValue\', Number($event.target.value))"></select>',
+            '<select v-bind="$attrs" :disabled="disabled" :aria-label="label" @change="$emit(\'update:modelValue\', Number($event.target.value))"><option v-for="item in items || []" :key="item.value" :value="item.value">{{ item.title }}</option></select>',
         },
       },
     },
@@ -301,5 +325,52 @@ describe('RentalsCalendar edit', () => {
       '/rentals/42/lendings/8',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('adds an appliance from the edit dialog', async () => {
+    const wrapper = await mountCalendar()
+    await wrapper.find('.rental-chip').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="rental-add-appliance-pick"]').exists()).toBe(true)
+    const vm = wrapper.vm as {
+      setPickApplianceIdForTest: (id: number | null) => void
+      addApplianceToRentalForTest: () => Promise<void>
+    }
+    vm.setPickApplianceIdForTest(3)
+    await vm.addApplianceToRentalForTest()
+    await flushPromises()
+    expect(apiJson).toHaveBeenCalledWith(
+      '/rentals/42/appliances',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ appliance_id: 3 }),
+      }),
+    )
+  })
+
+  it('shows add-device overlap error from API', async () => {
+    vi.mocked(apiJson).mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/organisations/') return [org]
+      if (path === '/rental-zubehoer-catalog/') return [catalogItem]
+      if (path.startsWith('/rentals/?from=')) return [rental]
+      if (path === '/rentals/42') return rental
+      if (path.startsWith('/appliances/?')) return [{ id: 3, name: 'Pi-02', type: 'server', lendable: true }]
+      if (path === '/rentals/42/appliances' && init?.method === 'POST') {
+        throw Object.assign(new Error('lending_overlap'), { status: 400 })
+      }
+      if (path.startsWith('/rentals/fleet')) return { year: 2026, month: 6, groups: [] }
+      throw new Error(`unexpected ${init?.method || 'GET'} ${path}`)
+    })
+    const wrapper = await mountCalendar()
+    await wrapper.find('.rental-chip').trigger('click')
+    await flushPromises()
+    const vm = wrapper.vm as {
+      setPickApplianceIdForTest: (id: number | null) => void
+      addApplianceToRentalForTest: () => Promise<void>
+    }
+    vm.setPickApplianceIdForTest(3)
+    await vm.addApplianceToRentalForTest()
+    await flushPromises()
+    expect(wrapper.text()).toContain('lending_overlap')
   })
 })

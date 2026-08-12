@@ -33,6 +33,9 @@
               <template #item.appliance_type="{ item }">
                 <ApplianceTypeChip :type="item.appliance_type" />
               </template>
+              <template #item.rental_display_name="{ item }">
+                {{ item.rental_display_name || $t('common.emDash') }}
+              </template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
               </template>
@@ -52,6 +55,9 @@
               <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
               <template #item.appliance_type="{ item }">
                 <ApplianceTypeChip :type="item.appliance_type" />
+              </template>
+              <template #item.rental_display_name="{ item }">
+                {{ item.rental_display_name || $t('common.emDash') }}
               </template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
@@ -82,6 +88,9 @@
               <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
               <template #item.appliance_type="{ item }">
                 <ApplianceTypeChip :type="item.appliance_type" />
+              </template>
+              <template #item.rental_display_name="{ item }">
+                {{ item.rental_display_name || $t('common.emDash') }}
               </template>
               <template #item.period="{ item }">
                 {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
@@ -128,6 +137,7 @@ const props = withDefaults(
 const COL_ID = { width: '5rem', sortable: false }
 const COL_NAME = { minWidth: '12rem', sortable: false }
 const COL_TYPE = { width: '8rem', sortable: false }
+const COL_RENTAL = { minWidth: '10rem', sortable: false }
 const COL_PERIOD = { width: '14rem', sortable: false }
 const COL_ACTIONS = { align: 'end', width: '9rem', sortable: false }
 
@@ -135,6 +145,7 @@ const lendingHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'appliance_id', ...COL_ID },
   { title: t('common.appliance'), key: 'appliance_name', ...COL_NAME, sortable: false },
   { title: t('common.type'), key: 'appliance_type', ...COL_TYPE },
+  { title: t('lending.rental'), key: 'rental_display_name', ...COL_RENTAL },
   { title: t('common.period'), key: 'period', ...COL_PERIOD },
 ])
 

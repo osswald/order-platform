@@ -56,6 +56,9 @@
                   <template #item.appliance_type="{ item }">
                     <ApplianceTypeChip :type="item.appliance_type" />
                   </template>
+                  <template #item.rental_display_name="{ item }">
+                    {{ item.rental_display_name || $t('common.emDash') }}
+                  </template>
                   <template #item.period="{ item }">
                     {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
                   </template>
@@ -75,6 +78,9 @@
                   <template #item.appliance_type="{ item }">
                     <ApplianceTypeChip :type="item.appliance_type" />
                   </template>
+                  <template #item.rental_display_name="{ item }">
+                    {{ item.rental_display_name || $t('common.emDash') }}
+                  </template>
                   <template #item.period="{ item }">
                     {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
                   </template>
@@ -90,6 +96,29 @@
                     </v-btn>
                   </template>
                   <template #no-data>{{ $t('lending.noPlanned') }}</template>
+                </VqDataTable>
+              </div>
+              <div class="org-lendings-block">
+                <h3>{{ $t('lending.pastTitle') }}</h3>
+                <VqDataTable
+                  :headers="lendingHeaders"
+                  :items="orgApplianceLendings.past"
+                  item-value="lending_id"
+                  class="vq-data-table list-table nested-table"
+                  hide-default-footer
+                  data-testid="org-past-lendings"
+                >
+                  <template #item.appliance_name="{ item }">{{ item.appliance_name || $t('common.emDash') }}</template>
+                  <template #item.appliance_type="{ item }">
+                    <ApplianceTypeChip :type="item.appliance_type" />
+                  </template>
+                  <template #item.rental_display_name="{ item }">
+                    {{ item.rental_display_name || $t('common.emDash') }}
+                  </template>
+                  <template #item.period="{ item }">
+                    {{ formatDeDate(item.start_date) }} – {{ formatDeDate(item.end_date) }}
+                  </template>
+                  <template #no-data>{{ $t('lending.noPast') }}</template>
                 </VqDataTable>
               </div>
             </template>
@@ -343,6 +372,7 @@ const lendingHeaders = computed((): DataTableHeader[] => [
   { title: t('common.id'), key: 'appliance_id' },
   { title: t('common.appliance'), key: 'appliance_name', sortable: false },
   { title: t('common.type'), key: 'appliance_type', sortable: false },
+  { title: t('lending.rental'), key: 'rental_display_name', sortable: false },
   { title: t('common.period'), key: 'period', sortable: false },
 ])
 

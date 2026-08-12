@@ -126,6 +126,7 @@
             :label="$t('common.organisation')"
             hide-details="auto"
             class="mb-3"
+            data-testid="org-select"
           />
 
           <v-text-field v-model="form.label" :label="$t('rentals.labelOptional')" hide-details="auto" class="mb-3" />
@@ -161,6 +162,29 @@
                 </v-btn>
               </li>
             </ul>
+            <div class="zubehoer-add-row">
+              <v-select
+                v-model="pickApplianceId"
+                :items="addApplianceItems"
+                item-title="title"
+                item-value="value"
+                :label="$t('rentals.addDevice')"
+                hide-details="auto"
+                clearable
+                :loading="loadingAddAppliances"
+                data-testid="rental-add-appliance-pick"
+                class="zubehoer-pick"
+              />
+              <v-btn
+                size="small"
+                data-testid="rental-add-appliance"
+                :disabled="pickApplianceId == null"
+                :loading="addingAppliance"
+                @click="addApplianceToRental"
+              >
+                {{ $t('rentals.addDeviceAction') }}
+              </v-btn>
+            </div>
           </div>
 
           <div v-if="dialogMode === 'edit'" class="zubehoer-block">
@@ -268,7 +292,7 @@ import HelpLink from './HelpLink.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import { apiFetch, apiJson } from '../api'
 import { isApiError } from '@/types/api'
-import type { FleetRead, OrganisationRead, RentalRead, RentalZubehoerCatalogRead } from '@/types/api'
+import type { ApplianceRead, FleetRead, OrganisationRead, RentalRead, RentalZubehoerCatalogRead } from '@/types/api'
 import {
   clipRangeToMonth,
   isoDate,
@@ -302,6 +326,10 @@ const dialogError = ref('')
 const saving = ref(false)
 const deleting = ref(false)
 const lendingBusyId = ref<number | null>(null)
+const addingAppliance = ref(false)
+const loadingAddAppliances = ref(false)
+const pickApplianceId = ref<number | null>(null)
+const addApplianceCandidates = ref<ApplianceRead[]>([])
 const zubehoerBusyId = ref<number | null>(null)
 const zubehoerAdding = ref(false)
 const packingPdfLoading = ref(false)
@@ -376,6 +404,23 @@ const catalogPickItems = computed(() =>
     })),
 )
 
+const assignedOpenApplianceIds = computed(() => {
+  const ids = new Set<number>()
+  for (const row of editRental.value?.lendings ?? []) {
+    if (!row.returned_at) ids.add(row.appliance_id)
+  }
+  return ids
+})
+
+const addApplianceItems = computed(() =>
+  addApplianceCandidates.value
+    .filter((row) => row.lendable !== false && !assignedOpenApplianceIds.value.has(row.id))
+    .map((row) => ({
+      title: row.name || `#${row.id}`,
+      value: row.id,
+    })),
+)
+
 async function loadCatalog() {
   try {
     catalogItems.value = await apiJson<RentalZubehoerCatalogRead[]>('/rental-zubehoer-catalog/')
@@ -384,10 +429,56 @@ async function loadCatalog() {
   }
 }
 
+async function loadAddApplianceCandidates() {
+  if (editRental.value == null) {
+    addApplianceCandidates.value = []
+    return
+  }
+  loadingAddAppliances.value = true
+  try {
+    const start = editRental.value.start_date
+    const end = editRental.value.end_date
+    const duration =
+      Math.round((parseIsoDate(end).getTime() - parseIsoDate(start).getTime()) / 86400000) + 1
+    const params = new URLSearchParams({
+      lend_check_start: start,
+      lend_check_duration: String(Math.max(duration, 1)),
+    })
+    addApplianceCandidates.value = await apiJson<ApplianceRead[]>(`/appliances/?${params}`)
+  } catch {
+    addApplianceCandidates.value = []
+  } finally {
+    loadingAddAppliances.value = false
+  }
+}
+
+async function addApplianceToRental() {
+  if (editRental.value == null || pickApplianceId.value == null) return
+  addingAppliance.value = true
+  dialogError.value = ''
+  try {
+    editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}/appliances`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appliance_id: pickApplianceId.value }),
+    })
+    pickApplianceId.value = null
+    message.value = t('rentals.assignSuccess')
+    messageType.value = 'success'
+    await loadAddApplianceCandidates()
+    await load()
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.addDeviceFailed') : t('rentals.addDeviceFailed')
+  } finally {
+    addingAppliance.value = false
+  }
+}
+
 function resetZubehoerDraft() {
   pickCatalogId.value = null
   freeTextLabel.value = ''
   freeTextQty.value = ''
+  pickApplianceId.value = null
 }
 
 async function addFromCatalog() {
@@ -616,6 +707,7 @@ async function openEdit(rentalId: number) {
     form.label = row.label ?? ''
     form.startDate = row.start_date
     form.endDate = row.end_date
+    void loadAddApplianceCandidates()
   } catch (err: unknown) {
     dialogOpen.value = false
     message.value = isApiError(err) ? err.message || t('rentals.loadError') : t('rentals.loadError')
@@ -774,6 +866,10 @@ defineExpose({
   setViewForTest(next: CalendarView) {
     view.value = next
   },
+  setPickApplianceIdForTest(id: number | null) {
+    pickApplianceId.value = id
+  },
+  addApplianceToRentalForTest: addApplianceToRental,
 })
 </script>
 
