@@ -16,7 +16,15 @@ from ..first_event_setup import (
     set_first_event_setup_in_progress_event,
 )
 from ..i18n.errors import api_error
-from ..models import ApplianceLending, Event, HireCompany, Organisation, Rental, User, UserOrganisationOnboardingDismissal
+from ..models import (
+    ApplianceLending,
+    Event,
+    HireCompany,
+    Organisation,
+    Rental,
+    User,
+    UserOrganisationOnboardingDismissal,
+)
 from ..onboarding_tasks import complete_onboarding_task, dismiss_onboarding_task
 from ..reference_countries import country_response, get_country_or_404
 from ..rental_service import rental_display_name

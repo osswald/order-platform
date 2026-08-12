@@ -170,34 +170,68 @@
                 :placeholder="t('appliances.lending.organisationPlaceholder')"
                 :disabled="!organisationOptions.length"
                 hide-details="auto"
+                data-testid="lend-org"
               />
             </div>
             <div class="form-field">
-              <v-date-input
-                v-model="lendForm.startDate"
-                :label="t('appliances.lending.startDate')"
-                :placeholder="t('appliances.lending.startDate')"
-                prepend-icon=""
-                prepend-inner-icon="mdi-calendar"
+              <v-btn-toggle
+                v-model="lendForm.rentalMode"
+                mandatory
+                density="compact"
+                data-testid="lend-rental-mode"
+              >
+                <v-btn value="existing">{{ t('lending.modeExisting') }}</v-btn>
+                <v-btn value="create">{{ t('lending.modeCreate') }}</v-btn>
+              </v-btn-toggle>
+            </div>
+            <div v-if="lendForm.rentalMode === 'existing'" class="form-field">
+              <v-select
+                v-model="lendForm.rentalId"
+                :items="orgRentalOptions"
+                item-title="label"
+                item-value="value"
+                :label="t('lending.chooseRental')"
+                :loading="loadingOrgRentals"
+                :disabled="!lendForm.organisationId || loadingOrgRentals"
                 hide-details="auto"
-                required
-                :rules="[rules.requiredDate]"
+                data-testid="lend-rental-pick"
               />
             </div>
-            <div class="form-field">
-              <v-date-input
-                v-model="lendForm.endDate"
-                :label="t('appliances.lending.endDate')"
-                :placeholder="t('appliances.lending.endDate')"
-                prepend-icon=""
-                prepend-inner-icon="mdi-calendar"
-                hide-details="auto"
-                required
-                :rules="[rules.requiredDate, lendEndDateRule]"
-              />
-            </div>
-            <small v-if="lendRangeHint" class="lend-range-hint">{{ lendRangeHint }}</small>
-            <v-btn color="primary" type="button" :disabled="!canSubmitLend" @click="submitLend">
+            <template v-else>
+              <div class="form-field">
+                <v-text-field
+                  v-model="lendForm.label"
+                  :label="t('rentals.labelOptional')"
+                  hide-details="auto"
+                />
+              </div>
+              <div class="form-field">
+                <v-date-input
+                  v-model="lendForm.startDate"
+                  :label="t('appliances.lending.startDate')"
+                  :placeholder="t('appliances.lending.startDate')"
+                  prepend-icon=""
+                  prepend-inner-icon="mdi-calendar"
+                  hide-details="auto"
+                  required
+                  :rules="[rules.requiredDate]"
+                />
+              </div>
+              <div class="form-field">
+                <v-date-input
+                  v-model="lendForm.endDate"
+                  :label="t('appliances.lending.endDate')"
+                  :placeholder="t('appliances.lending.endDate')"
+                  prepend-icon=""
+                  prepend-inner-icon="mdi-calendar"
+                  hide-details="auto"
+                  required
+                  :rules="[rules.requiredDate, lendEndDateRule]"
+                />
+              </div>
+              <small v-if="lendRangeHint" class="lend-range-hint">{{ lendRangeHint }}</small>
+            </template>
+            <v-btn color="primary" type="button" :disabled="!canSubmitLend" data-testid="lend-submit" @click="submitLend">
               {{ t('appliances.lending.lend') }}
             </v-btn>
           </div>
@@ -206,40 +240,50 @@
 
         <div class="lending-section">
           <h3>{{ t('appliances.lending.history') }}</h3>
-          <VqDataTable
-            :headers="lendingHistoryHeaders"
-            :items="applianceDetail.lendings || []"
-            item-value="id"
-            class="vq-data-table lendings-table"
-            hide-default-footer
-          >
-            <template #item.start_date="{ item }">{{ formatDeDate(item.start_date) }}</template>
-            <template #item.end_date="{ item }">{{ formatDeDate(item.end_date) }}</template>
-            <template #item.status="{ item }">{{ lendingHistoryStatusLabel(item) }}</template>
-            <template #item.actions="{ item }">
-              <v-btn
-                v-if="item.segment === 'current' && !item.returned_at"
-                variant="outlined"
-                size="small"
-                type="button"
-                @click="returnLending(item.id)"
-              >
-                {{ t('appliances.lending.return') }}
-              </v-btn>
-              <v-btn
-                v-else-if="item.segment === 'future'"
-                variant="outlined"
-                size="small"
-                type="button"
-                :disabled="cancellingLendingId === item.id"
-                @click="cancelPlannedLendingRow(item.id)"
-              >
-                {{ t('appliances.lending.cancel') }}
-              </v-btn>
-              <span v-else>{{ t('common.emDash') }}</span>
-            </template>
-            <template #no-data>{{ t('appliances.lending.noLendings') }}</template>
-          </VqDataTable>
+          <v-expansion-panels v-if="lendingHistoryGroups.length" multiple data-testid="lending-history-groups">
+            <v-expansion-panel
+              v-for="group in lendingHistoryGroups"
+              :key="group.rentalId"
+              :title="group.displayName"
+            >
+              <v-expansion-panel-text>
+                <VqDataTable
+                  :headers="lendingHistoryHeaders"
+                  :items="group.lendings"
+                  item-value="id"
+                  class="vq-data-table lendings-table"
+                  hide-default-footer
+                >
+                  <template #item.start_date="{ item }">{{ formatDeDate(item.start_date) }}</template>
+                  <template #item.end_date="{ item }">{{ formatDeDate(item.end_date) }}</template>
+                  <template #item.status="{ item }">{{ lendingHistoryStatusLabel(item) }}</template>
+                  <template #item.actions="{ item }">
+                    <v-btn
+                      v-if="item.segment === 'current' && !item.returned_at"
+                      variant="outlined"
+                      size="small"
+                      type="button"
+                      @click="returnLending(item.id)"
+                    >
+                      {{ t('appliances.lending.return') }}
+                    </v-btn>
+                    <v-btn
+                      v-else-if="item.segment === 'future'"
+                      variant="outlined"
+                      size="small"
+                      type="button"
+                      :disabled="cancellingLendingId === item.id"
+                      @click="cancelPlannedLendingRow(item.id)"
+                    >
+                      {{ t('appliances.lending.cancel') }}
+                    </v-btn>
+                    <span v-else>{{ t('common.emDash') }}</span>
+                  </template>
+                </VqDataTable>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
+          <p v-else class="muted-hint">{{ t('appliances.lending.noLendings') }}</p>
         </div>
       </template>
 
@@ -380,10 +424,12 @@ import type {
   ApplianceRead,
   AppliancePairingSessionRead,
   OrganisationRead,
+  RentalRead,
 } from '@/types/api'
 import { isApiError } from '@/types/api'
 import type { ApplianceFormState, LendFormState } from '@/types/ui'
 import type { DataTableHeader } from '@/types/vuetify'
+import { groupLendingsByRentalNewestFirst, sortRentalsNewestFirst } from '../utils/rentalLendingGroups'
 
 const { t } = useI18n()
 
@@ -445,8 +491,13 @@ const pairingMessage = ref('')
 const pairingMessageType = ref('')
 const pairingLoading = ref(false)
 const cancellingLendingId = ref<number | null>(null)
+const loadingOrgRentals = ref(false)
+const orgRentals = ref<RentalRead[]>([])
 const lendForm = ref<LendFormState>({
   organisationId: null,
+  rentalMode: 'existing',
+  rentalId: null,
+  label: '',
   startDate: null,
   endDate: null,
 })
@@ -510,8 +561,51 @@ const lendRangeHint = computed(() =>
 
 const canSubmitLend = computed(() => {
   if (!lendForm.value.organisationId) return false
+  if (lendForm.value.rentalMode === 'existing') return lendForm.value.rentalId != null
   return isValidLendingRange(lendForm.value.startDate, lendForm.value.endDate)
 })
+
+const orgRentalOptions = computed(() =>
+  sortRentalsNewestFirst(orgRentals.value).map((row) => ({
+    label: `${row.display_name} (${row.start_date} – ${row.end_date})`,
+    value: row.id,
+  })),
+)
+
+const lendingHistoryGroups = computed(() =>
+  groupLendingsByRentalNewestFirst(applianceDetail.value?.lendings || []),
+)
+
+async function fetchOrgRentalsForLend() {
+  if (!lendForm.value.organisationId) {
+    orgRentals.value = []
+    lendForm.value.rentalId = null
+    return
+  }
+  loadingOrgRentals.value = true
+  try {
+    orgRentals.value = await apiJson<RentalRead[]>(
+      `/rentals/?organisation_id=${lendForm.value.organisationId}`,
+    )
+    if (
+      lendForm.value.rentalId != null &&
+      !orgRentals.value.some((row) => row.id === lendForm.value.rentalId)
+    ) {
+      lendForm.value.rentalId = null
+    }
+  } catch {
+    orgRentals.value = []
+  } finally {
+    loadingOrgRentals.value = false
+  }
+}
+
+watch(
+  () => [lendForm.value.organisationId, lendForm.value.rentalMode] as const,
+  () => {
+    if (lendForm.value.rentalMode === 'existing') void fetchOrgRentalsForLend()
+  },
+)
 
 function matchesSearch(device: ApplianceRead, term: string) {
   if (!term) return true
@@ -602,9 +696,13 @@ function resetLendForm() {
   const start = new Date()
   lendForm.value = {
     organisationId: null,
+    rentalMode: 'existing',
+    rentalId: null,
+    label: '',
     startDate: start,
     endDate: defaultLendingEndDate(start),
   }
+  orgRentals.value = []
 }
 
 function clearDetailState() {
@@ -815,16 +913,25 @@ async function submitLend() {
   if (!activeId.value || !canSubmitLend.value) return
   lendingMessage.value = ''
   try {
-    await apiJson('/rentals/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        organisation_id: lendForm.value.organisationId,
-        start_date: toIsoDate(lendForm.value.startDate),
-        end_date: toIsoDate(lendForm.value.endDate),
-        appliance_ids: [activeId.value],
-      }),
-    })
+    if (lendForm.value.rentalMode === 'existing' && lendForm.value.rentalId != null) {
+      await apiJson(`/rentals/${lendForm.value.rentalId}/appliances`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appliance_id: activeId.value }),
+      })
+    } else {
+      await apiJson('/rentals/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organisation_id: lendForm.value.organisationId,
+          start_date: toIsoDate(lendForm.value.startDate),
+          end_date: toIsoDate(lendForm.value.endDate),
+          label: lendForm.value.label.trim() || null,
+          appliance_ids: [activeId.value],
+        }),
+      })
+    }
     await fetchApplianceDetail(activeId.value)
     await fetchAppliances()
     resetLendForm()

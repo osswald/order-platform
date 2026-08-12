@@ -456,6 +456,9 @@ export interface ApplianceFormState {
 
 export interface LendFormState {
   organisationId: number | null
+  rentalMode: 'existing' | 'create'
+  rentalId: number | null
+  label: string
   startDate: Date | null
   endDate: Date | null
 }

@@ -13,6 +13,48 @@
             <FormLabel>{{ $t('common.organisation') }}</FormLabel>
             <p class="org-readonly">{{ organisationName || $t('common.emDash') }}</p>
           </div>
+          <div class="form-field">
+            <FormLabel required>{{ $t('lending.rentalChoice') }}</FormLabel>
+            <v-btn-toggle
+              v-model="rentalMode"
+              mandatory
+              density="compact"
+              class="mb-3"
+              data-testid="rental-mode-toggle"
+            >
+              <v-btn value="existing" data-testid="rental-mode-existing">{{ $t('lending.modeExisting') }}</v-btn>
+              <v-btn value="create" data-testid="rental-mode-create">{{ $t('lending.modeCreate') }}</v-btn>
+            </v-btn-toggle>
+          </div>
+          <div v-if="rentalMode === 'existing'" class="form-field">
+            <FormLabel required>{{ $t('lending.chooseRental') }}</FormLabel>
+            <v-select
+              v-model="selectedRentalId"
+              :items="rentalSelectItems"
+              item-title="title"
+              item-value="value"
+              :placeholder="$t('lending.chooseRental')"
+              density="compact"
+              hide-details="auto"
+              :loading="loadingRentals"
+              :disabled="loadingRentals || !rentalSelectItems.length"
+              data-testid="rental-pick"
+              :rules="[rules.required]"
+            />
+            <small v-if="!loadingRentals && !rentalSelectItems.length" class="muted-hint">
+              {{ $t('lending.noRentalsForOrg') }}
+            </small>
+          </div>
+          <template v-if="rentalMode === 'create'">
+          <div class="form-field">
+            <FormLabel>{{ $t('rentals.labelOptional') }}</FormLabel>
+            <v-text-field
+              v-model="newRentalLabel"
+              density="compact"
+              hide-details="auto"
+              data-testid="rental-new-label"
+            />
+          </div>
           <div class="field-row">
             <div class="form-field">
               <FormLabel required>{{ $t('lending.startDate') }}</FormLabel>
@@ -59,6 +101,10 @@
             </div>
           </div>
           <small v-if="rangeHint" class="range-hint">{{ rangeHint }}</small>
+          </template>
+          <p v-else-if="selectedRental" class="range-hint">
+            {{ selectedRental.display_name }} · {{ selectedRental.start_date }} – {{ selectedRental.end_date }}
+          </p>
           <div class="form-field">
             <FormLabel required>{{ $t('common.appliances') }}</FormLabel>
             <v-select
@@ -76,6 +122,7 @@
               :rules="[rules.requiredArray]"
               :loading="loadingAppliances"
               :disabled="!canPickAppliances"
+              data-testid="appliance-multi-pick"
             >
               <template #item="{ item, props: itemProps }">
                 <v-list-subheader v-if="item.type === 'subheader'">
@@ -85,7 +132,7 @@
               </template>
             </v-select>
             <small v-if="loadingAppliances">{{ $t('lending.loadingAppliances') }}</small>
-            <small v-else-if="!canPickAppliances">{{ $t('lending.pickDatesFirst') }}</small>
+            <small v-else-if="!canPickAppliances">{{ $t('lending.pickRentalOrDatesFirst') }}</small>
             <small v-else-if="noAppliancesAvailable" class="muted-hint">
               {{ $t('lending.noAppliancesAvailable') }}
             </small>
@@ -136,9 +183,10 @@ import {
   toIsoDate,
   toLocalCalendarDate,
 } from '../utils/applianceLending'
-import type { ApplianceRead } from '@/types/api'
+import type { ApplianceRead, RentalRead } from '@/types/api'
 import { isApiError } from '@/types/api'
 import type { LendingSubmitFailure } from '@/types/ui'
+import { sortRentalsNewestFirst } from '../utils/rentalLendingGroups'
 
 const { t } = useI18n()
 
@@ -161,6 +209,11 @@ const emit = defineEmits<{
 }>()
 
 const formRef = ref(null)
+const rentalMode = ref<'existing' | 'create'>('existing')
+const selectedRentalId = ref<number | null>(null)
+const orgRentals = ref<RentalRead[]>([])
+const loadingRentals = ref(false)
+const newRentalLabel = ref('')
 const startDate = ref<Date | null>(null)
 const endDate = ref<Date | null>(null)
 const startDateMenuOpen = ref(false)
@@ -184,9 +237,33 @@ const endDateRangeRule = () =>
   isValidLendingRange(startDate.value, endDate.value) ||
   t('lending.endDateRangeError')
 
-const canPickAppliances = computed(() => isValidLendingRange(startDate.value, endDate.value))
+const selectedRental = computed(() =>
+  orgRentals.value.find((row) => row.id === selectedRentalId.value) ?? null,
+)
+
+const effectiveStartIso = computed(() => {
+  if (rentalMode.value === 'existing') return selectedRental.value?.start_date ?? null
+  return toIsoDate(startDate.value)
+})
+
+const effectiveEndIso = computed(() => {
+  if (rentalMode.value === 'existing') return selectedRental.value?.end_date ?? null
+  return toIsoDate(endDate.value)
+})
+
+const canPickAppliances = computed(() => {
+  if (rentalMode.value === 'existing') return selectedRental.value != null
+  return isValidLendingRange(startDate.value, endDate.value)
+})
 
 const rangeHint = computed(() => lendingRangeHint(startDate.value, endDate.value))
+
+const rentalSelectItems = computed(() =>
+  sortRentalsNewestFirst(orgRentals.value).map((row) => ({
+    title: `${row.display_name} (${row.start_date} – ${row.end_date})`,
+    value: row.id,
+  })),
+)
 
 const lendableAppliances = computed(() =>
   appliances.value.filter((a) => a.lendable !== false),
@@ -245,6 +322,10 @@ function onEndDatePick(value: Date | string | null) {
 
 function resetForm() {
   const start = toLocalCalendarDate(new Date()) ?? new Date()
+  rentalMode.value = 'existing'
+  selectedRentalId.value = null
+  orgRentals.value = []
+  newRentalLabel.value = ''
   startDate.value = start
   endDate.value = defaultLendingEndDate(start)
   startDateMenuOpen.value = false
@@ -260,6 +341,29 @@ function close() {
   emit('update:visible', false)
 }
 
+async function fetchOrgRentals() {
+  if (props.organisationId == null) {
+    orgRentals.value = []
+    return
+  }
+  loadingRentals.value = true
+  try {
+    orgRentals.value = await apiJson<RentalRead[]>(
+      `/rentals/?organisation_id=${props.organisationId}`,
+    )
+    if (
+      selectedRentalId.value != null &&
+      !orgRentals.value.some((row) => row.id === selectedRentalId.value)
+    ) {
+      selectedRentalId.value = null
+    }
+  } catch {
+    orgRentals.value = []
+  } finally {
+    loadingRentals.value = false
+  }
+}
+
 async function fetchAppliances() {
   if (!canPickAppliances.value) {
     appliances.value = []
@@ -267,9 +371,16 @@ async function fetchAppliances() {
   }
   loadingAppliances.value = true
   try {
-    const start = toIsoDate(startDate.value)
-    const duration = inclusiveDurationDays(startDate.value, endDate.value)
-    if (start == null || duration == null) {
+    const start = effectiveStartIso.value
+    const end = effectiveEndIso.value
+    if (start == null || end == null) {
+      appliances.value = []
+      return
+    }
+    const startDateObj = toLocalCalendarDate(start)
+    const endDateObj = toLocalCalendarDate(end)
+    const duration = inclusiveDurationDays(startDateObj, endDateObj)
+    if (duration == null) {
       appliances.value = []
       return
     }
@@ -293,30 +404,43 @@ async function submit() {
   if (submitting.value) return
   if (props.organisationId == null) return
   if (!(await validateForm(formRef))) return
+  if (rentalMode.value === 'existing' && selectedRentalId.value == null) return
+  if (rentalMode.value === 'create' && !isValidLendingRange(startDate.value, endDate.value)) return
   submitting.value = true
   submitMessage.value = ''
   submitMessageType.value = ''
   submitFailures.value = []
 
-  const start = toIsoDate(startDate.value)
-  const end = toIsoDate(endDate.value)
   const orgId = props.organisationId
-  if (!start || !end) {
-    submitting.value = false
-    return
-  }
 
   try {
-    await apiJson('/rentals/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        organisation_id: orgId,
-        start_date: start,
-        end_date: end,
-        appliance_ids: selectedIds.value,
-      }),
-    })
+    if (rentalMode.value === 'existing' && selectedRentalId.value != null) {
+      for (const applianceId of selectedIds.value) {
+        await apiJson(`/rentals/${selectedRentalId.value}/appliances`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appliance_id: applianceId }),
+        })
+      }
+    } else {
+      const start = toIsoDate(startDate.value)
+      const end = toIsoDate(endDate.value)
+      if (!start || !end) {
+        submitting.value = false
+        return
+      }
+      await apiJson('/rentals/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organisation_id: orgId,
+          start_date: start,
+          end_date: end,
+          label: newRentalLabel.value.trim() || null,
+          appliance_ids: selectedIds.value,
+        }),
+      })
+    }
     const count = selectedIds.value.length
     submitMessage.value = count === 1
       ? t('lending.createdOne', { count })
@@ -336,18 +460,30 @@ watch(
   (open) => {
     if (open) {
       resetForm()
-      if (canPickAppliances.value) fetchAppliances()
+      void fetchOrgRentals()
     }
   },
+  { immediate: true },
 )
 
-watch([startDate, endDate], () => {
-  if (props.visible && canPickAppliances.value) {
-    fetchAppliances()
-  } else if (!canPickAppliances.value) {
+watch([rentalMode, selectedRentalId, startDate, endDate], () => {
+  if (!props.visible) return
+  if (canPickAppliances.value) void fetchAppliances()
+  else {
     appliances.value = []
     selectedIds.value = []
   }
+})
+
+watch(rentalMode, (mode) => {
+  if (mode === 'existing') void fetchOrgRentals()
+})
+
+defineExpose({
+  rentalMode,
+  selectedRentalId,
+  selectedIds,
+  submit,
 })
 </script>
 
