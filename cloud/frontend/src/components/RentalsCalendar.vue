@@ -25,10 +25,10 @@
       </div>
     </div>
 
-    <p v-if="message" :class="messageType">{{ message }}</p>
-    <p v-else-if="loading" class="muted">{{ $t('common.loading') }}</p>
+    <p v-if="message" :class="messageType" data-testid="rentals-message">{{ message }}</p>
+    <p v-if="loading" class="muted" data-testid="rentals-loading">{{ $t('common.loading') }}</p>
 
-    <div v-else-if="view === 'month'" class="month-grid">
+    <div v-show="view === 'month'" class="month-grid">
       <div v-for="wd in weekdayLabels" :key="wd" class="weekday">{{ wd }}</div>
       <button
         v-for="cell in monthCells"
@@ -53,7 +53,7 @@
       </button>
     </div>
 
-    <div v-else-if="view === 'year'" class="year-view">
+    <div v-show="view === 'year'" class="year-view">
       <div
         v-for="(monthName, monthIndex) in monthLabels"
         :key="monthIndex"
@@ -80,7 +80,7 @@
       </div>
     </div>
 
-    <div v-else class="fleet-view">
+    <div v-show="view === 'fleet'" class="fleet-view">
       <div v-for="group in fleetGroups" :key="group.type" class="fleet-group">
         <h3><ApplianceTypeChip :type="group.type" /></h3>
         <div class="fleet-table">
@@ -592,9 +592,11 @@ function rangeForView(): { from: string; to: string } {
   return { from: start, to: end }
 }
 
-async function load() {
+async function load(options: { preserveMessage?: boolean } = {}) {
   loading.value = true
-  message.value = ''
+  if (!options.preserveMessage) {
+    message.value = ''
+  }
   try {
     const { from, to } = rangeForView()
     const rows = await apiJson<RentalRead[]>(`/rentals/?from=${from}&to=${to}`)
@@ -839,10 +841,10 @@ async function deleteRental() {
     await apiJson(`/rentals/${deletedId}`, { method: 'DELETE' })
     dialogOpen.value = false
     editRental.value = null
-    await load()
-    rentals.value = rentals.value.filter((row) => row.id !== deletedId)
     message.value = t('rentals.deleteSuccess')
     messageType.value = 'success'
+    await load({ preserveMessage: true })
+    rentals.value = rentals.value.filter((row) => row.id !== deletedId)
   } catch (err: unknown) {
     const errMsg = isApiError(err) ? err.message || t('rentals.deleteFailed') : t('rentals.deleteFailed')
     dialogError.value = errMsg
