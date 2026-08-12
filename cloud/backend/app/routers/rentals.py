@@ -42,6 +42,7 @@ class RentalLendingRead(BaseModel):
     appliance_id: int
     appliance_name: str | None
     appliance_type: str
+    appliance_ip_address: str | None = None
     start_date: date
     end_date: date
     returned_at: datetime | None
@@ -104,6 +105,7 @@ class FleetApplianceRead(BaseModel):
     id: int
     name: str | None
     type: str
+    ip_address: str | None = None
     occupancies: list[FleetOccupancyRead]
 
 
@@ -125,6 +127,7 @@ def _lending_to_read(row: ApplianceLending, today: date) -> RentalLendingRead:
         appliance_id=row.appliance_id,
         appliance_name=appliance.name if appliance is not None else None,
         appliance_type=appliance.type if appliance is not None else "",
+        appliance_ip_address=appliance.ip_address if appliance is not None else None,
         start_date=row.start_date,
         end_date=row.end_date,
         returned_at=row.returned_at,
@@ -239,6 +242,7 @@ def read_fleet(
                 id=appliance.id,
                 name=appliance.name,
                 type=appliance.type,
+                ip_address=appliance.ip_address,
                 occupancies=occupancies_by_appliance.get(appliance.id, []),
             )
         )

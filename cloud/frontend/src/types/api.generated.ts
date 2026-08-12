@@ -3395,6 +3395,8 @@ export interface components {
             name: string | null;
             /** Type */
             type: string;
+            /** Ip Address */
+            ip_address?: string | null;
             /** Occupancies */
             occupancies: components["schemas"]["FleetOccupancyRead"][];
         };
@@ -4462,6 +4464,8 @@ export interface components {
             appliance_name: string | null;
             /** Appliance Type */
             appliance_type: string;
+            /** Appliance Ip Address */
+            appliance_ip_address?: string | null;
             /**
              * Start Date
              * Format: date

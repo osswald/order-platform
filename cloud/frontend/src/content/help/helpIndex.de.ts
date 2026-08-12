@@ -89,7 +89,7 @@ export const helpCategories = [
       {
         slug: 'rental-calendar',
         title: 'Ausleihe-Kalender',
-        summary: 'Monat, Jahr und Flotte: Ausleihen planen und Gerätebelegung sehen.',
+        summary: 'Monat, Jahr und Geräte: Ausleihen planen und Gerätebelegung sehen.',
         relatedRoutes: ['rentals'],
       },
       {

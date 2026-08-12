@@ -4,7 +4,7 @@ Under **Lending** (Administration), hire-company admins see all rentals for the 
 
 - **Month** — rentals as bars across days. Empty rentals (no devices) appear dashed.
 - **Year** — year overview with bars per month.
-- **Fleet** — appliances by type, days as columns. Occupied days show the rental; free cells can be assigned.
+- **Devices** — appliances by type, days as columns. Occupied days show the rental; free cells can be assigned.
 
 ## Create a rental
 
@@ -18,7 +18,7 @@ Click a bar in the month or year view to edit: change label and dates, remove pl
 
 ## Accessories and packing list
 
-In the edit dialog you can add **accessories** lines (from the catalog under hire-company settings or as free text, with optional quantity) and download a **packing list PDF**. The PDF lists open appliances and accessories as a checklist — no prices.
+In the edit dialog you can add, edit, and delete **accessories** lines (from the catalog under hire-company settings or as free text, with optional quantity) and download a **packing list PDF**. The PDF lists open appliances and accessories as a checklist — no prices.
 
 Maintain the **accessories catalog** under **Hire company settings**.
 

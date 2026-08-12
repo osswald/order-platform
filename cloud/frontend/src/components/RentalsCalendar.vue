@@ -140,7 +140,7 @@
             <div v-for="day in fleetDays" :key="day" class="fleet-day">{{ day }}</div>
           </div>
           <div v-for="appliance in group.appliances" :key="appliance.id" class="fleet-row" :style="fleetGridStyle">
-            <div class="fleet-name-col">{{ appliance.name || `#${appliance.id}` }}</div>
+            <div class="fleet-name-col">{{ fleetApplianceLabel(appliance) }}</div>
             <button
               v-for="iso in fleetIsos"
               :key="iso"
@@ -192,7 +192,7 @@
                 <span class="lending-label">
                   <ApplianceTypeChip :type="row.appliance_type" data-testid="lending-appliance-type" />
                   <span>
-                    {{ row.appliance_name || `#${row.appliance_id}` }}
+                    {{ lendingApplianceLabel(row) }}
                     <span class="muted">({{ segmentLabel(row.segment) }})</span>
                   </span>
                 </span>
@@ -264,19 +264,65 @@
             <p v-if="!(editRental?.zubehoer_lines?.length)" class="muted">{{ $t('rentals.noZubehoer') }}</p>
             <ul v-else class="zubehoer-list">
               <li v-for="line in editRental?.zubehoer_lines || []" :key="line.id" class="zubehoer-row">
-                <span>
-                  {{ line.label }}
-                  <span v-if="line.quantity != null" class="muted">({{ line.quantity }})</span>
-                </span>
-                <v-btn
-                  size="small"
-                  color="error"
-                  data-testid="zubehoer-line-delete"
-                  :loading="zubehoerBusyId === line.id"
-                  @click="removeZubehoerLine(line.id)"
-                >
-                  {{ $t('common.delete') }}
-                </v-btn>
+                <template v-if="editingZubehoerId === line.id">
+                  <div class="zubehoer-edit-fields">
+                    <v-text-field
+                      v-model="editZubehoerLabel"
+                      :label="$t('rentals.freeTextLabel')"
+                      hide-details="auto"
+                      class="zubehoer-pick"
+                      data-testid="zubehoer-edit-label"
+                    />
+                    <v-text-field
+                      v-model="editZubehoerQty"
+                      type="number"
+                      min="1"
+                      :label="$t('rentals.qtyOptional')"
+                      hide-details="auto"
+                      class="zubehoer-qty"
+                      data-testid="zubehoer-edit-qty"
+                    />
+                  </div>
+                  <span class="row-actions">
+                    <v-btn
+                      size="small"
+                      color="primary"
+                      data-testid="zubehoer-line-save"
+                      :loading="zubehoerBusyId === line.id"
+                      :disabled="!editZubehoerLabel.trim()"
+                      @click="saveZubehoerLine(line.id)"
+                    >
+                      {{ $t('common.save') }}
+                    </v-btn>
+                    <v-btn size="small" data-testid="zubehoer-line-cancel" @click="cancelZubehoerEdit">
+                      {{ $t('common.cancel') }}
+                    </v-btn>
+                  </span>
+                </template>
+                <template v-else>
+                  <span>
+                    {{ line.label }}
+                    <span v-if="line.quantity != null" class="muted">({{ line.quantity }})</span>
+                  </span>
+                  <span class="row-actions">
+                    <v-btn
+                      size="small"
+                      data-testid="zubehoer-line-edit"
+                      @click="startZubehoerEdit(line)"
+                    >
+                      {{ $t('common.edit') }}
+                    </v-btn>
+                    <v-btn
+                      size="small"
+                      color="error"
+                      data-testid="zubehoer-line-delete"
+                      :loading="zubehoerBusyId === line.id"
+                      @click="removeZubehoerLine(line.id)"
+                    >
+                      {{ $t('common.delete') }}
+                    </v-btn>
+                  </span>
+                </template>
               </li>
             </ul>
             <div class="zubehoer-add-row">
@@ -364,7 +410,14 @@ import HelpLink from './HelpLink.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import { apiFetch, apiJson } from '../api'
 import { isApiError } from '@/types/api'
-import type { ApplianceRead, FleetRead, OrganisationRead, RentalRead, RentalZubehoerCatalogRead } from '@/types/api'
+import type {
+  ApplianceRead,
+  FleetRead,
+  OrganisationRead,
+  RentalRead,
+  RentalZubehoerCatalogRead,
+  RentalZubehoerLineRead,
+} from '@/types/api'
 import {
   isoDate,
   monthBarSegments,
@@ -373,6 +426,7 @@ import {
   openRentalApplianceNames,
   organisationBarColor,
   parseIsoDate,
+  rentalApplianceLabel,
   rentalCanDelete,
   yearBarsWithLanes,
   type FleetOccupancy,
@@ -412,6 +466,9 @@ const catalogItems = ref<RentalZubehoerCatalogRead[]>([])
 const pickCatalogId = ref<number | null>(null)
 const freeTextLabel = ref('')
 const freeTextQty = ref('')
+const editingZubehoerId = ref<number | null>(null)
+const editZubehoerLabel = ref('')
+const editZubehoerQty = ref('')
 const assignAppliance = ref<number | null>(null)
 const editRental = ref<RentalRead | null>(null)
 const form = reactive({
@@ -492,7 +549,12 @@ const addApplianceItems = computed(() =>
   addApplianceCandidates.value
     .filter((row) => row.lendable !== false && !assignedOpenApplianceIds.value.has(row.id))
     .map((row) => ({
-      title: row.name || `#${row.id}`,
+      title: rentalApplianceLabel({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        ip_address: row.ip_address,
+      }),
       value: row.id,
       type: row.type,
     })),
@@ -556,6 +618,46 @@ function resetZubehoerDraft() {
   freeTextLabel.value = ''
   freeTextQty.value = ''
   pickApplianceId.value = null
+  cancelZubehoerEdit()
+}
+
+function startZubehoerEdit(line: RentalZubehoerLineRead) {
+  editingZubehoerId.value = line.id
+  editZubehoerLabel.value = line.label
+  editZubehoerQty.value = line.quantity != null ? String(line.quantity) : ''
+}
+
+function cancelZubehoerEdit() {
+  editingZubehoerId.value = null
+  editZubehoerLabel.value = ''
+  editZubehoerQty.value = ''
+}
+
+async function saveZubehoerLine(lineId: number) {
+  if (editRental.value == null) return
+  const label = editZubehoerLabel.value.trim()
+  if (!label) return
+  const qtyTrimmed = editZubehoerQty.value.trim()
+  const payload: { label: string; quantity: number | null } = { label, quantity: null }
+  if (qtyTrimmed) {
+    const qty = Number.parseInt(qtyTrimmed, 10)
+    if (Number.isFinite(qty) && qty >= 1) payload.quantity = qty
+  }
+  zubehoerBusyId.value = lineId
+  dialogError.value = ''
+  try {
+    await apiJson(`/rentals/${editRental.value.id}/zubehoer-lines/${lineId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    editRental.value = await apiJson<RentalRead>(`/rentals/${editRental.value.id}`)
+    cancelZubehoerEdit()
+  } catch (err: unknown) {
+    dialogError.value = isApiError(err) ? err.message || t('rentals.zubehoerSaveFailed') : t('rentals.zubehoerSaveFailed')
+  } finally {
+    zubehoerBusyId.value = null
+  }
 }
 
 async function addFromCatalog() {
@@ -714,6 +816,7 @@ async function load(options: { preserveMessage?: boolean } = {}) {
           id: appliance.id,
           name: appliance.name,
           type: appliance.type,
+          ipAddress: appliance.ip_address ?? null,
           occupancies: appliance.occupancies.map(
             (occ): FleetOccupancy => ({
               rentalId: occ.rental_id,
@@ -740,6 +843,34 @@ async function loadOrganisations() {
   } catch {
     organisations.value = []
   }
+}
+
+function lendingApplianceLabel(row: {
+  appliance_id: number
+  appliance_name?: string | null
+  appliance_type: string
+  appliance_ip_address?: string | null
+}): string {
+  return rentalApplianceLabel({
+    id: row.appliance_id,
+    name: row.appliance_name,
+    type: row.appliance_type,
+    ip_address: row.appliance_ip_address,
+  })
+}
+
+function fleetApplianceLabel(appliance: {
+  id: number
+  name: string | null
+  type: string
+  ipAddress: string | null
+}): string {
+  return rentalApplianceLabel({
+    id: appliance.id,
+    name: appliance.name,
+    type: appliance.type,
+    ip_address: appliance.ipAddress,
+  })
 }
 
 function segmentsInWeek(weekIndex: number): MonthBarSegment[] {
@@ -1217,6 +1348,18 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+.zubehoer-edit-fields {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.row-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 .zubehoer-add-row {
   display: flex;
