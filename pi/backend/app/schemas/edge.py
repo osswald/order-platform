@@ -131,6 +131,7 @@ class PaymentReceiptBody(BaseModel):
 
 class PaymentReceiptPrintBody(BaseModel):
     station_uuid: str = Field(..., min_length=1, max_length=36)
+    reprint: bool = False
 
 
 class PrinterTestReceiptBody(BaseModel):

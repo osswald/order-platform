@@ -2043,6 +2043,11 @@ export interface components {
         PaymentReceiptPrintBody: {
             /** Station Uuid */
             station_uuid: string;
+            /**
+             * Reprint
+             * @default false
+             */
+            reprint: boolean;
         };
         /** PaymentReceiptPrintResponse */
         PaymentReceiptPrintResponse: {
