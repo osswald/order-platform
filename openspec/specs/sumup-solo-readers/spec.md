@@ -54,11 +54,15 @@ When a local reader is pruned, cash-register default bindings that used that Sum
 - **THEN** the organisation’s stored readers are still returned with their last known statuses and no local readers are deleted
 
 ### Requirement: Reader telemetry tooltip on SumUp-Geräte
-SumUp-Geräte SHALL show a tooltip on each listed paired reader that includes persisted device identity (serial and model when known) and, when available, live Cloud API reader status: online/offline, battery level, connection type, firmware version, and last activity. Telemetry MUST be fetched on demand for that reader (not as part of catalog list). If live status cannot be retrieved, the tooltip SHALL still show persisted identity and indicate that telemetry is unavailable. Telemetry MUST NOT be required to list, pair, rename, or unpair readers.
+SumUp-Geräte SHALL show a tooltip on each listed paired reader that includes persisted device identity (serial and model when known) and, when available, live Cloud API reader status: online/offline, battery level, connection type, firmware version, and last activity. Last activity SHALL be shown with the cloud admin locale datetime format (not a raw ISO timestamp). Telemetry MUST be fetched on demand for that reader (not as part of catalog list). If live status cannot be retrieved, the tooltip SHALL still show persisted identity and indicate that telemetry is unavailable. Telemetry MUST NOT be required to list, pair, rename, or unpair readers.
 
 #### Scenario: Tooltip shows live status
 - **WHEN** an authorised user opens the tooltip for a listed reader and SumUp returns reader status
-- **THEN** the tooltip shows serial/model when known plus online/offline, battery, connection type, firmware, and last activity
+- **THEN** the tooltip shows serial/model when known plus online/offline, battery, connection type, firmware, and last activity formatted for the UI locale
+
+#### Scenario: Last activity is localized
+- **WHEN** the tooltip includes a last-activity timestamp from SumUp
+- **THEN** the timestamp is rendered with the shared cloud datetime formatter for the current UI locale
 
 #### Scenario: Tooltip degrades without telemetry
 - **WHEN** an authorised user opens the tooltip and SumUp reader status cannot be retrieved
