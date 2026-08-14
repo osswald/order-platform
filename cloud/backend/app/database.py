@@ -416,6 +416,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS first_event_setup_event_id INTEGER",
     )
     _ensure_organisation_position_comments_table()
+    _ensure_organisation_screensaver_images_table()
     _ensure_ingredients_tables()
     _ensure_event_article_prices_table()
     _ensure_user_organisation_onboarding_dismissals_table()
@@ -653,6 +654,15 @@ def _ensure_organisation_position_comments_table() -> None:
     from .models import OrganisationPositionComment
 
     OrganisationPositionComment.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_organisation_screensaver_images_table() -> None:
+    try:
+        from .models import OrganisationScreensaverImage
+
+        OrganisationScreensaverImage.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        return
 
 
 def _ensure_ingredients_tables() -> None:

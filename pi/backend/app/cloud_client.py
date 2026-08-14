@@ -281,3 +281,21 @@ async def unpair_device() -> dict[str, Any]:
             detail = (r.text or "").strip() or "Cloud unpair failed"
             raise CloudRequestError(r.status_code, detail)
         return r.json() if r.content else {"status": "revoked"}
+
+
+async def fetch_screensaver_image(
+    sha256: str,
+    *,
+    client: httpx.AsyncClient | None = None,
+) -> tuple[str, bytes]:
+    """Download a screensaver image by content hash from cloud edge."""
+    base, cid, secret = _require_config()
+    key = (sha256 or "").strip().lower()
+    url = f"{base}/edge/v1/screensaver/{key}"
+    async with edge_http_client(client, timeout=60.0) as http:
+        r = await http.get(url, headers=_headers(cid, secret))
+        if r.status_code >= 400:
+            detail = (r.text or "").strip() or "screensaver download failed"
+            raise CloudRequestError(r.status_code, detail)
+        mime = (r.headers.get("content-type") or "application/octet-stream").split(";")[0].strip()
+        return mime, r.content

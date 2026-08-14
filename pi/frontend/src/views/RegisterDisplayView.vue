@@ -2,8 +2,14 @@
   <div class="customer-display">
     <section v-if="payload.state === 'submitted'" class="pickup-done">
       <p>Danke!</p>
-      <strong>Pickup {{ pickupCodesLabel }}</strong>
-      <span>Bitte Bon mitnehmen.</span>
+      <div v-if="displayPickupCodes.length" class="pickup-badges" aria-label="Pickup">
+        <span v-for="code in displayPickupCodes" :key="code" class="pickup-badge">{{ code }}</span>
+      </div>
+      <span v-if="displayPickupCodes.length">{{ abholbonText }}</span>
+    </section>
+
+    <section v-else-if="payload.state === 'sumup_connected'" class="sumup-panel">
+      <p class="sumup-instruction">Bitte Anweisungen am Zahlungsterminal folgen.</p>
     </section>
 
     <section v-else-if="payload.state === 'twint' || payload.show_twint" class="twint-panel">
@@ -28,8 +34,8 @@
         <p v-if="!lines.length" class="muted">Noch keine Artikel.</p>
         <ul v-else>
           <li v-for="line in lines" :key="line.lineId || lineKey(line)">
-            <span>{{ Math.max(1, Number(line.qty) || 1) }}x {{ lineLabel(line) }}</span>
-            <span>{{ lineTotal(line) }}</span>
+            <span class="line-label">{{ Math.max(1, Number(line.qty) || 1) }}x {{ lineLabel(line) }}</span>
+            <span class="line-price">{{ lineTotal(line) }}</span>
             <span
               v-for="add in additionLabelsFor(line)"
               :key="add.id"
@@ -37,8 +43,8 @@
             >+ {{ add.name }}</span>
           </li>
           <li v-for="v in voucherLines" :key="v.key" class="voucher-line">
-            <span>{{ v.label }}</span>
-            <span>−{{ formatMoney(v.applied_cents ?? v.appliedCents ?? 0, currency) }}</span>
+            <span class="line-label">{{ v.label }}</span>
+            <span class="line-price">−{{ formatMoney(v.applied_cents ?? v.appliedCents ?? 0, currency) }}</span>
           </li>
         </ul>
       </div>
@@ -49,7 +55,14 @@
     </section>
 
     <section v-else class="idle-screen">
-      <p class="welcome">Herzlich Willkommen</p>
+      <div v-if="screensaverUrls.length" class="screensaver">
+        <img
+          :src="screensaverUrls[screensaverIndex % screensaverUrls.length]"
+          alt=""
+          class="screensaver-image"
+        />
+      </div>
+      <p v-else class="welcome">Herzlich Willkommen</p>
     </section>
   </div>
 </template>
@@ -60,7 +73,9 @@ import { useRoute } from 'vue-router'
 import type { RegisterDisplayPayload } from '@/types/api'
 import type { CartLine } from '@/types/cart'
 import { api } from '@/api'
+import { buildWsUrl, getApiBase } from '@/api/base'
 import { useEventContext } from '@/composables/useEventContext'
+import { abholbonFooterText, pickupCodesForDisplay } from '@/utils/customerDisplayPickup'
 import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
 import { cartLineLabelForEvent, lineAdditionLabels } from '@/utils/bundleHelpers'
 
@@ -80,23 +95,30 @@ type DisplayPayload = RegisterDisplayPayload & {
   lines?: Array<CartLine & { display_label?: string }>
 }
 
+const POLL_MS = 5000
+const SCREENSAVER_DWELL_MS = 9000
+
 const route = useRoute()
 const payload = ref<DisplayPayload>({ state: 'idle' })
 const orderBodyRef = ref<HTMLElement | null>(null)
 const orderBodyScrolled = ref(false)
+const screensaverUrls = ref<string[]>([])
+const screensaverIndex = ref(0)
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let screensaverTimer: ReturnType<typeof setInterval> | null = null
+let ws: WebSocket | null = null
+let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let disposed = false
 let lastCartSignature = ''
+let wsConnected = false
 
 const { event, currency } = useEventContext()
 const registerUuid = computed(() => String(route.params.registerUuid || ''))
 const lines = computed(() => payload.value.lines || [])
 const voucherLines = computed(() => payload.value.voucher_lines || [])
 const articles = computed(() => event.value?.articles || {})
-const pickupCodesLabel = computed(() => {
-  const codes = (payload.value.pickup_codes || []).filter(Boolean)
-  if (codes.length) return codes.join(', ')
-  return payload.value.pickup_code || ''
-})
+const displayPickupCodes = computed(() => pickupCodesForDisplay(payload.value))
+const abholbonText = computed(() => abholbonFooterText(displayPickupCodes.value.length))
 
 function lineKey(line: CartLine & { display_label?: string }) {
   if (line?.lineId) return line.lineId
@@ -167,6 +189,10 @@ function maybeScrollToLatest() {
   })
 }
 
+function applyPayload(next: DisplayPayload) {
+  payload.value = next || { state: 'idle' }
+}
+
 watch(
   () => [payload.value.state, payload.value.lines, payload.value.voucher_lines],
   () => {
@@ -185,20 +211,165 @@ async function loadDisplay() {
     const data = await api<{ payload?: DisplayPayload }>(
       `/v1/registers/${encodeURIComponent(registerUuid.value)}/display?event_id=${encodeURIComponent(event.value.id)}`,
     )
-    payload.value = data?.payload || { state: 'idle' }
+    applyPayload(data?.payload || { state: 'idle' })
   } catch {
-    payload.value = { state: 'idle' }
+    applyPayload({ state: 'idle' })
   }
 }
 
+async function loadScreensaverUrls() {
+  if (!event.value?.id) {
+    screensaverUrls.value = []
+    return
+  }
+  try {
+    const data = await api<{ images?: Array<{ sha256: string }> }>(
+      `/v1/screensaver/images?event_id=${encodeURIComponent(event.value.id)}`,
+    )
+    const hashes = (data?.images || []).map((i) => String(i.sha256 || '').trim()).filter(Boolean)
+    const base = getApiBase().replace(/\/$/, '')
+    screensaverUrls.value = hashes.map((h) => `${base}/v1/screensaver/${encodeURIComponent(h)}`)
+    screensaverIndex.value = 0
+  } catch {
+    screensaverUrls.value = []
+  }
+}
+
+function stopScreensaverRotation() {
+  if (screensaverTimer) {
+    clearInterval(screensaverTimer)
+    screensaverTimer = null
+  }
+}
+
+function startScreensaverRotation() {
+  stopScreensaverRotation()
+  if (screensaverUrls.value.length < 2) return
+  screensaverTimer = setInterval(() => {
+    screensaverIndex.value = (screensaverIndex.value + 1) % screensaverUrls.value.length
+  }, SCREENSAVER_DWELL_MS)
+}
+
+watch(
+  () => [payload.value.state, screensaverUrls.value.length] as const,
+  ([state, count]) => {
+    if (state === 'idle' || state == null || state === '') {
+      if (count > 0) startScreensaverRotation()
+      else stopScreensaverRotation()
+    } else {
+      stopScreensaverRotation()
+    }
+  },
+)
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(() => {
+    if (!wsConnected) void loadDisplay()
+  }, POLL_MS)
+}
+
+function clearWsReconnect() {
+  if (wsReconnectTimer) {
+    clearTimeout(wsReconnectTimer)
+    wsReconnectTimer = null
+  }
+}
+
+function closeWs() {
+  clearWsReconnect()
+  if (ws) {
+    ws.onopen = null
+    ws.onmessage = null
+    ws.onerror = null
+    ws.onclose = null
+    try {
+      ws.close()
+    } catch {
+      /* ignore */
+    }
+    ws = null
+  }
+  wsConnected = false
+}
+
+function connectWs() {
+  if (disposed || !event.value?.id || !registerUuid.value) return
+  closeWs()
+  const path =
+    `/v1/registers/${encodeURIComponent(registerUuid.value)}/display/ws` +
+    `?event_id=${encodeURIComponent(event.value.id)}`
+  const url = buildWsUrl(getApiBase(), path)
+  try {
+    ws = new WebSocket(url)
+  } catch {
+    wsConnected = false
+    scheduleWsReconnect()
+    return
+  }
+  ws.onopen = () => {
+    wsConnected = true
+  }
+  ws.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(String(ev.data || '{}')) as { payload?: DisplayPayload }
+      applyPayload(data?.payload || { state: 'idle' })
+    } catch {
+      /* ignore malformed */
+    }
+  }
+  ws.onerror = () => {
+    /* onclose handles reconnect */
+  }
+  ws.onclose = () => {
+    wsConnected = false
+    ws = null
+    if (!disposed) {
+      void loadDisplay()
+      scheduleWsReconnect()
+    }
+  }
+}
+
+function scheduleWsReconnect() {
+  clearWsReconnect()
+  if (disposed) return
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null
+    connectWs()
+  }, 1500)
+}
+
 onMounted(() => {
-  loadDisplay()
-  pollTimer = setInterval(loadDisplay, 1000)
+  disposed = false
+  void loadDisplay()
+  void loadScreensaverUrls()
+  connectWs()
+  startPolling()
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  disposed = true
+  stopPolling()
+  stopScreensaverRotation()
+  closeWs()
 })
+
+watch(
+  () => [event.value?.id, registerUuid.value],
+  () => {
+    void loadDisplay()
+    void loadScreensaverUrls()
+    connectWs()
+  },
+)
 </script>
 
 <style scoped>
@@ -218,6 +389,7 @@ onUnmounted(() => {
 .order-preview,
 .pickup-done,
 .twint-panel,
+.sumup-panel,
 .idle-screen {
   flex: 1;
   min-height: 0;
@@ -231,12 +403,25 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   text-align: center;
+  overflow: hidden;
+  padding: 0;
 }
 .welcome {
   margin: 0;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
   font-size: clamp(2rem, 8vw, 4.5rem);
   font-weight: 600;
   line-height: 1.2;
+}
+.screensaver {
+  width: 100%;
+  height: 100%;
+}
+.screensaver-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .order-preview {
   display: flex;
@@ -247,6 +432,7 @@ onUnmounted(() => {
   min-height: 0;
   overflow-y: auto;
   overflow-anchor: auto;
+  scrollbar-gutter: stable;
 }
 .order-body--scrolled::before {
   content: '';
@@ -271,16 +457,23 @@ ul {
   margin: 0;
 }
 li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 1rem;
+  row-gap: 0.35rem;
   padding: 0.8rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   font-size: clamp(1rem, 2.5vw, 1.75rem);
 }
+.line-label {
+  min-width: 0;
+}
+.line-price {
+  text-align: right;
+  white-space: nowrap;
+}
 .addition {
-  width: 100%;
+  grid-column: 1 / -1;
   font-size: 0.75em;
   color: #b8c1cc;
 }
@@ -334,22 +527,51 @@ li {
   height: auto;
   object-fit: contain;
 }
+.sumup-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.sumup-instruction {
+  margin: 0;
+  font-size: clamp(1.6rem, 4.5vw, 3rem);
+  font-weight: 600;
+  line-height: 1.3;
+  max-width: 18em;
+}
 .pickup-done {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   text-align: center;
+  gap: 1rem;
 }
 .pickup-done p {
   font-size: clamp(1.8rem, 4vw, 3rem);
   margin: 0;
 }
-.pickup-done strong {
-  font-size: clamp(4rem, 14vw, 10rem);
-  line-height: 1;
+.pickup-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 1rem;
 }
-.pickup-done span {
+.pickup-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: 0.35rem 0.85rem;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: clamp(2.5rem, 10vw, 7rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.pickup-done > span {
   font-size: clamp(1.2rem, 3vw, 2rem);
 }
 

@@ -329,6 +329,11 @@ class SumupReaderBundleRead(BaseModel):
     label: str
 
 
+class ScreensaverImageBundleRead(BaseModel):
+    sha256: str
+    mime: str
+
+
 class EdgeBundleRead(BaseModel):
     organisation_id: int
     appliance_id: int
@@ -339,6 +344,7 @@ class EdgeBundleRead(BaseModel):
     position_comment_presets: list[PositionCommentPresetBundleRead] = Field(default_factory=list)
     ingredients_enabled: bool = False
     sumup_readers: list[SumupReaderBundleRead] = Field(default_factory=list)
+    screensaver_images: list[ScreensaverImageBundleRead] = Field(default_factory=list)
 
 
 class EdgePairRequest(BaseModel):
@@ -440,6 +446,12 @@ def _sumup_readers_for_org(db: Session, organisation_id: int) -> list[dict[str, 
     return [{"sumup_reader_id": row.sumup_reader_id, "label": row.label} for row in rows]
 
 
+def _screensaver_images_for_org(db: Session, organisation_id: int) -> list[dict[str, str]]:
+    from ..screensaver_gallery import list_screensaver_manifest
+
+    return list_screensaver_manifest(db, organisation_id)
+
+
 @router.get(
     "/v1/bundle",
     response_model=EdgeBundleRead,
@@ -493,6 +505,7 @@ def read_edge_bundle(
         _position_comment_presets_for_org(db, org_id) if position_comments_enabled else []
     )
     sumup_readers = _sumup_readers_for_org(db, org_id)
+    screensaver_images = _screensaver_images_for_org(db, org_id)
     commit_or_raise(db)
     bundle_core = edge_bundle_payload(
         organisation_id=org_id,
@@ -502,6 +515,7 @@ def read_edge_bundle(
         position_comment_presets=position_comment_presets,
         ingredients_enabled=ingredients_enabled,
         sumup_readers=sumup_readers,
+        screensaver_images=screensaver_images,
     )
     read = EdgeBundleRead(
         organisation_id=bundle_core["organisation_id"],
@@ -513,6 +527,7 @@ def read_edge_bundle(
         position_comment_presets=bundle_core["position_comment_presets"],
         ingredients_enabled=bundle_core["ingredients_enabled"],
         sumup_readers=sumup_readers,
+        screensaver_images=screensaver_images,
     )
     body = jsonable_encoder(read.model_dump(mode="json") if hasattr(read, "model_dump") else read.dict())
     # server_time changes every request — exclude from validator so idle pulls can 304.

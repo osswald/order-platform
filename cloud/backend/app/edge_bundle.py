@@ -24,6 +24,7 @@ def edge_bundle_payload(
     position_comment_presets: list[dict[str, Any]],
     ingredients_enabled: bool = False,
     sumup_readers: list[dict[str, Any]] | None = None,
+    screensaver_images: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the organisation bundle dict returned by GET /edge/v1/bundle."""
     payload = {
@@ -34,6 +35,7 @@ def edge_bundle_payload(
         "position_comment_presets": position_comment_presets,
         "ingredients_enabled": ingredients_enabled,
         "sumup_readers": sumup_readers or [],
+        "screensaver_images": screensaver_images or [],
     }
     validate_edge_bundle_payload(payload)
     return payload

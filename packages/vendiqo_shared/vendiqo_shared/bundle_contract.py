@@ -15,6 +15,7 @@ BUNDLE_TOP_LEVEL_KEYS = frozenset(
         "ingredients_enabled",
         "admin_pin_hashes",
         "sumup_readers",
+        "screensaver_images",
     }
 )
 
@@ -24,6 +25,13 @@ class EdgeBundleSumupReader(BaseModel):
 
     sumup_reader_id: str
     label: str
+
+
+class EdgeBundleScreensaverImage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sha256: str
+    mime: str
 
 
 class EdgeBundleArticleAddition(BaseModel):
@@ -134,3 +142,4 @@ class EdgeBundleContract(BaseModel):
     ingredients_enabled: bool = False
     admin_pin_hashes: list[str] = Field(default_factory=list)
     sumup_readers: list[EdgeBundleSumupReader] = Field(default_factory=list)
+    screensaver_images: list[EdgeBundleScreensaverImage] = Field(default_factory=list)

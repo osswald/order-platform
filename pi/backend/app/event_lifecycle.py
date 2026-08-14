@@ -11,6 +11,7 @@ from .models import (
 from .models_operational import (
     BundleMeta,
 )
+from .screensaver_store import wipe_screensaver_store
 
 
 def _event_map(bundle: dict | None) -> dict[int, dict]:
@@ -123,9 +124,11 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
     new_app = (new_bundle or {}).get("appliance_id")
     if old_org is not None and new_org is not None and int(old_org) != int(new_org):
         purge_all_operational_data(db)
+        wipe_screensaver_store()
         purged: list[int] = []
     elif old_app is not None and new_app is not None and int(old_app) != int(new_app):
         purge_all_operational_data(db)
+        wipe_screensaver_store()
         purged = []
     else:
         purged = []
@@ -180,6 +183,7 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
 def purge_on_unpair(db: Session) -> None:
     purge_all_operational_data(db)
     purge_master_cache(db)
+    wipe_screensaver_store()
     db.commit()
 
 

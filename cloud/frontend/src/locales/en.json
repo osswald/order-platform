@@ -153,6 +153,22 @@
       "sectionColorPalette": "Color palette (app layout)",
       "sectionZutaten": "Ingredients"
     },
+    "screensaver": {
+      "sectionTitle": "Customer display screensaver",
+      "sectionHint": "Images for the idle customer display (max. 10). Order is not significant.",
+      "count": "{count} / {max} images",
+      "empty": "No screensaver images yet.",
+      "upload": "Upload image",
+      "uploadHint": "JPEG, PNG or WebP, max. 3 MB. Upload is saved immediately.",
+      "uploadError": "Upload failed.",
+      "uploaded": "Image uploaded.",
+      "deleteConfirm": "Delete this screensaver image?",
+      "deleted": "Image deleted.",
+      "deleteError": "Could not delete image.",
+      "loadError": "Could not load screensaver images.",
+      "maxReached": "Maximum of 10 images allowed.",
+      "imageAlt": "Screensaver image"
+    },
     "ingredients": {
       "sectionTitle": "Ingredient stock",
       "enabled": "Ingredient stock enabled",

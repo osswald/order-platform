@@ -6,11 +6,12 @@ import base64
 import json
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from ..bundle_cache import event_from_bundle, get_bundle_dict
 from ..deps import get_db
+from ..display_hub import display_hub
 from ..models import PaymentReceipt, RegisterDisplayState
 from ..print_worker import build_payment_receipt_text
 from ..schemas.edge import (
@@ -31,6 +32,17 @@ from .edge_common import (
 )
 
 router = APIRouter()
+
+
+def _display_message(
+    cash_register_uuid: str, event_id: int, payload: dict, updated_at: str | None
+) -> dict:
+    return {
+        "cash_register_uuid": cash_register_uuid,
+        "event_id": event_id,
+        "payload": payload,
+        "updated_at": updated_at,
+    }
 
 
 @router.get("/v1/registers/{cash_register_uuid}/display", response_model=RegisterDisplayResponse)
@@ -54,7 +66,7 @@ def get_register_display(
 
 
 @router.put("/v1/registers/{cash_register_uuid}/display", response_model=RegisterDisplayResponse)
-def put_register_display(
+async def put_register_display(
     cash_register_uuid: str, body: RegisterDisplayBody, db: Session = Depends(get_db)
 ) -> RegisterDisplayResponse:
     row = db.query(RegisterDisplayState).filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid).first()
@@ -65,12 +77,49 @@ def put_register_display(
     row.payload_json = json.dumps(body.payload.model_dump(exclude_none=True))
     db.commit()
     db.refresh(row)
+    payload = json.loads(row.payload_json or "{}")
+    updated_at = row.updated_at.isoformat() if row.updated_at else None
+    await display_hub.broadcast(
+        cash_register_uuid,
+        _display_message(cash_register_uuid, row.event_id, payload, updated_at),
+    )
     return RegisterDisplayResponse(
         cash_register_uuid=cash_register_uuid,
         event_id=row.event_id,
-        payload=json.loads(row.payload_json or "{}"),
-        updated_at=row.updated_at.isoformat() if row.updated_at else None,
+        payload=payload,
+        updated_at=updated_at,
     )
+
+
+@router.websocket("/v1/registers/{cash_register_uuid}/display/ws")
+async def register_display_ws(
+    websocket: WebSocket,
+    cash_register_uuid: str,
+    event_id: int = Query(...),
+    db: Session = Depends(get_db),
+) -> None:
+    await display_hub.connect(cash_register_uuid, websocket)
+    try:
+        row = (
+            db.query(RegisterDisplayState)
+            .filter(RegisterDisplayState.cash_register_uuid == cash_register_uuid)
+            .first()
+        )
+        if row and int(row.event_id) == int(event_id):
+            payload = json.loads(row.payload_json or "{}")
+            updated_at = row.updated_at.isoformat() if row.updated_at else None
+            await websocket.send_json(
+                _display_message(cash_register_uuid, row.event_id, payload, updated_at)
+            )
+        else:
+            await websocket.send_json(_display_message(cash_register_uuid, event_id, {}, None))
+        while True:
+            # Keep the socket open; clients do not need to send. Ignore inbound pings/text.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await display_hub.disconnect(cash_register_uuid, websocket)
 
 
 @router.get("/v1/payments", response_model=PaymentsListResponse)

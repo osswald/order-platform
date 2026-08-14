@@ -61,7 +61,20 @@ const paymentHooks: PickPaymentHooks = {
       total_cents: amountCents ?? 0,
     })
   },
-  onTwintHide: () => {},
+  onTwintHide: () => {
+    restoreOrderingDisplay()
+  },
+  onSumupShow: ({ amountCents }) => {
+    pushDisplayPayload({
+      state: 'sumup_connected',
+      show_twint: false,
+      twint_qr_data_url: null,
+      total_cents: amountCents ?? 0,
+    })
+  },
+  onSumupHide: () => {
+    restoreOrderingDisplay()
+  },
 }
 
 async function loadSummary(): Promise<OrderSummary> {
@@ -73,20 +86,44 @@ async function loadSummary(): Promise<OrderSummary> {
   return data
 }
 
-function syncCustomerDisplay(data: OrderSummary) {
-  const lines = (data.open_orders || []).flatMap((o) =>
+function orderingLinesFromSummary(data: OrderSummary): RegisterDisplayPayload['lines'] {
+  return (data.open_orders || []).flatMap((o) =>
     (o.lines || []).map((l) => ({
       ...(l as Record<string, unknown>),
       display_label: cartLineLabelForEvent(l as never, event.value),
     })),
   ) as unknown as RegisterDisplayPayload['lines']
+}
+
+let lastOrderingSnapshot: {
+  lines: RegisterDisplayPayload['lines']
+  total_cents: number
+} = { lines: [], total_cents: 0 }
+
+function syncCustomerDisplay(data: OrderSummary) {
+  const lines = orderingLinesFromSummary(data)
+  lastOrderingSnapshot = {
+    lines,
+    total_cents: data.total_cents || 0,
+  }
   pushDisplayPayload({
     state: 'ordering',
     show_twint: false,
     twint_qr_data_url: null,
-    total_cents: data.total_cents || 0,
+    total_cents: lastOrderingSnapshot.total_cents,
     voucher_lines: [],
     lines,
+  } as Partial<RegisterDisplayPayload>)
+}
+
+function restoreOrderingDisplay() {
+  pushDisplayPayload({
+    state: 'ordering',
+    show_twint: false,
+    twint_qr_data_url: null,
+    total_cents: lastOrderingSnapshot.total_cents,
+    voucher_lines: [],
+    lines: lastOrderingSnapshot.lines,
   } as Partial<RegisterDisplayPayload>)
 }
 
