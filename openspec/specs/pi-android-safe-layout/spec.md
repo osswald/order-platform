@@ -52,6 +52,21 @@ The TWINT QR fullscreen sheet SHALL apply top and bottom safe-area insets on And
 - **WHEN** the TWINT QR sheet is open on Android
 - **THEN** Confirm and Cancel actions are fully tappable within the bottom safe area
 
+### Requirement: TWINT QR sheet fills the Android WebView
+
+The TWINT QR sheet SHALL occupy the full visible height of the Android WebView (after `--safe-top` / `--safe-bottom`), not a partial overlay such as a 70vh bottom sheet. **Fertig** and **Abbrechen** SHALL be pinned to the bottom of that sheet within the bottom safe area. Existing inset clearance for title, amount, and QR MUST remain.
+
+#### Scenario: TWINT sheet is not a partial overlay on Android
+
+- **WHEN** the waiter or register operator opens the TWINT QR sheet on Android
+- **THEN** the sheet fills the WebView from the top safe inset to the bottom safe inset
+- **AND** the Rest bar and order content underneath are not visible below the sheet
+
+#### Scenario: TWINT Fertig and Abbrechen at bottom on Android
+
+- **WHEN** the TWINT QR sheet is open on Android
+- **THEN** **Fertig** and **Abbrechen** are at the bottom of the sheet, fully tappable within the bottom safe area
+
 ### Requirement: Non-fullscreen screens remain unchanged
 
 Hub, keypad, list, and settings screens that use normal (non-fullscreen) `app-main` padding SHALL continue to clear the Android top inset via the existing `app-main` padding rule and MUST NOT regress as part of this change.
