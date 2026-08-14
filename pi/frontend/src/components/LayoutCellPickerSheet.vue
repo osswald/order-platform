@@ -47,7 +47,6 @@ defineEmits<{
 }
 .sheet__footer .btn {
   width: 100%;
-  min-height: 48px;
   touch-action: manipulation;
 }
 </style>

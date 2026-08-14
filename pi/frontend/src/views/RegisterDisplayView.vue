@@ -521,8 +521,9 @@ li {
 .twint-panel {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: stretch;
   gap: 1rem;
+  overflow: hidden;
 }
 .twint-info {
   flex: 0 0 38%;
@@ -545,7 +546,7 @@ li {
   align-items: center;
 }
 .qr-image {
-  max-height: calc(100dvh - 2rem);
+  max-height: 100%;
   max-width: 100%;
   width: auto;
   height: auto;
