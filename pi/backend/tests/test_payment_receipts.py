@@ -147,10 +147,37 @@ def test_payment_receipt_print_to_station(client, mock_printer_tcp):
         db.commit()
         job = db.query(PrintJob).filter(PrintJob.id == job_id).one()
         assert job.status == "sent"
+        raw = base64.b64decode(job.escpos_payload)
+        assert b"Beleg" in raw
+        assert b"Kopie" not in raw
     finally:
         db.close()
     assert len(mock_printer_tcp) == 1
     assert mock_printer_tcp[0] == ("127.0.0.1", 9100)
+
+
+def test_payment_receipt_print_to_station_reprint_marker(client, mock_printer_tcp):
+    c, Session = client
+    c, payment_id, _order_id = _pay_order(client)
+
+    printed = c.post(
+        f"/v1/payments/{payment_id}/receipt/print",
+        json={"station_uuid": "st-bar", "reprint": True},
+    )
+    assert printed.status_code == 200, printed.text
+    job_id = printed.json()["print_job_id"]
+
+    db = Session()
+    try:
+        run_print_job_sync(db, job_id)
+        db.commit()
+        job = db.query(PrintJob).filter(PrintJob.id == job_id).one()
+        assert job.status == "sent"
+        raw = base64.b64decode(job.escpos_payload)
+        assert b"Beleg" in raw
+        assert b"Kopie" in raw
+    finally:
+        db.close()
 
 
 def test_payment_receipt_print_unknown_payment(client):

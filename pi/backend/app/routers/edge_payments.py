@@ -219,6 +219,8 @@ def payment_receipt_print_to_station(
             status_code=422,
             detail="Kein Drucker für diese Station konfiguriert",
         )
-    job_id = _create_payment_receipt_print_job(db, row, ev, station_uuid)
+    job_id = _create_payment_receipt_print_job(
+        db, row, ev, station_uuid, reprint=bool(body.reprint)
+    )
     db.commit()
     return PaymentReceiptPrintResponse(ok=True, print_job_id=job_id)

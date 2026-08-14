@@ -849,6 +849,8 @@ def _create_payment_receipt_print_job(
     row: PaymentReceipt,
     ev: dict,
     station_uuid: str,
+    *,
+    reprint: bool = False,
 ) -> int:
     from ..print_render import dump_render_context, make_render_context
 
@@ -864,6 +866,7 @@ def _create_payment_receipt_print_job(
         payment_id=row.id,
         generated_at=generated_at,
         payload=payload,
+        reprint=bool(reprint),
     )
     pj = PrintJob(
         local_order_id=_local_order_id_for_payment_receipt(row),

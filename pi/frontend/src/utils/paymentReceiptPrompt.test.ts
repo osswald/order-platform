@@ -134,7 +134,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
 
     expect(api).toHaveBeenCalledWith('/v1/payments/42/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'reg-1' }),
+      body: JSON.stringify({ station_uuid: 'reg-1', reprint: false }),
     })
     expect(showToast).toHaveBeenCalledWith('Beleg an Drucker gesendet.', 'ok')
   })
@@ -156,7 +156,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     await promise
     expect(api).toHaveBeenCalledWith('/v1/payments/7/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'st-bar' }),
+      body: JSON.stringify({ station_uuid: 'st-bar', reprint: false }),
     })
   })
 
@@ -188,7 +188,28 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     await promise
     expect(api).toHaveBeenCalledWith('/v1/payments/11/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'st-only' }),
+      body: JSON.stringify({ station_uuid: 'st-only', reprint: false }),
+    })
+  })
+
+  it('sends reprint true on network path when reprinting', async () => {
+    const singleTargetEvent = {
+      offer_payment_receipt: true,
+      printer_hosts: { 'st-only': '10.0.0.9:9100' },
+      configuration: { stations: [{ uuid: 'st-only', name: 'Only' }] },
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({
+      paymentId: 12,
+      event: singleTargetEvent,
+      showToast,
+      reprint: true,
+    })
+    confirmReceiptPrintYes()
+    await promise
+    expect(api).toHaveBeenCalledWith('/v1/payments/12/receipt/print', {
+      method: 'POST',
+      body: JSON.stringify({ station_uuid: 'st-only', reprint: true }),
     })
   })
 
@@ -231,7 +252,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     expect(showToast).toHaveBeenCalledWith('Bluetooth-Drucker nicht erreichbar.', 'err')
     expect(api).toHaveBeenCalledWith('/v1/payments/57/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'reg-1' }),
+      body: JSON.stringify({ station_uuid: 'reg-1', reprint: false }),
     })
   })
 
@@ -256,7 +277,33 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     expect(showToast).toHaveBeenCalledWith('BT write failed', 'err')
     expect(api).toHaveBeenCalledWith('/v1/payments/58/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'reg-1' }),
+      body: JSON.stringify({ station_uuid: 'reg-1', reprint: false }),
+    })
+  })
+
+  it('falls back to stations with reprint true after Bluetooth failure', async () => {
+    vi.mocked(isAndroidApp).mockReturnValue(true)
+    vi.mocked(isBluetoothPrinterConfigured).mockReturnValue(true)
+    vi.mocked(checkBluetoothPrinterReachability).mockReturnValue('reachable')
+    vi.mocked(printPaymentReceipt).mockRejectedValue(new Error('BT write failed'))
+    const btEvent = {
+      ...event,
+      bluetooth_printing_enabled: true,
+    } as unknown as EdgeBundleEvent
+    const showToast = vi.fn()
+    const promise = offerPaymentReceipt({
+      paymentId: 61,
+      event: btEvent,
+      showToast,
+      reprint: true,
+      preferredTargetUuid: 'reg-1',
+    })
+    confirmReceiptPrintYes()
+    await expect(promise).resolves.toBeUndefined()
+    expect(printPaymentReceipt).toHaveBeenCalledWith(61, { reprint: true })
+    expect(api).toHaveBeenCalledWith('/v1/payments/61/receipt/print', {
+      method: 'POST',
+      body: JSON.stringify({ station_uuid: 'reg-1', reprint: true }),
     })
   })
 
@@ -281,7 +328,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     expect(printPaymentReceipt).toHaveBeenCalled()
     expect(api).toHaveBeenCalledWith('/v1/payments/59/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'reg-1' }),
+      body: JSON.stringify({ station_uuid: 'reg-1', reprint: false }),
     })
   })
 
@@ -304,7 +351,7 @@ describe('offerPaymentReceipt preferredTargetUuid', () => {
     expect(printPaymentReceipt).not.toHaveBeenCalled()
     expect(api).toHaveBeenCalledWith('/v1/payments/56/receipt/print', {
       method: 'POST',
-      body: JSON.stringify({ station_uuid: 'reg-1' }),
+      body: JSON.stringify({ station_uuid: 'reg-1', reprint: false }),
     })
   })
 

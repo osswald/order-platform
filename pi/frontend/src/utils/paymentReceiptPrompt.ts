@@ -45,10 +45,11 @@ export function pickReceiptStation(
 export async function printPaymentReceiptToStation(
   paymentId: number | string,
   stationUuid: string,
+  { reprint = false }: { reprint?: boolean } = {},
 ): Promise<unknown> {
   return api(`/v1/payments/${encodeURIComponent(String(paymentId))}/receipt/print`, {
     method: 'POST',
-    body: JSON.stringify({ station_uuid: stationUuid }),
+    body: JSON.stringify({ station_uuid: stationUuid, reprint }),
   })
 }
 
@@ -58,10 +59,11 @@ async function printToStation(
   paymentId: number | string,
   stationUuid: string,
   showToast?: ShowToastFn,
+  { reprint = false }: { reprint?: boolean } = {},
 ): Promise<boolean> {
   receiptPromptBusy.value = true
   try {
-    await printPaymentReceiptToStation(paymentId, stationUuid)
+    await printPaymentReceiptToStation(paymentId, stationUuid, { reprint })
     showToast?.('Beleg an Drucker gesendet.', 'ok')
     return true
   } catch (e: unknown) {
@@ -134,6 +136,7 @@ async function printViaNetworkTargets(
   event: EdgeBundleEvent,
   showToast?: ShowToastFn,
   preferredTargetUuid: string | null = null,
+  { reprint = false }: { reprint?: boolean } = {},
 ): Promise<void> {
   const targets = receiptPrintTargets(event)
   if (!targets.length) {
@@ -143,12 +146,12 @@ async function printViaNetworkTargets(
 
   const preferred = String(preferredTargetUuid || '').trim()
   if (preferred && targets.some((t) => t.uuid === preferred)) {
-    await printToStation(paymentId, preferred, showToast)
+    await printToStation(paymentId, preferred, showToast, { reprint })
     return
   }
 
   if (targets.length === 1) {
-    await printToStation(paymentId, targets[0].uuid, showToast)
+    await printToStation(paymentId, targets[0].uuid, showToast, { reprint })
     return
   }
 
@@ -159,7 +162,7 @@ async function printViaNetworkTargets(
     return
   }
   if (!stationUuid) return
-  await printToStation(paymentId, stationUuid, showToast)
+  await printToStation(paymentId, stationUuid, showToast, { reprint })
 }
 
 export interface OfferPaymentReceiptOptions {
@@ -197,7 +200,7 @@ export async function offerPaymentReceipt({
     showToast?.('Bluetooth-Drucker nicht erreichbar.', 'err')
   }
 
-  await printViaNetworkTargets(paymentId, event, showToast, preferredTargetUuid)
+  await printViaNetworkTargets(paymentId, event, showToast, preferredTargetUuid, { reprint })
 }
 
 /**

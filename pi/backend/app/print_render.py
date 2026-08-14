@@ -125,6 +125,7 @@ def build_escpos_from_render_context(ctx: dict[str, Any], ev: dict | None) -> by
             payment_id=ctx.get("payment_id"),
             articles=arts,
             currency=currency,
+            reprint=bool(ctx.get("reprint")),
             generated_at=ctx.get("generated_at"),
             event=ev,
             feed_lines=feed_lines,
