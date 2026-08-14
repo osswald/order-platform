@@ -1,9 +1,10 @@
-# sumup-cloud-connect Specification
+## RENAMED Requirements
 
-## Purpose
-Organisation-scoped SumUp API-key connect (primary), disconnect, and account status via the SumUp-Geräte admin surface. Dormant OAuth authorize/callback may remain mounted for future use but MUST NOT be the admin connect path while API-key connect is primary.
+### Requirement: Organisation connects SumUp via OAuth
+**FROM:** `Organisation connects SumUp via OAuth`  
+**TO:** `Organisation connects SumUp via API key`
 
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Organisation connects SumUp via API key
 The cloud backend SHALL allow organisation managers (organisation admin for that organisation, tenant admin, or platform/superuser) to connect SumUp for the active organisation by submitting a SumUp merchant API key. The backend MUST validate the key against SumUp, persist the merchant identity and credential on that organisation, and MUST NOT return the API key in any subsequent API response. API-key paste SHALL be the primary connect path. The platform MAY retain dormant SumUp OAuth authorize and callback endpoints for future use, but the SumUp-Geräte UI MUST NOT present OAuth as the connect path while API-key connect is primary.
@@ -39,6 +40,8 @@ The cloud admin UI SHALL expose a Hauptmenü item **SumUp-Geräte** visible to o
 - **WHEN** an authorised user disconnects SumUp on SumUp-Geräte
 - **THEN** stored credentials and merchant linkage for that organisation are cleared, local reader rows are removed, and reader management actions that require SumUp API access are unavailable until reconnect
 
+## ADDED Requirements
+
 ### Requirement: Organisation SumUp credential resolves for Cloud API calls
 For a SumUp-connected organisation, cloud services that call SumUp (reader management and edge Solo checkout) SHALL obtain a Bearer credential from the organisation’s stored SumUp credential. When a refresh token is present, the system MAY refresh an OAuth access token as before. When no refresh token is present, the system SHALL use the stored access credential as a static API key without attempting token refresh. API-key connect MUST NOT require platform OAuth client environment variables to be configured.
 
@@ -49,10 +52,3 @@ For a SumUp-connected organisation, cloud services that call SumUp (reader manag
 #### Scenario: Connect without OAuth client env
 - **WHEN** platform OAuth client id/secret/redirect are unset and an authorised user connects with a valid API key
 - **THEN** the organisation becomes SumUp-connected successfully
-
-### Requirement: Access control matches organisation management
-SumUp connect, disconnect, and credential APIs SHALL authorize with the same organisation-management rule as other org-scoped admin actions: platform/superuser and tenant admin for tenant orgs, or organisation admin only for organisations they administer. Members without those roles MUST NOT access SumUp connect or reader management APIs.
-
-#### Scenario: Member denied
-- **WHEN** a member without organisation-admin rights calls a SumUp connect or reader management endpoint
-- **THEN** the request is rejected as forbidden

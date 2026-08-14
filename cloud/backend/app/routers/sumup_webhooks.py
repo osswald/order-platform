@@ -68,6 +68,13 @@ async def sumup_webhook(request: Request, db: Session = Depends(get_db)) -> dict
         return {"received": "true", "duplicate": "true"}
 
     checkout_id = str(payload.get("checkout_id") or payload.get("id") or "").strip()
+    # Solo Cloud API callbacks nest fields under ``data`` / ``payload``.
+    nested = payload.get("data") if isinstance(payload.get("data"), dict) else None
+    if not checkout_id and nested:
+        checkout_id = str(nested.get("checkout_id") or nested.get("id") or "").strip()
+    event_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else None
+    if not checkout_id and event_payload:
+        checkout_id = str(event_payload.get("checkout_id") or event_payload.get("id") or "").strip()
     event_type = str(payload.get("event_type") or payload.get("type") or "unknown")
     db.add(
         SumupWebhookEvent(
@@ -78,12 +85,13 @@ async def sumup_webhook(request: Request, db: Session = Depends(get_db)) -> dict
         )
     )
 
+    status_source = event_payload or nested or payload
     if checkout_id:
         row = db.query(SumupCheckout).filter(SumupCheckout.sumup_checkout_id == checkout_id).first()
         if row:
-            status_value = normalize_checkout_status(str(payload.get("status")))
+            status_value = normalize_checkout_status(str(status_source.get("status")))
             row.status = status_value
-            apply_checkout_payload(row, payload)
+            apply_checkout_payload(row, status_source)
 
     commit_or_raise(db)
     return {"received": "true"}
