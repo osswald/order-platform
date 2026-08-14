@@ -159,6 +159,14 @@
                   :no-data-text="$t('sumupDevices.noReaders')"
                   class="vq-data-table list-table readers-table"
                 >
+                  <template #item.label="{ item }">
+                    <SumupReaderTelemetryTooltip
+                      v-if="activeOrganisationId != null"
+                      :organisation-id="activeOrganisationId"
+                      :reader="item"
+                    />
+                    <span v-else>{{ item.label }}</span>
+                  </template>
                   <template #item.status="{ item }">
                     {{ formatReaderStatus(item.status) }}
                   </template>
@@ -266,6 +274,7 @@ import { useI18n } from 'vue-i18n'
 import ListDetailLayout from './ListDetailLayout.vue'
 import FormLabel from './FormLabel.vue'
 import VqDataTable from './VqDataTable.vue'
+import SumupReaderTelemetryTooltip from './SumupReaderTelemetryTooltip.vue'
 import {
   disconnectSumupOrganisation,
   fetchSumupOrganisationStatus,

@@ -260,7 +260,7 @@ def test_run_migrations_bootstraps_pre_alembic_database():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "013_rental_zubehoer"
+    assert _alembic_current_revision() == "014_sumup_reader_device_identity"
     inspector = inspect(engine)
     assert "stripe_webhook_events" in inspector.get_table_names()
 
@@ -272,7 +272,7 @@ def test_run_migrations_applies_fresh_database_from_scratch():
 
     run_migrations()
 
-    assert _alembic_current_revision() == "013_rental_zubehoer"
+    assert _alembic_current_revision() == "014_sumup_reader_device_identity"
     inspector = inspect(engine)
     assert "users" in inspector.get_table_names()
     assert "rental_zubehoer_catalog" in inspector.get_table_names()

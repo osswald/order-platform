@@ -382,7 +382,7 @@ def list_readers(access_token: str, merchant_code: str) -> list[dict[str, Any]]:
     )
     items = payload.get("items")
     if not isinstance(items, list):
-        return []
+        raise SumupApiError(502, "SumUp reader list missing items")
     return items
 
 
@@ -399,6 +399,15 @@ def delete_reader(access_token: str, merchant_code: str, reader_id: str) -> None
     request_json(
         "DELETE",
         _merchant_readers_url(merchant_code, reader_id),
+        headers=_auth_headers(access_token),
+    )
+
+
+def get_reader_status(access_token: str, merchant_code: str, reader_id: str) -> dict[str, Any]:
+    """Last-known Solo device status (battery, online, firmware). Firmware 3.3.39.0+."""
+    return request_json(
+        "GET",
+        f"{_merchant_readers_url(merchant_code, reader_id)}/status",
         headers=_auth_headers(access_token),
     )
 

@@ -19,6 +19,7 @@ import {
   disconnectSumupOrganisation,
   fetchSumupOrganisationStatus,
   fetchSumupReaders,
+  fetchSumupReaderTelemetry,
   pairSumupReader,
   putSumupOrganisationApiKey,
   renameSumupReader,
@@ -163,5 +164,28 @@ describe('sumupCloud', () => {
     expect(apiJson).toHaveBeenLastCalledWith('/sumup/organisations/3/disconnect', {
       method: 'POST',
     })
+  })
+
+  it('fetchSumupReaderTelemetry calls the telemetry path', async () => {
+    vi.mocked(apiJson).mockResolvedValueOnce({
+      id: 5,
+      sumup_reader_id: 'r1',
+      label: 'Bar',
+      device_identifier: 'U1DT3NA00-CN',
+      device_model: 'solo',
+      telemetry_available: true,
+      online_status: 'ONLINE',
+      battery_level: 80,
+      connection_type: 'Wi-Fi',
+      firmware_version: '3.3.3.21',
+      last_activity: '2025-09-25T15:20:00Z',
+      state: 'IDLE',
+    })
+    await expect(fetchSumupReaderTelemetry(3, 5)).resolves.toMatchObject({
+      telemetry_available: true,
+      device_identifier: 'U1DT3NA00-CN',
+      online_status: 'ONLINE',
+    })
+    expect(apiJson).toHaveBeenCalledWith('/sumup/organisations/3/readers/5/telemetry')
   })
 })

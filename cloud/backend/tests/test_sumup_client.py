@@ -9,6 +9,7 @@ from app.sumup_client import (
     get_merchant_profile,
     get_merchant_profile_for_code,
     list_merchant_memberships,
+    list_readers,
     merchant_display_name,
     merchant_sandbox_flag,
     normalize_pairing_code,
@@ -186,6 +187,42 @@ def test_list_merchant_memberships_parses_test_accounts(mock_request):
     assert members[1]["sandbox"] is True
     assert members[1]["merchant_name"] == "Sandbox Cafe"
     assert members[1]["country"] == "CH"
+
+
+@patch("app.sumup_client.request_json")
+def test_list_readers_returns_items(mock_request):
+    mock_request.return_value = {
+        "items": [{"id": "rdr_3MSAFM23CK82VSTT4BN6RWSQ65", "name": "Bar", "status": "paired"}]
+    }
+    items = list_readers("token", "MK10CL2A")
+    assert len(items) == 1
+    assert items[0]["id"] == "rdr_3MSAFM23CK82VSTT4BN6RWSQ65"
+
+
+@patch("app.sumup_client.request_json")
+def test_list_readers_empty_items_is_well_formed(mock_request):
+    mock_request.return_value = {"items": []}
+    assert list_readers("token", "MK10CL2A") == []
+
+
+@patch("app.sumup_client.request_json")
+def test_list_readers_raises_when_items_missing(mock_request):
+    mock_request.return_value = {"data": []}
+    try:
+        list_readers("token", "MK10CL2A")
+        raise AssertionError("expected SumupApiError")
+    except SumupApiError as exc:
+        assert exc.status_code == 502
+
+
+@patch("app.sumup_client.request_json")
+def test_list_readers_raises_when_items_not_a_list(mock_request):
+    mock_request.return_value = {"items": None}
+    try:
+        list_readers("token", "MK10CL2A")
+        raise AssertionError("expected SumupApiError")
+    except SumupApiError as exc:
+        assert exc.status_code == 502
 
 
 @patch("app.sumup_client.request_json")

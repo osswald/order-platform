@@ -1406,7 +1406,7 @@
     "statusLoadFailed": "SumUp-Status konnte nicht geladen werden.",
     "notConfigured": "SumUp ist auf dem Server nicht konfiguriert.",
     "paymentsNotReady": "Kartenzahlungen sind auf diesem Server nicht bereit (SumUp Affiliate Key fehlt). Verbinden und Reader koppeln ist trotzdem möglich.",
-    "connectDescription": "Fügen Sie einen SumUp-Händler-API-Schlüssel ein (me.sumup.com → Einstellungen → Für Entwickler → Toolkit → API Keys). Danach Solo-Reader koppeln und Sumup connected in Veranstaltungen nutzen.",
+    "connectDescription": "Fügen Sie einen SumUp-Händler-API-Schlüssel ein (me.sumup.com → Einstellungen → Für Entwickler → Toolkit → API Keys). Bereits beim Händler gekoppelte Solo-Reader werden übernommen. Weitere Solos können Sie hier koppeln und Sumup connected in Veranstaltungen nutzen.",
     "apiKey": "SumUp-API-Schlüssel",
     "apiKeyPlaceholder": "sup_sk_…",
     "apiKeyWarning": "Dieser Schlüssel gewährt vollen API-Zugriff auf den SumUp-Händler. SumUp zeigt den Schlüssel nur einmal beim Erstellen.",
@@ -1460,6 +1460,20 @@
       "unknown": "Unbekannt",
       "active": "Aktiv",
       "inactive": "Inaktiv"
+    },
+    "telemetryLoading": "Gerätestatus wird geladen…",
+    "telemetryUnavailable": "Live-Gerätestatus ist nicht verfügbar.",
+    "telemetrySerial": "Seriennummer",
+    "telemetryModel": "Modell",
+    "telemetryOnline": "Status",
+    "telemetryBattery": "Akku",
+    "telemetryConnection": "Verbindung",
+    "telemetryFirmware": "Firmware",
+    "telemetryLastActivity": "Letzte Aktivität",
+    "telemetryState": "Zustand",
+    "telemetryOnlineStatus": {
+      "ONLINE": "Online",
+      "OFFLINE": "Offline"
     }
   },
   "stripe": {

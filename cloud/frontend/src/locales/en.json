@@ -345,7 +345,7 @@
     "statusLoadFailed": "Could not load SumUp status.",
     "notConfigured": "SumUp is not configured on the server.",
     "paymentsNotReady": "Card payments are not ready on this server (missing SumUp Affiliate Key). You can still connect and pair readers.",
-    "connectDescription": "Paste a SumUp merchant API key from me.sumup.com → Settings → For Developers → Toolkit → API Keys. Then pair Solo readers and use Sumup connected in events.",
+    "connectDescription": "Paste a SumUp merchant API key from me.sumup.com → Settings → For Developers → Toolkit → API Keys. Solo readers already paired with that merchant are imported automatically. Pair additional Solos here, then use Sumup connected in events.",
     "apiKey": "SumUp API key",
     "apiKeyPlaceholder": "sup_sk_…",
     "apiKeyWarning": "This key grants full API access to that SumUp merchant. SumUp shows the key only once when you create it.",
@@ -399,6 +399,20 @@
       "unknown": "Unknown",
       "active": "Active",
       "inactive": "Inactive"
+    },
+    "telemetryLoading": "Loading device status…",
+    "telemetryUnavailable": "Live device status is unavailable.",
+    "telemetrySerial": "Serial",
+    "telemetryModel": "Model",
+    "telemetryOnline": "Status",
+    "telemetryBattery": "Battery",
+    "telemetryConnection": "Connection",
+    "telemetryFirmware": "Firmware",
+    "telemetryLastActivity": "Last activity",
+    "telemetryState": "State",
+    "telemetryOnlineStatus": {
+      "ONLINE": "Online",
+      "OFFLINE": "Offline"
     }
   },
   "eventStatus": {

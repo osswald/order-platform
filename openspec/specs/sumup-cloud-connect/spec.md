@@ -20,6 +20,21 @@ The cloud backend SHALL allow organisation managers (organisation admin for that
 - **WHEN** an authorised user reads SumUp connection status after a successful API-key connect
 - **THEN** the response includes connection state and merchant identity but does not include the API key value
 
+### Requirement: Connect imports merchant readers
+When an organisation becomes SumUp-connected by submitting a valid API key, or when a connected organisation updates the API key for the **same** merchant, the cloud SHALL import that merchant’s Cloud API reader catalog into the organisation’s stored readers using the same catalog rules as listing (insert missing ids, refresh status, prune ids absent from a successful well-formed list). Connecting MUST NOT require the admin to re-pair readers that SumUp already lists for that merchant.
+
+#### Scenario: Connect imports existing Solos
+- **WHEN** an authorised user connects an organisation with a valid API key and SumUp lists one or more readers for the chosen merchant
+- **THEN** those readers are stored for the organisation and SumUp-Geräte shows them without a further pairing step
+
+#### Scenario: Same-merchant key update re-syncs catalog
+- **WHEN** an authorised user updates the API key for a connected organisation and the key belongs to the same merchant
+- **THEN** the stored credential is replaced and the merchant reader catalog is re-synced (import, status refresh, prune)
+
+#### Scenario: Connect still succeeds when reader list fails
+- **WHEN** API-key connect (or same-merchant update) succeeds but SumUp’s reader list cannot be fetched
+- **THEN** the organisation remains connected and existing local readers are left unchanged
+
 ### Requirement: SumUp-Geräte is the connect and account surface
 The cloud admin UI SHALL expose a Hauptmenü item **SumUp-Geräte** visible to organisation admins, tenant admins, and platform/superusers, scoped to the active organisation. When the organisation is not SumUp-connected, that page SHALL present API-key paste connect (with brief guidance that the key is created in the SumUp merchant developer settings) and MUST NOT present an OAuth connect call-to-action. When connected, it SHALL show account/connection status, allow updating the API key without wiping paired readers when the new key belongs to the same merchant, and allow disconnect (clearing stored credentials and connection state and local reader rows without deleting historical payment records). When the platform Affiliate Key required for Solo checkout is missing, the page SHOULD show that card payments are not ready on this server without blocking API-key connect.
 

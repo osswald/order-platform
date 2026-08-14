@@ -1866,6 +1866,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sumup/organisations/{organisation_id}/readers/{reader_id}/telemetry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Reader Telemetry */
+        get: operations["read_reader_telemetry_sumup_organisations__organisation_id__readers__reader_id__telemetry_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sumup/organisations/{organisation_id}/readers/{reader_id}": {
         parameters: {
             query?: never;
@@ -5117,10 +5134,41 @@ export interface components {
             label: string;
             /** Status */
             status: string;
+            /** Device Identifier */
+            device_identifier?: string | null;
+            /** Device Model */
+            device_model?: string | null;
             /** Created At */
             created_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** SumupReaderTelemetryResponse */
+        SumupReaderTelemetryResponse: {
+            /** Id */
+            id: number;
+            /** Sumup Reader Id */
+            sumup_reader_id: string;
+            /** Label */
+            label: string;
+            /** Device Identifier */
+            device_identifier?: string | null;
+            /** Device Model */
+            device_model?: string | null;
+            /** Telemetry Available */
+            telemetry_available: boolean;
+            /** Online Status */
+            online_status?: string | null;
+            /** Battery Level */
+            battery_level?: number | null;
+            /** Connection Type */
+            connection_type?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Last Activity */
+            last_activity?: string | null;
+            /** State */
+            state?: string | null;
         };
         /** SumupReaderUpdateRequest */
         SumupReaderUpdateRequest: {
@@ -11410,6 +11458,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SumupReaderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_reader_telemetry_sumup_organisations__organisation_id__readers__reader_id__telemetry_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+                reader_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupReaderTelemetryResponse"];
                 };
             };
             /** @description Validation Error */
