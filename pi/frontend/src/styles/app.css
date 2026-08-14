@@ -300,6 +300,11 @@ h2 {
   text-align: left;
 }
 
+.sheet--picker .sheet-option-row__control--btn {
+  font: inherit;
+  min-height: 44px;
+}
+
 .sheet-option-row__name {
   flex: 1;
   font-weight: 500;

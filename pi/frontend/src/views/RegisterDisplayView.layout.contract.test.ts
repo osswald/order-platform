@@ -20,4 +20,10 @@ describe('RegisterDisplayView overflow layout', () => {
     expect(src).toMatch(/grid-template-columns/)
     expect(src).toMatch(/scrollbar-gutter:\s*stable/)
   })
+
+  it('keeps the TWINT QR inside the rounded panel border', () => {
+    expect(src).toMatch(/\.twint-panel \{[^}]*overflow:\s*hidden/)
+    expect(src).toMatch(/\.qr-image \{[^}]*max-height:\s*100%/)
+    expect(src).not.toMatch(/\.qr-image \{[^}]*max-height:\s*calc\(100dvh/)
+  })
 })

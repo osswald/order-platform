@@ -74,6 +74,16 @@ describe('android fullscreen safe layout (sheet sources)', () => {
       /padding:\s*calc\(1rem \+ var\(--safe-top\)\)\s+1rem\s+calc\(1rem \+ var\(--safe-bottom\)\)/,
     )
   })
+
+  it('TwintQrSheet fills the WebView height without dropping safe-area padding', () => {
+    const vue = readSrc('components', 'TwintQrSheet.vue')
+    const sheet = ruleBody(vue, '.twint-qr-sheet')
+    expect(sheet).toMatch(/max-height:\s*none/)
+    expect(sheet).toMatch(/height:\s*100%/)
+    expect(sheet).toMatch(
+      /padding:\s*calc\(1rem \+ var\(--safe-top\)\)\s+1rem\s+calc\(1rem \+ var\(--safe-bottom\)\)/,
+    )
+  })
 })
 
 describe('android immersive kitchen layout', () => {

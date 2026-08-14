@@ -52,6 +52,9 @@ defineEmits<{
   flex-direction: column;
   background: var(--card);
   padding: calc(1rem + var(--safe-top)) 1rem calc(1rem + var(--safe-bottom));
+  max-height: none;
+  height: 100%;
+  overflow: hidden;
 }
 
 .sheet-header h3 {
@@ -87,12 +90,14 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   min-height: 0;
-  padding: 1rem 0;
+  padding: 1rem;
 }
 
 .qr-image {
-  max-width: min(92vw, 360px);
-  max-height: min(60vh, 360px);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
