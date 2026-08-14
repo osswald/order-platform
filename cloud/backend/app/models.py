@@ -153,6 +153,7 @@ class Organisation(Base):
     accounts_enabled = Column(Boolean, nullable=False, default=False)
     position_comments_enabled = Column(Boolean, nullable=False, default=False)
     ingredients_enabled = Column(Boolean, nullable=False, default=False)
+    screensaver_greyscale = Column(Boolean, nullable=False, default=False)
     color_palette = Column(JSON, nullable=True)
     first_event_setup_completed_at = Column(DateTime(timezone=True), nullable=True)
     first_event_setup_dismissed_at = Column(DateTime(timezone=True), nullable=True)
@@ -177,6 +178,11 @@ class Organisation(Base):
         back_populates="organisation",
         cascade="all, delete-orphan",
     )
+    screensaver_images = relationship(
+        "OrganisationScreensaverImage",
+        back_populates="organisation",
+        cascade="all, delete-orphan",
+    )
 
 
 class SumupReader(Base):
@@ -193,6 +199,21 @@ class SumupReader(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     organisation = relationship("Organisation", back_populates="sumup_readers")
+
+
+class OrganisationScreensaverImage(Base):
+    __tablename__ = "organisation_screensaver_images"
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "sha256", name="uq_org_screensaver_images_org_sha256"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(Integer, ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False, index=True)
+    sha256 = Column(String(64), nullable=False)
+    mime = Column(String(64), nullable=False)
+    data = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    organisation = relationship("Organisation", back_populates="screensaver_images")
 
 
 class SumupOAuthState(Base):

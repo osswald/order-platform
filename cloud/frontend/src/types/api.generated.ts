@@ -223,6 +223,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organisations/{organisation_id}/screensaver-images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Organisation Screensaver Images */
+        get: operations["list_organisation_screensaver_images_organisations__organisation_id__screensaver_images_get"];
+        put?: never;
+        /** Upload Organisation Screensaver Image */
+        post: operations["upload_organisation_screensaver_image_organisations__organisation_id__screensaver_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organisations/{organisation_id}/screensaver-images/{image_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Organisation Screensaver Image */
+        get: operations["get_organisation_screensaver_image_organisations__organisation_id__screensaver_images__image_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Organisation Screensaver Image */
+        delete: operations["delete_organisation_screensaver_image_organisations__organisation_id__screensaver_images__image_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/edge/v1/screensaver/{sha256}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Edge Screensaver Image */
+        get: operations["download_edge_screensaver_image_edge_v1_screensaver__sha256__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organisations/{organisation_id}/position-comments": {
         parameters: {
             query?: never;
@@ -2393,6 +2446,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_organisation_screensaver_image_organisations__organisation_id__screensaver_images_post */
+        Body_upload_organisation_screensaver_image_organisations__organisation_id__screensaver_images_post: {
+            /** File */
+            file: string;
+        };
         /** CashRegisterIn */
         CashRegisterIn: {
             /** Uuid */
@@ -2759,6 +2817,13 @@ export interface components {
             ingredients_enabled: boolean;
             /** Sumup Readers */
             sumup_readers?: components["schemas"]["SumupReaderBundleRead"][];
+            /** Screensaver Images */
+            screensaver_images?: components["schemas"]["ScreensaverImageBundleRead"][];
+            /**
+             * Screensaver Greyscale
+             * @default false
+             */
+            screensaver_greyscale: boolean;
         };
         /** EdgeEventBundle */
         EdgeEventBundle: {
@@ -4191,6 +4256,11 @@ export interface components {
              * @default false
              */
             ingredients_enabled: boolean;
+            /**
+             * Screensaver Greyscale
+             * @default false
+             */
+            screensaver_greyscale: boolean;
         };
         /** OrganisationUpdate */
         OrganisationUpdate: {
@@ -4218,6 +4288,8 @@ export interface components {
             position_comments_enabled?: boolean | null;
             /** Ingredients Enabled */
             ingredients_enabled?: boolean | null;
+            /** Screensaver Greyscale */
+            screensaver_greyscale?: boolean | null;
         };
         /** PasswordChange */
         PasswordChange: {
@@ -4733,6 +4805,24 @@ export interface components {
             paid_cents: number;
             /** Open Cents */
             open_cents: number;
+        };
+        /** ScreensaverImageBundleRead */
+        ScreensaverImageBundleRead: {
+            /** Sha256 */
+            sha256: string;
+            /** Mime */
+            mime: string;
+        };
+        /** ScreensaverImageRead */
+        ScreensaverImageRead: {
+            /** Id */
+            id: number;
+            /** Sha256 */
+            sha256: string;
+            /** Mime */
+            mime: string;
+            /** Created At */
+            created_at?: string | null;
         };
         /** StationConfigIn */
         StationConfigIn: {
@@ -6281,6 +6371,178 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_organisation_screensaver_images_organisations__organisation_id__screensaver_images_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreensaverImageRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_organisation_screensaver_image_organisations__organisation_id__screensaver_images_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_organisation_screensaver_image_organisations__organisation_id__screensaver_images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreensaverImageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_organisation_screensaver_image_organisations__organisation_id__screensaver_images__image_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+                image_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_organisation_screensaver_image_organisations__organisation_id__screensaver_images__image_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+                image_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_edge_screensaver_image_edge_v1_screensaver__sha256__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Edge-Client-Id"?: string | null;
+                "X-Edge-Secret"?: string | null;
+                "X-Edge-App-Version"?: string | null;
+                "X-Edge-App-Build-Time"?: string | null;
+            };
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

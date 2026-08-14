@@ -121,6 +121,77 @@ def test_single_station_unchanged(client):
         db.close()
 
 
+def test_purge_then_single_station_order_gets_one_code(client):
+    from app.event_lifecycle import purge_event_local_data
+
+    c, Session = client
+    first = _single_station_order(c)
+    assert first.status_code == 200, first.text
+    assert first.json()["pickup_codes"] == ["A1"]
+
+    db = Session()
+    try:
+        purge_event_local_data(db, 1)
+        db.commit()
+        assert db.query(StationPickup).count() == 0
+        assert db.query(LocalOrder).count() == 0
+    finally:
+        db.close()
+
+    second = _single_station_order(c)
+    assert second.status_code == 200, second.text
+    assert second.json()["pickup_code"] == "A1"
+    assert second.json()["pickup_codes"] == ["A1"]
+
+    db = Session()
+    try:
+        pickups = db.query(StationPickup).all()
+        assert len(pickups) == 1
+        assert pickups[0].pickup_code == "A1"
+        assert pickups[0].local_order_id == second.json()["local_order_id"]
+    finally:
+        db.close()
+
+
+def test_orphaned_pickups_on_reused_order_id_are_replaced(client):
+    c, Session = client
+    db = Session()
+    try:
+        db.add(
+            StationPickup(
+                local_order_id=1,
+                event_id=1,
+                station_uuid="st-kitchen",
+                pickup_code="Z9",
+                pickup_status="pending",
+            )
+        )
+        db.commit()
+        assert db.query(LocalOrder).count() == 0
+    finally:
+        db.close()
+
+    r = _single_station_order(c)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["local_order_id"] == 1
+    assert body["pickup_code"] == "A1"
+    assert body["pickup_codes"] == ["A1"]
+
+    db = Session()
+    try:
+        pickups = (
+            db.query(StationPickup)
+            .filter(StationPickup.local_order_id == 1)
+            .order_by(StationPickup.id.asc())
+            .all()
+        )
+        assert [(p.pickup_code, p.station_uuid) for p in pickups] == [("A1", "st-bar")]
+        assert db.query(StationPickup).filter(StationPickup.pickup_code == "Z9").count() == 0
+    finally:
+        db.close()
+
+
 def test_independent_ready_and_picked_up(client):
     c, Session = client
     r = _multi_station_order(c)
@@ -171,6 +242,22 @@ def test_open_orders_one_row_with_all_codes(client):
     assert orders[0]["local_order_id"] == oid
     assert orders[0]["pickup_code"] == "A1"
     assert orders[0]["pickup_codes"] == ["A1", "A2"]
+
+
+def test_open_order_summary_includes_station_pickups(client):
+    c, _ = client
+    r = _multi_station_order(c, payments=[])
+    assert r.status_code == 200, r.text
+    oid = r.json()["local_order_id"]
+
+    summary = c.get(f"/v1/orders/{oid}/summary")
+    assert summary.status_code == 200, summary.text
+    data = summary.json()
+    assert data["pickup_codes"] == ["A1", "A2"]
+    assert [(p["station_uuid"], p["pickup_code"]) for p in data["pickups"]] == [
+        ("st-kitchen", "A1"),
+        ("st-bar", "A2"),
+    ]
 
 
 def test_partial_settle_keeps_station_pickups_on_original(client):

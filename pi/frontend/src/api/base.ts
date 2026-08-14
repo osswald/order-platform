@@ -44,6 +44,14 @@ export function buildApiUrl(base: string, path: string): string {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`
 }
 
+/** Convert HTTP(S) API base + path into a WebSocket URL. */
+export function buildWsUrl(base: string, pathWithQuery: string): string {
+  const httpUrl = buildApiUrl(base, pathWithQuery)
+  const u = new URL(httpUrl)
+  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
+  return u.toString()
+}
+
 function fallbackPiBackendBase(base: string): string | null {
   try {
     const parsed = new URL(base)

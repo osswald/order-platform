@@ -24,6 +24,7 @@ export async function resolvePaymentsForAmount(
   }
 
   terminalPaymentBusy.value = true
+  hooks.onSumupShow?.({ amountCents })
   try {
     const payment = await collectSumupConnectedPayment({
       event,
@@ -31,6 +32,9 @@ export async function resolvePaymentsForAmount(
       clientOrderId,
     })
     return [payment]
+  } catch (err) {
+    hooks.onSumupHide?.()
+    throw err
   } finally {
     terminalPaymentBusy.value = false
   }

@@ -10,6 +10,7 @@ from .edge_orders import router as edge_orders_router
 from .edge_payments import router as edge_payments_router
 from .edge_print_jobs import router as edge_print_jobs_router
 from .edge_printer_test import router as edge_printer_test_router
+from .edge_screensaver import router as edge_screensaver_router
 from .edge_stock import router as edge_stock_router
 from .edge_sumup import router as edge_sumup_router
 from .edge_sync import router as edge_sync_router
@@ -26,3 +27,4 @@ router.include_router(edge_payments_router)
 router.include_router(edge_sumup_router)
 router.include_router(edge_sync_router)
 router.include_router(edge_load_test_router)
+router.include_router(edge_screensaver_router)

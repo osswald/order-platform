@@ -14,6 +14,8 @@ def test_edge_bundle_contract_accepts_minimal_payload():
         "position_comment_presets": [],
         "ingredients_enabled": False,
         "sumup_readers": [],
+        "screensaver_images": [],
+        "screensaver_greyscale": False,
     }
     model = EdgeBundleContract.model_validate(payload)
     assert model.organisation_id == 1

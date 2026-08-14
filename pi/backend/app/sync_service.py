@@ -28,6 +28,7 @@ from .event_lifecycle import reconcile_bundle_lifecycle
 from .models import OutboxEntry, SyncedBundle
 from .operational_restore import needs_operational_restore, restore_operational_snapshot
 from .ota_freeze import write_ota_freeze_from_bundle
+from .screensaver_sync import sync_screensaver_images
 from .stock import apply_stock_to_bundle, persist_catalogue_bundle, persist_local_stock
 
 # Serialize pull/push with the background sync worker (SQLite).
@@ -284,6 +285,16 @@ async def pull_and_restore(
         if reapply_pending_stock(db, pull_result.get("bundle")):
             db.commit()
         # If reapply was a no-op, catalogue commit from pull already landed.
+
+    # Screensaver sync: run after every successful pull (incl. 304) so GC/download
+    # still happen when only media changed independently — manifest rides the bundle.
+    try:
+        pull_result["screensaver"] = await sync_screensaver_images(
+            pull_result.get("bundle") if isinstance(pull_result.get("bundle"), dict) else None,
+            client=client,
+        )
+    except Exception as exc:  # noqa: BLE001 — sync must not fail the whole pull
+        pull_result["screensaver"] = {"errors": [{"error": str(exc)}]}
 
     if not should_check_operational_restore(
         db,

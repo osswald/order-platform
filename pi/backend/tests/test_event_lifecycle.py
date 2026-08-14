@@ -5,7 +5,11 @@ import uuid
 
 import pytest
 from app.database import Base, init_test_schema
-from app.event_lifecycle import purge_event_local_data, reconcile_bundle_lifecycle
+from app.event_lifecycle import (
+    purge_all_operational_data,
+    purge_event_local_data,
+    reconcile_bundle_lifecycle,
+)
 from app.models import (
     CollectiveBill,
     EmulatedReceipt,
@@ -13,6 +17,7 @@ from app.models import (
     LocalOrder,
     OutboxEntry,
     PrintJob,
+    StationPickup,
 )
 from app.models_operational import OrderSession
 from sqlalchemy import create_engine, func, select
@@ -44,11 +49,11 @@ def db():
 
 
 def _seed_event_data(session, event_id: int = 1):
-    session.add(OrderSession(event_id=event_id, table_number=1, order_source="waiter", status="OPEN"))
+    order_session = OrderSession(event_id=event_id, table_number=1, order_source="waiter", status="OPEN")
+    session.add(order_session)
     session.flush()
-    session_id = session.query(OrderSession).first().id
     order = LocalOrder(
-        session_id=session_id,
+        session_id=order_session.id,
         client_order_id=f"o-{event_id}",
         event_id=event_id,
         table_number=1,
@@ -85,18 +90,41 @@ def _seed_event_data(session, event_id: int = 1):
             preview_text="demo",
         )
     )
+    session.add(
+        StationPickup(
+            local_order_id=order.id,
+            event_id=event_id,
+            station_uuid="st-grill",
+            pickup_code="A1",
+            pickup_status="pending",
+        )
+    )
     session.commit()
 
 
 def test_purge_event_local_data(db):
     _seed_event_data(db, 1)
+    _seed_event_data(db, 2)
     purge_event_local_data(db, 1)
     db.commit()
+    assert _submission_count(db) == 1
+    assert db.query(OutboxEntry).filter(OutboxEntry.event_id == 1).count() == 0
+    assert db.query(PrintJob).count() == 1
+    assert db.query(CollectiveBill).filter(CollectiveBill.event_id == 1).count() == 0
+    assert db.query(EventOrderCounter).filter(EventOrderCounter.event_id == 1).count() == 0
+    assert db.query(StationPickup).filter(StationPickup.event_id == 1).count() == 0
+    assert db.query(StationPickup).filter(StationPickup.event_id == 2).count() == 1
+    assert db.query(EmulatedReceipt).count() == 0
+
+
+def test_purge_all_operational_data_clears_station_pickups(db):
+    _seed_event_data(db, 1)
+    _seed_event_data(db, 2)
+    purge_all_operational_data(db)
+    db.commit()
     assert _submission_count(db) == 0
-    assert db.query(OutboxEntry).count() == 0
+    assert db.query(StationPickup).count() == 0
     assert db.query(PrintJob).count() == 0
-    assert db.query(CollectiveBill).count() == 0
-    assert db.query(EventOrderCounter).count() == 0
     assert db.query(EmulatedReceipt).count() == 0
 
 
@@ -108,6 +136,7 @@ def test_reconcile_test_to_prod_purges_emulated_receipts(db):
     purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
     assert purged == [1]
     assert _submission_count(db) == 0
+    assert db.query(StationPickup).count() == 0
     assert db.query(EmulatedReceipt).count() == 0
 
 
@@ -136,6 +165,7 @@ def test_reconcile_event_removed_from_bundle_purges(db):
     purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
     assert purged == [1]
     assert _submission_count(db) == 0
+    assert db.query(StationPickup).count() == 0
 
 
 def test_pull_bundle_order_pull_before_push():

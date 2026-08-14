@@ -38,6 +38,7 @@ from .routers import (
     receipt_printing,
     rental_zubehoer_catalog,
     rentals,
+    screensaver_gallery,
     sumup_connect,
     sumup_edge,
     sumup_readers,
@@ -164,6 +165,7 @@ app.include_router(public_rental_inquiry.router)
 app.include_router(countries.router, prefix="/countries", tags=["countries"])
 app.include_router(hire_companies.router, prefix="/hire-companies", tags=["hire-companies"])
 app.include_router(receipt_printing.router, tags=["receipt-printing"])
+app.include_router(screensaver_gallery.router, tags=["screensaver-gallery"])
 app.include_router(position_comments.router, tags=["position-comments"])
 app.include_router(color_palette.router, tags=["color-palette"])
 app.include_router(organisations.router, prefix="/organisations", tags=["organisations"])

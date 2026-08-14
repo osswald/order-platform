@@ -11,6 +11,7 @@ from .models import (
 from .models_operational import (
     BundleMeta,
 )
+from .screensaver_store import wipe_screensaver_store
 
 
 def _event_map(bundle: dict | None) -> dict[int, dict]:
@@ -30,6 +31,7 @@ def purge_event_local_data(db: Session, event_id: int) -> None:
     for stmt, params in (
         ("DELETE FROM kitchen_ticket_lines WHERE ticket_id IN (SELECT id FROM kitchen_tickets WHERE event_id = :e)", {"e": event_id}),
         ("DELETE FROM kitchen_tickets WHERE event_id = :e", {"e": event_id}),
+        ("DELETE FROM station_pickups WHERE event_id = :e", {"e": event_id}),
         ("DELETE FROM print_jobs WHERE local_order_id IN (SELECT id FROM order_submissions WHERE event_id = :e)", {"e": event_id}),
         ("DELETE FROM payment_receipts WHERE event_id = :e", {"e": event_id}),
         ("DELETE FROM sync_outbox WHERE event_id = :e", {"e": event_id}),
@@ -70,6 +72,7 @@ def purge_all_operational_data(db: Session) -> None:
     for table in (
         "kitchen_ticket_lines",
         "kitchen_tickets",
+        "station_pickups",
         "print_jobs",
         "payment_receipts",
         "sync_outbox",
@@ -123,9 +126,11 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
     new_app = (new_bundle or {}).get("appliance_id")
     if old_org is not None and new_org is not None and int(old_org) != int(new_org):
         purge_all_operational_data(db)
+        wipe_screensaver_store()
         purged: list[int] = []
     elif old_app is not None and new_app is not None and int(old_app) != int(new_app):
         purge_all_operational_data(db)
+        wipe_screensaver_store()
         purged = []
     else:
         purged = []
@@ -164,6 +169,8 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
     for event_id in purged:
         if "order_submissions" in existing:
             db.execute(text("DELETE FROM order_submissions WHERE event_id = :e"), {"e": event_id})
+        if "station_pickups" in existing:
+            db.execute(text("DELETE FROM station_pickups WHERE event_id = :e"), {"e": event_id})
         if "sync_outbox" in existing:
             db.execute(text("DELETE FROM sync_outbox WHERE event_id = :e"), {"e": event_id})
         if "payment_batches" in existing:
@@ -180,6 +187,7 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
 def purge_on_unpair(db: Session) -> None:
     purge_all_operational_data(db)
     purge_master_cache(db)
+    wipe_screensaver_store()
     db.commit()
 
 

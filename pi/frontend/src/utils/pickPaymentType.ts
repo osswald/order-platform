@@ -67,7 +67,11 @@ export function showTwintQr(dataUrl: string, amountLabel = ''): Promise<void> {
 
 export interface PickPaymentHooks {
   onTwintShow?: (payload: { dataUrl: string; amountLabel: string; amountCents: number | null }) => void
+  /** Called when Twint UI is cancelled (not after successful confirm). */
   onTwintHide?: () => void
+  onSumupShow?: (payload: { amountCents: number | null }) => void
+  /** Called when SumUp connected collection fails or is aborted (not after success). */
+  onSumupHide?: () => void
 }
 
 export async function pickPaymentType(
@@ -82,8 +86,9 @@ export async function pickPaymentType(
     hooks.onTwintShow?.({ dataUrl: qrUrl, amountLabel: label, amountCents })
     try {
       await showTwintQr(qrUrl, label)
-    } finally {
+    } catch (err) {
       hooks.onTwintHide?.()
+      throw err
     }
   }
   return type

@@ -23,6 +23,7 @@ import { api } from '@/api'
 import type { AccountSummaryResponse, RegisterDisplayPayload } from '@/types/api'
 import type { PickPaymentHooks } from '@/utils/pickPaymentType'
 import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
+import { displayPickupsFromSummary } from '@/utils/customerDisplayPickup'
 import { useEventContext } from '@/composables/useEventContext'
 import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
 import SplitPaySettleScreen, { type SettleResult } from '@/components/SplitPaySettleScreen.vue'
@@ -30,6 +31,11 @@ import SplitPaySettleScreen, { type SettleResult } from '@/components/SplitPaySe
 type OrderSummary = AccountSummaryResponse & {
   pickup_code?: string | null
   pickup_codes?: string[] | null
+  pickups?: Array<{
+    pickup_code?: string | null
+    station_uuid?: string | null
+    station_name?: string | null
+  }> | null
 }
 
 const route = useRoute()
@@ -47,6 +53,9 @@ const {
 const orderId = computed(() => parseInt(String(route.params.orderId), 10))
 const pickupCode = ref<string | null>(null)
 const pickupCodes = ref<string[]>([])
+const displayPickups = ref<
+  Array<{ pickup_code: string; station_uuid: string | null; station_name: string }>
+>([])
 const pickupLabel = computed(() => (pickupCodes.value.length ? pickupCodes.value.join(', ') : pickupCode.value))
 const headerTitle = computed(() =>
   pickupLabel.value ? `Bezahlen – Pickup ${pickupLabel.value}` : 'Bezahlen',
@@ -61,7 +70,20 @@ const paymentHooks: PickPaymentHooks = {
       total_cents: amountCents ?? 0,
     })
   },
-  onTwintHide: () => {},
+  onTwintHide: () => {
+    restoreOrderingDisplay()
+  },
+  onSumupShow: ({ amountCents }) => {
+    pushDisplayPayload({
+      state: 'sumup_connected',
+      show_twint: false,
+      twint_qr_data_url: null,
+      total_cents: amountCents ?? 0,
+    })
+  },
+  onSumupHide: () => {
+    restoreOrderingDisplay()
+  },
 }
 
 async function loadSummary(): Promise<OrderSummary> {
@@ -69,24 +91,49 @@ async function loadSummary(): Promise<OrderSummary> {
   pickupCode.value = data.pickup_code || null
   const codes = Array.isArray(data.pickup_codes) ? data.pickup_codes.filter(Boolean) : []
   pickupCodes.value = codes.length ? codes.map(String) : pickupCode.value ? [pickupCode.value] : []
+  displayPickups.value = displayPickupsFromSummary(data.pickups, event.value)
   syncCustomerDisplay(data)
   return data
 }
 
-function syncCustomerDisplay(data: OrderSummary) {
-  const lines = (data.open_orders || []).flatMap((o) =>
+function orderingLinesFromSummary(data: OrderSummary): RegisterDisplayPayload['lines'] {
+  return (data.open_orders || []).flatMap((o) =>
     (o.lines || []).map((l) => ({
       ...(l as Record<string, unknown>),
       display_label: cartLineLabelForEvent(l as never, event.value),
     })),
   ) as unknown as RegisterDisplayPayload['lines']
+}
+
+let lastOrderingSnapshot: {
+  lines: RegisterDisplayPayload['lines']
+  total_cents: number
+} = { lines: [], total_cents: 0 }
+
+function syncCustomerDisplay(data: OrderSummary) {
+  const lines = orderingLinesFromSummary(data)
+  lastOrderingSnapshot = {
+    lines,
+    total_cents: data.total_cents || 0,
+  }
   pushDisplayPayload({
     state: 'ordering',
     show_twint: false,
     twint_qr_data_url: null,
-    total_cents: data.total_cents || 0,
+    total_cents: lastOrderingSnapshot.total_cents,
     voucher_lines: [],
     lines,
+  } as Partial<RegisterDisplayPayload>)
+}
+
+function restoreOrderingDisplay() {
+  pushDisplayPayload({
+    state: 'ordering',
+    show_twint: false,
+    twint_qr_data_url: null,
+    total_cents: lastOrderingSnapshot.total_cents,
+    voucher_lines: [],
+    lines: lastOrderingSnapshot.lines,
   } as Partial<RegisterDisplayPayload>)
 }
 
@@ -114,6 +161,7 @@ async function onSettled(res: SettleResult) {
     state: 'submitted',
     pickup_code: pickupCode.value,
     pickup_codes: pickupCodes.value,
+    pickups: displayPickups.value,
     pickup_status: null,
     lines: [],
     total_cents: 0,

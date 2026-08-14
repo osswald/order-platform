@@ -131,6 +131,7 @@
               :title="$t('organisations.receiptTemplatesOrgTitle')"
               :hint="$t('organisations.receiptTemplatesOrgHint')"
             />
+            <OrganisationScreensaverSection :organisation-id="activeId" />
           </template>
 
           <template #farbpalette>
@@ -258,6 +259,7 @@ import OrganisationLendingDialog from './OrganisationLendingDialog.vue'
 import ApplianceTypeChip from './ApplianceTypeChip.vue'
 import OrganisationStammdatenFields from './OrganisationStammdatenFields.vue'
 import ReceiptPrintingSection from './ReceiptPrintingSection.vue'
+import OrganisationScreensaverSection from './OrganisationScreensaverSection.vue'
 import OrganisationAccountingSection from './OrganisationAccountingSection.vue'
 import OrganisationPositionCommentsSection from './OrganisationPositionCommentsSection.vue'
 import OrganisationIngredientsSection from './OrganisationIngredientsSection.vue'

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildApiUrl, getApiBase, isAndroidApp, setApiBase } from '@/api/base'
+import { buildApiUrl, buildWsUrl, getApiBase, isAndroidApp, setApiBase } from '@/api/base'
 
 describe('api base helpers', () => {
   beforeEach(() => {
@@ -22,5 +22,12 @@ describe('api base helpers', () => {
   it('buildApiUrl joins base and path', () => {
     expect(buildApiUrl('http://127.0.0.1:8001', '/v1/bundle')).toBe('http://127.0.0.1:8001/v1/bundle')
     expect(buildApiUrl('http://127.0.0.1:8001', 'v1/meta')).toBe('http://127.0.0.1:8001/v1/meta')
+  })
+
+  it('buildWsUrl switches http(s) to ws(s)', () => {
+    expect(buildWsUrl('http://127.0.0.1:8001', '/v1/registers/r/display/ws?event_id=1')).toBe(
+      'ws://127.0.0.1:8001/v1/registers/r/display/ws?event_id=1',
+    )
+    expect(buildWsUrl('https://pi.example', '/v1/x')).toBe('wss://pi.example/v1/x')
   })
 })

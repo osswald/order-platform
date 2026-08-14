@@ -393,6 +393,12 @@ def apply_schema_patches() -> None:
     )
     _add_column_if_missing(
         "organisations",
+        "screensaver_greyscale",
+        "ALTER TABLE organisations ADD COLUMN screensaver_greyscale BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS screensaver_greyscale BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "organisations",
         "color_palette",
         "ALTER TABLE organisations ADD COLUMN color_palette TEXT",
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS color_palette JSON",
@@ -416,6 +422,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS first_event_setup_event_id INTEGER",
     )
     _ensure_organisation_position_comments_table()
+    _ensure_organisation_screensaver_images_table()
     _ensure_ingredients_tables()
     _ensure_event_article_prices_table()
     _ensure_user_organisation_onboarding_dismissals_table()
@@ -653,6 +660,15 @@ def _ensure_organisation_position_comments_table() -> None:
     from .models import OrganisationPositionComment
 
     OrganisationPositionComment.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_organisation_screensaver_images_table() -> None:
+    try:
+        from .models import OrganisationScreensaverImage
+
+        OrganisationScreensaverImage.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        return
 
 
 def _ensure_ingredients_tables() -> None:

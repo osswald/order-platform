@@ -58,6 +58,7 @@ async function mountOrganisations(path: string) {
           props: ['form', 'countryOptions', 'currencyOptions'],
         },
         ReceiptPrintingSection: { template: '<div data-testid="receipt-section" />' },
+        OrganisationScreensaverSection: { template: '<div data-testid="screensaver-section" />' },
         OrganisationAccountingSection: { template: '<div data-testid="accounting-section" />' },
         OrganisationLendingDialog: { template: '<div />' },
         VqDataTable: { template: '<div data-testid="vq-data-table" />' },

@@ -147,6 +147,10 @@ def test_order_summary(client):
     assert len(data["line_groups"]) == 1
     assert data["line_groups"][0]["article_id"] == 20
     assert data["line_groups"][0]["total_qty"] == 2
+    assert data["pickup_code"] == "A1"
+    assert data["pickup_codes"] == ["A1"]
+    assert data["pickups"][0]["pickup_code"] == "A1"
+    assert data["pickups"][0]["station_uuid"] == "st-bar"
 
     settle = _settle(c, oid, selections=[_sel(20, 2)], payments=[{"type": "cash", "amount_cents": 1000}])
     assert settle.status_code == 200, settle.text

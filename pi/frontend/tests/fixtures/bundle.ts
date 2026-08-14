@@ -12,6 +12,7 @@ export function defaultBundle(): EdgeBundleResponse {
     ingredients_enabled: false,
     position_comments_enabled: false,
     position_comment_presets: [],
+    screensaver_greyscale: false,
     events: [
       {
         id: 1,

@@ -2504,6 +2504,91 @@
         }
       }
     },
+    "/v1/screensaver/images": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "List Screensaver Images",
+        "description": "List screensaver images available locally for the current organisation bundle.",
+        "operationId": "list_screensaver_images_v1_screensaver_images_get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Screensaver Images V1 Screensaver Images Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/screensaver/{sha256}": {
+      "get": {
+        "tags": [
+          "edge"
+        ],
+        "summary": "Get Screensaver Image",
+        "operationId": "get_screensaver_image_v1_screensaver__sha256__get",
+        "parameters": [
+          {
+            "name": "sha256",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sha256"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/ops/purge-operational": {
       "post": {
         "tags": [
@@ -3530,6 +3615,18 @@
             },
             "type": "array",
             "title": "Sumup Readers"
+          },
+          "screensaver_images": {
+            "items": {
+              "$ref": "#/components/schemas/EdgeBundleScreensaverImage"
+            },
+            "type": "array",
+            "title": "Screensaver Images"
+          },
+          "screensaver_greyscale": {
+            "type": "boolean",
+            "title": "Screensaver Greyscale",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -3700,6 +3797,25 @@
           "name"
         ],
         "title": "EdgeBundleIngredient"
+      },
+      "EdgeBundleScreensaverImage": {
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "mime": {
+            "type": "string",
+            "title": "Mime"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sha256",
+          "mime"
+        ],
+        "title": "EdgeBundleScreensaverImage"
       },
       "EdgeBundleSumupReader": {
         "properties": {

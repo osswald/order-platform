@@ -82,6 +82,7 @@ from .edge_common import (
     _create_print_job_for_lines,
     _create_station_pickup,
     _create_voucher_print_job,
+    _discard_leftover_station_pickups,
     _line_totals,
     _lines_with_station_uuid,
     _mark_station_pickup_ready,
@@ -341,6 +342,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     )
     db.add(order)
     db.flush()
+    _discard_leftover_station_pickups(db, order)
     upsert_items_from_payload(
         db,
         session_id=session_id,
@@ -631,6 +633,7 @@ def get_order_summary(order_id: int, db: Session = Depends(get_db)) -> AccountSu
             "pickup_code": order.pickup_code or payload.get("pickup_code"),
             "pickup_codes": payload.get("pickup_codes")
             or ([order.pickup_code] if order.pickup_code else []),
+            "pickups": payload.get("pickups") or [],
             "cash_register_uuid": order.cash_register_uuid or payload.get("cash_register_uuid"),
         },
     )
