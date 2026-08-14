@@ -1727,6 +1727,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sumup/organisations/{organisation_id}/api-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Api Key */
+        put: operations["put_api_key_sumup_organisations__organisation_id__api_key_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sumup/organisations/{organisation_id}/authorize": {
         parameters: {
             query?: never;
@@ -4920,6 +4937,16 @@ export interface components {
             /** Average Order Value Cents */
             average_order_value_cents: number;
         };
+        /** SumupApiKeyBody */
+        SumupApiKeyBody: {
+            /** Api Key */
+            api_key: string;
+            /**
+             * Merchant Code
+             * @description Required when the API key can access more than one SumUp merchant.
+             */
+            merchant_code?: string | null;
+        };
         /** SumupAuthorizeResponse */
         SumupAuthorizeResponse: {
             /** Authorize Url */
@@ -4957,11 +4984,22 @@ export interface components {
             connected: boolean;
             /** Merchant Code */
             merchant_code?: string | null;
+            /** Merchant Name */
+            merchant_name?: string | null;
+            /** Merchant Sandbox */
+            merchant_sandbox?: boolean | null;
+            /** Merchant Country */
+            merchant_country?: string | null;
             /**
              * Reader Count
              * @default 0
              */
             reader_count: number;
+            /**
+             * Payments Ready
+             * @default false
+             */
+            payments_ready: boolean;
         };
         /** SumupReaderBundleRead */
         SumupReaderBundleRead: {
@@ -10895,6 +10933,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SumupConnectStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_api_key_sumup_organisations__organisation_id__api_key_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Hire-Company-Id"?: string | null;
+            };
+            path: {
+                organisation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SumupApiKeyBody"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

@@ -19,43 +19,134 @@
         <template v-else-if="status">
           <p v-if="!status.configured" class="error-text">{{ status.error }}</p>
 
-          <template v-else-if="!status.connected">
-            <p class="muted">{{ $t('sumupDevices.connectDescription') }}</p>
-            <v-btn
-              color="primary"
-              type="button"
-              :loading="busy && busyAction === 'connect'"
-              :disabled="busy"
-              @click="startConnect"
-            >
-              {{ $t('sumupDevices.connect') }}
-            </v-btn>
-          </template>
-
           <template v-else>
-            <div class="status-block">
-              <v-chip color="success" variant="tonal" size="small">
-                {{ $t('sumupDevices.connected') }}
-              </v-chip>
-              <p v-if="status.merchant_code" class="muted small mono">
-                {{ $t('sumupDevices.merchantCode') }}: {{ status.merchant_code }}
-              </p>
-              <p class="muted small">
-                {{ $t('sumupDevices.readerCount', { count: status.reader_count }) }}
-              </p>
-              <v-btn
-                variant="outlined"
-                color="error"
-                type="button"
-                :loading="busy && busyAction === 'disconnect'"
-                :disabled="busy"
-                @click="disconnect"
-              >
-                {{ $t('sumupDevices.disconnect') }}
-              </v-btn>
-            </div>
+            <p v-if="!status.payments_ready" class="warning-banner">
+              {{ $t('sumupDevices.paymentsNotReady') }}
+            </p>
 
-            <div class="readers-block">
+            <template v-if="!status.connected">
+              <p class="muted">{{ $t('sumupDevices.connectDescription') }}</p>
+              <p class="muted small">{{ $t('sumupDevices.apiKeyWarning') }}</p>
+              <p class="form-required-legend">
+                <span class="vq-asterisk">*</span> {{ $t('common.requiredLegend') }}
+              </p>
+              <v-form ref="apiKeyFormRef" @submit.prevent="submitApiKey">
+                <div class="form-field api-key-field">
+                  <FormLabel required>{{ $t('sumupDevices.apiKey') }}</FormLabel>
+                  <v-text-field
+                    v-model="apiKeyInput"
+                    type="password"
+                    autocomplete="off"
+                    density="comfortable"
+                    variant="outlined"
+                    hide-details="auto"
+                    :placeholder="$t('sumupDevices.apiKeyPlaceholder')"
+                    :rules="[rules.required]"
+                  />
+                </div>
+                <div v-if="merchantChoices.length" class="form-field merchant-select-field">
+                  <FormLabel required>{{ $t('sumupDevices.merchantSelect') }}</FormLabel>
+                  <p class="muted small">{{ $t('sumupDevices.merchantSelectHint') }}</p>
+                  <v-select
+                    v-model="selectedMerchantCode"
+                    :items="merchantChoiceItems"
+                    item-title="title"
+                    item-value="value"
+                    density="comfortable"
+                    variant="outlined"
+                    hide-details="auto"
+                    :rules="[rules.required]"
+                  />
+                </div>
+                <v-btn
+                  color="primary"
+                  type="submit"
+                  class="mt-3"
+                  :loading="busy && busyAction === 'connect'"
+                  :disabled="busy"
+                >
+                  {{ $t('sumupDevices.connect') }}
+                </v-btn>
+              </v-form>
+            </template>
+
+            <template v-else>
+              <div class="status-block">
+                <div class="status-chips">
+                  <v-chip color="success" variant="tonal" size="small">
+                    {{ $t('sumupDevices.connected') }}
+                  </v-chip>
+                  <v-chip
+                    v-if="status.merchant_sandbox === true"
+                    color="warning"
+                    variant="tonal"
+                    size="small"
+                  >
+                    {{ $t('sumupDevices.sandboxAccount') }}
+                  </v-chip>
+                  <v-chip
+                    v-else-if="status.merchant_sandbox === false"
+                    color="info"
+                    variant="tonal"
+                    size="small"
+                  >
+                    {{ $t('sumupDevices.liveAccount') }}
+                  </v-chip>
+                  <v-chip v-else color="default" variant="tonal" size="small">
+                    {{ $t('sumupDevices.accountTypeUnknown') }}
+                  </v-chip>
+                </div>
+                <p v-if="status.merchant_name" class="merchant-name">{{ status.merchant_name }}</p>
+                <p v-if="status.merchant_code" class="muted small mono">
+                  {{ $t('sumupDevices.merchantCode') }}: {{ status.merchant_code }}
+                </p>
+                <p v-if="status.merchant_country" class="muted small">
+                  {{ $t('sumupDevices.merchantCountry') }}: {{ status.merchant_country }}
+                </p>
+                <p class="muted small">
+                  {{ $t('sumupDevices.readerCount', { count: status.reader_count }) }}
+                </p>
+                <div class="update-key-block">
+                  <h4>{{ $t('sumupDevices.updateApiKeyTitle') }}</h4>
+                  <p class="muted small">{{ $t('sumupDevices.updateApiKeyHint') }}</p>
+                  <v-form ref="updateKeyFormRef" @submit.prevent="submitApiKey">
+                    <div class="form-field api-key-field">
+                      <FormLabel required>{{ $t('sumupDevices.apiKey') }}</FormLabel>
+                      <v-text-field
+                        v-model="apiKeyInput"
+                        type="password"
+                        autocomplete="off"
+                        density="comfortable"
+                        variant="outlined"
+                        hide-details="auto"
+                        :placeholder="$t('sumupDevices.apiKeyPlaceholder')"
+                        :rules="[rules.required]"
+                      />
+                    </div>
+                    <v-btn
+                      variant="outlined"
+                      type="submit"
+                      class="mt-3"
+                      :loading="busy && busyAction === 'connect'"
+                      :disabled="busy"
+                    >
+                      {{ $t('sumupDevices.updateApiKey') }}
+                    </v-btn>
+                  </v-form>
+                </div>
+                <v-btn
+                  variant="outlined"
+                  color="error"
+                  type="button"
+                  :loading="busy && busyAction === 'disconnect'"
+                  :disabled="busy"
+                  @click="disconnect"
+                >
+                  {{ $t('sumupDevices.disconnect') }}
+                </v-btn>
+              </div>
+
+              <div class="readers-block">
               <h3>{{ $t('sumupDevices.readersTitle') }}</h3>
               <p v-if="loadingReaders" class="muted-hint">{{ $t('sumupDevices.loadingReaders') }}</p>
               <p v-else-if="readersError" class="error-text">{{ readersError }}</p>
@@ -128,7 +219,8 @@
                   </v-form>
                 </div>
               </template>
-            </div>
+              </div>
+            </template>
           </template>
         </template>
       </template>
@@ -175,13 +267,15 @@ import ListDetailLayout from './ListDetailLayout.vue'
 import FormLabel from './FormLabel.vue'
 import VqDataTable from './VqDataTable.vue'
 import {
-  authorizeSumupOrganisation,
   disconnectSumupOrganisation,
   fetchSumupOrganisationStatus,
   fetchSumupReaders,
   pairSumupReader,
+  putSumupOrganisationApiKey,
   renameSumupReader,
+  SumupMerchantSelectionRequiredError,
   unpairSumupReader,
+  type SumupMerchantChoice,
   type SumupOrganisationStatusView,
   type SumupReader,
 } from '../utils/sumupCloud'
@@ -215,6 +309,27 @@ const pageMessageType = ref('')
 
 const pairForm = ref({ pairing_code: '', label: '' })
 const pairFormRef = ref<ValidatableForm | null>(null)
+const apiKeyInput = ref('')
+const apiKeyFormRef = ref<ValidatableForm | null>(null)
+const updateKeyFormRef = ref<ValidatableForm | null>(null)
+const merchantChoices = ref<SumupMerchantChoice[]>([])
+const selectedMerchantCode = ref<string | null>(null)
+
+const merchantChoiceItems = computed(() =>
+  merchantChoices.value.map((m) => {
+    const kind =
+      m.sandbox === true
+        ? t('sumupDevices.sandboxAccount')
+        : m.sandbox === false
+          ? t('sumupDevices.liveAccount')
+          : t('sumupDevices.accountTypeUnknown')
+    const name = m.merchant_name || m.merchant_code
+    return {
+      title: `${name} (${m.merchant_code}) · ${kind}`,
+      value: m.merchant_code,
+    }
+  }),
+)
 
 const renameDialogOpen = ref(false)
 const renameReaderId = ref<number | null>(null)
@@ -286,22 +401,40 @@ async function reloadAll() {
   await loadReaders()
 }
 
-async function startConnect() {
+async function submitApiKey() {
   const orgId = props.activeOrganisationId
   if (orgId == null) return
+  const formRef = status.value?.configured && status.value.connected ? updateKeyFormRef : apiKeyFormRef
+  if (!(await validateForm(formRef))) return
   busy.value = true
   busyAction.value = 'connect'
   clearPageMessage()
   try {
-    const result = await authorizeSumupOrganisation(orgId)
-    if (result.authorize_url) {
-      // replace() avoids back-button return to a half-finished connect click
-      window.location.replace(result.authorize_url)
-      return
-    }
-    setPageMessage(t('sumupDevices.noAuthorizeUrl'), 'error-text')
+    const wasConnected = Boolean(status.value?.configured && status.value.connected)
+    const merchantCode =
+      wasConnected && status.value && 'merchant_code' in status.value
+        ? status.value.merchant_code
+        : selectedMerchantCode.value
+    await putSumupOrganisationApiKey(orgId, apiKeyInput.value.trim(), merchantCode)
+    apiKeyInput.value = ''
+    merchantChoices.value = []
+    selectedMerchantCode.value = null
+    setPageMessage(
+      t(wasConnected ? 'sumupDevices.apiKeyUpdated' : 'sumupDevices.connectedSuccess'),
+      'success-text',
+    )
+    await reloadAll()
   } catch (e: unknown) {
-    setPageMessage(getErrorMessage(e, t('sumupDevices.connectFailed')), 'error-text')
+    if (e instanceof SumupMerchantSelectionRequiredError) {
+      merchantChoices.value = e.merchants
+      selectedMerchantCode.value =
+        e.merchants.find((m) => m.sandbox === true)?.merchant_code ??
+        e.merchants[0]?.merchant_code ??
+        null
+      setPageMessage(t('sumupDevices.merchantSelectHint'), 'muted')
+    } else {
+      setPageMessage(getErrorMessage(e, t('sumupDevices.connectFailed')), 'error-text')
+    }
   } finally {
     busy.value = false
     busyAction.value = ''
@@ -413,6 +546,9 @@ function handleOAuthReturnQuery() {
 watch(
   () => props.activeOrganisationId,
   async () => {
+    merchantChoices.value = []
+    selectedMerchantCode.value = null
+    apiKeyInput.value = ''
     await reloadAll()
   },
   { immediate: true },
@@ -444,6 +580,17 @@ watch(
 
 .mono {
   font-family: ui-monospace, monospace;
+}
+
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.merchant-name {
+  margin: 0;
+  font-weight: 600;
 }
 
 .status-block {
@@ -491,5 +638,32 @@ watch(
 
 .error-text {
   color: var(--vq-error, #ef4444);
+}
+
+.warning-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  background: rgba(var(--v-theme-warning), 0.12);
+  color: rgb(var(--v-theme-warning));
+}
+
+.api-key-field {
+  max-width: 28rem;
+}
+
+.update-key-block {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0.5rem 0;
+}
+
+.update-key-block h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
 }
 </style>

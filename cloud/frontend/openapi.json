@@ -10619,6 +10619,79 @@
         }
       }
     },
+    "/sumup/organisations/{organisation_id}/api-key": {
+      "put": {
+        "tags": [
+          "sumup-connect"
+        ],
+        "summary": "Put Api Key",
+        "operationId": "put_api_key_sumup_organisations__organisation_id__api_key_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Organisation Id"
+            }
+          },
+          {
+            "name": "X-Hire-Company-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hire-Company-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SumupApiKeyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SumupConnectStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sumup/organisations/{organisation_id}/authorize": {
       "post": {
         "tags": [
@@ -20123,6 +20196,32 @@
         ],
         "title": "StatsTotalsRead"
       },
+      "SumupApiKeyBody": {
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Api Key"
+          },
+          "merchant_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Code",
+            "description": "Required when the API key can access more than one SumUp merchant."
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key"
+        ],
+        "title": "SumupApiKeyBody"
+      },
       "SumupAuthorizeResponse": {
         "properties": {
           "authorize_url": {
@@ -20242,10 +20341,48 @@
             ],
             "title": "Merchant Code"
           },
+          "merchant_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Name"
+          },
+          "merchant_sandbox": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Sandbox"
+          },
+          "merchant_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Country"
+          },
           "reader_count": {
             "type": "integer",
             "title": "Reader Count",
             "default": 0
+          },
+          "payments_ready": {
+            "type": "boolean",
+            "title": "Payments Ready",
+            "default": false
           }
         },
         "type": "object",

@@ -108,7 +108,12 @@ def _edge_sumup_fixture(
 @patch("app.routers.sumup_edge.sumup_client.create_reader_checkout")
 def test_sumup_create_checkout(mock_create_checkout, _mock_token):
     headers, event_id = _edge_sumup_fixture()
-    mock_create_checkout.return_value = {"id": CHECKOUT_ID, "status": "PENDING"}
+    mock_create_checkout.return_value = {
+        "data": {
+            "checkout_id": CHECKOUT_ID,
+            "client_transaction_id": TRANSACTION_ID,
+        }
+    }
 
     r = client.post(
         "/edge/v1/sumup/checkout",
@@ -125,6 +130,7 @@ def test_sumup_create_checkout(mock_create_checkout, _mock_token):
     body = r.json()
     assert body["checkout_id"] == CHECKOUT_ID
     assert body["status"] == "pending"
+    assert body["transaction_id"] == TRANSACTION_ID
     mock_create_checkout.assert_called_once()
     kwargs = mock_create_checkout.call_args.kwargs
     assert kwargs["amount_cents"] == 500
@@ -194,7 +200,7 @@ def test_sumup_terminate_checkout(mock_terminate, _mock_token):
 
 
 @patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")
-@patch("app.routers.sumup_edge.sumup_client.get_checkout")
+@patch("app.routers.sumup_edge.sumup_client.get_reader_checkout")
 def test_sumup_checkout_status_paid(mock_get_checkout, _mock_token):
     headers, event_id = _edge_sumup_fixture()
     db = SessionLocal()
@@ -216,9 +222,11 @@ def test_sumup_checkout_status_paid(mock_get_checkout, _mock_token):
         db.close()
 
     mock_get_checkout.return_value = {
-        "id": CHECKOUT_ID,
-        "status": "PAID",
-        "transactions": [{"id": TRANSACTION_ID, "status": "SUCCESSFUL"}],
+        "data": {
+            "checkout_id": CHECKOUT_ID,
+            "client_transaction_id": TRANSACTION_ID,
+            "status": "successful",
+        }
     }
 
     r = client.get(
@@ -228,6 +236,54 @@ def test_sumup_checkout_status_paid(mock_get_checkout, _mock_token):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["status"] == "paid"
+    assert body["transaction_id"] == TRANSACTION_ID
+    mock_get_checkout.assert_called_once_with("access_test", "MK10CL2A", READER_ID, CHECKOUT_ID)
+
+
+@patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")
+@patch("app.routers.sumup_edge.sumup_client.get_reader_checkout")
+def test_sumup_checkout_status_expires_stale_pending(mock_get_checkout, _mock_token):
+    headers, event_id = _edge_sumup_fixture()
+    db = SessionLocal()
+    try:
+        org = (
+            db.query(Organisation)
+            .filter(Organisation.sumup_merchant_code == "MK10CL2A")
+            .order_by(Organisation.id.desc())
+            .first()
+        )
+        db.add(
+            SumupCheckout(
+                organisation_id=org.id,
+                event_id=event_id,
+                sumup_reader_id=READER_ID,
+                sumup_checkout_id=CHECKOUT_ID,
+                amount_cents=500,
+                currency="CHF",
+                status="pending",
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    mock_get_checkout.return_value = {
+        "data": {
+            "checkout_id": CHECKOUT_ID,
+            "client_transaction_id": TRANSACTION_ID,
+            "status": "pending",
+            "payment_status": None,
+            "valid_until": "2020-01-01T00:00:00Z",
+        }
+    }
+
+    r = client.get(
+        f"/edge/v1/sumup/status?event_id={event_id}&checkout_id={CHECKOUT_ID}",
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "terminated"
     assert body["transaction_id"] == TRANSACTION_ID
 
 

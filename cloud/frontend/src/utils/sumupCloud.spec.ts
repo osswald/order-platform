@@ -20,6 +20,7 @@ import {
   fetchSumupOrganisationStatus,
   fetchSumupReaders,
   pairSumupReader,
+  putSumupOrganisationApiKey,
   renameSumupReader,
   unpairSumupReader,
 } from './sumupCloud'
@@ -29,19 +30,27 @@ describe('sumupCloud', () => {
     vi.mocked(apiJson).mockReset()
   })
 
-  it('fetchSumupOrganisationStatus returns connected status', async () => {
+  it('fetchSumupOrganisationStatus returns connected status with payments_ready', async () => {
     vi.mocked(apiJson).mockResolvedValue({
       organisation_id: 1,
       connected: true,
       merchant_code: 'MC123',
+      merchant_name: 'Sandbox Cafe',
+      merchant_sandbox: true,
+      merchant_country: 'CH',
       reader_count: 2,
+      payments_ready: true,
     })
     await expect(fetchSumupOrganisationStatus(1)).resolves.toEqual({
       configured: true,
       organisation_id: 1,
       connected: true,
       merchant_code: 'MC123',
+      merchant_name: 'Sandbox Cafe',
+      merchant_sandbox: true,
+      merchant_country: 'CH',
       reader_count: 2,
+      payments_ready: true,
     })
   })
 
@@ -53,7 +62,65 @@ describe('sumupCloud', () => {
     })
   })
 
-  it('authorizeSumupOrganisation rethrows 503 with cause', async () => {
+  it('putSumupOrganisationApiKey sends API key body', async () => {
+    vi.mocked(apiJson).mockResolvedValue({
+      organisation_id: 1,
+      connected: true,
+      merchant_code: 'MC123',
+      merchant_name: null,
+      merchant_sandbox: false,
+      merchant_country: null,
+      reader_count: 0,
+      payments_ready: false,
+    })
+    await putSumupOrganisationApiKey(1, 'sup_sk_test')
+    expect(apiJson).toHaveBeenCalledWith('/sumup/organisations/1/api-key', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: 'sup_sk_test' }),
+    })
+  })
+
+  it('putSumupOrganisationApiKey includes merchant_code when provided', async () => {
+    vi.mocked(apiJson).mockResolvedValue({
+      organisation_id: 1,
+      connected: true,
+      merchant_code: 'MCSAND',
+      merchant_name: 'Testfirma',
+      merchant_sandbox: true,
+      merchant_country: 'CH',
+      reader_count: 0,
+      payments_ready: true,
+    })
+    await putSumupOrganisationApiKey(1, 'sup_sk_test', 'MCSAND')
+    expect(apiJson).toHaveBeenCalledWith('/sumup/organisations/1/api-key', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: 'sup_sk_test', merchant_code: 'MCSAND' }),
+    })
+  })
+
+  it('putSumupOrganisationApiKey maps multi-merchant 409 to selection error', async () => {
+    vi.mocked(apiJson).mockRejectedValue(
+      createApiError('choose merchant', 409, {
+        code: 'sumup_merchant_selection_required',
+        message: 'choose merchant',
+        merchants: [
+          { merchant_code: 'MCLIVE', merchant_name: 'Live', sandbox: false, country: 'CH' },
+          { merchant_code: 'MCSAND', merchant_name: 'Sandbox', sandbox: true, country: 'CH' },
+        ],
+      }),
+    )
+    await expect(putSumupOrganisationApiKey(1, 'sup_sk_multi')).rejects.toMatchObject({
+      name: 'SumupMerchantSelectionRequiredError',
+      merchants: [
+        { merchant_code: 'MCLIVE', merchant_name: 'Live', sandbox: false, country: 'CH' },
+        { merchant_code: 'MCSAND', merchant_name: 'Sandbox', sandbox: true, country: 'CH' },
+      ],
+    })
+  })
+
+  it('authorizeSumupOrganisation rethrows 503 with cause (dormant OAuth helper)', async () => {
     const apiErr = createApiError('unavailable', 503)
     vi.mocked(apiJson).mockRejectedValue(apiErr)
     await expect(authorizeSumupOrganisation(1)).rejects.toMatchObject({
