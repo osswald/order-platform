@@ -89,3 +89,14 @@ def test_gc_keeps_manifest_only(screensaver_tmpdir):
     assert sha2 in deleted
     assert has_screensaver_file(sha1)
     assert not has_screensaver_file(sha2)
+
+
+def test_gc_skips_invalid_keep_shas(screensaver_tmpdir):
+    sha1, raw1 = _png(b"c")
+    sha2, raw2 = _png(b"d")
+    store_screensaver_bytes(sha1, raw1)
+    store_screensaver_bytes(sha2, raw2)
+    deleted = gc_screensaver_store({sha1, "not-a-sha", "", "xyz"})
+    assert sha2 in deleted
+    assert has_screensaver_file(sha1)
+    assert not has_screensaver_file(sha2)

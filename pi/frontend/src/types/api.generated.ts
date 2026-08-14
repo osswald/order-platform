@@ -964,6 +964,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/screensaver/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Screensaver Images
+         * @description List screensaver images available locally for the current organisation bundle.
+         */
+        get: operations["list_screensaver_images_v1_screensaver_images_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/screensaver/{sha256}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Screensaver Image */
+        get: operations["get_screensaver_image_v1_screensaver__sha256__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/purge-operational": {
         parameters: {
             query?: never;
@@ -1302,6 +1339,8 @@ export interface components {
             admin_pin_hashes?: string[];
             /** Sumup Readers */
             sumup_readers?: components["schemas"]["EdgeBundleSumupReader"][];
+            /** Screensaver Images */
+            screensaver_images?: components["schemas"]["EdgeBundleScreensaverImage"][];
         } & {
             [key: string]: unknown;
         };
@@ -1361,6 +1400,13 @@ export interface components {
             monitor_stock?: boolean | null;
         } & {
             [key: string]: unknown;
+        };
+        /** EdgeBundleScreensaverImage */
+        EdgeBundleScreensaverImage: {
+            /** Sha256 */
+            sha256: string;
+            /** Mime */
+            mime: string;
         };
         /** EdgeBundleSumupReader */
         EdgeBundleSumupReader: {
@@ -4299,6 +4345,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoadTestStatusResponse"];
+                };
+            };
+        };
+    };
+    list_screensaver_images_v1_screensaver_images_get: {
+        parameters: {
+            query: {
+                event_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_screensaver_image_v1_screensaver__sha256__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

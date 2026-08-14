@@ -82,7 +82,14 @@ def wipe_screensaver_store() -> None:
 
 def gc_screensaver_store(keep_shas: set[str]) -> list[str]:
     """Delete local files whose sha is not in keep_shas. Returns deleted shas."""
-    keep = {_safe_sha(s) for s in keep_shas if s}
+    keep: set[str] = set()
+    for s in keep_shas:
+        if not s:
+            continue
+        try:
+            keep.add(_safe_sha(s))
+        except ValueError:
+            continue
     deleted: list[str] = []
     for sha in list_local_shas():
         if sha not in keep:
