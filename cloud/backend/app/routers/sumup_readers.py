@@ -66,7 +66,8 @@ def _reader_response(reader: SumupReader) -> SumupReaderResponse:
 
 
 def _require_connected_org(db: Session, organisation: Organisation) -> None:
-    if not organisation.sumup_merchant_code or not organisation.sumup_refresh_token:
+    # API-key connect stores access_token without refresh_token; OAuth has both.
+    if not organisation.sumup_merchant_code or not organisation.sumup_access_token:
         raise api_error("validation_failed", status.HTTP_409_CONFLICT)
 
 
@@ -117,7 +118,7 @@ def list_org_readers(
         .order_by(SumupReader.label)
         .all()
     )
-    if organisation.sumup_merchant_code and organisation.sumup_refresh_token:
+    if organisation.sumup_merchant_code and organisation.sumup_access_token:
         _sync_reader_statuses_from_sumup(db, organisation, readers)
     return [_reader_response(reader) for reader in readers]
 

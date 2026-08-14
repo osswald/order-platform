@@ -1,9 +1,16 @@
 """Unit tests for SumUp client helpers."""
 
+from unittest.mock import patch
+
 from app.sumup_client import (
     SumupApiError,
     SumupConfigError,
     build_authorize_url,
+    get_merchant_profile,
+    get_merchant_profile_for_code,
+    list_merchant_memberships,
+    merchant_display_name,
+    merchant_sandbox_flag,
     normalize_pairing_code,
     sumup_error,
 )
@@ -47,3 +54,151 @@ def test_sumup_error_includes_upstream_detail():
 def test_sumup_error_config():
     http_exc = sumup_error(SumupConfigError("missing"))
     assert http_exc.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+def test_merchant_display_name_prefers_business_profile():
+    name = merchant_display_name(
+        me_payload={"merchant_profile": {"company_name": "Me Name"}},
+        merchant={
+            "alias": "Alias Cafe",
+            "business_profile": {"name": "Example Coffee"},
+            "company": {"name": "Legal GmbH"},
+        },
+    )
+    assert name == "Alias Cafe"
+
+
+def test_merchant_display_name_falls_back_to_me_profile():
+    name = merchant_display_name(
+        me_payload={"merchant_profile": {"company_name": "Me Name"}},
+        merchant=None,
+    )
+    assert name == "Me Name"
+
+
+def test_merchant_sandbox_flag():
+    assert merchant_sandbox_flag({"sandbox": True}) is True
+    assert merchant_sandbox_flag({"sandbox": False}) is False
+    assert merchant_sandbox_flag({}) is None
+    assert merchant_sandbox_flag(None) is None
+    # SumUp often omits the field on live merchants after a successful Merchant fetch.
+    assert merchant_sandbox_flag({}, fetched=True) is False
+    assert merchant_sandbox_flag({"merchant_code": "X"}, fetched=True) is False
+    assert merchant_sandbox_flag(None, fetched=True) is None
+
+
+@patch("app.sumup_client.request_json")
+def test_get_merchant_profile_includes_sandbox_and_name(mock_request):
+    mock_request.side_effect = [
+        {"merchant_profile": {"merchant_code": "MKSANDBOX", "company_name": "Old"}},
+        {
+            "merchant_code": "MKSANDBOX",
+            "sandbox": True,
+            "alias": "Sandbox Cafe",
+            "country": "CH",
+        },
+    ]
+    profile = get_merchant_profile("sup_sk_test")
+    assert profile["merchant_code"] == "MKSANDBOX"
+    assert profile["merchant_name"] == "Sandbox Cafe"
+    assert profile["sandbox"] is True
+    assert profile["country"] == "CH"
+    assert mock_request.call_count == 2
+    assert mock_request.call_args_list[1].args[1].endswith("/v1/merchants/MKSANDBOX")
+
+
+@patch("app.sumup_client.request_json")
+def test_get_merchant_profile_treats_omitted_sandbox_as_live(mock_request):
+    mock_request.side_effect = [
+        {"merchant_profile": {"merchant_code": "MKLIVE", "company_name": "Live GmbH"}},
+        {
+            "merchant_code": "MKLIVE",
+            "company": {"name": "Live GmbH"},
+            "country": "CH",
+        },
+    ]
+    profile = get_merchant_profile("sup_sk_live")
+    assert profile["sandbox"] is False
+    assert profile["merchant_name"] == "Live GmbH"
+
+
+@patch("app.sumup_client.request_json")
+def test_get_merchant_profile_survives_merchant_lookup_failure(mock_request):
+    mock_request.side_effect = [
+        {"merchant_profile": {"merchant_code": "MKLIVE", "company_name": "Live GmbH"}},
+        SumupApiError(404, "not found"),
+    ]
+    profile = get_merchant_profile("sup_sk_live")
+    assert profile["merchant_code"] == "MKLIVE"
+    assert profile["merchant_name"] == "Live GmbH"
+    assert profile["sandbox"] is None
+
+
+@patch("app.sumup_client.request_json")
+def test_list_merchant_memberships_parses_test_accounts(mock_request):
+    mock_request.return_value = {
+        "items": [
+            {
+                "status": "accepted",
+                "type": "merchant",
+                "resource_id": "MCLIVE",
+                "resource": {
+                    "id": "MCLIVE",
+                    "name": "Live Cafe",
+                    "type": "merchant",
+                    "attributes": {
+                        "merchant_code": "MCLIVE",
+                        "merchant_country": "CH",
+                    },
+                },
+            },
+            {
+                "status": "accepted",
+                "type": "merchant",
+                "resource_id": "MCSAND",
+                "resource": {
+                    "id": "MCSAND",
+                    "name": "Sandbox Cafe",
+                    "type": "merchant",
+                    "attributes": {
+                        "merchant_code": "MCSAND",
+                        "merchant_country": "CH",
+                        "is_test_account": True,
+                    },
+                },
+            },
+            {
+                "status": "pending",
+                "type": "merchant",
+                "resource_id": "MCPEND",
+                "resource": {
+                    "id": "MCPEND",
+                    "name": "Pending",
+                    "type": "merchant",
+                    "attributes": {"merchant_code": "MCPEND"},
+                },
+            },
+        ]
+    }
+    members = list_merchant_memberships("sup_sk_test")
+    assert [m["merchant_code"] for m in members] == ["MCLIVE", "MCSAND"]
+    assert members[0]["sandbox"] is False
+    assert members[1]["sandbox"] is True
+    assert members[1]["merchant_name"] == "Sandbox Cafe"
+    assert members[1]["country"] == "CH"
+
+
+@patch("app.sumup_client.request_json")
+def test_get_merchant_profile_for_code(mock_request):
+    mock_request.return_value = {
+        "merchant_code": "MCSAND",
+        "sandbox": True,
+        "alias": "Sandbox Cafe",
+        "country": "CH",
+    }
+    profile = get_merchant_profile_for_code("sup_sk_test", "MCSAND")
+    assert profile["merchant_code"] == "MCSAND"
+    assert profile["merchant_name"] == "Sandbox Cafe"
+    assert profile["sandbox"] is True
+    assert profile["country"] == "CH"
+    assert mock_request.call_args.args[1].endswith("/v1/merchants/MCSAND")

@@ -16,7 +16,7 @@ from ..event_status import ORDER_ACCEPT_STATUSES
 from ..i18n.errors import api_error
 from ..models import Event, Organisation, SumupCheckout, SumupReader
 from ..payment_types_config import payment_types_from_event
-from ..sumup_checkout_state import apply_checkout_payload, normalize_checkout_status
+from ..sumup_checkout_state import apply_checkout_payload, checkout_id_from_payload
 from ..sumup_client import sumup_error
 from ..sumup_tokens import get_valid_access_token
 from .edge import ApplianceEdgeContext, _load_event_for_org, get_edge_server_appliance
@@ -139,7 +139,7 @@ def create_sumup_checkout(
     except Exception as exc:
         raise sumup_error(exc) from exc
 
-    checkout_id = str(created.get("id") or created.get("checkout_id") or "").strip()
+    checkout_id = checkout_id_from_payload(created)
     if not checkout_id:
         raise api_error("sumup_checkout_missing_id", status.HTTP_502_BAD_GATEWAY)
 
@@ -151,9 +151,12 @@ def create_sumup_checkout(
         client_order_id=body.client_order_id,
         amount_cents=body.amount_cents,
         currency=currency,
-        status=normalize_checkout_status(str(created.get("status"))),
+        status="pending",
     )
     _apply_checkout_payload(row, created)
+    # Create response has no status yet; keep pending unless payload already terminal.
+    if row.status not in {"paid", "failed", "terminated"}:
+        row.status = "pending"
     db.add(row)
     commit_or_raise(db)
     db.refresh(row)
@@ -203,7 +206,12 @@ def read_sumup_checkout_status(
 
     try:
         access_token = get_valid_access_token(db, organisation)
-        payload = sumup_client.get_checkout(access_token, checkout_id)
+        payload = sumup_client.get_reader_checkout(
+            access_token,
+            organisation.sumup_merchant_code,
+            row.sumup_reader_id,
+            checkout_id,
+        )
     except Exception as exc:
         raise sumup_error(exc) from exc
 

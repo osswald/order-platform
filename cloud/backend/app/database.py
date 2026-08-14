@@ -927,6 +927,9 @@ def _patch_organisation_sumup_connect() -> None:
     """SumUp OAuth credentials on the organisation."""
     sumup_columns = [
         ("sumup_merchant_code", "VARCHAR(64)", "VARCHAR(64)"),
+        ("sumup_merchant_name", "VARCHAR(255)", "VARCHAR(255)"),
+        ("sumup_merchant_sandbox", "BOOLEAN", "BOOLEAN"),
+        ("sumup_merchant_country", "VARCHAR(2)", "VARCHAR(2)"),
         ("sumup_access_token", "TEXT", "TEXT"),
         ("sumup_refresh_token", "TEXT", "TEXT"),
         ("sumup_token_expires_at", "DATETIME", "TIMESTAMP WITH TIME ZONE"),

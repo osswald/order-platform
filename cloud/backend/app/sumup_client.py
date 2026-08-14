@@ -105,6 +105,12 @@ def _affiliate_config() -> tuple[str, str]:
     return affiliate_key, affiliate_app_id
 
 
+def affiliate_key_configured() -> bool:
+    """True when Solo checkout can attach platform Affiliate Key metadata."""
+    affiliate_key, _ = _affiliate_config()
+    return bool(affiliate_key)
+
+
 def request_json(
     method: str,
     url: str,
@@ -178,6 +184,145 @@ def refresh_access_token(refresh_token: str) -> dict[str, Any]:
     )
 
 
+def _optional_str(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def merchant_display_name(*, me_payload: dict[str, Any], merchant: dict[str, Any] | None) -> str | None:
+    """Pick a human merchant name from Merchant API, then /me fallbacks."""
+    if merchant:
+        for candidate in (
+            merchant.get("alias"),
+            (merchant.get("business_profile") or {}).get("name")
+            if isinstance(merchant.get("business_profile"), dict)
+            else None,
+            (merchant.get("company") or {}).get("name") if isinstance(merchant.get("company"), dict) else None,
+        ):
+            name = _optional_str(candidate)
+            if name:
+                return name
+    merchant_profile = me_payload.get("merchant_profile") if isinstance(me_payload.get("merchant_profile"), dict) else {}
+    for candidate in (
+        merchant_profile.get("company_name"),
+        merchant_profile.get("doing_business_as")
+        if isinstance(merchant_profile.get("doing_business_as"), str)
+        else None,
+    ):
+        name = _optional_str(candidate)
+        if name:
+            return name
+    return None
+
+
+def merchant_sandbox_flag(merchant: dict[str, Any] | None, *, fetched: bool = False) -> bool | None:
+    """SumUp Merchant.sandbox: true for test merchants.
+
+    SumUp's OpenAPI documents `sandbox`, but live merchants often omit the field entirely.
+    When the Merchant fetch succeeded and the key is absent, treat the account as live.
+    """
+    if merchant is None:
+        return None
+    value = merchant.get("sandbox")
+    if isinstance(value, bool):
+        return value
+    if fetched and "sandbox" not in merchant:
+        return False
+    return None
+
+
+def merchant_country_code(*, me_payload: dict[str, Any], merchant: dict[str, Any] | None) -> str | None:
+    if merchant:
+        country = merchant.get("country")
+        if isinstance(country, str):
+            code = _optional_str(country)
+            if code:
+                return code.upper()
+        if isinstance(country, dict):
+            code = _optional_str(country.get("iso_code") or country.get("code"))
+            if code:
+                return code.upper()
+    merchant_profile = me_payload.get("merchant_profile") if isinstance(me_payload.get("merchant_profile"), dict) else {}
+    code = _optional_str(merchant_profile.get("country"))
+    return code.upper() if code else None
+
+
+def list_merchant_memberships(access_token: str) -> list[dict[str, Any]]:
+    """Merchants accessible with this credential (API keys often span live + sandboxes).
+
+    SumUp ``GET /v0.1/me`` returns only the default merchant; memberships list all
+    accepted merchant memberships, including ``is_test_account`` sandboxes.
+    """
+    payload = request_json(
+        "GET",
+        f"{SUMUP_API_BASE}/v0.1/memberships",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("status") or "").lower() != "accepted":
+            continue
+        resource = item.get("resource") if isinstance(item.get("resource"), dict) else {}
+        item_type = str(item.get("type") or resource.get("type") or "").lower()
+        if item_type and item_type != "merchant":
+            continue
+        attrs = resource.get("attributes") if isinstance(resource.get("attributes"), dict) else {}
+        merchant_code = _optional_str(
+            attrs.get("merchant_code") or resource.get("id") or item.get("resource_id")
+        )
+        if not merchant_code:
+            continue
+        is_test = attrs.get("is_test_account")
+        sandbox: bool | None
+        if isinstance(is_test, bool):
+            sandbox = is_test
+        else:
+            sandbox = False
+        country = _optional_str(attrs.get("merchant_country"))
+        out.append(
+            {
+                "merchant_code": merchant_code,
+                "merchant_name": _optional_str(resource.get("name")),
+                "sandbox": sandbox,
+                "country": country.upper() if country else None,
+            }
+        )
+    return out
+
+
+def get_merchant_profile_for_code(access_token: str, merchant_code: str) -> dict[str, Any]:
+    """Load Merchant API details for an explicit merchant code (not ``/me`` default)."""
+    code = merchant_code.strip()
+    if not code:
+        raise SumupApiError(502, "SumUp merchant_code is required")
+    merchant: dict[str, Any] | None = None
+    try:
+        fetched = request_json(
+            "GET",
+            f"{SUMUP_API_BASE}/v1/merchants/{code}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if isinstance(fetched, dict):
+            merchant = fetched
+    except SumupApiError:
+        merchant = None
+    if merchant is None:
+        raise SumupApiError(502, f"SumUp merchant {code} is not accessible with this credential")
+    return {
+        "merchant_code": code,
+        "merchant_name": merchant_display_name(me_payload={}, merchant=merchant),
+        "sandbox": merchant_sandbox_flag(merchant, fetched=True),
+        "country": merchant_country_code(me_payload={}, merchant=merchant),
+        "profile": merchant,
+    }
+
+
 def get_merchant_profile(access_token: str) -> dict[str, Any]:
     payload = request_json(
         "GET",
@@ -188,7 +333,24 @@ def get_merchant_profile(access_token: str) -> dict[str, Any]:
     merchant_code = merchant_profile.get("merchant_code")
     if not merchant_code:
         raise SumupApiError(502, "SumUp profile response missing merchant_code")
-    return {"merchant_code": merchant_code, "profile": payload}
+    merchant: dict[str, Any] | None = None
+    try:
+        fetched = request_json(
+            "GET",
+            f"{SUMUP_API_BASE}/v1/merchants/{merchant_code}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if isinstance(fetched, dict):
+            merchant = fetched
+    except SumupApiError:
+        merchant = None
+    return {
+        "merchant_code": merchant_code,
+        "merchant_name": merchant_display_name(me_payload=payload, merchant=merchant),
+        "sandbox": merchant_sandbox_flag(merchant, fetched=merchant is not None),
+        "country": merchant_country_code(me_payload=payload, merchant=merchant),
+        "profile": payload,
+    }
 
 
 def _auth_headers(access_token: str) -> dict[str, str]:
@@ -283,7 +445,22 @@ def terminate_checkout(access_token: str, merchant_code: str, reader_id: str) ->
     )
 
 
+def get_reader_checkout(
+    access_token: str,
+    merchant_code: str,
+    reader_id: str,
+    checkout_id: str,
+) -> dict[str, Any]:
+    """Poll Solo Cloud API checkout status (not online ``/v0.1/checkouts/{id}``)."""
+    return request_json(
+        "GET",
+        f"{_merchant_readers_url(merchant_code, reader_id)}/checkout/{checkout_id}",
+        headers=_auth_headers(access_token),
+    )
+
+
 def get_checkout(access_token: str, checkout_id: str) -> dict[str, Any]:
+    """Online Checkouts API retrieve — not used for Solo reader payments."""
     return request_json(
         "GET",
         f"{SUMUP_API_BASE}/v0.1/checkouts/{checkout_id}",

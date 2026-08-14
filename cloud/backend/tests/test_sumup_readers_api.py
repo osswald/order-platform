@@ -88,6 +88,39 @@ def _member_headers(org_id: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
+def _seed_api_key_org() -> int:
+    db = SessionLocal()
+    try:
+        hc = HireCompany(name=f"SumUp API Key HC {uuid4().hex[:8]}")
+        db.add(hc)
+        db.flush()
+        org = Organisation(
+            name="SumUp API Key Org",
+            country_id=country_id_by_code(db, "CH"),
+            hire_company_id=hc.id,
+            currency="CHF",
+            sumup_merchant_code="MKAPIKEY1",
+            sumup_access_token="sup_sk_test",
+            sumup_refresh_token=None,
+            sumup_token_expires_at=None,
+            sumup_connected_at=datetime.now(UTC),
+        )
+        db.add(org)
+        db.flush()
+        db.add(
+            User(
+                email=f"sumup-readers-{uuid4().hex[:8]}@test.local",
+                hashed_password=get_password_hash("secret"),
+                role=ROLE_TENANT_ADMIN,
+                hire_company_id=hc.id,
+            )
+        )
+        db.commit()
+        return org.id
+    finally:
+        db.close()
+
+
 @patch("app.routers.sumup_readers.sumup_client.create_reader")
 def test_pair_reader_success(mock_create):
     org_id, _ = _seed_connected_org()
@@ -108,6 +141,25 @@ def test_pair_reader_success(mock_create):
     assert body["label"] == "Front counter"
     assert body["status"] == "paired"
     mock_create.assert_called_once()
+
+
+@patch("app.routers.sumup_readers.sumup_client.create_reader")
+def test_pair_reader_works_with_api_key_connection(mock_create):
+    org_id = _seed_api_key_org()
+    mock_create.return_value = {
+        "id": SUMUP_READER_ID,
+        "name": "Bar",
+        "status": "paired",
+    }
+
+    r = client.post(
+        f"/sumup/organisations/{org_id}/readers",
+        headers=_auth_headers(),
+        json={"pairing_code": "4WLFDSBF", "label": "Bar"},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["label"] == "Bar"
+    mock_create.assert_called_once_with("sup_sk_test", "MKAPIKEY1", "4WLFDSBF", "Bar")
 
 
 @patch("app.routers.sumup_readers.sumup_client.create_reader")
