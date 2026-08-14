@@ -23,6 +23,7 @@ import { api } from '@/api'
 import type { AccountSummaryResponse, RegisterDisplayPayload } from '@/types/api'
 import type { PickPaymentHooks } from '@/utils/pickPaymentType'
 import { cartLineLabelForEvent } from '@/utils/bundleHelpers'
+import { displayPickupsFromSummary } from '@/utils/customerDisplayPickup'
 import { useEventContext } from '@/composables/useEventContext'
 import { useRegisterDisplay } from '@/composables/useRegisterDisplay'
 import SplitPaySettleScreen, { type SettleResult } from '@/components/SplitPaySettleScreen.vue'
@@ -30,6 +31,11 @@ import SplitPaySettleScreen, { type SettleResult } from '@/components/SplitPaySe
 type OrderSummary = AccountSummaryResponse & {
   pickup_code?: string | null
   pickup_codes?: string[] | null
+  pickups?: Array<{
+    pickup_code?: string | null
+    station_uuid?: string | null
+    station_name?: string | null
+  }> | null
 }
 
 const route = useRoute()
@@ -47,6 +53,9 @@ const {
 const orderId = computed(() => parseInt(String(route.params.orderId), 10))
 const pickupCode = ref<string | null>(null)
 const pickupCodes = ref<string[]>([])
+const displayPickups = ref<
+  Array<{ pickup_code: string; station_uuid: string | null; station_name: string }>
+>([])
 const pickupLabel = computed(() => (pickupCodes.value.length ? pickupCodes.value.join(', ') : pickupCode.value))
 const headerTitle = computed(() =>
   pickupLabel.value ? `Bezahlen – Pickup ${pickupLabel.value}` : 'Bezahlen',
@@ -82,6 +91,7 @@ async function loadSummary(): Promise<OrderSummary> {
   pickupCode.value = data.pickup_code || null
   const codes = Array.isArray(data.pickup_codes) ? data.pickup_codes.filter(Boolean) : []
   pickupCodes.value = codes.length ? codes.map(String) : pickupCode.value ? [pickupCode.value] : []
+  displayPickups.value = displayPickupsFromSummary(data.pickups, event.value)
   syncCustomerDisplay(data)
   return data
 }
@@ -151,6 +161,7 @@ async function onSettled(res: SettleResult) {
     state: 'submitted',
     pickup_code: pickupCode.value,
     pickup_codes: pickupCodes.value,
+    pickups: displayPickups.value,
     pickup_status: null,
     lines: [],
     total_cents: 0,

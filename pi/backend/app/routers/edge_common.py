@@ -705,6 +705,13 @@ def _create_station_pickup(
     return row
 
 
+def _discard_leftover_station_pickups(db: Session, order: LocalOrder) -> None:
+    """Drop pickups left on a reused SQLite id after a prior order purge."""
+    db.query(StationPickup).filter(StationPickup.local_order_id == order.id).delete(
+        synchronize_session=False
+    )
+
+
 def _mark_station_pickup_ready(db: Session, pickup: StationPickup) -> None:
     if pickup.pickup_status in {"ready", "picked_up"}:
         return

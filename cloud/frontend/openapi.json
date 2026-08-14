@@ -14486,6 +14486,11 @@
             },
             "type": "array",
             "title": "Screensaver Images"
+          },
+          "screensaver_greyscale": {
+            "type": "boolean",
+            "title": "Screensaver Greyscale",
+            "default": false
           }
         },
         "type": "object",
@@ -18425,6 +18430,11 @@
             "type": "boolean",
             "title": "Ingredients Enabled",
             "default": false
+          },
+          "screensaver_greyscale": {
+            "type": "boolean",
+            "title": "Screensaver Greyscale",
+            "default": false
           }
         },
         "type": "object",
@@ -18576,6 +18586,17 @@
               }
             ],
             "title": "Ingredients Enabled"
+          },
+          "screensaver_greyscale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screensaver Greyscale"
           }
         },
         "type": "object",

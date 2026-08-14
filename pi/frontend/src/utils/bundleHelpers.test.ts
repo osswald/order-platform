@@ -22,6 +22,7 @@ import {
   positionCommentsEnabled,
   receiptPrintTargets,
   resolveStationUuidForArticle,
+  stationNameFromEvent,
   voucherDefinitionByUuid,
 } from './bundleHelpers'
 
@@ -348,6 +349,23 @@ describe('resolveStationUuidForArticle', () => {
     expect(resolveStationUuidForArticle(event, 11)).toBe('st-b')
     expect(resolveStationUuidForArticle(event, 99)).toBeNull()
     expect(resolveStationUuidForArticle({} as unknown as EdgeBundleEvent, 10)).toBeNull()
+  })
+})
+
+describe('stationNameFromEvent', () => {
+  it('returns the station name for a known uuid', () => {
+    const event = {
+      configuration: {
+        stations: [
+          { uuid: 'st-kitchen', name: 'Grill' },
+          { uuid: 'st-bar', name: 'Getränke' },
+        ],
+      },
+    } as unknown as EdgeBundleEvent
+    expect(stationNameFromEvent(event, 'st-bar')).toBe('Getränke')
+    expect(stationNameFromEvent(event, 'missing')).toBe('')
+    expect(stationNameFromEvent(event, null)).toBe('')
+    expect(stationNameFromEvent(null, 'st-bar')).toBe('')
   })
 })
 

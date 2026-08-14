@@ -2,10 +2,13 @@
   <div class="customer-display">
     <section v-if="payload.state === 'submitted'" class="pickup-done">
       <p>Danke!</p>
-      <div v-if="displayPickupCodes.length" class="pickup-badges" aria-label="Pickup">
-        <span v-for="code in displayPickupCodes" :key="code" class="pickup-badge">{{ code }}</span>
+      <div v-if="displayPickupBadges.length" class="pickup-badges" aria-label="Pickup">
+        <span v-for="badge in displayPickupBadges" :key="badge.code" class="pickup-badge">
+          <span class="pickup-badge-code">{{ badge.code }}</span>
+          <span v-if="badge.stationName" class="pickup-badge-station">{{ badge.stationName }}</span>
+        </span>
       </div>
-      <span v-if="displayPickupCodes.length">{{ abholbonText }}</span>
+      <span v-if="displayPickupBadges.length">{{ abholbonText }}</span>
     </section>
 
     <section v-else-if="payload.state === 'sumup_connected'" class="sumup-panel">
@@ -26,8 +29,8 @@
     <section v-else-if="payload.state === 'ordering'" class="order-preview">
       <div
         ref="orderBodyRef"
-        class="order-body"
-        :class="{ 'order-body--scrolled': orderBodyScrolled }"
+        class="display-order-body"
+        :class="{ 'display-order-body--scrolled': orderBodyScrolled }"
         @scroll="onOrderBodyScroll"
       >
         <h2>Ihre Bestellung</h2>
@@ -60,6 +63,7 @@
           :src="screensaverUrls[screensaverIndex % screensaverUrls.length]"
           alt=""
           class="screensaver-image"
+          :class="{ 'screensaver-image--greyscale': screensaverGreyscale }"
         />
       </div>
       <p v-else class="welcome">Herzlich Willkommen</p>
@@ -75,7 +79,7 @@ import type { CartLine } from '@/types/cart'
 import { api } from '@/api'
 import { buildWsUrl, getApiBase } from '@/api/base'
 import { useEventContext } from '@/composables/useEventContext'
-import { abholbonFooterText, pickupCodesForDisplay } from '@/utils/customerDisplayPickup'
+import { abholbonFooterText, pickupBadgesForDisplay } from '@/utils/customerDisplayPickup'
 import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
 import { cartLineLabelForEvent, lineAdditionLabels } from '@/utils/bundleHelpers'
 
@@ -91,6 +95,11 @@ type DisplayPayload = RegisterDisplayPayload & {
   twint_qr_data_url?: string | null
   pickup_code?: string | null
   pickup_codes?: string[] | null
+  pickups?: Array<{
+    pickup_code?: string | null
+    station_uuid?: string | null
+    station_name?: string | null
+  }> | null
   voucher_lines?: VoucherDisplayLine[]
   lines?: Array<CartLine & { display_label?: string }>
 }
@@ -103,6 +112,7 @@ const payload = ref<DisplayPayload>({ state: 'idle' })
 const orderBodyRef = ref<HTMLElement | null>(null)
 const orderBodyScrolled = ref(false)
 const screensaverUrls = ref<string[]>([])
+const screensaverGreyscale = ref(false)
 const screensaverIndex = ref(0)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let screensaverTimer: ReturnType<typeof setInterval> | null = null
@@ -117,8 +127,8 @@ const registerUuid = computed(() => String(route.params.registerUuid || ''))
 const lines = computed(() => payload.value.lines || [])
 const voucherLines = computed(() => payload.value.voucher_lines || [])
 const articles = computed(() => event.value?.articles || {})
-const displayPickupCodes = computed(() => pickupCodesForDisplay(payload.value))
-const abholbonText = computed(() => abholbonFooterText(displayPickupCodes.value.length))
+const displayPickupBadges = computed(() => pickupBadgesForDisplay(payload.value, event.value))
+const abholbonText = computed(() => abholbonFooterText(displayPickupBadges.value.length))
 
 function lineKey(line: CartLine & { display_label?: string }) {
   if (line?.lineId) return line.lineId
@@ -220,18 +230,21 @@ async function loadDisplay() {
 async function loadScreensaverUrls() {
   if (!event.value?.id) {
     screensaverUrls.value = []
+    screensaverGreyscale.value = false
     return
   }
   try {
-    const data = await api<{ images?: Array<{ sha256: string }> }>(
+    const data = await api<{ images?: Array<{ sha256: string }>; greyscale?: boolean }>(
       `/v1/screensaver/images?event_id=${encodeURIComponent(event.value.id)}`,
     )
     const hashes = (data?.images || []).map((i) => String(i.sha256 || '').trim()).filter(Boolean)
     const base = getApiBase().replace(/\/$/, '')
     screensaverUrls.value = hashes.map((h) => `${base}/v1/screensaver/${encodeURIComponent(h)}`)
+    screensaverGreyscale.value = Boolean(data?.greyscale)
     screensaverIndex.value = 0
   } catch {
     screensaverUrls.value = []
+    screensaverGreyscale.value = false
   }
 }
 
@@ -423,18 +436,29 @@ watch(
   object-fit: cover;
   display: block;
 }
+.screensaver-image--greyscale {
+  filter: grayscale(1);
+}
 .order-preview {
   display: flex;
   flex-direction: column;
 }
-.order-body {
+.display-order-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overflow-anchor: auto;
   scrollbar-gutter: stable;
 }
-.order-body--scrolled::before {
+.display-order-body ul {
+  width: 100%;
+}
+.display-order-body--scrolled::before {
   content: '';
   position: sticky;
   top: 0;
@@ -560,16 +584,27 @@ li {
 }
 .pickup-badge {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-width: 3.5rem;
-  padding: 0.35rem 0.85rem;
+  padding: 0.45rem 0.95rem 0.4rem;
   border: 2px solid rgba(255, 255, 255, 0.55);
   border-radius: 0.65rem;
   background: rgba(255, 255, 255, 0.1);
+  line-height: 1.1;
+}
+.pickup-badge-code {
   font-size: clamp(2.5rem, 10vw, 7rem);
   font-weight: 700;
   line-height: 1.1;
+}
+.pickup-badge-station {
+  margin-top: 0.15rem;
+  font-size: clamp(0.85rem, 2.2vw, 1.4rem);
+  font-weight: 600;
+  line-height: 1.2;
+  opacity: 0.85;
 }
 .pickup-done > span {
   font-size: clamp(1.2rem, 3vw, 2rem);

@@ -159,7 +159,7 @@
       "count": "{count} / {max} images",
       "empty": "No screensaver images yet.",
       "upload": "Upload image",
-      "uploadHint": "JPEG, PNG or WebP, max. 3 MB. Upload is saved immediately.",
+      "uploadHint": "JPEG, PNG or WebP, max. 10 MB. Upload is saved immediately.",
       "uploadError": "Upload failed.",
       "uploaded": "Image uploaded.",
       "deleteConfirm": "Delete this screensaver image?",
@@ -167,7 +167,11 @@
       "deleteError": "Could not delete image.",
       "loadError": "Could not load screensaver images.",
       "maxReached": "Maximum of 10 images allowed.",
-      "imageAlt": "Screensaver image"
+      "imageAlt": "Screensaver image",
+      "greyscale": "Show in greyscale",
+      "greyscaleHint": "Customer display shows screensaver images in greyscale. Colour originals are kept.",
+      "greyscaleSaved": "Greyscale setting saved.",
+      "greyscaleSaveError": "Could not save greyscale setting."
     },
     "ingredients": {
       "sectionTitle": "Ingredient stock",

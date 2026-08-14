@@ -219,6 +219,18 @@ export function resolveStationUuidForArticle(
   return null
 }
 
+export function stationNameFromEvent(
+  event: EdgeBundleEvent | null | undefined,
+  stationUuid: string | null | undefined,
+): string {
+  const uuid = String(stationUuid || '').trim()
+  if (!uuid) return ''
+  const stations = event?.configuration?.stations
+  if (!Array.isArray(stations)) return ''
+  const st = stations.find((s) => String(s.uuid) === uuid)
+  return String(st?.name || '').trim()
+}
+
 export function voucherDefinitionsForEvent(event: EdgeBundleEvent | null | undefined) {
   return event?.configuration?.voucher_definitions || []
 }

@@ -89,6 +89,7 @@ class OrganisationUpdate(BaseModel):
     accounts_enabled: bool | None = None
     position_comments_enabled: bool | None = None
     ingredients_enabled: bool | None = None
+    screensaver_greyscale: bool | None = None
 
 
 class TaxCodeSummaryRead(BaseModel):
@@ -109,6 +110,7 @@ class OrganisationRead(OrganisationBase):
     accounts_enabled: bool = False
     position_comments_enabled: bool = False
     ingredients_enabled: bool = False
+    screensaver_greyscale: bool = False
 
 
 class OrgApplianceLendingItem(BaseModel):
@@ -149,6 +151,7 @@ def organisation_response(org: Organisation) -> dict:
         "accounts_enabled": bool(org.accounts_enabled),
         "position_comments_enabled": bool(org.position_comments_enabled),
         "ingredients_enabled": bool(org.ingredients_enabled),
+        "screensaver_greyscale": bool(org.screensaver_greyscale),
     }
 
 
@@ -497,6 +500,8 @@ def update_organisation(
         org.position_comments_enabled = bool(org_in.position_comments_enabled)
     if "ingredients_enabled" in update_fields:
         org.ingredients_enabled = bool(org_in.ingredients_enabled)
+    if "screensaver_greyscale" in update_fields:
+        org.screensaver_greyscale = bool(org_in.screensaver_greyscale)
     commit_or_raise(db)
     org = ensure_org_in_tenant(db, organisation_id, tenant.hire_company_id)
     return organisation_response(org)

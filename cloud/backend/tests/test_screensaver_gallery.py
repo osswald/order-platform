@@ -20,9 +20,11 @@ from app.roles import ROLE_TENANT_ADMIN
 from app.screensaver_gallery import (
     MAX_SCREENSAVER_GALLERY_IMAGES,
     MAX_SCREENSAVER_IMAGE_BYTES,
+    ScreensaverImageError,
     delete_screensaver_image,
     list_screensaver_manifest,
     store_screensaver_image,
+    validate_screensaver_image,
 )
 from app.security import get_password_hash
 from fastapi.testclient import TestClient
@@ -168,6 +170,32 @@ def test_reject_eleventh_screensaver_image():
 
     eleventh = _upload(org_id, headers, PNG_A + b"\xff", filename="too-many.png")
     assert eleventh.status_code == 400
+    assert eleventh.json()["detail"]["code"] == "screensaver_gallery_full"
+
+
+def test_accept_png_when_browser_sends_octet_stream_or_empty_type():
+    org_id, email = _seed_org(email_prefix="ss-sniff")
+    headers = _auth_headers(email)
+
+    octet = _upload(
+        org_id,
+        headers,
+        PNG_A,
+        content_type="application/octet-stream",
+        filename="photo.png",
+    )
+    assert octet.status_code == 201, octet.text
+    assert octet.json()["mime"] == "image/png"
+
+    empty_type = _upload(
+        org_id,
+        headers,
+        PNG_B,
+        content_type="",
+        filename="other.png",
+    )
+    assert empty_type.status_code == 201, empty_type.text
+    assert empty_type.json()["mime"] == "image/png"
 
 
 def test_reject_bad_mime_and_oversized():
@@ -182,6 +210,7 @@ def test_reject_bad_mime_and_oversized():
         filename="x.pdf",
     )
     assert bad_mime.status_code == 400
+    assert bad_mime.json()["detail"]["code"] == "screensaver_invalid_type"
 
     oversized = _upload(
         org_id,
@@ -190,6 +219,20 @@ def test_reject_bad_mime_and_oversized():
         filename="big.png",
     )
     assert oversized.status_code == 400
+    assert oversized.json()["detail"]["code"] == "screensaver_file_too_large"
+
+
+def test_max_screensaver_image_is_ten_mb():
+    assert MAX_SCREENSAVER_IMAGE_BYTES == 10 * 1024 * 1024
+    at_limit = b"\x89PNG\r\n\x1a\n" + b"x" * (MAX_SCREENSAVER_IMAGE_BYTES - 8)
+    assert validate_screensaver_image("image/png", at_limit) == "image/png"
+    try:
+        validate_screensaver_image("image/png", at_limit + b"x")
+    except ScreensaverImageError as exc:
+        assert exc.code == "screensaver_file_too_large"
+        assert exc.params["max_mb"] == 10
+    else:
+        raise AssertionError("expected ScreensaverImageError")
 
 
 def test_helpers_manifest_and_delete():
@@ -267,3 +310,29 @@ def test_edge_bundle_includes_screensaver_manifest_without_bytes():
     assert "data" not in images[0]
     # raw image bytes must not appear in the JSON bundle
     assert PNG_A.decode("latin-1") not in blob
+
+
+def test_screensaver_greyscale_defaults_off_and_is_in_bundle():
+    org_id, email = _seed_org(email_prefix="ss-grey")
+    headers = _auth_headers(email)
+
+    org = client.get(f"/organisations/{org_id}", headers=headers)
+    assert org.status_code == 200, org.text
+    assert org.json()["screensaver_greyscale"] is False
+
+    edge = _pair_edge(org_id)
+    bundle = client.get("/edge/v1/bundle", headers=edge)
+    assert bundle.status_code == 200, bundle.text
+    assert bundle.json()["screensaver_greyscale"] is False
+
+    updated = client.put(
+        f"/organisations/{org_id}",
+        headers=headers,
+        json={"screensaver_greyscale": True},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["screensaver_greyscale"] is True
+
+    bundle_on = client.get("/edge/v1/bundle", headers=edge)
+    assert bundle_on.status_code == 200, bundle_on.text
+    assert bundle_on.json()["screensaver_greyscale"] is True

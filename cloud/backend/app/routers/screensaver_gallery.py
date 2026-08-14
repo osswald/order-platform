@@ -15,6 +15,7 @@ from ..deps import get_db
 from ..i18n.errors import api_error
 from ..models import OrganisationScreensaverImage, User
 from ..screensaver_gallery import (
+    ScreensaverImageError,
     delete_screensaver_image,
     get_by_sha256,
     image_to_read_dict,
@@ -74,6 +75,8 @@ async def upload_organisation_screensaver_image(
     raw = await file.read()
     try:
         row = store_screensaver_image(db, org, mime, raw)
+    except ScreensaverImageError as e:
+        raise api_error(e.code, status.HTTP_400_BAD_REQUEST, **e.params) from e
     except ValueError as e:
         raise api_error("validation_failed", status.HTTP_400_BAD_REQUEST) from e
     commit_or_raise(db)

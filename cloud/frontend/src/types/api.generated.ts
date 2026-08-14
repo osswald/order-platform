@@ -2819,6 +2819,11 @@ export interface components {
             sumup_readers?: components["schemas"]["SumupReaderBundleRead"][];
             /** Screensaver Images */
             screensaver_images?: components["schemas"]["ScreensaverImageBundleRead"][];
+            /**
+             * Screensaver Greyscale
+             * @default false
+             */
+            screensaver_greyscale: boolean;
         };
         /** EdgeEventBundle */
         EdgeEventBundle: {
@@ -4251,6 +4256,11 @@ export interface components {
              * @default false
              */
             ingredients_enabled: boolean;
+            /**
+             * Screensaver Greyscale
+             * @default false
+             */
+            screensaver_greyscale: boolean;
         };
         /** OrganisationUpdate */
         OrganisationUpdate: {
@@ -4278,6 +4288,8 @@ export interface components {
             position_comments_enabled?: boolean | null;
             /** Ingredients Enabled */
             ingredients_enabled?: boolean | null;
+            /** Screensaver Greyscale */
+            screensaver_greyscale?: boolean | null;
         };
         /** PasswordChange */
         PasswordChange: {

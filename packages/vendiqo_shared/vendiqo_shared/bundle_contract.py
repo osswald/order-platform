@@ -16,6 +16,7 @@ BUNDLE_TOP_LEVEL_KEYS = frozenset(
         "admin_pin_hashes",
         "sumup_readers",
         "screensaver_images",
+        "screensaver_greyscale",
     }
 )
 
@@ -143,3 +144,4 @@ class EdgeBundleContract(BaseModel):
     admin_pin_hashes: list[str] = Field(default_factory=list)
     sumup_readers: list[EdgeBundleSumupReader] = Field(default_factory=list)
     screensaver_images: list[EdgeBundleScreensaverImage] = Field(default_factory=list)
+    screensaver_greyscale: bool = False

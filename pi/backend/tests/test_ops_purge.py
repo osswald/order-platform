@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from app.models import EmulatedReceipt, LocalOrder, SyncedBundle
+from app.models import EmulatedReceipt, LocalOrder, StationPickup, SyncedBundle
 from app.models_operational import OrderSession
 
 
@@ -36,6 +36,17 @@ def _seed_bundle_and_orders(Session, *, event_id: int = 1, status: str = "test")
                 table_number=1,
                 payment_status="open",
                 payload_json="{}",
+            )
+        )
+        db.flush()
+        order_id = db.query(LocalOrder).filter(LocalOrder.client_order_id == "o-demo").one().id
+        db.add(
+            StationPickup(
+                local_order_id=order_id,
+                event_id=event_id,
+                station_uuid="st-grill",
+                pickup_code="A1",
+                pickup_status="pending",
             )
         )
         db.add(
@@ -85,6 +96,7 @@ def test_purge_operational_clears_orders_and_receipts_keeps_status(hosted_cleanu
     db = Session()
     try:
         assert db.query(LocalOrder).count() == 0
+        assert db.query(StationPickup).count() == 0
         assert db.query(EmulatedReceipt).count() == 0
         bundle = json.loads(db.query(SyncedBundle).filter(SyncedBundle.id == 1).one().json_body)
         assert bundle["events"][0]["status"] == "test"

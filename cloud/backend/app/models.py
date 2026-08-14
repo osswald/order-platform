@@ -153,6 +153,7 @@ class Organisation(Base):
     accounts_enabled = Column(Boolean, nullable=False, default=False)
     position_comments_enabled = Column(Boolean, nullable=False, default=False)
     ingredients_enabled = Column(Boolean, nullable=False, default=False)
+    screensaver_greyscale = Column(Boolean, nullable=False, default=False)
     color_palette = Column(JSON, nullable=True)
     first_event_setup_completed_at = Column(DateTime(timezone=True), nullable=True)
     first_event_setup_dismissed_at = Column(DateTime(timezone=True), nullable=True)

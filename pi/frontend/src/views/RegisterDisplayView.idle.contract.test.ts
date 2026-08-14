@@ -22,4 +22,22 @@ describe('RegisterDisplayView idle screensaver', () => {
     expect(src).toMatch(/state === 'sumup_connected'/)
     expect(src).toMatch(/state === 'submitted'/)
   })
+
+  it('applies greyscale class from gallery flag', () => {
+    expect(src).toMatch(/screensaverGreyscale/)
+    expect(src).toMatch(/screensaver-image--greyscale/)
+    expect(src).toMatch(/filter:\s*grayscale\(1\)/)
+  })
+})
+
+describe('RegisterDisplayView success pickup badges', () => {
+  const src = readFileSync(viewPath, 'utf8')
+
+  it('shows the station name under each pickup code', () => {
+    expect(src).toMatch(/pickupBadgesForDisplay/)
+    expect(src).toMatch(/pickup-badge-code/)
+    expect(src).toMatch(/pickup-badge-station/)
+    expect(src).toMatch(/badge\.stationName/)
+    expect(src).toMatch(/\.pickup-badge[\s\S]*flex-direction:\s*column/)
+  })
 })

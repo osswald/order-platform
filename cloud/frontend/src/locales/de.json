@@ -583,7 +583,7 @@
       "count": "{count} / {max} Bilder",
       "empty": "Noch keine Screensaver-Bilder.",
       "upload": "Bild hochladen",
-      "uploadHint": "JPEG, PNG oder WebP, max. 3 MB. Upload wird sofort gespeichert.",
+      "uploadHint": "JPEG, PNG oder WebP, max. 10 MB. Upload wird sofort gespeichert.",
       "uploadError": "Upload fehlgeschlagen.",
       "uploaded": "Bild hochgeladen.",
       "deleteConfirm": "Screensaver-Bild wirklich löschen?",
@@ -591,7 +591,11 @@
       "deleteError": "Löschen fehlgeschlagen.",
       "loadError": "Screensaver-Bilder konnten nicht geladen werden.",
       "maxReached": "Maximal 10 Bilder erlaubt.",
-      "imageAlt": "Screensaver-Bild"
+      "imageAlt": "Screensaver-Bild",
+      "greyscale": "In Graustufen anzeigen",
+      "greyscaleHint": "Das Kundendisplay zeigt Screensaver-Bilder in Graustufen. Die Farboriginale bleiben erhalten.",
+      "greyscaleSaved": "Graustufen-Einstellung gespeichert.",
+      "greyscaleSaveError": "Graustufen-Einstellung konnte nicht gespeichert werden."
     },
     "searchPlaceholder": "Name, Adresse, Stadt oder Land suchen...",
     "withUsers": "Mit Benutzern",

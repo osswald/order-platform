@@ -82,3 +82,18 @@ When the customer display state is idle and the Pi has one or more screensaver i
 - **WHEN** display state changes from idle to ordering (or another non-idle state)
 - **THEN** the screensaver is no longer shown
 
+### Requirement: Organisation greyscale playback
+
+Authorised organisation managers SHALL be able to enable greyscale playback for the organisation screensaver. When enabled, the idle customer display SHALL show gallery images in greyscale. Stored image bytes MUST remain unchanged (playback is a display filter). Cloud gallery previews SHALL use the same greyscale treatment so managers see what guests see. When the setting is off, images SHALL display in their original colour. The edge bundle SHALL include this flag; a missing flag MUST be treated as off.
+
+#### Scenario: Greyscale on
+
+- **WHEN** the organisation has screensaver greyscale enabled
+- **AND** the idle customer display shows a gallery image
+- **THEN** that image is shown in greyscale
+
+#### Scenario: Greyscale off (default)
+
+- **WHEN** the organisation has not enabled screensaver greyscale
+- **THEN** idle gallery images are shown in original colour
+

@@ -5,6 +5,19 @@
       <p class="muted small">{{ t('organisations.screensaver.sectionHint') }}</p>
     </div>
 
+    <div class="toggle-row">
+      <label for="org-screensaver-greyscale">{{ t('organisations.screensaver.greyscale') }}</label>
+      <v-switch
+        id="org-screensaver-greyscale"
+        :model-value="greyscale"
+        hide-details
+        density="compact"
+        :disabled="busy || loading"
+        @update:model-value="saveGreyscale"
+      />
+    </div>
+    <p class="muted small">{{ t('organisations.screensaver.greyscaleHint') }}</p>
+
     <p v-if="loading" class="muted small">{{ t('common.loading') }}</p>
     <p v-else-if="loadError" class="error-text">{{ loadError }}</p>
     <template v-else>
@@ -19,6 +32,7 @@
             :src="previewUrls[img.id]"
             :alt="t('organisations.screensaver.imageAlt')"
             class="gallery-thumb"
+            :class="{ 'gallery-thumb--greyscale': greyscale }"
           />
           <div v-else class="gallery-thumb placeholder muted">{{ img.mime }}</div>
           <div class="gallery-meta">
@@ -67,6 +81,7 @@ import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiFetch, apiJson } from '../api'
 import { getErrorMessage } from '@/types/api'
+import type { OrganisationRead } from '@/types/api'
 
 const MAX_IMAGES = 10
 
@@ -88,6 +103,7 @@ const loadError = ref('')
 const message = ref('')
 const messageIsError = ref(false)
 const images = ref<ScreensaverImage[]>([])
+const greyscale = ref(false)
 const previewUrls = reactive<Record<number, string>>({})
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -125,11 +141,35 @@ async function load() {
     images.value = await apiJson<ScreensaverImage[]>(
       `/organisations/${props.organisationId}/screensaver-images`,
     )
+    const org = await apiJson<OrganisationRead>(`/organisations/${props.organisationId}`)
+    greyscale.value = Boolean(org.screensaver_greyscale)
     await Promise.all(images.value.map((img) => loadPreview(img)))
   } catch (e: unknown) {
     loadError.value = getErrorMessage(e, t('organisations.screensaver.loadError'))
   } finally {
     loading.value = false
+  }
+}
+
+async function saveGreyscale(value: boolean | null) {
+  if (!props.organisationId) return
+  greyscale.value = Boolean(value)
+  busy.value = true
+  message.value = ''
+  messageIsError.value = false
+  try {
+    const data = await apiJson<OrganisationRead>(`/organisations/${props.organisationId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ screensaver_greyscale: greyscale.value }),
+    })
+    greyscale.value = Boolean(data.screensaver_greyscale)
+    message.value = t('organisations.screensaver.greyscaleSaved')
+  } catch (e: unknown) {
+    messageIsError.value = true
+    message.value = getErrorMessage(e, t('organisations.screensaver.greyscaleSaveError'))
+  } finally {
+    busy.value = false
   }
 }
 
@@ -206,6 +246,7 @@ watch(
     if (id) void load()
     else {
       images.value = []
+      greyscale.value = false
       clearPreviews()
     }
   },
@@ -253,6 +294,18 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
+}
+
+.gallery-thumb--greyscale {
+  filter: grayscale(1);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 28rem;
 }
 
 .gallery-meta {

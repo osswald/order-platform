@@ -56,7 +56,7 @@ When Twint payment UI is cancelled/dismissed without completing payment, or when
 
 ### Requirement: Success shows all pickup codes as badges
 
-After successful payment for a cash-register order, the customer display SHALL show `Danke!`, then every pickup code for that order as individual badges (not a comma-separated string). If `pickup_codes` is empty, the single `pickup_code` (when present) SHALL be shown as one badge.
+After successful payment for a cash-register order, the customer display SHALL show `Danke!`, then every pickup code for that order as individual badges (not a comma-separated string). If `pickup_codes` is empty, the single `pickup_code` (when present) SHALL be shown as one badge. When the production station name for a pickup is known, that badge SHALL show the station name on a line below the pickup code.
 
 #### Scenario: Multiple pickup codes
 
@@ -67,6 +67,12 @@ After successful payment for a cash-register order, the customer display SHALL s
 
 - **WHEN** payment succeeds and the order has one pickup code `A1`
 - **THEN** the display shows `Danke!` and one badge labeled `A1`
+
+#### Scenario: Station names under pickup codes
+
+- **WHEN** payment succeeds and the order has pickup `A1` for station Grill and pickup `A2` for station Getränke
+- **THEN** the `A1` badge shows `Grill` below the code
+- **AND** the `A2` badge shows `Getränke` below the code
 
 ### Requirement: Success Abholbon copy is singular or plural
 

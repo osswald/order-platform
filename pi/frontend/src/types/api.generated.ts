@@ -1341,6 +1341,11 @@ export interface components {
             sumup_readers?: components["schemas"]["EdgeBundleSumupReader"][];
             /** Screensaver Images */
             screensaver_images?: components["schemas"]["EdgeBundleScreensaverImage"][];
+            /**
+             * Screensaver Greyscale
+             * @default false
+             */
+            screensaver_greyscale: boolean;
         } & {
             [key: string]: unknown;
         };

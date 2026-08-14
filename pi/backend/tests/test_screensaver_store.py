@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 
 import pytest
 from app.event_lifecycle import purge_on_unpair, reconcile_bundle_lifecycle
+from app.models import SyncedBundle
 from app.screensaver_store import (
     gc_screensaver_store,
     has_screensaver_file,
@@ -100,3 +102,31 @@ def test_gc_skips_invalid_keep_shas(screensaver_tmpdir):
     assert sha2 in deleted
     assert has_screensaver_file(sha1)
     assert not has_screensaver_file(sha2)
+
+
+def test_list_screensaver_images_greyscale_defaults_off(client_session):
+    c, _session = client_session
+    r = c.get("/v1/screensaver/images", params={"event_id": 1})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["greyscale"] is False
+    assert body["images"] == []
+
+
+def test_list_screensaver_images_greyscale_from_bundle(client_session):
+    from app.bundle_cache import invalidate_bundle_cache
+
+    c, Session = client_session
+    db = Session()
+    try:
+        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).one()
+        bundle = json.loads(row.json_body)
+        bundle["screensaver_greyscale"] = True
+        row.json_body = json.dumps(bundle)
+        db.commit()
+        invalidate_bundle_cache()
+    finally:
+        db.close()
+    r = c.get("/v1/screensaver/images", params={"event_id": 1})
+    assert r.status_code == 200, r.text
+    assert r.json()["greyscale"] is True

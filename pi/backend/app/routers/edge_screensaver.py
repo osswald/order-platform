@@ -27,7 +27,7 @@ def list_screensaver_images(
     try:
         bundle = get_bundle_dict(db)
     except Exception:
-        return {"event_id": event_id, "images": []}
+        return {"event_id": event_id, "images": [], "greyscale": False}
     manifest = manifest_shas(bundle if isinstance(bundle, dict) else None)
     local = list_local_shas()
     images = [
@@ -35,7 +35,8 @@ def list_screensaver_images(
         for row in manifest
         if row["sha256"] in local
     ]
-    return {"event_id": event_id, "images": images}
+    greyscale = bool(isinstance(bundle, dict) and bundle.get("screensaver_greyscale"))
+    return {"event_id": event_id, "images": images, "greyscale": greyscale}
 
 
 @router.get("/v1/screensaver/{sha256}")

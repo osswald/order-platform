@@ -3622,6 +3622,11 @@
             },
             "type": "array",
             "title": "Screensaver Images"
+          },
+          "screensaver_greyscale": {
+            "type": "boolean",
+            "title": "Screensaver Greyscale",
+            "default": false
           }
         },
         "additionalProperties": true,

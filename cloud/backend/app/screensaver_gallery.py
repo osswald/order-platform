@@ -11,8 +11,17 @@ from sqlalchemy.orm import Session
 from .models import Organisation, OrganisationScreensaverImage
 
 ALLOWED_SCREENSAVER_MIMES = frozenset({"image/png", "image/jpeg", "image/webp"})
-MAX_SCREENSAVER_IMAGE_BYTES = 3 * 1024 * 1024
+MAX_SCREENSAVER_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_SCREENSAVER_GALLERY_IMAGES = 10
+
+
+class ScreensaverImageError(ValueError):
+    """Typed validation error mapped to a localized API error code."""
+
+    def __init__(self, code: str, **params: object) -> None:
+        self.code = code
+        self.params = params
+        super().__init__(code)
 
 
 def _normalize_mime(mime: str) -> str:
@@ -22,15 +31,31 @@ def _normalize_mime(mime: str) -> str:
     return normalized
 
 
+def sniff_screensaver_mime(raw_bytes: bytes) -> str | None:
+    if raw_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if raw_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(raw_bytes) >= 12 and raw_bytes[:4] == b"RIFF" and raw_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 def validate_screensaver_image(mime: str, raw_bytes: bytes) -> str:
-    normalized = _normalize_mime(mime)
-    if normalized not in ALLOWED_SCREENSAVER_MIMES:
-        raise ValueError("File must be JPEG, PNG, or WebP")
-    if len(raw_bytes) > MAX_SCREENSAVER_IMAGE_BYTES:
-        raise ValueError(f"File too large (max {MAX_SCREENSAVER_IMAGE_BYTES // (1024 * 1024)} MB)")
     if not raw_bytes:
-        raise ValueError("File is empty")
-    return normalized
+        raise ScreensaverImageError("screensaver_file_empty")
+    if len(raw_bytes) > MAX_SCREENSAVER_IMAGE_BYTES:
+        raise ScreensaverImageError(
+            "screensaver_file_too_large",
+            max_mb=MAX_SCREENSAVER_IMAGE_BYTES // (1024 * 1024),
+        )
+    sniffed = sniff_screensaver_mime(raw_bytes)
+    declared = _normalize_mime(mime)
+    if sniffed in ALLOWED_SCREENSAVER_MIMES:
+        return sniffed
+    if declared in ALLOWED_SCREENSAVER_MIMES:
+        return declared
+    raise ScreensaverImageError("screensaver_invalid_type")
 
 
 def gallery_count(db: Session, organisation_id: int) -> int:
@@ -82,7 +107,10 @@ def store_screensaver_image(
     if existing is not None:
         return existing
     if gallery_count(db, organisation.id) >= MAX_SCREENSAVER_GALLERY_IMAGES:
-        raise ValueError(f"Gallery full (max {MAX_SCREENSAVER_GALLERY_IMAGES} images)")
+        raise ScreensaverImageError(
+            "screensaver_gallery_full",
+            max=MAX_SCREENSAVER_GALLERY_IMAGES,
+        )
     row = OrganisationScreensaverImage(
         organisation_id=organisation.id,
         sha256=digest,

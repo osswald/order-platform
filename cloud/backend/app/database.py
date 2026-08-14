@@ -393,6 +393,12 @@ def apply_schema_patches() -> None:
     )
     _add_column_if_missing(
         "organisations",
+        "screensaver_greyscale",
+        "ALTER TABLE organisations ADD COLUMN screensaver_greyscale BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS screensaver_greyscale BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _add_column_if_missing(
+        "organisations",
         "color_palette",
         "ALTER TABLE organisations ADD COLUMN color_palette TEXT",
         "ALTER TABLE organisations ADD COLUMN IF NOT EXISTS color_palette JSON",
