@@ -32,6 +32,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { currentLocale } from '../i18n'
+import { formatDateTime } from '../utils/localeFormat'
 import {
   fetchSumupReaderTelemetry,
   type SumupReader,
@@ -95,7 +97,8 @@ const firmwareLine = computed(() => {
 })
 const activityLine = computed(() => {
   const activity = display.value.last_activity
-  return activity ? `${t('sumupDevices.telemetryLastActivity')}: ${activity}` : ''
+  if (!activity) return ''
+  return `${t('sumupDevices.telemetryLastActivity')}: ${formatDateTime(activity, currentLocale())}`
 })
 const stateLine = computed(() => {
   const state = display.value.state

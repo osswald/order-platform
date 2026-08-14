@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import SumupReaderTelemetryTooltip from './SumupReaderTelemetryTooltip.vue'
 import en from '../locales/en.json'
 import { fetchSumupReaderTelemetry, type SumupReader } from '../utils/sumupCloud'
+import { formatDateTime } from '../utils/localeFormat'
 
 vi.mock('../utils/sumupCloud', async () => {
   const actual = await vi.importActual<typeof import('../utils/sumupCloud')>('../utils/sumupCloud')
@@ -12,6 +13,20 @@ vi.mock('../utils/sumupCloud', async () => {
     fetchSumupReaderTelemetry: vi.fn(),
   }
 })
+
+vi.mock('../utils/localeFormat', async () => {
+  const actual = await vi.importActual<typeof import('../utils/localeFormat')>(
+    '../utils/localeFormat',
+  )
+  return {
+    ...actual,
+    formatDateTime: vi.fn(() => '25.09.2025, 17:20'),
+  }
+})
+
+vi.mock('../i18n', () => ({
+  currentLocale: () => 'de',
+}))
 
 const reader: SumupReader = {
   id: 5,
@@ -68,9 +83,11 @@ describe('SumupReaderTelemetryTooltip', () => {
     expect(tip).toContain('Battery: 10.5%')
     expect(tip).toContain('Wi-Fi')
     expect(tip).toContain('3.3.3.21')
-    expect(tip).toContain('2025-09-25T15:20:00Z')
+    expect(tip).toContain('25.09.2025, 17:20')
+    expect(tip).not.toContain('2025-09-25T15:20:00Z')
     expect(tip).toContain('IDLE')
     expect(fetchSumupReaderTelemetry).toHaveBeenCalledWith(3, 5)
+    expect(formatDateTime).toHaveBeenCalledWith('2025-09-25T15:20:00Z', 'de')
   })
 
   it('shows persisted identity and unavailable copy when telemetry fails', async () => {
