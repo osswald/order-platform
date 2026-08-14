@@ -73,7 +73,7 @@
             :disabled="paying || (!rawBasketCents && !fixedCents)"
             @click="onPay"
           >
-            Teilbetrag {{ formatMoney(basketCents, currency) }}
+            {{ payAmountLabel }} {{ formatMoney(basketCents, currency) }}
             <template v-if="voucherCreditCents">
               <span class="bar-sub">(−{{ formatMoney(voucherCreditCents, currency) }} Gutschein)</span>
             </template>
@@ -267,6 +267,9 @@ const {
   fixedCents,
   paymentHooks: props.paymentHooks,
 })
+
+/** Full open selection → Betrag; anything left below → Teilbetrag. */
+const payAmountLabel = computed(() => (remainingItemCount.value === 0 ? 'Betrag' : 'Teilbetrag'))
 
 function onMenu() {
   actionsOpen.value = true

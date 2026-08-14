@@ -2,11 +2,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref } from 'vue'
 
-const { onGreenCheck, offerPaymentReceiptAfterSettle, showToast } = vi.hoisted(() => ({
-  onGreenCheck: vi.fn(),
-  offerPaymentReceiptAfterSettle: vi.fn(),
-  showToast: vi.fn(),
-}))
+const {
+  onGreenCheck,
+  offerPaymentReceiptAfterSettle,
+  showToast,
+  remainingItemCount,
+} = vi.hoisted(() => {
+  // `ref` must be required inside hoisted — import is not initialized yet.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ref: vueRef } = require('vue') as typeof import('vue')
+  return {
+    onGreenCheck: vi.fn(),
+    offerPaymentReceiptAfterSettle: vi.fn(),
+    showToast: vi.fn(),
+    remainingItemCount: vueRef(0),
+  }
+})
 
 vi.mock('@/composables/useEventContext', () => ({
   useEventContext: () => ({
@@ -45,7 +56,7 @@ vi.mock('@/composables/useSplitPay', () => ({
     basketCents: ref(500),
     restCents: ref(0),
     basketItemCount: ref(1),
-    remainingItemCount: ref(0),
+    remainingItemCount,
     topGroups: ref([
       {
         key: 'g1',
@@ -81,37 +92,64 @@ vi.mock('@/utils/paymentReceiptPrompt', () => ({
 
 import SplitPaySettleScreen from './SplitPaySettleScreen.vue'
 
+function mountSettleScreen() {
+  return mount(SplitPaySettleScreen, {
+    props: {
+      emptyText: 'leer',
+      settledToast: 'Abgerechnet.',
+      loadSummary: async () => ({ remaining_cents: 500, lines: [] }),
+      settlePartialPath: () => '/v1/tables/1/settle-partial',
+    },
+    global: {
+      stubs: {
+        SplitPayHeader: true,
+        SplitPayLineRow: true,
+        SplitPayVoucherRow: true,
+        QtyInputModal: true,
+        PayTableActionsSheet: true,
+        VoucherRedeemSheet: true,
+      },
+    },
+  })
+}
+
 describe('SplitPaySettleScreen settle isolation', () => {
   beforeEach(() => {
     onGreenCheck.mockReset()
     offerPaymentReceiptAfterSettle.mockReset()
     showToast.mockReset()
+    remainingItemCount.value = 0
     onGreenCheck.mockResolvedValue({ remaining_cents: 0, payment_id: 77 })
     offerPaymentReceiptAfterSettle.mockResolvedValue(undefined)
   })
 
+  it('labels green pay control Betrag when no open qty remains', async () => {
+    remainingItemCount.value = 0
+    const wrapper = mountSettleScreen()
+    await flushPromises()
+
+    const payBtn = wrapper.findAll('button').find((b) => b.text().includes('Betrag'))
+    expect(payBtn).toBeTruthy()
+    expect(payBtn!.text()).toMatch(/^Betrag\b/)
+    expect(payBtn!.text()).not.toContain('Teilbetrag')
+  })
+
+  it('labels green pay control Teilbetrag when open qty remains below', async () => {
+    remainingItemCount.value = 2
+    const wrapper = mountSettleScreen()
+    await flushPromises()
+
+    const payBtn = wrapper.findAll('button').find((b) => b.text().includes('Teilbetrag'))
+    expect(payBtn).toBeTruthy()
+    expect(payBtn!.text()).toMatch(/^Teilbetrag\b/)
+  })
+
   it('emits settled after full settle once receipt AfterSettle completes', async () => {
-    const wrapper = mount(SplitPaySettleScreen, {
-      props: {
-        emptyText: 'leer',
-        settledToast: 'Abgerechnet.',
-        loadSummary: async () => ({ remaining_cents: 500, lines: [] }),
-        settlePartialPath: () => '/v1/tables/1/settle-partial',
-      },
-      global: {
-        stubs: {
-          SplitPayHeader: true,
-          SplitPayLineRow: true,
-          SplitPayVoucherRow: true,
-          QtyInputModal: true,
-          PayTableActionsSheet: true,
-          VoucherRedeemSheet: true,
-        },
-      },
-    })
+    remainingItemCount.value = 0
+    const wrapper = mountSettleScreen()
 
     await flushPromises()
-    const payBtn = wrapper.findAll('button').find((b) => b.text().includes('Teilbetrag'))
+    const payBtn = wrapper.findAll('button').find((b) => b.text().includes('Betrag'))
     expect(payBtn).toBeTruthy()
     await payBtn!.trigger('click')
     await flushPromises()
