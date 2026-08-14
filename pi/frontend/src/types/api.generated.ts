@@ -2047,7 +2047,7 @@ export interface components {
              * Reprint
              * @default false
              */
-            reprint?: boolean;
+            reprint: boolean;
         };
         /** PaymentReceiptPrintResponse */
         PaymentReceiptPrintResponse: {
