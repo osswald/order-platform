@@ -196,6 +196,8 @@ class SumupReader(Base):
     sumup_reader_id = Column(String(64), nullable=False)
     label = Column(String(128), nullable=False)
     status = Column(String(32), nullable=False, default="paired")
+    device_identifier = Column(String(128), nullable=True)
+    device_model = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     organisation = relationship("Organisation", back_populates="sumup_readers")

@@ -32,6 +32,8 @@ export interface SumupReader {
   sumup_reader_id: string
   label: string
   status: string
+  device_identifier?: string | null
+  device_model?: string | null
 }
 
 export interface SumupPairReaderPayload {
@@ -191,5 +193,31 @@ export async function unpairSumupReader(
     apiJson<void>(`/sumup/organisations/${organisationId}/readers/${readerId}`, {
       method: 'DELETE',
     }),
+  )
+}
+
+export interface SumupReaderTelemetry {
+  id: number
+  sumup_reader_id: string
+  label: string
+  device_identifier: string | null
+  device_model: string | null
+  telemetry_available: boolean
+  online_status: string | null
+  battery_level: number | null
+  connection_type: string | null
+  firmware_version: string | null
+  last_activity: string | null
+  state: string | null
+}
+
+export async function fetchSumupReaderTelemetry(
+  organisationId: number | string,
+  readerId: number | string,
+): Promise<SumupReaderTelemetry> {
+  return withNotConfigured(() =>
+    apiJson<SumupReaderTelemetry>(
+      `/sumup/organisations/${organisationId}/readers/${readerId}/telemetry`,
+    ),
   )
 }

@@ -970,6 +970,18 @@ def _ensure_sumup_tables() -> None:
         SumupWebhookEvent.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         return
+    _add_column_if_missing(
+        "sumup_readers",
+        "device_identifier",
+        "ALTER TABLE sumup_readers ADD COLUMN device_identifier VARCHAR(128)",
+        "ALTER TABLE sumup_readers ADD COLUMN IF NOT EXISTS device_identifier VARCHAR(128)",
+    )
+    _add_column_if_missing(
+        "sumup_readers",
+        "device_model",
+        "ALTER TABLE sumup_readers ADD COLUMN device_model VARCHAR(64)",
+        "ALTER TABLE sumup_readers ADD COLUMN IF NOT EXISTS device_model VARCHAR(64)",
+    )
 
 
 def _backfill_layout_cell_voucher_uuids() -> None:

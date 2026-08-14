@@ -34,6 +34,7 @@ from ..tenancy import (
     ensure_org_in_tenant,
     get_current_tenant,
 )
+from .sumup_readers import sync_reader_catalog
 
 router = APIRouter()
 
@@ -232,6 +233,7 @@ def put_api_key(
     )
     commit_or_raise(db)
     db.refresh(organisation)
+    sync_reader_catalog(db, organisation)
     return _status_response(db, organisation)
 
 

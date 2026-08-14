@@ -325,9 +325,10 @@ def _membership(*, code: str, name: str, sandbox: bool = False, country: str = "
     }
 
 
+@patch("app.routers.sumup_readers.sumup_client.list_readers", return_value=[])
 @patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
 @patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
-def test_api_key_connect_without_oauth_env(mock_memberships, mock_profile, monkeypatch):
+def test_api_key_connect_without_oauth_env(mock_memberships, mock_profile, _mock_list, monkeypatch):
     org_id = _seed_tenant()
     monkeypatch.delenv("SUMUP_CLIENT_ID", raising=False)
     monkeypatch.delenv("SUMUP_CLIENT_SECRET", raising=False)
@@ -454,9 +455,10 @@ def test_api_key_connect_requires_merchant_selection(mock_memberships, mock_prof
         db.close()
 
 
+@patch("app.routers.sumup_readers.sumup_client.list_readers", return_value=[])
 @patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
 @patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
-def test_api_key_connect_with_selected_merchant(mock_memberships, mock_profile):
+def test_api_key_connect_with_selected_merchant(mock_memberships, mock_profile, _mock_list):
     org_id = _seed_tenant()
     mock_memberships.return_value = [
         _membership(code="MCLIVE", name="Live Cafe", sandbox=False),
@@ -480,9 +482,10 @@ def test_api_key_connect_with_selected_merchant(mock_memberships, mock_profile):
     mock_profile.assert_called_once_with("sup_sk_multi", "MCSAND")
 
 
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
 @patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
 @patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
-def test_api_key_update_same_merchant_preserves_readers(mock_memberships, mock_profile):
+def test_api_key_update_same_merchant_preserves_readers(mock_memberships, mock_profile, mock_list):
     org_id = _seed_tenant(connected=True)
     db = SessionLocal()
     try:
@@ -502,6 +505,9 @@ def test_api_key_update_same_merchant_preserves_readers(mock_memberships, mock_p
         _membership(code="MK10CL2A", name="Connected", sandbox=False),
     ]
     mock_profile.return_value = {"merchant_code": "MK10CL2A", "merchant_name": "Connected", "sandbox": False}
+    mock_list.return_value = [
+        {"id": "rdr_test1234567890123456789012", "name": "Front counter", "status": "paired"},
+    ]
     r = client.put(
         f"/sumup/organisations/{org_id}/api-key",
         headers=_auth_headers(),
@@ -564,3 +570,152 @@ def test_status_payments_ready_false_without_affiliate(monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert r.json()["payments_ready"] is False
+
+
+CONNECT_REMOTE_READER_ID = "rdr_NEWREADER00ABCDEFGHIJKLMN"
+
+
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
+@patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
+@patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
+def test_api_key_connect_imports_merchant_readers(mock_memberships, mock_profile, mock_list):
+    org_id = _seed_tenant()
+    mock_memberships.return_value = [_membership(code="MKAPIKEY1", name="Cafe", sandbox=False)]
+    mock_profile.return_value = {
+        "merchant_code": "MKAPIKEY1",
+        "merchant_name": "Cafe",
+        "sandbox": False,
+        "country": "CH",
+    }
+    mock_list.return_value = [
+        {
+            "id": CONNECT_REMOTE_READER_ID,
+            "name": "Frontdesk",
+            "status": "paired",
+            "device": {"identifier": "U1DT3NA00-CN", "model": "solo"},
+        }
+    ]
+    r = client.put(
+        f"/sumup/organisations/{org_id}/api-key",
+        headers=_auth_headers(),
+        json={"api_key": "sup_sk_live_testkey"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["connected"] is True
+    assert r.json()["reader_count"] == 1
+
+    db = SessionLocal()
+    try:
+        reader = db.query(SumupReader).filter(SumupReader.organisation_id == org_id).one()
+        assert reader.sumup_reader_id == CONNECT_REMOTE_READER_ID
+        assert reader.label == "Frontdesk"
+    finally:
+        db.close()
+
+
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
+@patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
+@patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
+def test_api_key_update_resyncs_catalog(mock_memberships, mock_profile, mock_list):
+    org_id = _seed_tenant(connected=True)
+    db = SessionLocal()
+    try:
+        org = db.query(Organisation).filter(Organisation.id == org_id).first()
+        org.sumup_refresh_token = None
+        org.sumup_token_expires_at = None
+        org.sumup_access_token = "sup_sk_old"
+        db.commit()
+    finally:
+        db.close()
+
+    mock_memberships.return_value = [_membership(code="MK10CL2A", name="Connected", sandbox=False)]
+    mock_profile.return_value = {"merchant_code": "MK10CL2A", "merchant_name": "Connected", "sandbox": False}
+    mock_list.return_value = [
+        {"id": CONNECT_REMOTE_READER_ID, "name": "Imported", "status": "paired"},
+    ]
+    r = client.put(
+        f"/sumup/organisations/{org_id}/api-key",
+        headers=_auth_headers(),
+        json={"api_key": "sup_sk_rotated"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["reader_count"] == 1
+
+    db = SessionLocal()
+    try:
+        rows = db.query(SumupReader).filter(SumupReader.organisation_id == org_id).all()
+        assert [row.sumup_reader_id for row in rows] == [CONNECT_REMOTE_READER_ID]
+        assert rows[0].label == "Imported"
+    finally:
+        db.close()
+
+
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
+@patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
+@patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
+def test_api_key_connect_succeeds_when_reader_list_fails(mock_memberships, mock_profile, mock_list):
+    from app.sumup_client import SumupApiError
+
+    org_id = _seed_tenant()
+    mock_memberships.return_value = [_membership(code="MKAPIKEY1", name="Cafe", sandbox=False)]
+    mock_profile.return_value = {
+        "merchant_code": "MKAPIKEY1",
+        "merchant_name": "Cafe",
+        "sandbox": False,
+        "country": "CH",
+    }
+    mock_list.side_effect = SumupApiError(503, "unavailable")
+    r = client.put(
+        f"/sumup/organisations/{org_id}/api-key",
+        headers=_auth_headers(),
+        json={"api_key": "sup_sk_live_testkey"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["connected"] is True
+    assert r.json()["reader_count"] == 0
+
+    db = SessionLocal()
+    try:
+        org = db.query(Organisation).filter(Organisation.id == org_id).first()
+        assert org.sumup_access_token == "sup_sk_live_testkey"
+        assert db.query(SumupReader).filter(SumupReader.organisation_id == org_id).count() == 0
+    finally:
+        db.close()
+
+
+@patch("app.routers.sumup_readers.sumup_client.list_readers")
+@patch("app.routers.sumup_connect.sumup_client.get_merchant_profile_for_code")
+@patch("app.routers.sumup_connect.sumup_client.list_merchant_memberships")
+def test_api_key_update_keeps_local_readers_when_list_fails(mock_memberships, mock_profile, mock_list):
+    from app.sumup_client import SumupApiError
+
+    org_id = _seed_tenant(connected=True)
+    db = SessionLocal()
+    try:
+        org = db.query(Organisation).filter(Organisation.id == org_id).first()
+        org.sumup_refresh_token = None
+        org.sumup_token_expires_at = None
+        org.sumup_access_token = "sup_sk_old"
+        db.commit()
+    finally:
+        db.close()
+
+    mock_memberships.return_value = [_membership(code="MK10CL2A", name="Connected", sandbox=False)]
+    mock_profile.return_value = {"merchant_code": "MK10CL2A", "merchant_name": "Connected", "sandbox": False}
+    mock_list.side_effect = SumupApiError(503, "unavailable")
+    r = client.put(
+        f"/sumup/organisations/{org_id}/api-key",
+        headers=_auth_headers(),
+        json={"api_key": "sup_sk_rotated"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["connected"] is True
+    assert r.json()["reader_count"] == 1
+
+    db = SessionLocal()
+    try:
+        org = db.query(Organisation).filter(Organisation.id == org_id).first()
+        assert org.sumup_access_token == "sup_sk_rotated"
+        assert db.query(SumupReader).filter(SumupReader.organisation_id == org_id).count() == 1
+    finally:
+        db.close()
