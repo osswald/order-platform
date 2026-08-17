@@ -5456,6 +5456,20 @@
               }
             ],
             "title": "Sumup Transaction Id"
+          },
+          "sumup_receipt_info": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sumup Receipt Info"
           }
         },
         "additionalProperties": true,

@@ -2004,6 +2004,10 @@ export interface components {
             stripe_payment_intent_id?: string | null;
             /** Sumup Transaction Id */
             sumup_transaction_id?: string | null;
+            /** Sumup Receipt Info */
+            sumup_receipt_info?: {
+                [key: string]: string;
+            } | null;
         } & {
             [key: string]: unknown;
         };
