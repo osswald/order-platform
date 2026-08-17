@@ -982,6 +982,12 @@ def _ensure_sumup_tables() -> None:
         "ALTER TABLE sumup_readers ADD COLUMN device_model VARCHAR(64)",
         "ALTER TABLE sumup_readers ADD COLUMN IF NOT EXISTS device_model VARCHAR(64)",
     )
+    _add_column_if_missing(
+        "sumup_checkouts",
+        "receipt_info_json",
+        "ALTER TABLE sumup_checkouts ADD COLUMN receipt_info_json JSON",
+        "ALTER TABLE sumup_checkouts ADD COLUMN IF NOT EXISTS receipt_info_json JSONB",
+    )
 
 
 def _backfill_layout_cell_voucher_uuids() -> None:

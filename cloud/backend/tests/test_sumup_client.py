@@ -226,6 +226,18 @@ def test_list_readers_raises_when_items_not_a_list(mock_request):
 
 
 @patch("app.sumup_client.request_json")
+def test_get_transaction_by_client_transaction_id(mock_request):
+    from app.sumup_client import get_transaction
+
+    mock_request.return_value = {"id": "txn", "transaction_code": "ABC"}
+    out = get_transaction("tok", "MK10CL2A", client_transaction_id="ctx-1")
+    assert out["transaction_code"] == "ABC"
+    url = mock_request.call_args.args[1]
+    assert "/v2.1/merchants/MK10CL2A/transactions?" in url
+    assert "client_transaction_id=ctx-1" in url
+
+
+@patch("app.sumup_client.request_json")
 def test_get_merchant_profile_for_code(mock_request):
     mock_request.return_value = {
         "merchant_code": "MCSAND",

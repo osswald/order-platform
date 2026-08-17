@@ -20853,6 +20853,16 @@
               }
             ],
             "title": "Transaction Id"
+          },
+          "receipt_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SumupReceiptInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -21183,6 +21193,89 @@
           "label"
         ],
         "title": "SumupReaderUpdateRequest"
+      },
+      "SumupReceiptInfo": {
+        "properties": {
+          "transaction_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Code"
+          },
+          "auth_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Code"
+          },
+          "card_last_4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Last 4"
+          },
+          "card_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Type"
+          },
+          "entry_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Mode"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          },
+          "merchant_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Code"
+          }
+        },
+        "type": "object",
+        "title": "SumupReceiptInfo"
       },
       "SumupTerminateBody": {
         "properties": {

@@ -43,15 +43,43 @@ export function buildPayment(amountCents: number, type: string): PaymentIn[] {
   return [{ type, amount_cents: Math.max(0, Number(amountCents) || 0) }]
 }
 
+export interface SumupReceiptInfo {
+  transaction_code?: string | null
+  auth_code?: string | null
+  card_last_4?: string | null
+  card_type?: string | null
+  entry_mode?: string | null
+  timestamp?: string | null
+  merchant_code?: string | null
+}
+
+export function sanitizeSumupReceiptInfo(
+  info: SumupReceiptInfo | null | undefined,
+): Record<string, string> | undefined {
+  if (!info || typeof info !== 'object') return undefined
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(info)) {
+    if (value == null) continue
+    const text = String(value).trim()
+    if (text) out[key] = text
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 export function buildSumupConnectedPayment(
   amountCents: number,
   sumupTransactionId: string,
+  receiptInfo?: SumupReceiptInfo | null,
 ): PaymentIn[] {
-  return [
-    {
-      type: 'sumup_connected',
-      amount_cents: Math.max(0, Number(amountCents) || 0),
-      sumup_transaction_id: String(sumupTransactionId || '').trim(),
-    },
-  ]
+  const payment: PaymentIn = {
+    type: 'sumup_connected',
+    amount_cents: Math.max(0, Number(amountCents) || 0),
+    sumup_transaction_id: String(sumupTransactionId || '').trim(),
+  }
+  const cleaned = sanitizeSumupReceiptInfo(receiptInfo)
+  if (cleaned) {
+    ;(payment as PaymentIn & { sumup_receipt_info: Record<string, string> }).sumup_receipt_info =
+      cleaned
+  }
+  return [payment]
 }

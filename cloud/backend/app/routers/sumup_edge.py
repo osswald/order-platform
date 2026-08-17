@@ -18,6 +18,7 @@ from ..models import Event, Organisation, SumupCheckout, SumupReader
 from ..payment_types_config import payment_types_from_event
 from ..sumup_checkout_state import apply_checkout_payload, checkout_id_from_payload
 from ..sumup_client import sumup_error
+from ..sumup_receipt_fetch import ensure_checkout_receipt_info, receipt_info_payload
 from ..sumup_tokens import get_valid_access_token
 from .edge import ApplianceEdgeContext, _load_event_for_org, get_edge_server_appliance
 
@@ -38,10 +39,21 @@ class SumupCheckoutCreate(BaseModel):
         return value.upper() if value else value
 
 
+class SumupReceiptInfo(BaseModel):
+    transaction_code: str | None = None
+    auth_code: str | None = None
+    card_last_4: str | None = None
+    card_type: str | None = None
+    entry_mode: str | None = None
+    timestamp: str | None = None
+    merchant_code: str | None = None
+
+
 class SumupCheckoutRead(BaseModel):
     checkout_id: str
     status: str
     transaction_id: str | None = None
+    receipt_info: SumupReceiptInfo | None = None
 
 
 class SumupTerminateBody(BaseModel):
@@ -51,6 +63,16 @@ class SumupTerminateBody(BaseModel):
 
 class SumupTerminateResponse(BaseModel):
     ok: bool = True
+
+
+def _checkout_read(row: SumupCheckout) -> SumupCheckoutRead:
+    info = receipt_info_payload(row)
+    return SumupCheckoutRead(
+        checkout_id=row.sumup_checkout_id,
+        status=row.status,
+        transaction_id=row.sumup_transaction_id,
+        receipt_info=SumupReceiptInfo(**info) if info else None,
+    )
 
 
 def _sumup_organisation_for_event(
@@ -160,11 +182,7 @@ def create_sumup_checkout(
     db.add(row)
     commit_or_raise(db)
     db.refresh(row)
-    return SumupCheckoutRead(
-        checkout_id=row.sumup_checkout_id,
-        status=row.status,
-        transaction_id=row.sumup_transaction_id,
-    )
+    return _checkout_read(row)
 
 
 @router.post("/v1/sumup/terminate", response_model=SumupTerminateResponse)
@@ -197,29 +215,23 @@ def read_sumup_checkout_status(
         event_id=event_id,
         checkout_id=checkout_id,
     )
-    if row.status in {"paid", "failed", "terminated"}:
-        return SumupCheckoutRead(
-            checkout_id=row.sumup_checkout_id,
-            status=row.status,
-            transaction_id=row.sumup_transaction_id,
-        )
+    if row.status not in {"paid", "failed", "terminated"}:
+        try:
+            access_token = get_valid_access_token(db, organisation)
+            payload = sumup_client.get_reader_checkout(
+                access_token,
+                organisation.sumup_merchant_code,
+                row.sumup_reader_id,
+                checkout_id,
+            )
+        except Exception as exc:
+            raise sumup_error(exc) from exc
 
-    try:
-        access_token = get_valid_access_token(db, organisation)
-        payload = sumup_client.get_reader_checkout(
-            access_token,
-            organisation.sumup_merchant_code,
-            row.sumup_reader_id,
-            checkout_id,
-        )
-    except Exception as exc:
-        raise sumup_error(exc) from exc
+        _apply_checkout_payload(row, payload)
 
-    _apply_checkout_payload(row, payload)
+    if row.status == "paid":
+        ensure_checkout_receipt_info(db, organisation, row)
+
     commit_or_raise(db)
     db.refresh(row)
-    return SumupCheckoutRead(
-        checkout_id=row.sumup_checkout_id,
-        status=row.status,
-        transaction_id=row.sumup_transaction_id,
-    )
+    return _checkout_read(row)
