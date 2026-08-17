@@ -231,6 +231,7 @@ async def create_sumup_checkout(
     currency: str | None = None,
     reader_id: str,
     client_order_id: str | None = None,
+    waiter_uuid: str | None = None,
 ) -> dict[str, Any]:
     base, cid, secret = _require_config()
     url = f"{base}/edge/v1/sumup/checkout"
@@ -243,6 +244,8 @@ async def create_sumup_checkout(
         body["currency"] = currency
     if client_order_id:
         body["client_order_id"] = client_order_id
+    if waiter_uuid:
+        body["waiter_uuid"] = waiter_uuid
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(url, headers={**_headers(cid, secret), "Content-Type": "application/json"}, json=body)
         r.raise_for_status()

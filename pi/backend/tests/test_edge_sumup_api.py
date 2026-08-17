@@ -63,6 +63,36 @@ def test_sumup_checkout_proxies_cloud(client, bundle, monkeypatch):
     assert r.json()["checkout_id"] == "co_test"
 
 
+def test_sumup_checkout_forwards_waiter_uuid(client, bundle, monkeypatch):
+    _patch_bundle_payment_types(bundle, ["sumup_connected"])
+    ev = bundle["events"][0]
+    mock_create = AsyncMock(
+        return_value={
+            "checkout_id": "co_test",
+            "status": "pending",
+        }
+    )
+    monkeypatch.setattr(
+        "app.routers.edge_sumup.cloud_create_sumup_checkout",
+        mock_create,
+    )
+    r = client.post(
+        "/v1/sumup/checkout",
+        json={
+            "event_id": ev["id"],
+            "amount_cents": 500,
+            "currency": "CHF",
+            "reader_id": "rdr_test",
+            "client_order_id": "order-1",
+            "waiter_uuid": "w-anna",
+        },
+    )
+    assert r.status_code == 200, r.text
+    mock_create.assert_awaited_once()
+    assert mock_create.await_args.kwargs["waiter_uuid"] == "w-anna"
+    assert mock_create.await_args.kwargs["client_order_id"] == "order-1"
+
+
 def test_sumup_status_proxies_cloud(client, bundle, monkeypatch):
     _patch_bundle_payment_types(bundle, ["sumup_connected"])
     ev = bundle["events"][0]

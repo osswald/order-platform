@@ -10,6 +10,7 @@ from app.models import (
     Appliance,
     ApplianceEdgeCredential,
     Event,
+    EventWaiter,
     HireCompany,
     Organisation,
     SumupCheckout,
@@ -135,7 +136,73 @@ def test_sumup_create_checkout(mock_create_checkout, _mock_token):
     kwargs = mock_create_checkout.call_args.kwargs
     assert kwargs["amount_cents"] == 500
     assert kwargs["foreign_transaction_id"] == "order-abc"
+    assert kwargs["description"] == "Live · Bar"
+    assert kwargs["description"] != f"Event {event_id}"
     assert "affiliate" not in str(mock_create_checkout.call_args)
+
+
+@patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")
+@patch("app.routers.sumup_edge.sumup_client.create_reader_checkout")
+def test_sumup_create_checkout_description_includes_waiter(mock_create_checkout, _mock_token):
+    headers, event_id = _edge_sumup_fixture()
+    waiter_uuid = str(uuid4())
+    db = SessionLocal()
+    try:
+        db.add(EventWaiter(event_id=event_id, uuid=waiter_uuid, name="Anna", pin="1234"))
+        db.commit()
+    finally:
+        db.close()
+    mock_create_checkout.return_value = {
+        "data": {
+            "checkout_id": CHECKOUT_ID,
+            "client_transaction_id": TRANSACTION_ID,
+        }
+    }
+
+    r = client.post(
+        "/edge/v1/sumup/checkout",
+        headers=headers,
+        json={
+            "event_id": event_id,
+            "amount_cents": 500,
+            "currency": "CHF",
+            "reader_id": READER_ID,
+            "client_order_id": "order-abc",
+            "waiter_uuid": waiter_uuid,
+        },
+    )
+    assert r.status_code == 200, r.text
+    kwargs = mock_create_checkout.call_args.kwargs
+    assert kwargs["description"] == "Live · Bar · Anna"
+    assert kwargs["foreign_transaction_id"] == "order-abc"
+
+
+@patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")
+@patch("app.routers.sumup_edge.sumup_client.create_reader_checkout")
+def test_sumup_create_checkout_description_omits_unknown_waiter(mock_create_checkout, _mock_token):
+    headers, event_id = _edge_sumup_fixture()
+    mock_create_checkout.return_value = {
+        "data": {
+            "checkout_id": CHECKOUT_ID,
+            "client_transaction_id": TRANSACTION_ID,
+        }
+    }
+
+    r = client.post(
+        "/edge/v1/sumup/checkout",
+        headers=headers,
+        json={
+            "event_id": event_id,
+            "amount_cents": 500,
+            "currency": "CHF",
+            "reader_id": READER_ID,
+            "waiter_uuid": str(uuid4()),
+        },
+    )
+    assert r.status_code == 200, r.text
+    kwargs = mock_create_checkout.call_args.kwargs
+    assert kwargs["description"] == "Live · Bar"
+    assert kwargs["description"] != f"Event {event_id}"
 
 
 def test_sumup_checkout_requires_sumup_connected_event():
