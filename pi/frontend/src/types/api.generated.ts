@@ -2437,6 +2437,8 @@ export interface components {
             reader_id: string;
             /** Client Order Id */
             client_order_id?: string | null;
+            /** Waiter Uuid */
+            waiter_uuid?: string | null;
         };
         /** SumupTerminateBody */
         SumupTerminateBody: {

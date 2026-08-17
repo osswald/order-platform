@@ -33,6 +33,7 @@ class SumupCheckoutBody(BaseModel):
     currency: str | None = Field(None, min_length=3, max_length=3)
     reader_id: str = Field(..., min_length=1, max_length=64)
     client_order_id: str | None = Field(None, max_length=64)
+    waiter_uuid: str | None = Field(None, min_length=1, max_length=36)
 
 
 class SumupTerminateBody(BaseModel):
@@ -60,6 +61,7 @@ async def sumup_checkout(body: SumupCheckoutBody, db: Session = Depends(get_db))
             currency=body.currency or ev.get("currency"),
             reader_id=body.reader_id,
             client_order_id=body.client_order_id,
+            waiter_uuid=body.waiter_uuid,
         )
     except CloudConfigError as e:
         raise cloud_config_http_error(e) from e

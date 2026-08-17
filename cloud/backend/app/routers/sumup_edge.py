@@ -14,8 +14,9 @@ from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..event_status import ORDER_ACCEPT_STATUSES
 from ..i18n.errors import api_error
-from ..models import Event, Organisation, SumupCheckout, SumupReader
+from ..models import Event, EventWaiter, Organisation, SumupCheckout, SumupReader
 from ..payment_types_config import payment_types_from_event
+from ..sumup_checkout_description import sumup_checkout_description
 from ..sumup_checkout_state import apply_checkout_payload, checkout_id_from_payload
 from ..sumup_client import sumup_error
 from ..sumup_receipt_fetch import ensure_checkout_receipt_info, receipt_info_payload
@@ -32,6 +33,7 @@ class SumupCheckoutCreate(BaseModel):
     currency: str | None = Field(None, min_length=3, max_length=3)
     reader_id: str = Field(..., min_length=1, max_length=64)
     client_order_id: str | None = Field(None, max_length=64)
+    waiter_uuid: str | None = Field(None, min_length=1, max_length=36)
 
     @field_validator("currency")
     @classmethod
@@ -138,6 +140,21 @@ def _apply_checkout_payload(row: SumupCheckout, payload: dict[str, Any]) -> None
     apply_checkout_payload(row, payload)
 
 
+def _waiter_name_for_event(db: Session, event_id: int, waiter_uuid: str | None) -> str | None:
+    uuid_value = (waiter_uuid or "").strip()
+    if not uuid_value:
+        return None
+    row = (
+        db.query(EventWaiter)
+        .filter(EventWaiter.event_id == event_id, EventWaiter.uuid == uuid_value)
+        .first()
+    )
+    if not row:
+        return None
+    name = (row.name or "").strip()
+    return name or None
+
+
 @router.post("/v1/sumup/checkout", response_model=SumupCheckoutRead)
 def create_sumup_checkout(
     body: SumupCheckoutCreate,
@@ -145,8 +162,13 @@ def create_sumup_checkout(
     db: Session = Depends(get_db),
 ) -> SumupCheckoutRead:
     event, organisation = _sumup_organisation_for_event(db, ctx, body.event_id)
-    _reader_for_org(db, organisation.id, body.reader_id)
+    reader = _reader_for_org(db, organisation.id, body.reader_id)
     currency = (body.currency or organisation_currency(organisation, event_currency(event, "CHF"))).upper()
+    description = sumup_checkout_description(
+        event.name,
+        reader.label,
+        _waiter_name_for_event(db, event.id, body.waiter_uuid),
+    )
     try:
         access_token = get_valid_access_token(db, organisation)
         created = sumup_client.create_reader_checkout(
@@ -155,7 +177,7 @@ def create_sumup_checkout(
             body.reader_id,
             amount_cents=body.amount_cents,
             currency=currency,
-            description=f"Event {event.id}",
+            description=description,
             foreign_transaction_id=body.client_order_id,
         )
     except Exception as exc:

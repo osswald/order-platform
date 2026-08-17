@@ -52,6 +52,7 @@ export async function createSumupCheckout(input: {
       currency: input.currency,
       reader_id: input.readerId,
       client_order_id: input.clientOrderId || undefined,
+      waiter_uuid: waiter.value?.uuid || undefined,
     }),
   })
 }

@@ -6769,6 +6769,19 @@
               }
             ],
             "title": "Client Order Id"
+          },
+          "waiter_uuid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiter Uuid"
           }
         },
         "type": "object",
