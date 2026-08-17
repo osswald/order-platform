@@ -6,7 +6,9 @@ import {
 
 describe('screensaverDisplay', () => {
   beforeEach(() => {
-    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob) => `blob:test-${blob.size}`)
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((obj: Blob | MediaSource) =>
+      `blob:test-${obj instanceof Blob ? obj.size : 0}`,
+    )
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
   })
 
