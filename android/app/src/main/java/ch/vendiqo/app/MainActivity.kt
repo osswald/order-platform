@@ -78,7 +78,13 @@ class MainActivity : ComponentActivity() {
                 override fun shouldInterceptRequest(
                     view: WebView,
                     request: WebResourceRequest,
-                ) = assetLoader.shouldInterceptRequest(request.url)
+                ): android.webkit.WebResourceResponse? {
+                    // Only intercept bundled asset URLs. Pi HTTP (screensaver images, API)
+                    // must hit the network — returning a loader miss 404s those requests.
+                    val host = request.url.host
+                    if (host != "appassets.androidplatform.net") return null
+                    return assetLoader.shouldInterceptRequest(request.url)
+                }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)

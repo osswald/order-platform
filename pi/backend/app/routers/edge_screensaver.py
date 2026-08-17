@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..bundle_cache import get_bundle_dict
 from ..deps import get_db
+from ..screensaver_display import jpeg_bytes_for_display
 from ..screensaver_store import (
     has_screensaver_file,
     list_local_shas,
@@ -46,12 +47,8 @@ def get_screensaver_image(sha256: str) -> Response:
     raw = read_screensaver_bytes(sha256)
     if raw is None:
         raise HTTPException(status_code=404, detail="Screensaver image not found")
-    # Prefer sniffing common magic bytes for Content-Type.
-    mime = "application/octet-stream"
-    if raw.startswith(b"\x89PNG"):
-        mime = "image/png"
-    elif raw[:3] == b"\xff\xd8\xff":
-        mime = "image/jpeg"
-    elif raw.startswith(b"RIFF") and b"WEBP" in raw[:16]:
-        mime = "image/webp"
-    return Response(content=raw, media_type=mime)
+    try:
+        body, mime = jpeg_bytes_for_display(raw)
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail="Screensaver image could not be decoded") from exc
+    return Response(content=body, media_type=mime)
