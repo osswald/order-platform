@@ -17,6 +17,11 @@ describe('RegisterDisplayView idle screensaver', () => {
     expect(src).toMatch(/v-else class="idle-screen"/)
   })
 
+  it('loads gallery via blob object URLs not raw Pi http img src', () => {
+    expect(src).toMatch(/loadScreensaverObjectUrls/)
+    expect(src).not.toMatch(/getApiBase\(\)\.replace/)
+  })
+
   it('leaves screensaver for non-idle states', () => {
     expect(src).toMatch(/state === 'ordering'/)
     expect(src).toMatch(/state === 'sumup_connected'/)

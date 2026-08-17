@@ -78,6 +78,7 @@ import type { RegisterDisplayPayload } from '@/types/api'
 import type { CartLine } from '@/types/cart'
 import { api } from '@/api'
 import { buildWsUrl, getApiBase } from '@/api/base'
+import { loadScreensaverObjectUrls, revokeScreensaverObjectUrls } from '@/utils/screensaverDisplay'
 import { useEventContext } from '@/composables/useEventContext'
 import { abholbonFooterText, pickupBadgesForDisplay } from '@/utils/customerDisplayPickup'
 import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
@@ -229,23 +230,16 @@ async function loadDisplay() {
 
 async function loadScreensaverUrls() {
   if (!event.value?.id) {
+    revokeScreensaverObjectUrls(screensaverUrls.value)
     screensaverUrls.value = []
     screensaverGreyscale.value = false
     return
   }
-  try {
-    const data = await api<{ images?: Array<{ sha256: string }>; greyscale?: boolean }>(
-      `/v1/screensaver/images?event_id=${encodeURIComponent(event.value.id)}`,
-    )
-    const hashes = (data?.images || []).map((i) => String(i.sha256 || '').trim()).filter(Boolean)
-    const base = getApiBase().replace(/\/$/, '')
-    screensaverUrls.value = hashes.map((h) => `${base}/v1/screensaver/${encodeURIComponent(h)}`)
-    screensaverGreyscale.value = Boolean(data?.greyscale)
-    screensaverIndex.value = 0
-  } catch {
-    screensaverUrls.value = []
-    screensaverGreyscale.value = false
-  }
+  const next = await loadScreensaverObjectUrls(event.value.id)
+  revokeScreensaverObjectUrls(screensaverUrls.value)
+  screensaverUrls.value = next.urls
+  screensaverGreyscale.value = next.greyscale
+  screensaverIndex.value = 0
 }
 
 function stopScreensaverRotation() {
@@ -372,6 +366,8 @@ onUnmounted(() => {
   disposed = true
   stopPolling()
   stopScreensaverRotation()
+  revokeScreensaverObjectUrls(screensaverUrls.value)
+  screensaverUrls.value = []
   closeWs()
 })
 
