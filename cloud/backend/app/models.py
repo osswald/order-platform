@@ -242,6 +242,7 @@ class SumupCheckout(Base):
     currency = Column(String(3), nullable=False)
     status = Column(String(32), nullable=False, default="pending")
     sumup_transaction_id = Column(String(128), nullable=True)
+    receipt_info_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

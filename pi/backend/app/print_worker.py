@@ -291,11 +291,67 @@ def _payment_type_label(payment_type: str) -> str:
         "cash": "Bar",
         "twint": "TWINT",
         "sumup": "Sumup (manual)",
-        "sumup_connected": "Sumup connected",
+        "sumup_connected": "KARTE",
         "stripe_terminal": "Karte",
     }
     key = str(payment_type or "").lower()
     return labels.get(key, key or "Zahlung")
+
+
+_ENTRY_MODE_LABELS = {
+    "CONTACTLESS": "Kontaktlos",
+    "CONTACTLESS_MAGSTRIPE": "Kontaktlos",
+    "CHIP": "Chip",
+    "MAGSTRIPE": "Magnetstreifen",
+    "MAGSTRIPE_FALLBACK": "Magnetstreifen",
+    "MANUAL_ENTRY": "Manuell",
+    "CUSTOMER_ENTRY": "Manuell",
+    "APPLE_PAY": "Apple Pay",
+    "GOOGLE_PAY": "Google Pay",
+}
+
+
+def _sumup_receipt_info_from_payments(payments: list) -> dict | None:
+    for payment in payments:
+        if not isinstance(payment, dict):
+            continue
+        if str(payment.get("type") or "").lower() != "sumup_connected":
+            continue
+        info = payment.get("sumup_receipt_info")
+        if isinstance(info, dict) and info:
+            return info
+    return None
+
+
+def _write_sumup_receipt_info(printer: Dummy, info: dict, *, line_size: str, width: int) -> None:
+    """Append SumUp card/acquirer fields at the bottom of a Zahlungsbeleg."""
+    card_type = str(info.get("card_type") or "").strip()
+    last4 = str(info.get("card_last_4") or "").strip()
+    auth = str(info.get("auth_code") or "").strip()
+    code = str(info.get("transaction_code") or "").strip()
+    entry_raw = str(info.get("entry_mode") or "").strip().upper()
+    entry = _ENTRY_MODE_LABELS.get(entry_raw) or (entry_raw.replace("_", " ").title() if entry_raw else "")
+
+    lines: list[str] = []
+    if card_type and last4:
+        lines.append(f"{card_type} ****{last4}")
+    elif card_type:
+        lines.append(card_type)
+    elif last4:
+        lines.append(f"****{last4}")
+    if auth:
+        lines.append(f"Auth: {auth}")
+    if code:
+        lines.append(f"Code: {code}")
+    if entry:
+        lines.append(entry)
+    if not lines:
+        return
+
+    write_separator(printer, width=width)
+    write_sized_line(printer, "Kartenzahlung", line_size)
+    for line in lines:
+        write_sized_line(printer, line, line_size)
 
 
 def _write_order_lines(
@@ -583,6 +639,9 @@ def build_payment_receipt_text(
                 write_two_column(printer, "Gutschein:", _amount(voucher_credit), width)
             else:
                 write_sized_line(printer, f"Gutschein: {_amount(voucher_credit)}", line_size)
+        sumup_info = _sumup_receipt_info_from_payments(payments)
+        if sumup_info:
+            _write_sumup_receipt_info(printer, sumup_info, line_size=line_size, width=width)
         bottom = (profile.get("bottom_line") or "").strip()
         if bottom:
             write_centered_block(printer, bottom)

@@ -475,3 +475,33 @@ def get_checkout(access_token: str, checkout_id: str) -> dict[str, Any]:
         f"{SUMUP_API_BASE}/v0.1/checkouts/{checkout_id}",
         headers=_auth_headers(access_token),
     )
+
+
+def get_transaction(
+    access_token: str,
+    merchant_code: str,
+    *,
+    client_transaction_id: str | None = None,
+    transaction_id: str | None = None,
+    transaction_code: str | None = None,
+) -> dict[str, Any]:
+    """Retrieve a transaction via ``GET /v2.1/merchants/{code}/transactions``.
+
+    Exactly one of ``client_transaction_id``, ``transaction_id``, or
+    ``transaction_code`` should identify the resource (SumUp requires one).
+    """
+    params: dict[str, str] = {}
+    if client_transaction_id and str(client_transaction_id).strip():
+        params["client_transaction_id"] = str(client_transaction_id).strip()
+    elif transaction_id and str(transaction_id).strip():
+        params["id"] = str(transaction_id).strip()
+    elif transaction_code and str(transaction_code).strip():
+        params["transaction_code"] = str(transaction_code).strip()
+    else:
+        raise SumupApiError(400, "SumUp transaction lookup requires an id")
+    query = urlencode(params)
+    return request_json(
+        "GET",
+        f"{SUMUP_API_BASE}/v2.1/merchants/{merchant_code}/transactions?{query}",
+        headers=_auth_headers(access_token),
+    )

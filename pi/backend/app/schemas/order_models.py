@@ -46,6 +46,7 @@ class PaymentIn(BaseModel):
     amount_cents: int = Field(..., ge=0)
     stripe_payment_intent_id: str | None = None
     sumup_transaction_id: str | None = None
+    sumup_receipt_info: dict[str, str] | None = None
 
 
 class OpenOrderEntry(BaseModel):

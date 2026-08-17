@@ -2,7 +2,7 @@ import { api } from '@/api'
 import type { EdgeBundleEvent, PaymentIn } from '@/types/api'
 import { bundle } from '@/store/bundle'
 import { registerSession, waiter } from '@/store/sessions'
-import { buildSumupConnectedPayment } from './paymentTypes'
+import { buildSumupConnectedPayment, type SumupReceiptInfo } from './paymentTypes'
 import {
   findSumupReaderLabel,
   getBundleSumupReaders,
@@ -16,6 +16,7 @@ interface SumupCheckoutResponse {
   checkout_id: string
   status: string
   transaction_id?: string | null
+  receipt_info?: SumupReceiptInfo | null
 }
 
 function sleep(ms: number): Promise<void> {
@@ -111,7 +112,11 @@ export async function collectSumupConnectedPayment(input: {
 
   try {
     const finalStatus = await pollSumupCheckoutUntilDone(input.event.id, created.checkout_id)
-    const payment = buildSumupConnectedPayment(input.amountCents, finalStatus.transaction_id || '')[0]
+    const payment = buildSumupConnectedPayment(
+      input.amountCents,
+      finalStatus.transaction_id || '',
+      finalStatus.receipt_info,
+    )[0]
     if (!payment.sumup_transaction_id) {
       throw new Error('SumUp-Transaktion ohne ID.')
     }

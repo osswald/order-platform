@@ -6,6 +6,7 @@ import {
   eventPaymentTypes,
   eventTwintQrDataUrl,
   paymentTypeLabel,
+  sanitizeSumupReceiptInfo,
 } from './paymentTypes'
 
 describe('paymentTypeLabel', () => {
@@ -63,5 +64,41 @@ describe('buildSumupConnectedPayment', () => {
         sumup_transaction_id: 'txn_abc',
       },
     ])
+  })
+
+  it('stores cleaned sumup receipt info on the payment row', () => {
+    expect(
+      buildSumupConnectedPayment(1500, 'txn_abc', {
+        card_type: 'MASTERCARD',
+        card_last_4: '3456',
+        auth_code: '053201',
+        transaction_code: 'TEENSK4W2K',
+        entry_mode: 'CONTACTLESS',
+        timestamp: null,
+        merchant_code: '  ',
+      }),
+    ).toEqual([
+      {
+        type: 'sumup_connected',
+        amount_cents: 1500,
+        sumup_transaction_id: 'txn_abc',
+        sumup_receipt_info: {
+          card_type: 'MASTERCARD',
+          card_last_4: '3456',
+          auth_code: '053201',
+          transaction_code: 'TEENSK4W2K',
+          entry_mode: 'CONTACTLESS',
+        },
+      },
+    ])
+  })
+})
+
+describe('sanitizeSumupReceiptInfo', () => {
+  it('drops null and blank values', () => {
+    expect(sanitizeSumupReceiptInfo({ card_type: 'VISA', auth_code: null, card_last_4: ' ' })).toEqual({
+      card_type: 'VISA',
+    })
+    expect(sanitizeSumupReceiptInfo(null)).toBeUndefined()
   })
 })

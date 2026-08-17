@@ -5082,6 +5082,7 @@ export interface components {
             status: string;
             /** Transaction Id */
             transaction_id?: string | null;
+            receipt_info?: components["schemas"]["SumupReceiptInfo"] | null;
         };
         /** SumupConnectStatus */
         SumupConnectStatus: {
@@ -5174,6 +5175,23 @@ export interface components {
         SumupReaderUpdateRequest: {
             /** Label */
             label: string;
+        };
+        /** SumupReceiptInfo */
+        SumupReceiptInfo: {
+            /** Transaction Code */
+            transaction_code?: string | null;
+            /** Auth Code */
+            auth_code?: string | null;
+            /** Card Last 4 */
+            card_last_4?: string | null;
+            /** Card Type */
+            card_type?: string | null;
+            /** Entry Mode */
+            entry_mode?: string | null;
+            /** Timestamp */
+            timestamp?: string | null;
+            /** Merchant Code */
+            merchant_code?: string | null;
         };
         /** SumupTerminateBody */
         SumupTerminateBody: {

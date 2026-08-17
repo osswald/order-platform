@@ -13,8 +13,9 @@ from sqlalchemy.orm import Session
 from ..db_errors import commit_or_raise
 from ..deps import get_db
 from ..i18n.errors import api_error
-from ..models import SumupCheckout, SumupWebhookEvent
+from ..models import Organisation, SumupCheckout, SumupWebhookEvent
 from ..sumup_checkout_state import apply_checkout_payload, normalize_checkout_status
+from ..sumup_receipt_fetch import ensure_checkout_receipt_info
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -92,6 +93,10 @@ async def sumup_webhook(request: Request, db: Session = Depends(get_db)) -> dict
             status_value = normalize_checkout_status(str(status_source.get("status")))
             row.status = status_value
             apply_checkout_payload(row, status_source)
+            if row.status == "paid":
+                organisation = db.query(Organisation).filter(Organisation.id == row.organisation_id).first()
+                if organisation:
+                    ensure_checkout_receipt_info(db, organisation, row)
 
     commit_or_raise(db)
     return {"received": "true"}

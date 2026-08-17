@@ -67,6 +67,68 @@ def test_order_payment_creates_receipt_payload(client):
     assert listing.json()["payments"][0]["total_cents"] == 1200
 
 
+def test_sumup_connected_payment_stores_receipt_info_on_beleg(client, bundle):
+    c, Session = client
+    from tests.test_edge_sumup_api import _patch_bundle_payment_types
+
+    _patch_bundle_payment_types(bundle, ["cash", "sumup_connected"])
+
+    order = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": 3,
+            "waiter_uuid": "w-1",
+            "lines": [{"article_id": 10, "qty": 1, "note": "", "additions": []}],
+            "payments": [],
+        },
+    )
+    assert order.status_code == 200, order.text
+    order_id = order.json()["local_order_id"]
+
+    paid = c.post(
+        f"/v1/orders/{order_id}/pay",
+        json={
+            "payments": [
+                {
+                    "type": "sumup_connected",
+                    "amount_cents": 1200,
+                    "sumup_transaction_id": "txn-ctx-1",
+                    "sumup_receipt_info": {
+                        "card_type": "VISA",
+                        "card_last_4": "1111",
+                        "auth_code": "99",
+                        "transaction_code": "CODE99",
+                        "entry_mode": "CHIP",
+                    },
+                }
+            ]
+        },
+    )
+    assert paid.status_code == 200, paid.text
+    payment_id = paid.json()["payment_id"]
+
+    db = Session()
+    try:
+        receipt = db.query(PaymentReceipt).filter(PaymentReceipt.id == payment_id).one()
+        payload = json.loads(receipt.payload_json)
+        assert payload["payments"][0]["sumup_receipt_info"]["card_last_4"] == "1111"
+        assert payload["payments"][0]["sumup_transaction_id"] == "txn-ctx-1"
+    finally:
+        db.close()
+
+    esc = c.post(f"/v1/payments/{payment_id}/receipt", json={"reprint": False})
+    assert esc.status_code == 200, esc.text
+    raw = base64.b64decode(esc.json()["escpos_payload"])
+    assert b"KARTE" in raw or _escpos_text("KARTE") in raw
+    assert _escpos_text("Kartenzahlung") in raw
+    assert _escpos_text("VISA ****1111") in raw
+    assert _escpos_text("Auth: 99") in raw
+    assert _escpos_text("Code: CODE99") in raw
+    assert _escpos_text("Chip") in raw
+
+
 def test_backend_generates_test_receipt(client):
     c, _ = client
     response = c.post("/v1/printers/test-receipt", json={"event_id": 1})

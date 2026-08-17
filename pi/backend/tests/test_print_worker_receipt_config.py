@@ -416,6 +416,56 @@ def test_payment_receipt_payment_line_right_aligned():
     assert total_match.start() == bar_match.start()
 
 
+def test_payment_receipt_sumup_connected_labelled_karte():
+    raw = build_payment_receipt_text(
+        {
+            "lines": [{"article_id": 1, "qty": 1}],
+            "payments": [{"type": "sumup_connected", "amount_cents": 500}],
+        },
+        "Event",
+        articles={"1": {"name": "Bier", "price_cents": 500}},
+        currency="CHF",
+        event=_event_with_printing(),
+    )
+    text = raw.decode("latin-1", errors="replace")
+    assert "KARTE" in text
+    assert "Sumup connected" not in text
+
+
+def test_payment_receipt_prints_sumup_card_info_at_bottom():
+    raw = build_payment_receipt_text(
+        {
+            "lines": [{"article_id": 1, "qty": 1}],
+            "payments": [
+                {
+                    "type": "sumup_connected",
+                    "amount_cents": 500,
+                    "sumup_transaction_id": "txn-1",
+                    "sumup_receipt_info": {
+                        "card_type": "MASTERCARD",
+                        "card_last_4": "3456",
+                        "auth_code": "053201",
+                        "transaction_code": "TEENSK4W2K",
+                        "entry_mode": "CONTACTLESS",
+                    },
+                }
+            ],
+        },
+        "Event",
+        articles={"1": {"name": "Bier", "price_cents": 500}},
+        currency="CHF",
+        event=_event_with_printing(),
+    )
+    text = raw.decode("latin-1", errors="replace")
+    assert "KARTE" in text
+    assert "Kartenzahlung" in text
+    assert "MASTERCARD ****3456" in text
+    assert "Auth: 053201" in text
+    assert "Code: TEENSK4W2K" in text
+    assert "Kontaktlos" in text
+    assert text.index("Kartenzahlung") < text.index("Danke!")
+
+
 def test_payment_receipt_total_line_bold():
     raw = _payment_receipt_sample()
     marker = b"Total CHF:"

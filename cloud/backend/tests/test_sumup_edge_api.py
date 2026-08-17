@@ -200,8 +200,9 @@ def test_sumup_terminate_checkout(mock_terminate, _mock_token):
 
 
 @patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")
+@patch("app.sumup_receipt_fetch.sumup_client.get_transaction")
 @patch("app.routers.sumup_edge.sumup_client.get_reader_checkout")
-def test_sumup_checkout_status_paid(mock_get_checkout, _mock_token):
+def test_sumup_checkout_status_paid(mock_get_checkout, mock_get_transaction, _mock_token):
     headers, event_id = _edge_sumup_fixture()
     db = SessionLocal()
     try:
@@ -228,6 +229,13 @@ def test_sumup_checkout_status_paid(mock_get_checkout, _mock_token):
             "status": "successful",
         }
     }
+    mock_get_transaction.return_value = {
+        "id": TRANSACTION_ID,
+        "transaction_code": "TEENSK4W2K",
+        "auth_code": "053201",
+        "entry_mode": "CONTACTLESS",
+        "card": {"last_4_digits": "3456", "type": "MASTERCARD"},
+    }
 
     r = client.get(
         f"/edge/v1/sumup/status?event_id={event_id}&checkout_id={CHECKOUT_ID}",
@@ -237,7 +245,78 @@ def test_sumup_checkout_status_paid(mock_get_checkout, _mock_token):
     body = r.json()
     assert body["status"] == "paid"
     assert body["transaction_id"] == TRANSACTION_ID
+    assert body["receipt_info"] == {
+        "transaction_code": "TEENSK4W2K",
+        "auth_code": "053201",
+        "card_last_4": "3456",
+        "card_type": "MASTERCARD",
+        "entry_mode": "CONTACTLESS",
+        "timestamp": None,
+        "merchant_code": None,
+    }
     mock_get_checkout.assert_called_once_with("access_test", "MK10CL2A", READER_ID, CHECKOUT_ID)
+    mock_get_transaction.assert_called()
+
+    db = SessionLocal()
+    try:
+        row = db.query(SumupCheckout).filter(SumupCheckout.sumup_checkout_id == CHECKOUT_ID).first()
+        assert row is not None
+        assert row.receipt_info_json["transaction_code"] == "TEENSK4W2K"
+        assert row.receipt_info_json["card_last_4"] == "3456"
+    finally:
+        db.close()
+
+
+@patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")
+@patch("app.sumup_receipt_fetch.sumup_client.get_transaction")
+@patch("app.routers.sumup_edge.sumup_client.get_reader_checkout")
+def test_sumup_checkout_status_paid_survives_receipt_fetch_failure(
+    mock_get_checkout, mock_get_transaction, _mock_token
+):
+    headers, event_id = _edge_sumup_fixture()
+    db = SessionLocal()
+    try:
+        org = (
+            db.query(Organisation)
+            .filter(Organisation.sumup_merchant_code == "MK10CL2A")
+            .order_by(Organisation.id.desc())
+            .first()
+        )
+        db.add(
+            SumupCheckout(
+                organisation_id=org.id,
+                event_id=event_id,
+                sumup_reader_id=READER_ID,
+                sumup_checkout_id=CHECKOUT_ID,
+                amount_cents=500,
+                currency="CHF",
+                status="pending",
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    mock_get_checkout.return_value = {
+        "data": {
+            "checkout_id": CHECKOUT_ID,
+            "client_transaction_id": TRANSACTION_ID,
+            "status": "successful",
+        }
+    }
+    from app.sumup_client import SumupApiError
+
+    mock_get_transaction.side_effect = SumupApiError(404, "not found")
+
+    r = client.get(
+        f"/edge/v1/sumup/status?event_id={event_id}&checkout_id={CHECKOUT_ID}",
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "paid"
+    assert body["transaction_id"] == TRANSACTION_ID
+    assert body["receipt_info"] is None
 
 
 @patch("app.routers.sumup_edge.get_valid_access_token", return_value="access_test")

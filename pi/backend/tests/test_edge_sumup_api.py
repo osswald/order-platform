@@ -73,6 +73,13 @@ def test_sumup_status_proxies_cloud(client, bundle, monkeypatch):
                 "checkout_id": "co_test",
                 "status": "paid",
                 "transaction_id": "txn_1",
+                "receipt_info": {
+                    "card_type": "VISA",
+                    "card_last_4": "1111",
+                    "auth_code": "99",
+                    "transaction_code": "CODE99",
+                    "entry_mode": "CHIP",
+                },
             }
         ),
     )
@@ -81,4 +88,6 @@ def test_sumup_status_proxies_cloud(client, bundle, monkeypatch):
         params={"event_id": ev["id"], "checkout_id": "co_test"},
     )
     assert r.status_code == 200, r.text
-    assert r.json()["transaction_id"] == "txn_1"
+    body = r.json()
+    assert body["transaction_id"] == "txn_1"
+    assert body["receipt_info"]["card_last_4"] == "1111"
