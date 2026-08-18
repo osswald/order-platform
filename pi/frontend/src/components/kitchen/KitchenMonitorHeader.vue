@@ -4,6 +4,7 @@ defineProps<{
   eventName: string
   viewMode: 'orders' | 'products'
   loading: boolean
+  openOrderCount: number
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +16,7 @@ const emit = defineEmits<{
 <template>
   <header class="kitchen-header">
     <div class="kitchen-title">
-      <strong>{{ stationLabel }}</strong>
+      <strong>{{ stationLabel }} · {{ openOrderCount }} offen</strong>
       <span class="kitchen-event">{{ eventName }}</span>
     </div>
 
