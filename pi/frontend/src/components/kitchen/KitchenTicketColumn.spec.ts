@@ -1,10 +1,23 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { KitchenOrderTicket, KitchenTicketLineEntry } from '@/types/api'
 import {
+  KITCHEN_MIN_COLUMN_WIDTH_PX,
+  KITCHEN_ORDER_GAP_PX,
+} from '@/utils/kitchenMonitorHelpers'
+import {
   kitchenTicketActionBtnStyle,
   kitchenTicketActionsLayoutStyle,
 } from '@/utils/kitchenTicketActionStyles'
+import {
+  KITCHEN_TICKET_TYPE_PICKUP_COLOR,
+  KITCHEN_TICKET_TYPE_TABLE_COLOR,
+  MDI_FOOD_TAKEOUT_BOX,
+  MDI_TABLE_CHAIR,
+} from '@/utils/kitchenTicketType'
 import KitchenTicketColumn from './KitchenTicketColumn.vue'
 
 function line(overrides: Partial<KitchenTicketLineEntry> = {}): KitchenTicketLineEntry {
@@ -36,11 +49,12 @@ function ticket(overrides: Partial<KitchenOrderTicket> = {}): KitchenOrderTicket
 function mountColumn(opts: {
   selectedQty?: (lineId: number) => number
   busy?: boolean
+  ticket?: KitchenOrderTicket
 } = {}) {
   const selectedQty = opts.selectedQty ?? (() => 0)
   return mount(KitchenTicketColumn, {
     props: {
-      ticket: ticket(),
+      ticket: opts.ticket ?? ticket(),
       event: null,
       busy: opts.busy ?? false,
       selectedQty,
@@ -112,5 +126,35 @@ describe('KitchenTicketColumn', () => {
     expect(wrapper.text()).toContain('Burger')
     expect(wrapper.text()).toContain('+ 1x Salat')
     expect(wrapper.text()).not.toContain('Burger Deluxe')
+  })
+
+  it('shows a sky table-chair icon on the title line for table tickets', () => {
+    const wrapper = mountColumn()
+    expect(wrapper.find('.ticket-title').text()).toContain('Tisch 12')
+    const icon = wrapper.find('.ticket-type-icon')
+    expect(icon.exists()).toBe(true)
+    expect(icon.classes()).toContain('ticket-type-icon--table')
+    expect(icon.find('path').attributes('d')).toBe(MDI_TABLE_CHAIR)
+    expect(icon.attributes('style') || '').toContain(KITCHEN_TICKET_TYPE_TABLE_COLOR)
+    expect(wrapper.find('.elapsed').attributes('style') || '').not.toContain(KITCHEN_TICKET_TYPE_TABLE_COLOR)
+  })
+
+  it('shows a violet takeout-box icon on the title line for pickup tickets', () => {
+    const wrapper = mountColumn({ ticket: ticket({ pickup_code: 'A1', table_number: null }) })
+    expect(wrapper.find('.ticket-title').text()).toContain('Pickup A1')
+    const icon = wrapper.find('.ticket-type-icon')
+    expect(icon.classes()).toContain('ticket-type-icon--pickup')
+    expect(icon.find('path').attributes('d')).toBe(MDI_FOOD_TAKEOUT_BOX)
+    expect(icon.attributes('style') || '').toContain(KITCHEN_TICKET_TYPE_PICKUP_COLOR)
+  })
+
+  it('keeps ticket header padding and column-gap layout constants unchanged', () => {
+    expect(KITCHEN_ORDER_GAP_PX).toBe(6)
+    expect(KITCHEN_MIN_COLUMN_WIDTH_PX).toBe(200)
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'KitchenTicketColumn.vue'), 'utf8')
+    expect(src).toContain('padding: 0.7rem 0.85rem 0.6rem;')
+    const wrapper = mountColumn()
+    expect(wrapper.find('.ticket-title-row').exists()).toBe(true)
+    expect(wrapper.findAll('.ticket-header')).toHaveLength(1)
   })
 })

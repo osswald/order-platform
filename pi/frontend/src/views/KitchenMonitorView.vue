@@ -16,6 +16,7 @@
         :event-name="event?.name || 'Event'"
         :view-mode="viewMode"
         :loading="loading"
+        :open-order-count="orders.length"
         @set-view-mode="setViewMode"
         @refresh="loadOrders"
       />

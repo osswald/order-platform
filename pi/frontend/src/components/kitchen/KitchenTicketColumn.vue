@@ -15,6 +15,7 @@ import {
   kitchenTicketActionBtnStyle,
   kitchenTicketActionsLayoutStyle,
 } from '@/utils/kitchenTicketActionStyles'
+import { kitchenTicketTypeChrome } from '@/utils/kitchenTicketType'
 
 const props = defineProps<{
   ticket: KitchenOrderTicket
@@ -65,6 +66,8 @@ function locationLabel() {
   if (props.ticket.pickup_code) return `Pickup ${props.ticket.pickup_code}`
   return `Tisch ${props.ticket.table_number || '—'}`
 }
+
+const typeChrome = computed(() => kitchenTicketTypeChrome(props.ticket))
 </script>
 
 <template>
@@ -72,7 +75,18 @@ function locationLabel() {
     <div class="urgency-bar" :class="urgencyClass(urgency)" />
     <header class="ticket-header">
       <div>
-        <div class="ticket-title">{{ locationLabel() }}</div>
+        <div class="ticket-title-row">
+          <div class="ticket-title">{{ locationLabel() }}</div>
+          <svg
+            class="ticket-type-icon"
+            :class="`ticket-type-icon--${typeChrome.type}`"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            :style="{ color: typeChrome.color }"
+          >
+            <path :d="typeChrome.path" fill="currentColor" />
+          </svg>
+        </div>
         <div class="ticket-sub">
           Bestellung #{{ ticket.order_number || ticket.id }}
           <span v-if="ticket.waiter_name"> · {{ ticket.waiter_name }}</span>
@@ -169,10 +183,28 @@ function locationLabel() {
   border-bottom: 1px solid var(--border);
 }
 
+.ticket-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
 .ticket-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 1.25rem;
   font-weight: 800;
   line-height: 1.1;
+}
+
+.ticket-type-icon {
+  flex-shrink: 0;
+  display: block;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .ticket-sub,

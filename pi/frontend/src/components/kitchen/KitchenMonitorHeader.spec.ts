@@ -4,20 +4,50 @@ import KitchenMonitorHeader from './KitchenMonitorHeader.vue'
 import KitchenProductList from './KitchenProductList.vue'
 import type { KitchenProductSummary } from '@/utils/kitchenProductSummary'
 
+function mountHeader(
+  overrides: Partial<{
+    stationLabel: string
+    eventName: string
+    viewMode: 'orders' | 'products'
+    loading: boolean
+    openOrderCount: number
+  }> = {},
+) {
+  return mount(KitchenMonitorHeader, {
+    props: {
+      stationLabel: 'Grill',
+      eventName: 'Fest',
+      viewMode: 'orders',
+      loading: false,
+      openOrderCount: 8,
+      ...overrides,
+    },
+  })
+}
+
 describe('KitchenMonitorHeader', () => {
   it('does not render a Zusätze checkbox', () => {
-    const wrapper = mount(KitchenMonitorHeader, {
-      props: {
-        stationLabel: 'Grill',
-        eventName: 'Fest',
-        viewMode: 'products',
-        loading: false,
-      },
-    })
+    const wrapper = mountHeader({ viewMode: 'products' })
     expect(wrapper.find('.extras-toggle').exists()).toBe(false)
     expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Produkte')
     expect(wrapper.text()).toContain('Bestellungen')
+  })
+
+  it('shows the open-ticket count next to the station label', () => {
+    const wrapper = mountHeader({ openOrderCount: 8 })
+    expect(wrapper.find('.kitchen-title strong').text()).toBe('Grill · 8 offen')
+    expect(wrapper.find('.kitchen-event').text()).toBe('Fest')
+  })
+
+  it('shows 0 offen when the board is empty', () => {
+    const wrapper = mountHeader({ openOrderCount: 0 })
+    expect(wrapper.find('.kitchen-title strong').text()).toBe('Grill · 0 offen')
+  })
+
+  it('keeps the open-ticket count visible on Produkte', () => {
+    const wrapper = mountHeader({ viewMode: 'products', openOrderCount: 3 })
+    expect(wrapper.find('.kitchen-title strong').text()).toBe('Grill · 3 offen')
   })
 })
 
