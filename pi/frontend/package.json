@@ -25,15 +25,15 @@
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "@typescript-eslint/parser": "^8.67.0",
     "@vitejs/plugin-vue": "^6.0.8",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
-    "happy-dom": "^20.11.2",
+    "happy-dom": "^20.11.6",
     "openapi-typescript": "^7.8.0",
     "typescript": "^6.0.3",
-    "vite": "^8.2.1",
+    "vite": "^8.2.2",
     "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.9"
+    "vue-tsc": "^3.3.11"
   },
   "overrides": {
     "js-yaml": "^4.2.0",
