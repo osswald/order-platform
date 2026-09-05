@@ -18,7 +18,7 @@ dependencies = [
     "fpdf2>=2.8.7,<3",
     "Pillow>=12.3.0,<13",
     "Babel>=2.18.0,<3",
-    "pypdf>=6.14.2,<7",
+    "pypdf>=6.16.1,<7",
     "vendiqo-shared",
     "pyjwt>=2.8,<3",
 ]

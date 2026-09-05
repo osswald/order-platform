@@ -6,6 +6,7 @@ import {
   readLegacyOrganisationQuery,
   resolveContextReloadPath,
 } from '@/utils/contextReload'
+import { safeInternalPath } from '@/utils/safeInternalPath'
 import { isApiError } from '@/types/api'
 import type { AuthMeResponse, HireCompanyBrief, OrganisationRead } from '@/types/api'
 import { syncThemeFromAuthMe } from './useThemePreference'
@@ -56,7 +57,7 @@ export function useAuthSession() {
       route.name == null ? null : String(route.name),
       route.path,
     )
-    window.location.assign(path)
+    window.location.assign(safeInternalPath(path, '/dashboard'))
   }
 
   function migrateLegacyOrganisationQuery() {

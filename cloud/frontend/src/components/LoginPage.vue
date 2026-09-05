@@ -90,6 +90,7 @@ import { useI18n } from 'vue-i18n'
 import { apiUrl } from '../api'
 import { useAppVersion } from '../composables/useAppVersion'
 import { rules, validateForm } from '../utils/formRules.js'
+import { safeInternalPath } from '../utils/safeInternalPath'
 
 const { t } = useI18n()
 const { label } = useAppVersion()
@@ -152,9 +153,7 @@ async function submit() {
     message.value = t('login.success')
     messageType.value = 'success'
 
-    const redirect = route.query.redirect
-    const target =
-      typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/dashboard'
+    const target = safeInternalPath(route.query.redirect, '/dashboard')
     setTimeout(() => {
       window.location.href = target
     }, 500)
