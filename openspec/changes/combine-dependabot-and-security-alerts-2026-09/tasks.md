@@ -41,5 +41,5 @@
 
 ## 6. Open PR and supersede Dependabot PRs
 
-- [ ] 6.1 Push the branch and open one PR that combines Dependabot updates, the extra security floors, and CodeQL #21/#22, referencing #313, #315, #317–#322
-- [ ] 6.2 On each Dependabot PR, comment `Superseded by #N — combining with …` and close without merge
+- [x] 6.1 Push the branch and open one PR that combines Dependabot updates, the extra security floors, and CodeQL #21/#22, referencing #313, #315, #317–#322
+- [x] 6.2 On each Dependabot PR, comment `Superseded by #N — combining with …` and close without merge
