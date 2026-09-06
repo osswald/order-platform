@@ -21,7 +21,7 @@ function isAtLeast(version: string, minimum: string): boolean {
 }
 
 describe("package-lock security floors", () => {
-  it("pins js-yaml to 4.2.0 or later", () => {
+  it("pins js-yaml to 4.3.1 or later", () => {
     const versions = Object.entries(lock.packages)
       .filter(([name]) => name.endsWith("/js-yaml") || name === "node_modules/js-yaml")
       .map(([, pkg]) => pkg.version)
@@ -29,7 +29,7 @@ describe("package-lock security floors", () => {
 
     expect(versions.length).toBeGreaterThan(0);
     for (const version of versions) {
-      expect(isAtLeast(version, "4.2.0"), `js-yaml ${version} is below 4.2.0`).toBe(true);
+      expect(isAtLeast(version, "4.3.1"), `js-yaml ${version} is below 4.3.1`).toBe(true);
     }
   });
 });
