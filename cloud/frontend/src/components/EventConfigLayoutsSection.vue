@@ -647,6 +647,12 @@ async function loadLockedAdditionsForArticle(articleId: number) {
       addition_article_id: Number(row.addition_article_id),
       name: String(row.name ?? ''),
     }))
+    const available = new Set(
+      lockedAdditionOptions.value.map((opt) => opt.addition_article_id),
+    )
+    cellEdit.value.locked_addition_ids = (cellEdit.value.locked_addition_ids || []).filter(
+      (id) => available.has(id),
+    )
   } catch {
     if (requestId !== lockedAdditionsRequestId) return
     lockedAdditionOptions.value = []
@@ -657,11 +663,20 @@ async function loadLockedAdditionsForArticle(articleId: number) {
   }
 }
 
-function clearLockedAdditionsUi() {
+/** Cancel in-flight fetch and clear checklist options without touching selected ids. */
+function clearLockedAdditionOptions() {
   lockedAdditionsRequestId += 1
   lockedAdditionOptions.value = []
   lockedAdditionsLoading.value = false
+}
+
+function clearLockedAdditionIds() {
   cellEdit.value.locked_addition_ids = []
+}
+
+function clearLockedAdditionsUi() {
+  clearLockedAdditionOptions()
+  clearLockedAdditionIds()
 }
 
 function articleIdsToTreeSelection(ids: number[]): string[] {
@@ -904,15 +919,21 @@ watch(
     if (!cellDialogVisible.value) return
     const articleIds = treeSelectionToArticleIds(selection || [])
     const vUuids = Array.isArray(voucherUuids) ? voucherUuids.map(String) : []
-    if (!cellCanHaveLockedAdditions(articleIds, vUuids)) {
+    // Durable non-combo: vouchers or multiple articles — clear selected locks.
+    if (vUuids.length > 0 || articleIds.length > 1) {
       clearLockedAdditionsUi()
+      return
+    }
+    // Transient empty tree selection (mount/reload): keep seeded ids, only idle options.
+    if (articleIds.length === 0) {
+      clearLockedAdditionOptions()
       return
     }
     const articleId = articleIds[0]
     const prevSelection = previous?.[0]
     const prevArticleIds = treeSelectionToArticleIds(prevSelection || [])
     if (prevArticleIds.length === 1 && prevArticleIds[0] !== articleId) {
-      cellEdit.value.locked_addition_ids = []
+      clearLockedAdditionIds()
     }
     void loadLockedAdditionsForArticle(articleId)
   },
