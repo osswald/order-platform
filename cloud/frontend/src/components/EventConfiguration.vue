@@ -159,6 +159,10 @@
 import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
+import {
+  eventConfigurationAutosaveSnapshot,
+  pickupPrefixModeOnlyUpdatePayload,
+} from '../utils/eventDetailSave'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { useSectionQuerySync } from '../composables/useSectionQuerySync'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
@@ -248,6 +252,10 @@ const props = withDefaults(
 const pickupPrefixMode = defineModel<PickupPrefixMode>('pickupPrefixMode', {
   default: 'register',
 })
+
+const emit = defineEmits<{
+  pickupPrefixModeSaved: [mode: PickupPrefixMode]
+}>()
 
 const slots = useSlots()
 const { t } = useI18n()
@@ -773,6 +781,13 @@ async function persistConfiguration() {
       body: JSON.stringify(buildPutPayload(serverLayouts)),
     })
     printerOptions.value = cfg.printer_options || []
+    const mode = pickupPrefixMode.value === 'station' ? 'station' : 'register'
+    await apiJson(`/events/${props.eventId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pickupPrefixModeOnlyUpdatePayload(mode)),
+    })
+    emit('pickupPrefixModeSaved', mode)
     return true
   } catch (err: unknown) {
     setConfigAutosaveError(getErrorMessage(err, t('events.config.saveFailed')))
@@ -781,6 +796,7 @@ async function persistConfiguration() {
 }
 
 const configWatchSource = computed(() => ({
+  pickupPrefixMode: pickupPrefixMode.value,
   stations: stationsLocal.value,
   kitchenMonitors: kitchenMonitorsLocal.value,
   waiters: waitersLocal.value,
@@ -805,7 +821,11 @@ const {
   setError: setConfigAutosaveError,
   isDirty: configIsDirty,
 } = useEventConfigurationAutosave({
-  getSnapshot: () => buildPutPayload(),
+  getSnapshot: () =>
+    eventConfigurationAutosaveSnapshot({
+      pickupPrefixMode: pickupPrefixMode.value === 'station' ? 'station' : 'register',
+      configuration: buildPutPayload(),
+    }),
   saveFn: persistConfiguration,
   watchSource: configWatchSource,
   enabled: configAutosaveEnabled,
