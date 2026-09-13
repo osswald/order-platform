@@ -40,7 +40,7 @@
         :organisation-currency="organisationCurrency"
         :organisation-country-code="organisationCountryCode"
         :event-status="form.status"
-        v-model:pickup-prefix-mode="form.pickupPrefixMode"
+        :pickup-prefix-mode="form.pickupPrefixMode"
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
         :shift-settlement-enabled="form.shiftSettlementEnabled"
@@ -48,7 +48,6 @@
         :kitchen-monitors-enabled="form.kitchenMonitorsEnabled"
         :stammdaten-dirty="stammdatenDirty"
         :status-saving="statusSaveBusy"
-        @pickup-prefix-mode-saved="onPickupPrefixModeSaved"
       >
         <template #stammdaten>
           <HostedPiCard v-if="form.status === 'config'" :event-id="activeId" />
@@ -197,8 +196,8 @@ import { statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
 import {
   resolveEventStammdatenSaveNavigation,
-  stammdatenBaselineAfterPickupPrefixModeSave,
   stammdatenBaselineAfterStatusSave,
+  stammdatenPickupPrefixModePayload,
   statusOnlyUpdatePayload,
 } from '../utils/eventDetailSave'
 import { usePaymentTypes } from '../composables/usePaymentTypes'
@@ -323,14 +322,6 @@ const stammdatenDirty = computed(() => {
   if (!editMode.value || !stammdatenBaseline.value) return false
   return stammdatenSnapshot() !== stammdatenBaseline.value
 })
-
-
-function onPickupPrefixModeSaved(mode: 'register' | 'station') {
-  stammdatenBaseline.value = stammdatenBaselineAfterPickupPrefixModeSave(
-    stammdatenBaseline.value,
-    mode,
-  )
-}
 
 const hasTwintQr = ref(false)
 const twintQrPreviewUrl = ref('')
@@ -674,7 +665,7 @@ async function saveEvent() {
     kitchen_monitors_enabled: Boolean(form.value.kitchenMonitorsEnabled),
     offer_payment_receipt: Boolean(form.value.offerPaymentReceipt),
     bluetooth_printing_enabled: Boolean(form.value.bluetoothPrintingEnabled),
-    pickup_prefix_mode: form.value.pickupPrefixMode === 'station' ? 'station' : 'register',
+    ...stammdatenPickupPrefixModePayload(form.value.pickupPrefixMode),
   }
   if (!editMode.value) {
     (payload as EventCreate).organisation_id = props.activeOrganisationId
