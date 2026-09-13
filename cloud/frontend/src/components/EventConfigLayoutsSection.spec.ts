@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import EventConfigLayoutsSection from './EventConfigLayoutsSection.vue'
 import type { EventLayoutLocal } from '@/types/ui'
+import { LAYOUT_CELL_DRAG_THRESHOLD_PX } from '@/utils/layoutCellMove'
 import { vuetifyStubs } from '../../tests/helpers/vuetifyStub.js'
 
 const apiJsonMock = vi.fn()
@@ -9,6 +10,66 @@ const apiJsonMock = vi.fn()
 vi.mock('../api', () => ({
   apiJson: (...args: unknown[]) => apiJsonMock(...args),
 }))
+
+function mountLayouts(layouts: EventLayoutLocal[], extraProps: Record<string, unknown> = {}) {
+  return mount(EventConfigLayoutsSection, {
+    props: {
+      eventId: 42,
+      modelValue: layouts,
+      'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+        layouts.splice(0, layouts.length, ...value)
+      },
+      ...extraProps,
+    },
+    global: {
+      stubs: {
+        ...vuetifyStubs(),
+        'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
+      },
+    },
+  })
+}
+
+function cellAt(wrapper: VueWrapper, row: number, col: number) {
+  return wrapper.find(`.grid-cell[data-row="${row}"][data-col="${col}"]`)
+}
+
+/** Short press without movement — opens the cell dialog. */
+async function shortPointerClick(wrapper: VueWrapper, row: number, col: number) {
+  const el = cellAt(wrapper, row, col)
+  expect(el.exists()).toBe(true)
+  const point = { clientX: 10, clientY: 10, pointerId: 1, button: 0 }
+  await el.trigger('pointerdown', point)
+  await el.trigger('pointerup', point)
+  await flushPromises()
+}
+
+async function pointerDrag(
+  wrapper: VueWrapper,
+  from: { row: number; col: number },
+  to: { row: number; col: number },
+  movePx = LAYOUT_CELL_DRAG_THRESHOLD_PX + 4,
+) {
+  const source = cellAt(wrapper, from.row, from.col)
+  const target = cellAt(wrapper, to.row, to.col)
+  expect(source.exists()).toBe(true)
+  expect(target.exists()).toBe(true)
+
+  const start = { clientX: 40, clientY: 40 }
+  const mid = { clientX: 40 + movePx, clientY: 40 }
+  const end = { clientX: 120, clientY: 80 }
+  const pointerId = 1
+
+  await source.trigger('pointerdown', { ...start, pointerId, button: 0 })
+  await source.trigger('pointermove', { ...mid, pointerId })
+  const spy = vi.spyOn(document, 'elementFromPoint').mockReturnValue(target.element)
+  await source.trigger('pointerup', { ...end, pointerId })
+  spy.mockRestore()
+  await flushPromises()
+}
 
 describe('EventConfigLayoutsSection', () => {
   beforeEach(() => {
@@ -51,7 +112,10 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
         },
       },
     })
@@ -110,7 +174,10 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
         },
       },
     })
@@ -169,7 +236,10 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
         },
       },
     })
@@ -236,7 +306,10 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
         },
       },
     })
@@ -245,8 +318,7 @@ describe('EventConfigLayoutsSection', () => {
 
     expect(layouts[0].cells).toHaveLength(1)
 
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const deleteBtn = wrapper.find('[data-testid="delete-layout-cell-btn"]')
     expect(deleteBtn.exists()).toBe(true)
@@ -312,15 +384,17 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
         },
       },
     })
 
     await flushPromises()
 
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as {
       cellEdit: { label: string; article_ids: number[]; voucher_definition_uuids: string[] }
@@ -376,15 +450,17 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': { template: '<div class="v-treeview-stub" />' },
         },
       },
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     expect(wrapper.find('[data-testid="cell-article-tree-empty"]').exists()).toBe(true)
     expect(apiJsonMock.mock.calls.some((c) => String(c[0]).includes('station-article-tree'))).toBe(
@@ -436,15 +512,17 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': { template: '<div class="v-treeview-stub" />' },
         },
       },
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     expect(wrapper.find('[data-testid="cell-article-tree-error"]').exists()).toBe(true)
   })
@@ -500,7 +578,10 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': {
             props: ['items'],
             template: '<div class="v-treeview-stub">{{ items?.[0]?.title }} {{ items?.[0]?.children?.[0]?.title }}</div>',
@@ -510,8 +591,7 @@ describe('EventConfigLayoutsSection', () => {
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     expect(wrapper.find('[data-testid="cell-article-tree-empty"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cell-article-tree-error"]').exists()).toBe(false)
@@ -594,7 +674,10 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': { template: '<div class="v-treeview-stub" />' },
           'v-checkbox': {
             props: ['modelValue', 'label'],
@@ -606,8 +689,7 @@ describe('EventConfigLayoutsSection', () => {
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     expect(apiJsonMock).toHaveBeenCalledWith('/articles/10/additions')
     expect(wrapper.find('[data-testid="locked-additions"]').exists()).toBe(true)
@@ -700,15 +782,17 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': { template: '<div class="v-treeview-stub" />' },
         },
       },
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as {
       cellEdit: { locked_addition_ids: number[]; voucher_definition_uuids: string[] }
@@ -804,15 +888,17 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': { template: '<div class="v-treeview-stub" />' },
         },
       },
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as {
       cellEdit: { locked_addition_ids: number[]; voucher_definition_uuids: string[] }
@@ -1184,15 +1270,17 @@ describe('EventConfigLayoutsSection', () => {
       global: {
         stubs: {
           ...vuetifyStubs(),
-          'v-dialog': { template: '<div><slot /></div>' },
+          'v-dialog': {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue" class="v-dialog-stub"><slot /></div>',
+        },
           'v-treeview': { template: '<div class="v-treeview-stub" />' },
         },
       },
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as {
       cellEdit: { locked_addition_ids: number[] }
@@ -1208,5 +1296,232 @@ describe('EventConfigLayoutsSection', () => {
     await flushPromises()
 
     expect(layouts[0].cells[0].locked_addition_ids).toEqual([20, 21])
+  })
+
+  describe('layout cell drag move', () => {
+    function configWithCells(cells: EventLayoutLocal['cells'], w = 2, h = 2) {
+      return {
+        app_layouts: [
+          {
+            uuid: 'layout-1',
+            name: 'Main',
+            is_default: true,
+            grid_width: w,
+            grid_height: h,
+            cells,
+          },
+        ],
+      }
+    }
+
+    it('moves a filled cell onto an empty slot and preserves content', async () => {
+      apiJsonMock.mockResolvedValue(
+        configWithCells([
+          {
+            row: 0,
+            col: 0,
+            label: 'Beer',
+            color: '#ffcc00',
+            article_ids: [10],
+            voucher_definition_uuid: null,
+            voucher_definition_uuids: [],
+            locked_addition_ids: [20],
+          },
+        ]),
+      )
+
+      const layouts: EventLayoutLocal[] = [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 2,
+          grid_height: 2,
+          cells: [],
+        },
+      ]
+
+      const wrapper = mountLayouts(layouts)
+      await flushPromises()
+
+      await pointerDrag(wrapper, { row: 0, col: 0 }, { row: 1, col: 1 })
+
+      expect(layouts[0].cells).toHaveLength(1)
+      expect(layouts[0].cells[0]).toMatchObject({
+        row: 1,
+        col: 1,
+        label: 'Beer',
+        color: '#ffcc00',
+        article_ids: [10],
+        voucher_definition_uuids: [],
+        locked_addition_ids: [20],
+      })
+      expect(wrapper.text()).not.toContain('Zelle bearbeiten')
+    })
+
+    it('rejects drop onto an occupied slot', async () => {
+      apiJsonMock.mockResolvedValue(
+        configWithCells([
+          {
+            row: 0,
+            col: 0,
+            label: 'Beer',
+            color: '#ffcc00',
+            article_ids: [10],
+            voucher_definition_uuid: null,
+            voucher_definition_uuids: [],
+            locked_addition_ids: [],
+          },
+          {
+            row: 0,
+            col: 1,
+            label: 'Cola',
+            color: '#00ccff',
+            article_ids: [11],
+            voucher_definition_uuid: null,
+            voucher_definition_uuids: [],
+            locked_addition_ids: [],
+          },
+        ]),
+      )
+
+      const layouts: EventLayoutLocal[] = [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 2,
+          grid_height: 2,
+          cells: [],
+        },
+      ]
+
+      const wrapper = mountLayouts(layouts)
+      await flushPromises()
+
+      await pointerDrag(wrapper, { row: 0, col: 0 }, { row: 0, col: 1 })
+
+      expect(layouts[0].cells).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ row: 0, col: 0, label: 'Beer' }),
+          expect.objectContaining({ row: 0, col: 1, label: 'Cola' }),
+        ]),
+      )
+    })
+
+    it('does not move when dragging from an empty slot', async () => {
+      apiJsonMock.mockResolvedValue(
+        configWithCells([
+          {
+            row: 0,
+            col: 1,
+            label: 'Cola',
+            color: '#00ccff',
+            article_ids: [11],
+            voucher_definition_uuid: null,
+            voucher_definition_uuids: [],
+            locked_addition_ids: [],
+          },
+        ]),
+      )
+
+      const layouts: EventLayoutLocal[] = [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 2,
+          grid_height: 2,
+          cells: [],
+        },
+      ]
+
+      const wrapper = mountLayouts(layouts)
+      await flushPromises()
+
+      await pointerDrag(wrapper, { row: 0, col: 0 }, { row: 1, col: 0 })
+
+      expect(layouts[0].cells).toEqual([
+        expect.objectContaining({ row: 0, col: 1, label: 'Cola' }),
+      ])
+    })
+
+    it('opens the edit dialog on short click', async () => {
+      apiJsonMock.mockImplementation(async (path: string) => {
+        if (path === '/events/42/configuration') {
+          return configWithCells([
+            {
+              row: 0,
+              col: 0,
+              label: 'Beer',
+              color: '#ffcc00',
+              article_ids: [10],
+              voucher_definition_uuid: null,
+              voucher_definition_uuids: [],
+              locked_addition_ids: [],
+            },
+          ])
+        }
+        if (path === '/events/42/station-article-tree') {
+          return { nodes: [] }
+        }
+        return {}
+      })
+
+      const layouts: EventLayoutLocal[] = [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 2,
+          grid_height: 2,
+          cells: [],
+        },
+      ]
+
+      const wrapper = mountLayouts(layouts)
+      await flushPromises()
+
+      await shortPointerClick(wrapper, 0, 0)
+      expect(wrapper.text()).toContain('Zelle bearbeiten')
+    })
+
+    it('does not open the edit dialog from the post-drag synthetic click', async () => {
+      apiJsonMock.mockResolvedValue(
+        configWithCells([
+          {
+            row: 0,
+            col: 0,
+            label: 'Beer',
+            color: '#ffcc00',
+            article_ids: [10],
+            voucher_definition_uuid: null,
+            voucher_definition_uuids: [],
+            locked_addition_ids: [],
+          },
+        ]),
+      )
+
+      const layouts: EventLayoutLocal[] = [
+        {
+          uuid: 'layout-1',
+          name: 'Main',
+          is_default: true,
+          grid_width: 2,
+          grid_height: 2,
+          cells: [],
+        },
+      ]
+
+      const wrapper = mountLayouts(layouts)
+      await flushPromises()
+
+      await pointerDrag(wrapper, { row: 0, col: 0 }, { row: 1, col: 1 })
+      expect(layouts[0].cells[0]).toMatchObject({ row: 1, col: 1, label: 'Beer' })
+      expect(wrapper.text()).not.toContain('Zelle bearbeiten')
+
+      await shortPointerClick(wrapper, 1, 1)
+      expect(wrapper.text()).toContain('Zelle bearbeiten')
+    })
   })
 })

@@ -68,8 +68,15 @@
             :key="li + '-' + pos.row + '-' + pos.col"
             type="button"
             class="grid-cell"
+            :class="gridCellClass(lo, li, pos.row, pos.col)"
+            :data-layout-index="li"
+            :data-row="pos.row"
+            :data-col="pos.col"
             :style="previewCellStyle(displayCell(lo, pos.row, pos.col))"
-            @click="openCellDialog(li, pos.row, pos.col)"
+            @pointerdown="onGridCellPointerDown($event, li, pos.row, pos.col)"
+            @pointermove="onGridCellPointerMove($event)"
+            @pointerup="onGridCellPointerUp($event)"
+            @pointercancel="onGridCellPointerCancel"
           >
             <span class="grid-cell-label">{{ displayCell(lo, pos.row, pos.col).label || '·' }}</span>
             <span v-if="cellPreviewMeta(lo, pos.row, pos.col)" class="grid-cell-count">
@@ -229,6 +236,11 @@ import {
   layoutCellHasContent,
   normalizeLockedAdditionIds,
 } from '../utils/eventConfigLayoutsPayload'
+import {
+  LAYOUT_CELL_DRAG_THRESHOLD_PX,
+  layoutCellHasEditorData,
+  moveLayoutCell,
+} from '../utils/layoutCellMove'
 import { newUuid } from '@/utils/newUuid'
 import type {
   ArticleAdditionsRead,
@@ -296,6 +308,22 @@ const cellDialogHadContent = ref(false)
 const lockedAdditionOptions = ref<Array<{ addition_article_id: number; name: string }>>([])
 const lockedAdditionsLoading = ref(false)
 let lockedAdditionsRequestId = 0
+
+type GridDragState = {
+  layoutIndex: number
+  fromRow: number
+  fromCol: number
+  startX: number
+  startY: number
+  pointerId: number
+  /** Filled cells may become a drag; empty cells only click-to-edit. */
+  canDrag: boolean
+  dragging: boolean
+  hoverRow: number | null
+  hoverCol: number | null
+}
+
+const gridDrag = ref<GridDragState | null>(null)
 
 const showLockedAdditions = computed(() =>
   cellCanHaveLockedAdditions(
@@ -373,12 +401,129 @@ function isCellInGrid(c: EventLayoutCellLocal, width: number, height: number): b
 }
 
 function cellHasData(c: EventLayoutCellLocal): boolean {
-  if ((c.label || '').trim()) return true
-  if ((c.article_ids || []).length > 0) return true
-  if (cellVoucherUuids(c).length > 0) return true
-  const color = (c.color || '').toLowerCase()
-  if (color && color !== '#eeeeee' && color !== '#eee') return true
-  return false
+  return layoutCellHasEditorData(c)
+}
+
+function gridCellClass(lo: EventLayoutLocal, layoutIndex: number, row: number, col: number) {
+  const filled = cellHasData(displayCell(lo, row, col))
+  const drag = gridDrag.value
+  const classes: Record<string, boolean> = {
+    'grid-cell--filled': filled,
+  }
+  if (!drag || drag.layoutIndex !== layoutIndex) return classes
+  if (drag.dragging && drag.fromRow === row && drag.fromCol === col) {
+    classes['grid-cell--dragging-source'] = true
+  }
+  if (drag.dragging && drag.hoverRow === row && drag.hoverCol === col) {
+    if (drag.fromRow === row && drag.fromCol === col) {
+      // same slot: no special target style
+    } else if (filled) {
+      classes['grid-cell--drop-blocked'] = true
+    } else {
+      classes['grid-cell--drop-target'] = true
+    }
+  }
+  return classes
+}
+
+function findGridCellFromPoint(clientX: number, clientY: number): HTMLElement | null {
+  const el = document.elementFromPoint(clientX, clientY)
+  if (!el || !(el instanceof Element)) return null
+  const cell = el.closest('.grid-cell')
+  return cell instanceof HTMLElement ? cell : null
+}
+
+function readGridCellCoords(el: HTMLElement): { layoutIndex: number; row: number; col: number } | null {
+  const layoutIndex = Number(el.dataset.layoutIndex)
+  const row = Number(el.dataset.row)
+  const col = Number(el.dataset.col)
+  if (![layoutIndex, row, col].every((n) => Number.isFinite(n))) return null
+  return { layoutIndex, row, col }
+}
+
+function onGridCellPointerDown(event: PointerEvent, layoutIndex: number, row: number, col: number) {
+  if (event.button !== 0) return
+  const lo = layouts.value[layoutIndex]
+  if (!lo) return
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+  gridDrag.value = {
+    layoutIndex,
+    fromRow: row,
+    fromCol: col,
+    startX: event.clientX,
+    startY: event.clientY,
+    pointerId: event.pointerId,
+    canDrag: cellHasData(displayCell(lo, row, col)),
+    dragging: false,
+    hoverRow: null,
+    hoverCol: null,
+  }
+  try {
+    target.setPointerCapture(event.pointerId)
+  } catch {
+    // jsdom / unsupported capture — drag still works via events on the source
+  }
+}
+
+function onGridCellPointerMove(event: PointerEvent) {
+  const drag = gridDrag.value
+  if (!drag || event.pointerId !== drag.pointerId) return
+  const dx = event.clientX - drag.startX
+  const dy = event.clientY - drag.startY
+  if (drag.canDrag && !drag.dragging && Math.hypot(dx, dy) >= LAYOUT_CELL_DRAG_THRESHOLD_PX) {
+    drag.dragging = true
+  }
+  if (!drag.dragging) return
+  const under = findGridCellFromPoint(event.clientX, event.clientY)
+  const coords = under ? readGridCellCoords(under) : null
+  if (coords && coords.layoutIndex === drag.layoutIndex) {
+    drag.hoverRow = coords.row
+    drag.hoverCol = coords.col
+  } else {
+    drag.hoverRow = null
+    drag.hoverCol = null
+  }
+}
+
+function clearGridDrag(event?: PointerEvent) {
+  const drag = gridDrag.value
+  if (drag && event?.currentTarget instanceof HTMLElement) {
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId)
+    } catch {
+      // ignore
+    }
+  }
+  gridDrag.value = null
+}
+
+function onGridCellPointerUp(event: PointerEvent) {
+  const drag = gridDrag.value
+  if (!drag || event.pointerId !== drag.pointerId) return
+
+  if (drag.dragging) {
+    const under = findGridCellFromPoint(event.clientX, event.clientY)
+    const coords = under ? readGridCellCoords(under) : null
+    if (coords && coords.layoutIndex === drag.layoutIndex) {
+      const lo = layouts.value[drag.layoutIndex]
+      if (lo) {
+        moveLayoutCell(lo, drag.fromRow, drag.fromCol, coords.row, coords.col)
+      }
+    }
+    clearGridDrag(event)
+    return
+  }
+
+  const { layoutIndex, fromRow, fromCol } = drag
+  clearGridDrag(event)
+  void openCellDialog(layoutIndex, fromRow, fromCol)
+}
+
+function onGridCellPointerCancel(event: PointerEvent) {
+  const drag = gridDrag.value
+  if (!drag || event.pointerId !== drag.pointerId) return
+  clearGridDrag(event)
 }
 
 function applyGridSizeChange(lo: EventLayoutLocal, nextW: number | string | null | undefined, nextH: number | string | null | undefined): boolean {
@@ -844,6 +989,28 @@ defineExpose({
   padding: 0.35rem;
   min-height: 2.5rem;
   text-align: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.grid-cell--filled {
+  cursor: grab;
+}
+
+.grid-cell--dragging-source {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.grid-cell--drop-target {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 1px;
+}
+
+.grid-cell--drop-blocked {
+  cursor: not-allowed;
+  outline: 2px solid rgba(var(--v-theme-error), 0.7);
+  outline-offset: 1px;
 }
 
 .grid-cell-label {
