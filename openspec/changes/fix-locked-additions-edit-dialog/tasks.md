@@ -13,4 +13,4 @@
 ## 3. Verification
 
 - [x] 3.1 Run the EventConfigLayoutsSection Vitest file (and any related payload util tests if touched) and confirm all pass
-- [ ] 3.2 Run `./scripts/lint.sh --staged` (or full `./scripts/lint.sh` if preferred) on touched frontend files before commit and confirm clean
+- [x] 3.2 Run `./scripts/lint.sh --staged` (or full `./scripts/lint.sh` if preferred) on touched frontend files before commit and confirm clean
