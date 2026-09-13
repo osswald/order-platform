@@ -2,6 +2,8 @@ import type { OrganisationRead } from './api'
 
 export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
+export type PickupPrefixMode = 'register' | 'station'
+
 export interface EventStammdatenForm {
   name: string
   status: string
@@ -18,6 +20,7 @@ export interface EventStammdatenForm {
   alternativePrintersEnabled: boolean
   kitchenMonitorsEnabled: boolean
   discountsEnabled: boolean
+  pickupPrefixMode: PickupPrefixMode
 }
 
 export interface EventPrinterRuleLocal {
@@ -35,6 +38,7 @@ export interface EventStationLocal {
   printer_appliance_id: number | null
   printer_rules: EventPrinterRuleLocal[]
   article_ids: number[]
+  pickup_code_prefix?: string
 }
 
 export interface EventKitchenMonitorLocal {
