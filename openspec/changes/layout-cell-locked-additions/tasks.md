@@ -1,10 +1,10 @@
 ## 1. Cloud data model and API
 
-- [ ] 1.1 Add failing cloud backend tests for `locked_addition_ids` on layout cells (persist/round-trip, reject multi-article + locks, reject vouchers + locks, reject unlinked addition) and verify they fail before implementation
-- [ ] 1.2 Add schema patch / M2M table for cell locked additions with sort order and verify migration applies on cloud backend startup
-- [ ] 1.3 Extend `LayoutCellIn` / `LayoutCellRead`, configuration serialize/replace, and validation to enforce combo rules; verify the tests from 1.1 pass
-- [ ] 1.4 Include `locked_addition_ids` in edge event bundle layout cells (default `[]`) and verify bundle/export tests cover the field
-- [ ] 1.5 Run `python cloud/backend/scripts/export_openapi.py` and `cd cloud/frontend && npm run generate:api-types`; verify `openapi.json` and `src/types/api.generated.ts` include `locked_addition_ids`
+- [x] 1.1 Add failing cloud backend tests for `locked_addition_ids` on layout cells (persist/round-trip, reject multi-article + locks, reject vouchers + locks, reject unlinked addition) and verify they fail before implementation
+- [x] 1.2 Add schema patch / M2M table for cell locked additions with sort order and verify migration applies on cloud backend startup
+- [x] 1.3 Extend `LayoutCellIn` / `LayoutCellRead`, configuration serialize/replace, and validation to enforce combo rules; verify the tests from 1.1 pass
+- [x] 1.4 Include `locked_addition_ids` in edge event bundle layout cells (default `[]`) and verify bundle/export tests cover the field
+- [x] 1.5 Run `python cloud/backend/scripts/export_openapi.py` and `cd cloud/frontend && npm run generate:api-types`; verify `openapi.json` and `src/types/api.generated.ts` include `locked_addition_ids`
 
 ## 2. Cloud admin UI
 
@@ -19,7 +19,7 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run cloud backend tests for the touched layout/config areas and verify they pass
+- [x] 4.1 Run cloud backend tests for the touched layout/config areas and verify they pass
 - [x] 4.2 Run Pi frontend tests for layout/order helpers and views and verify they pass
 - [x] 4.3 Run `./scripts/lint.sh` (or `./scripts/lint.sh --staged`) before commit and verify it exits 0
 - [x] 4.4 Run `npx openspec validate layout-cell-locked-additions --strict` and verify the change validates
