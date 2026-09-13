@@ -246,6 +246,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE appliances ADD COLUMN IF NOT EXISTS is_hosted_virtual BOOLEAN NOT NULL DEFAULT FALSE",
     )
     _ensure_event_cash_registers_table()
+    _ensure_event_app_layout_cell_locked_additions_table()
     _add_column_if_missing(
         "event_cash_registers",
         "pin",
@@ -439,6 +440,18 @@ def _ensure_event_article_prices_table() -> None:
     from .models import EventArticlePrice
 
     EventArticlePrice.__table__.create(bind=engine, checkfirst=True)
+
+
+def _ensure_event_app_layout_cell_locked_additions_table() -> None:
+    try:
+        inspector = inspect(engine)
+        if "event_app_layout_cell_locked_additions" in inspector.get_table_names():
+            return
+    except Exception:
+        return
+    from .models import EventAppLayoutCellLockedAddition
+
+    EventAppLayoutCellLockedAddition.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_user_organisation_onboarding_task_states_table() -> None:

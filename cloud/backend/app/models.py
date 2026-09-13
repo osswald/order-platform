@@ -583,6 +583,24 @@ event_app_layout_cell_articles = Table(
 )
 
 
+class EventAppLayoutCellLockedAddition(Base):
+    """Ordered locked Zusätze for a combo layout cell (single base article)."""
+
+    __tablename__ = "event_app_layout_cell_locked_additions"
+    __table_args__ = (
+        UniqueConstraint("cell_id", "article_id", name="uq_event_app_layout_cell_locked_addition"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    cell_id = Column(
+        Integer, ForeignKey("event_app_layout_cells.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, index=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    cell = relationship("EventAppLayoutCell", back_populates="locked_addition_links")
+    article = relationship("Article")
+
+
 class Article(Base):
     __tablename__ = "articles"
     id = Column(Integer, primary_key=True, index=True)
@@ -863,6 +881,12 @@ class EventAppLayoutCell(Base):
     articles = relationship(
         "Article",
         secondary=event_app_layout_cell_articles,
+    )
+    locked_addition_links = relationship(
+        "EventAppLayoutCellLockedAddition",
+        back_populates="cell",
+        cascade="all, delete-orphan",
+        order_by="EventAppLayoutCellLockedAddition.sort_order",
     )
 
 

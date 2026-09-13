@@ -37,7 +37,11 @@
     "requires_verleiher_admin": "Hire-company administrator permission required.",
     "organisation_not_in_verleiher": "Organisation does not belong to this hire company.",
     "appliance_not_found": "Appliance not found.",
-    "appliance_not_in_verleiher": "Appliance does not belong to this hire company."
+    "appliance_not_in_verleiher": "Appliance does not belong to this hire company.",
+    "layout_cell_locked_additions_require_single_article": "Layout cell ({row},{col}): locked additions require exactly one article.",
+    "layout_cell_locked_additions_forbid_vouchers": "Layout cell ({row},{col}): locked additions cannot be combined with vouchers.",
+    "layout_cell_locked_addition_duplicate": "Layout cell ({row},{col}): locked additions must not contain duplicates.",
+    "layout_cell_locked_addition_not_linked": "Layout cell ({row},{col}): addition {article_id} is not linked to the base article."
   },
   "pdf": {
     "common": {
