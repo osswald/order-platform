@@ -214,7 +214,7 @@ def test_reapply_pending_stock_writes_overlay_not_catalogue(isolated_engine, db_
     assert get_bundle_dict_raw(db)["events"][0]["articles"]["42"]["in_stock"] == 7
 
 
-def test_alembic_head_is_local_stock_overlay():
+def test_alembic_head_is_pickup_counter_station():
     from pathlib import Path
 
     from alembic.config import Config
@@ -223,4 +223,4 @@ def test_alembic_head_is_local_stock_overlay():
     root = Path(__file__).resolve().parents[1]
     cfg = Config(str(root / "alembic.ini"))
     head = ScriptDirectory.from_config(cfg).get_current_head()
-    assert head == "009_local_stock_overlay"
+    assert head == "010_pickup_counter_station"
