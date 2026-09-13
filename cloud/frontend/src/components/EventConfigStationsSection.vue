@@ -5,29 +5,6 @@
     <div class="section-toolbar">
       <v-btn color="primary" type="button" @click="addStation">{{ $t('events.config.addStation') }}</v-btn>
     </div>
-    <div class="pickup-prefix-mode-block">
-      <div class="form-field">
-        <label>{{ $t('events.config.pickupPrefixMode') }}</label>
-        <v-select
-          data-testid="pickup-prefix-mode"
-          :model-value="pickupPrefixMode"
-          :items="pickupPrefixModeOptions"
-          item-title="label"
-          item-value="value"
-          density="compact"
-          hide-details
-          :disabled="pickupPrefixModeLocked"
-          @update:model-value="onPickupPrefixModeChange"
-        />
-      </div>
-      <small
-        v-if="pickupPrefixModeLocked"
-        data-testid="pickup-prefix-mode-locked-hint"
-        class="toggle-hint"
-      >
-        {{ $t('events.config.pickupPrefixModeLockedHint') }}
-      </small>
-    </div>
     <div v-for="(st, idx) in stations" :key="'st-' + idx" class="config-card">
       <div class="config-card-header">
         <span>{{ st.name || $t('events.config.unnamedStation') }}</span>
@@ -175,7 +152,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import StationArticleTransferPicker from './StationArticleTransferPicker.vue'
@@ -184,7 +160,7 @@ import type { ArticleRead } from '@/types/api'
 import type { EventStationLocal, PickupPrefixMode, SelectOption } from '@/types/ui'
 import type { PrinterOptionRead } from '@/types/api'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     catalogLoading?: boolean
     catalogError?: string
@@ -193,7 +169,6 @@ const props = withDefaults(
     alternativePrintersEnabled?: boolean
     printerRuleTypeOptions?: SelectOption<string>[]
     pickupPrefixMode?: PickupPrefixMode
-    pickupPrefixModeLocked?: boolean
   }>(),
   {
     catalogLoading: false,
@@ -203,26 +178,12 @@ const props = withDefaults(
     alternativePrintersEnabled: false,
     printerRuleTypeOptions: () => [],
     pickupPrefixMode: 'register',
-    pickupPrefixModeLocked: false,
   },
 )
 
 const stations = defineModel<EventStationLocal[]>({ required: true })
-const emit = defineEmits<{
-  'update:pickupPrefixMode': [value: PickupPrefixMode]
-}>()
 
 const { t } = useI18n()
-
-const pickupPrefixModeOptions = computed(() => [
-  { value: 'register' as const, label: t('events.config.pickupPrefixModeRegister') },
-  { value: 'station' as const, label: t('events.config.pickupPrefixModeStation') },
-])
-
-function onPickupPrefixModeChange(value: PickupPrefixMode) {
-  if (props.pickupPrefixModeLocked) return
-  emit('update:pickupPrefixMode', value === 'station' ? 'station' : 'register')
-}
 
 function normalizePickupPrefix(value: string | null | undefined): string {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
@@ -263,16 +224,6 @@ function removePrinterRule(stationIdx: number, ruleIdx: number) {
 </script>
 
 <style scoped>
-.pickup-prefix-mode-block {
-  margin-bottom: 1rem;
-}
-
-.pickup-prefix-mode-block .toggle-hint {
-  display: block;
-  margin-top: 0.25rem;
-  opacity: 0.75;
-}
-
 .printer-rules-block {
   margin-bottom: 0.75rem;
 }

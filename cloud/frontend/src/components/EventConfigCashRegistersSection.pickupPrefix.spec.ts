@@ -13,10 +13,7 @@ const register: EventCashRegisterLocal = {
   cash_drawer_command: 'none',
 }
 
-function mountSection(props: {
-  pickupPrefixMode?: 'register' | 'station'
-  pickupPrefixModeLocked?: boolean
-}) {
+function mountSection(props: { pickupPrefixMode?: 'register' | 'station' }) {
   const registers = [{ ...register }]
   return mount(EventConfigCashRegistersSection, {
     props: {
@@ -25,7 +22,6 @@ function mountSection(props: {
         registers.splice(0, registers.length, ...value)
       },
       pickupPrefixMode: props.pickupPrefixMode ?? 'register',
-      pickupPrefixModeLocked: props.pickupPrefixModeLocked ?? false,
       printerOptions: [{ id: 1, name: 'Kassen-Drucker' }],
     },
     global: {
@@ -43,25 +39,18 @@ function mountSection(props: {
 }
 
 describe('EventConfigCashRegistersSection pickup prefix mode', () => {
+  it('does not show mode select (owned by Stammdaten)', () => {
+    const wrapper = mountSection({ pickupPrefixMode: 'register' })
+    expect(wrapper.find('[data-testid="pickup-prefix-mode"]').exists()).toBe(false)
+  })
+
   it('shows register pickup prefix fields in register mode', () => {
     const wrapper = mountSection({ pickupPrefixMode: 'register' })
     expect(wrapper.find('[data-testid="register-pickup-prefix"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="pickup-prefix-mode"]').exists()).toBe(true)
   })
 
   it('hides register pickup prefix fields in station mode', () => {
     const wrapper = mountSection({ pickupPrefixMode: 'station' })
     expect(wrapper.find('[data-testid="register-pickup-prefix"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="pickup-prefix-mode"]').exists()).toBe(true)
-  })
-
-  it('disables mode control outside config and shows lock hint', () => {
-    const wrapper = mountSection({
-      pickupPrefixMode: 'register',
-      pickupPrefixModeLocked: true,
-    })
-    const modeSelect = wrapper.find('[data-testid="pickup-prefix-mode"]')
-    expect(modeSelect.attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-testid="pickup-prefix-mode-locked-hint"]').exists()).toBe(true)
   })
 })

@@ -12,10 +12,7 @@ const station: EventStationLocal = {
   pickup_code_prefix: 'G',
 }
 
-function mountSection(props: {
-  pickupPrefixMode?: 'register' | 'station'
-  pickupPrefixModeLocked?: boolean
-}) {
+function mountSection(props: { pickupPrefixMode?: 'register' | 'station' }) {
   const stations = [{ ...station }]
   return mount(EventConfigStationsSection, {
     props: {
@@ -24,7 +21,6 @@ function mountSection(props: {
         stations.splice(0, stations.length, ...value)
       },
       pickupPrefixMode: props.pickupPrefixMode ?? 'register',
-      pickupPrefixModeLocked: props.pickupPrefixModeLocked ?? false,
       catalogLoading: false,
       catalogError: '',
       printerOptions: [],
@@ -50,26 +46,19 @@ function mountSection(props: {
 }
 
 describe('EventConfigStationsSection pickup prefix mode', () => {
+  it('does not show mode select (owned by Stammdaten)', () => {
+    const wrapper = mountSection({ pickupPrefixMode: 'register' })
+    expect(wrapper.find('[data-testid="pickup-prefix-mode"]').exists()).toBe(false)
+  })
+
   it('hides station pickup prefix fields in register mode', () => {
     const wrapper = mountSection({ pickupPrefixMode: 'register' })
     expect(wrapper.find('[data-testid="station-pickup-prefix"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="pickup-prefix-mode"]').exists()).toBe(true)
   })
 
   it('shows station pickup prefix fields in station mode', () => {
     const wrapper = mountSection({ pickupPrefixMode: 'station' })
     expect(wrapper.find('[data-testid="station-pickup-prefix"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="pickup-prefix-mode"]').exists()).toBe(true)
-  })
-
-  it('disables mode control outside config and shows lock hint', () => {
-    const wrapper = mountSection({
-      pickupPrefixMode: 'station',
-      pickupPrefixModeLocked: true,
-    })
-    const modeSelect = wrapper.find('[data-testid="pickup-prefix-mode"]')
-    expect(modeSelect.attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-testid="pickup-prefix-mode-locked-hint"]').exists()).toBe(true)
   })
 
   it('initializes pickup_code_prefix when adding a station', async () => {

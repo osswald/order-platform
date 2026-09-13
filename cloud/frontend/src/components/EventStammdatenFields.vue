@@ -121,6 +121,25 @@
 
     <section class="field-group">
       <h3 class="field-group-title">{{ t('events.stammdaten.config') }}</h3>
+      <div class="form-field">
+        <FormLabel>{{ t('events.config.pickupPrefixMode') }}</FormLabel>
+        <v-select
+          data-testid="stammdaten-pickup-prefix-mode"
+          v-model="form.pickupPrefixMode"
+          :items="pickupPrefixModeOptions"
+          item-title="label"
+          item-value="value"
+          hide-details="auto"
+          :disabled="pickupPrefixModeLocked"
+        />
+        <small
+          v-if="pickupPrefixModeLocked"
+          data-testid="stammdaten-pickup-prefix-mode-locked-hint"
+          class="toggle-hint"
+        >
+          {{ t('events.config.pickupPrefixModeLockedHint') }}
+        </small>
+      </div>
       <div class="toggle-block">
         <div class="toggle-row">
           <label for="cash-registers-enabled">{{ t('events.stammdaten.cashRegisters') }}</label>
@@ -213,11 +232,20 @@ import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import TwintQrField from './TwintQrField.vue'
 import { rules } from '../utils/formRules.js'
-import type { EventStammdatenForm, SelectOption } from '@/types/ui'
+import type { EventStammdatenForm, PickupPrefixMode, SelectOption } from '@/types/ui'
 
 const { t } = useI18n()
 
 const form = defineModel<EventStammdatenForm>('form', { required: true })
+
+const pickupPrefixModeLocked = computed(
+  () => String(form.value.status || '').toLowerCase() !== 'config',
+)
+
+const pickupPrefixModeOptions = computed(() => [
+  { value: 'register' as PickupPrefixMode, label: t('events.config.pickupPrefixModeRegister') },
+  { value: 'station' as PickupPrefixMode, label: t('events.config.pickupPrefixModeStation') },
+])
 
 withDefaults(
   defineProps<{
@@ -313,6 +341,10 @@ function parseLocalDatetime(value: string | null | undefined): Date | null {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
   opacity: 0.7;
+}
+
+.form-field .toggle-hint {
+  margin-top: 0.25rem;
 }
 
 small {

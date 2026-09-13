@@ -247,6 +247,40 @@ def test_create_event_and_status_transition():
     assert updated.json()["status"] == "test"
 
 
+def test_pickup_prefix_mode_round_trip_via_event_put():
+    org_a_id, _ = _setup_two_tenants()
+    headers = {"Authorization": f"Bearer {_token()}"}
+    now = _utc_now()
+    created = client.post(
+        "/events/",
+        headers=headers,
+        json={
+            "name": "Pickup Mode Fest",
+            "status": "config",
+            "start": (now + timedelta(days=1)).isoformat(),
+            "end": (now + timedelta(days=2)).isoformat(),
+            "organisation_id": org_a_id,
+            "payment_mode": "pay_later",
+            "payment_types": ["cash"],
+        },
+    )
+    assert created.status_code == 200, created.text
+    event_id = created.json()["id"]
+    assert created.json().get("pickup_prefix_mode", "register") == "register"
+
+    updated = client.put(
+        f"/events/{event_id}",
+        headers=headers,
+        json={"pickup_prefix_mode": "station"},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["pickup_prefix_mode"] == "station"
+
+    fetched = client.get(f"/events/{event_id}", headers=headers)
+    assert fetched.status_code == 200, fetched.text
+    assert fetched.json()["pickup_prefix_mode"] == "station"
+
+
 def test_create_organisation_with_currency():
     _setup_two_tenants()
     db = SessionLocal()

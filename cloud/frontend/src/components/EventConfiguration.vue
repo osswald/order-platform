@@ -23,8 +23,6 @@
             :alternative-printers-enabled="alternativePrintersEnabled"
             :printer-rule-type-options="printerRuleTypeOptions"
             :pickup-prefix-mode="pickupPrefixMode"
-            :pickup-prefix-mode-locked="pickupPrefixModeLocked"
-            @update:pickup-prefix-mode="pickupPrefixMode = $event"
           />
         </template>
 
@@ -54,8 +52,6 @@
             :accounts-enabled="accountsEnabled"
             :sumup-reader-options="sumupReaderOptions"
             :pickup-prefix-mode="pickupPrefixMode"
-            :pickup-prefix-mode-locked="pickupPrefixModeLocked"
-            @update:pickup-prefix-mode="pickupPrefixMode = $event"
           />
         </template>
 
@@ -159,10 +155,6 @@
 import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
-import {
-  eventConfigurationAutosaveSnapshot,
-  pickupPrefixModeOnlyUpdatePayload,
-} from '../utils/eventDetailSave'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { useSectionQuerySync } from '../composables/useSectionQuerySync'
 import { MOBILE_BREAKPOINT } from '../constants/layout'
@@ -226,6 +218,7 @@ const props = withDefaults(
     organisationCurrency?: string
     organisationCountryCode?: string
     eventStatus?: string
+    pickupPrefixMode?: PickupPrefixMode
     cashRegistersEnabled?: boolean
     vouchersEnabled?: boolean
     shiftSettlementEnabled?: boolean
@@ -239,6 +232,7 @@ const props = withDefaults(
     organisationCurrency: 'EUR',
     organisationCountryCode: 'CH',
     eventStatus: 'config',
+    pickupPrefixMode: 'register',
     cashRegistersEnabled: false,
     vouchersEnabled: false,
     shiftSettlementEnabled: false,
@@ -249,14 +243,6 @@ const props = withDefaults(
   },
 )
 
-const pickupPrefixMode = defineModel<PickupPrefixMode>('pickupPrefixMode', {
-  default: 'register',
-})
-
-const emit = defineEmits<{
-  pickupPrefixModeSaved: [mode: PickupPrefixMode]
-}>()
-
 const slots = useSlots()
 const { t } = useI18n()
 const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
@@ -264,9 +250,6 @@ const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
   ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),
-)
-const pickupPrefixModeLocked = computed(
-  () => String(props.eventStatus || '').toLowerCase() !== 'config',
 )
 
 const accountsEnabled = computed(() =>
@@ -781,13 +764,6 @@ async function persistConfiguration() {
       body: JSON.stringify(buildPutPayload(serverLayouts)),
     })
     printerOptions.value = cfg.printer_options || []
-    const mode = pickupPrefixMode.value === 'station' ? 'station' : 'register'
-    await apiJson(`/events/${props.eventId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(pickupPrefixModeOnlyUpdatePayload(mode)),
-    })
-    emit('pickupPrefixModeSaved', mode)
     return true
   } catch (err: unknown) {
     setConfigAutosaveError(getErrorMessage(err, t('events.config.saveFailed')))
@@ -796,7 +772,6 @@ async function persistConfiguration() {
 }
 
 const configWatchSource = computed(() => ({
-  pickupPrefixMode: pickupPrefixMode.value,
   stations: stationsLocal.value,
   kitchenMonitors: kitchenMonitorsLocal.value,
   waiters: waitersLocal.value,
@@ -821,11 +796,7 @@ const {
   setError: setConfigAutosaveError,
   isDirty: configIsDirty,
 } = useEventConfigurationAutosave({
-  getSnapshot: () =>
-    eventConfigurationAutosaveSnapshot({
-      pickupPrefixMode: pickupPrefixMode.value === 'station' ? 'station' : 'register',
-      configuration: buildPutPayload(),
-    }),
+  getSnapshot: () => buildPutPayload(),
   saveFn: persistConfiguration,
   watchSource: configWatchSource,
   enabled: configAutosaveEnabled,
