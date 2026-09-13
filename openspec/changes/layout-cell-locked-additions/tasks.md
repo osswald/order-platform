@@ -21,5 +21,5 @@
 
 - [ ] 4.1 Run cloud backend tests for the touched layout/config areas and verify they pass
 - [x] 4.2 Run Pi frontend tests for layout/order helpers and views and verify they pass
-- [ ] 4.3 Run `./scripts/lint.sh` (or `./scripts/lint.sh --staged`) before commit and verify it exits 0
-- [ ] 4.4 Run `npx openspec validate layout-cell-locked-additions --strict` and verify the change validates
+- [x] 4.3 Run `./scripts/lint.sh` (or `./scripts/lint.sh --staged`) before commit and verify it exits 0
+- [x] 4.4 Run `npx openspec validate layout-cell-locked-additions --strict` and verify the change validates
