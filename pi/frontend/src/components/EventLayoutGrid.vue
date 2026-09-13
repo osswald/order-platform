@@ -21,12 +21,14 @@
 </template>
 
 <script setup lang="ts">
-import { showToast } from '@/store'
+import { isAdditionSellable, showToast } from '@/store'
 import type { EdgeBundleEvent } from '@/types/api'
 import { formatMoney, lineUnitCents } from '@/utils/money'
 import {
   articlesForIds,
   fixedAmountVouchersForCell,
+  isLayoutCellEnabled,
+  lockedAdditionIds,
 } from '@/utils/bundleHelpers'
 import { textColorForBackground } from '@vendiqo/frontend-shared/colorContrast'
 
@@ -38,6 +40,7 @@ interface LayoutCell {
   article_ids?: number[]
   voucher_definition_uuids?: string[]
   voucher_definition_uuid?: string
+  locked_addition_ids?: number[]
 }
 
 interface AppLayout {
@@ -77,7 +80,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  pick: [articleIds: number[]]
+  pick: [articleIds: number[], lockedAdditionIds?: number[]]
   'pick-voucher': [voucher: VoucherDefinition]
   'pick-cell': [payload: { cell: LayoutCell; items: PickItem[] }]
 }>()
@@ -89,7 +92,7 @@ function cellArticleIds(cell: LayoutCell) {
 }
 
 function cellEnabled(cell: LayoutCell) {
-  return fixedAmountVouchersForCell(props.event, cell).length > 0 || cellArticleIds(cell).length > 0
+  return isLayoutCellEnabled(props.event, cell, (additionId) => isAdditionSellable(additionId))
 }
 
 function cellStyle(cell: LayoutCell) {
@@ -143,7 +146,11 @@ function onCellClick(cell: LayoutCell) {
   if (items.length === 1) {
     const one = items[0]
     if (one.type === 'voucher') emit('pick-voucher', one.voucher)
-    else emit('pick', [one.article_id])
+    else {
+      const locked = lockedAdditionIds(cell)
+      if (locked.length > 0) emit('pick', [one.article_id], locked)
+      else emit('pick', [one.article_id])
+    }
     return
   }
   emit('pick-cell', { cell, items })

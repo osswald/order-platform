@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { EdgeBundleArticle, EdgeBundleEvent, EdgeBundleResponse } from '@/types/api'
 import {
   articlesForIds,
+  cartAdditionsFromLockedIds,
   cartIngredientUsage,
   cartLineLabelForEvent,
   cellVoucherUuids,
@@ -10,9 +11,12 @@ import {
   hasAdditions,
   hasIngredients,
   isArticleSellable,
+  isComboLayoutCell,
+  isLayoutCellEnabled,
   lineAdditionLabels,
   lineIdentityKey,
   lineIdentityKeyFromItem,
+  lockedAdditionIds,
   maxAddQty,
   maxOrderableForArticle,
   maxOrderableFromIngredients,
@@ -22,6 +26,7 @@ import {
   positionCommentsEnabled,
   receiptPrintTargets,
   resolveStationUuidForArticle,
+  shouldSkipAdditionsSheet,
   stationNameFromEvent,
   voucherDefinitionByUuid,
 } from './bundleHelpers'
@@ -453,5 +458,93 @@ describe('positionComments bundle helpers', () => {
     expect(positionCommentPresets(bundle)).toEqual([{ id: 1, text: 'medium' }])
     expect(positionCommentsEnabled({} as unknown as EdgeBundleResponse)).toBe(false)
     expect(positionCommentPresets(null)).toEqual([])
+  })
+})
+
+describe('lockedAdditionIds / isComboLayoutCell', () => {
+  it('defaults missing or empty locked ids to [] and not combo', () => {
+    expect(lockedAdditionIds({})).toEqual([])
+    expect(lockedAdditionIds({ locked_addition_ids: [] })).toEqual([])
+    expect(lockedAdditionIds(null)).toEqual([])
+    expect(isComboLayoutCell({})).toBe(false)
+    expect(isComboLayoutCell({ locked_addition_ids: [] })).toBe(false)
+  })
+
+  it('treats non-empty locked_addition_ids as a combo cell', () => {
+    expect(lockedAdditionIds({ locked_addition_ids: [20, 21] })).toEqual([20, 21])
+    expect(isComboLayoutCell({ locked_addition_ids: [20] })).toBe(true)
+  })
+
+  it('coerces ids to numbers and drops invalid entries', () => {
+    expect(lockedAdditionIds({ locked_addition_ids: [20, 0, null, '21'] as unknown as number[] })).toEqual([
+      20, 21,
+    ])
+  })
+})
+
+describe('isLayoutCellEnabled', () => {
+  const event = {
+    articles: {
+      10: { id: 10, name: 'Burger' },
+      11: { id: 11, name: 'Sold out', sellable: false },
+    },
+    configuration: {
+      voucher_definitions: [{ uuid: 'v-1', kind: 'fixed_amount', name: 'Gutschein' }],
+    },
+  } as unknown as EdgeBundleEvent
+
+  it('keeps classic enablement for empty locked_addition_ids', () => {
+    expect(
+      isLayoutCellEnabled(event, { article_ids: [10], locked_addition_ids: [] }, () => false),
+    ).toBe(true)
+    expect(isLayoutCellEnabled(event, { article_ids: [11] }, () => true)).toBe(false)
+    expect(
+      isLayoutCellEnabled(event, { voucher_definition_uuids: ['v-1'] }, () => false),
+    ).toBe(true)
+  })
+
+  it('disables combo when base article is unsellable', () => {
+    expect(
+      isLayoutCellEnabled(
+        event,
+        { article_ids: [11], locked_addition_ids: [20] },
+        () => true,
+      ),
+    ).toBe(false)
+  })
+
+  it('disables combo when any locked Zusatz is unsellable', () => {
+    expect(
+      isLayoutCellEnabled(
+        event,
+        { article_ids: [10], locked_addition_ids: [20, 21] },
+        (id) => id !== 21,
+      ),
+    ).toBe(false)
+  })
+
+  it('enables combo when base and all locked Zusätze are sellable', () => {
+    expect(
+      isLayoutCellEnabled(
+        event,
+        { article_ids: [10], locked_addition_ids: [20, 21] },
+        () => true,
+      ),
+    ).toBe(true)
+  })
+})
+
+describe('one-tap combo cart helpers', () => {
+  it('maps locked ids to cart additions at qty 1', () => {
+    expect(cartAdditionsFromLockedIds([20, 21])).toEqual([
+      { article_id: 20, qty: 1 },
+      { article_id: 21, qty: 1 },
+    ])
+  })
+
+  it('skips Zusätze sheet only when beginAdd options are provided', () => {
+    expect(shouldSkipAdditionsSheet({ lockedAdditionIds: [20] })).toBe(true)
+    expect(shouldSkipAdditionsSheet({ lockedAdditionIds: [] })).toBe(true)
+    expect(shouldSkipAdditionsSheet(undefined)).toBe(false)
   })
 })

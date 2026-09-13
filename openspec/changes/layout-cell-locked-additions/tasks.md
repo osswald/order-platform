@@ -13,13 +13,13 @@
 
 ## 3. Pi POS behaviour
 
-- [ ] 3.1 Add failing Pi frontend tests for combo `cellEnabled` (disabled when base or any locked Zusatz unsellable; enabled when all sellable) and for one-tap cart add that skips the Zusätze sheet
-- [ ] 3.2 Extend layout cell types/helpers to read `locked_addition_ids` (default `[]`) and update `EventLayoutGrid.vue` enablement for combo cells; verify sellability tests from 3.1 pass
-- [ ] 3.3 Update `OrderView.vue` and `RegisterOrderView.vue` so a combo cell tap adds the line with locked additions at qty 1 and does not open `AdditionsPickerSheet`; verify one-tap tests from 3.1 pass and classic cells still open the sheet when locks are empty
+- [x] 3.1 Add failing Pi frontend tests for combo `cellEnabled` (disabled when base or any locked Zusatz unsellable; enabled when all sellable) and for one-tap cart add that skips the Zusätze sheet
+- [x] 3.2 Extend layout cell types/helpers to read `locked_addition_ids` (default `[]`) and update `EventLayoutGrid.vue` enablement for combo cells; verify sellability tests from 3.1 pass
+- [x] 3.3 Update `OrderView.vue` and `RegisterOrderView.vue` so a combo cell tap adds the line with locked additions at qty 1 and does not open `AdditionsPickerSheet`; verify one-tap tests from 3.1 pass and classic cells still open the sheet when locks are empty
 
 ## 4. Verification
 
 - [ ] 4.1 Run cloud backend tests for the touched layout/config areas and verify they pass
-- [ ] 4.2 Run Pi frontend tests for layout/order helpers and views and verify they pass
+- [x] 4.2 Run Pi frontend tests for layout/order helpers and views and verify they pass
 - [ ] 4.3 Run `./scripts/lint.sh` (or `./scripts/lint.sh --staged`) before commit and verify it exits 0
 - [ ] 4.4 Run `npx openspec validate layout-cell-locked-additions --strict` and verify the change validates
