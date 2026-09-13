@@ -441,6 +441,7 @@ class Event(Base):
     kitchen_monitors_enabled = Column(Boolean, nullable=False, default=False)
     offer_payment_receipt = Column(Boolean, nullable=False, default=False)
     bluetooth_printing_enabled = Column(Boolean, nullable=False, default=False)
+    pickup_prefix_mode = Column(String(16), nullable=False, default="register")
     receipt_printing_config = Column(JSON, nullable=True)
     receipt_logo_mime = Column(String(64), nullable=True)
     receipt_logo_data = Column(Text, nullable=True)
@@ -677,6 +678,7 @@ class EventStation(Base):
     sort_order = Column(Integer, nullable=False, default=0)
     printer_appliance_id = Column(Integer, ForeignKey("appliances.id", ondelete="SET NULL"), nullable=True)
     kitchen_monitor_enabled = Column(Boolean, nullable=False, default=False)
+    pickup_code_prefix = Column(String(3), nullable=True)
     event = relationship("Event", back_populates="stations")
     printer_appliance = relationship("Appliance", foreign_keys=[printer_appliance_id])
     articles = relationship(

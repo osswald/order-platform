@@ -5,6 +5,29 @@
     <div class="section-toolbar">
       <v-btn color="primary" type="button" @click="addStation">{{ $t('events.config.addStation') }}</v-btn>
     </div>
+    <div class="pickup-prefix-mode-block">
+      <div class="form-field">
+        <label>{{ $t('events.config.pickupPrefixMode') }}</label>
+        <v-select
+          data-testid="pickup-prefix-mode"
+          :model-value="pickupPrefixMode"
+          :items="pickupPrefixModeOptions"
+          item-title="label"
+          item-value="value"
+          density="compact"
+          hide-details
+          :disabled="pickupPrefixModeLocked"
+          @update:model-value="onPickupPrefixModeChange"
+        />
+      </div>
+      <small
+        v-if="pickupPrefixModeLocked"
+        data-testid="pickup-prefix-mode-locked-hint"
+        class="toggle-hint"
+      >
+        {{ $t('events.config.pickupPrefixModeLockedHint') }}
+      </small>
+    </div>
     <div v-for="(st, idx) in stations" :key="'st-' + idx" class="config-card">
       <div class="config-card-header">
         <span>{{ st.name || $t('events.config.unnamedStation') }}</span>
@@ -25,6 +48,18 @@
           hide-details="auto"
           required
           :rules="[rules.required]"
+        />
+      </div>
+      <div v-if="pickupPrefixMode === 'station'" class="form-field">
+        <label>{{ $t('events.config.stationPickupCodeLetters') }}</label>
+        <v-text-field
+          data-testid="station-pickup-prefix"
+          :model-value="st.pickup_code_prefix"
+          maxlength="3"
+          :placeholder="$t('events.config.pickupPrefixPlaceholder')"
+          density="compact"
+          hide-details
+          @update:model-value="(v) => { st.pickup_code_prefix = normalizePickupPrefix(v) }"
         />
       </div>
       <div class="form-field">
@@ -140,15 +175,16 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import StationArticleTransferPicker from './StationArticleTransferPicker.vue'
 import { rules } from '../utils/formRules.js'
 import type { ArticleRead } from '@/types/api'
-import type { EventStationLocal, SelectOption } from '@/types/ui'
+import type { EventStationLocal, PickupPrefixMode, SelectOption } from '@/types/ui'
 import type { PrinterOptionRead } from '@/types/api'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     catalogLoading?: boolean
     catalogError?: string
@@ -156,6 +192,8 @@ withDefaults(
     articles?: ArticleRead[]
     alternativePrintersEnabled?: boolean
     printerRuleTypeOptions?: SelectOption<string>[]
+    pickupPrefixMode?: PickupPrefixMode
+    pickupPrefixModeLocked?: boolean
   }>(),
   {
     catalogLoading: false,
@@ -164,12 +202,27 @@ withDefaults(
     articles: () => [],
     alternativePrintersEnabled: false,
     printerRuleTypeOptions: () => [],
+    pickupPrefixMode: 'register',
+    pickupPrefixModeLocked: false,
   },
 )
 
 const stations = defineModel<EventStationLocal[]>({ required: true })
+const emit = defineEmits<{
+  'update:pickupPrefixMode': [value: PickupPrefixMode]
+}>()
 
 const { t } = useI18n()
+
+const pickupPrefixModeOptions = computed(() => [
+  { value: 'register' as const, label: t('events.config.pickupPrefixModeRegister') },
+  { value: 'station' as const, label: t('events.config.pickupPrefixModeStation') },
+])
+
+function onPickupPrefixModeChange(value: PickupPrefixMode) {
+  if (props.pickupPrefixModeLocked) return
+  emit('update:pickupPrefixMode', value === 'station' ? 'station' : 'register')
+}
 
 function normalizePickupPrefix(value: string | null | undefined): string {
   return String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
@@ -181,6 +234,7 @@ function addStation() {
     printer_appliance_id: null,
     printer_rules: [],
     article_ids: [],
+    pickup_code_prefix: '',
   })
 }
 
@@ -209,6 +263,16 @@ function removePrinterRule(stationIdx: number, ruleIdx: number) {
 </script>
 
 <style scoped>
+.pickup-prefix-mode-block {
+  margin-bottom: 1rem;
+}
+
+.pickup-prefix-mode-block .toggle-hint {
+  display: block;
+  margin-top: 0.25rem;
+  opacity: 0.75;
+}
+
 .printer-rules-block {
   margin-bottom: 0.75rem;
 }

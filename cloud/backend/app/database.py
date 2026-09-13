@@ -163,6 +163,18 @@ def apply_schema_patches() -> None:
         "ALTER TABLE events ADD COLUMN bluetooth_printing_enabled BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE events ADD COLUMN IF NOT EXISTS bluetooth_printing_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    _add_column_if_missing(
+        "events",
+        "pickup_prefix_mode",
+        "ALTER TABLE events ADD COLUMN pickup_prefix_mode VARCHAR(16) NOT NULL DEFAULT 'register'",
+        "ALTER TABLE events ADD COLUMN IF NOT EXISTS pickup_prefix_mode VARCHAR(16) NOT NULL DEFAULT 'register'",
+    )
+    _add_column_if_missing(
+        "event_stations",
+        "pickup_code_prefix",
+        "ALTER TABLE event_stations ADD COLUMN pickup_code_prefix VARCHAR(3)",
+        "ALTER TABLE event_stations ADD COLUMN IF NOT EXISTS pickup_code_prefix VARCHAR(3)",
+    )
     for table in ("hire_companies", "organisations", "events"):
         _add_column_if_missing(
             table,

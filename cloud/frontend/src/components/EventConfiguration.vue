@@ -22,6 +22,9 @@
             :articles="stationArticleCatalog"
             :alternative-printers-enabled="alternativePrintersEnabled"
             :printer-rule-type-options="printerRuleTypeOptions"
+            :pickup-prefix-mode="pickupPrefixMode"
+            :pickup-prefix-mode-locked="pickupPrefixModeLocked"
+            @update:pickup-prefix-mode="pickupPrefixMode = $event"
           />
         </template>
 
@@ -50,6 +53,9 @@
             :printer-options="printerOptions"
             :accounts-enabled="accountsEnabled"
             :sumup-reader-options="sumupReaderOptions"
+            :pickup-prefix-mode="pickupPrefixMode"
+            :pickup-prefix-mode-locked="pickupPrefixModeLocked"
+            @update:pickup-prefix-mode="pickupPrefixMode = $event"
           />
         </template>
 
@@ -201,6 +207,7 @@ import type {
   EventWaiterLocal,
   LayoutOption,
   LayoutRemovedPayload,
+  PickupPrefixMode,
   SaveStatus,
   SectionNavSection,
   SelectOption,
@@ -238,6 +245,10 @@ const props = withDefaults(
   },
 )
 
+const pickupPrefixMode = defineModel<PickupPrefixMode>('pickupPrefixMode', {
+  default: 'register',
+})
+
 const slots = useSlots()
 const { t } = useI18n()
 const sessionContext = inject<SessionContext | null>(SESSION_CONTEXT_KEY, null)
@@ -245,6 +256,9 @@ const { matches: isMobile } = useBreakpoint(MOBILE_BREAKPOINT)
 const showOperationalTabs = computed(() => props.eventStatus !== 'config')
 const showTransactionsTab = computed(() =>
   ['test', 'prod', 'archive'].includes(String(props.eventStatus || '').toLowerCase()),
+)
+const pickupPrefixModeLocked = computed(
+  () => String(props.eventStatus || '').toLowerCase() !== 'config',
 )
 
 const accountsEnabled = computed(() =>
@@ -504,6 +518,7 @@ function applyConfigurationFromResponse(
       printer_appliance_id: rule.printer_appliance_id ?? null,
     })),
     article_ids: [...(s.article_ids || [])],
+    pickup_code_prefix: normalizePickupPrefix(s.pickup_code_prefix || ''),
   }))
   kitchenMonitorsLocal.value = (cfg.kitchen_monitors || []).map((row, idx) => ({
     printer_appliance_id: row.printer_appliance_id ?? null,
@@ -666,6 +681,7 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
   const eventArticleIds = stationArticleUnion(stationsLocal.value)
   return {
     stations: stationsLocal.value.map((s) => {
+      const prefix = normalizePickupPrefix(s.pickup_code_prefix || '')
       const row: StationConfigIn = {
         name: s.name,
         printer_appliance_id: s.printer_appliance_id ?? null,
@@ -681,6 +697,7 @@ function buildPutPayload(serverLayouts?: EventConfigurationRead['app_layouts']):
               : null,
           printer_appliance_id: rule.printer_appliance_id ?? null,
         })),
+        pickup_code_prefix: prefix || null,
       }
       if (s.uuid != null) row.uuid = s.uuid
       return row

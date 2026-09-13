@@ -41,7 +41,11 @@
     "layout_cell_locked_additions_require_single_article": "Layout cell ({row},{col}): locked additions require exactly one article.",
     "layout_cell_locked_additions_forbid_vouchers": "Layout cell ({row},{col}): locked additions cannot be combined with vouchers.",
     "layout_cell_locked_addition_duplicate": "Layout cell ({row},{col}): locked additions must not contain duplicates.",
-    "layout_cell_locked_addition_not_linked": "Layout cell ({row},{col}): addition {article_id} is not linked to the base article."
+    "layout_cell_locked_addition_not_linked": "Layout cell ({row},{col}): addition {article_id} is not linked to the base article.",
+    "station_pickup_prefix_invalid": "Station pickup prefix must be 1–3 letters A–Z.",
+    "duplicate_station_pickup_prefix": "Station pickup prefixes must be unique within the event.",
+    "pickup_prefix_mode_locked": "Pickup prefix mode can only be changed while status is config.",
+    "pickup_prefix_mode_invalid": "Pickup prefix mode must be register or station."
   },
   "pdf": {
     "common": {

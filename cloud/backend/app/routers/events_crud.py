@@ -103,6 +103,8 @@ def create_event(
         kitchen_monitors_enabled=bool(event_in.kitchen_monitors_enabled),
         offer_payment_receipt=bool(event_in.offer_payment_receipt),
         bluetooth_printing_enabled=bool(event_in.bluetooth_printing_enabled),
+        pickup_prefix_mode=str(getattr(event_in, "pickup_prefix_mode", None) or "register").strip().lower()
+        or "register",
     )
     apply_instant_collective_bill_settings(
         event,
@@ -212,6 +214,14 @@ def update_event(
         event.offer_payment_receipt = bool(event_in.offer_payment_receipt)
     if event_in.bluetooth_printing_enabled is not None:
         event.bluetooth_printing_enabled = bool(event_in.bluetooth_printing_enabled)
+    if event_in.pickup_prefix_mode is not None:
+        new_mode = str(event_in.pickup_prefix_mode or "").strip().lower()
+        if new_mode not in ("register", "station"):
+            raise api_error("pickup_prefix_mode_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT)
+        old_mode = str(getattr(event, "pickup_prefix_mode", None) or "register").strip().lower()
+        if new_mode != old_mode and str(event.status or "").lower() != "config":
+            raise api_error("pickup_prefix_mode_locked", status.HTTP_422_UNPROCESSABLE_CONTENT)
+        event.pickup_prefix_mode = new_mode
     if event.end < event.start:
         raise api_error("end_must_be_after_start", status.HTTP_422_UNPROCESSABLE_CONTENT)
 

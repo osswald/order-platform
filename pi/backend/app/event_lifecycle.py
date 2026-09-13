@@ -175,10 +175,16 @@ def reconcile_bundle_lifecycle(db: Session, old_bundle: dict | None, new_bundle:
             db.execute(text("DELETE FROM sync_outbox WHERE event_id = :e"), {"e": event_id})
         if "payment_batches" in existing:
             db.execute(text("DELETE FROM payment_batches WHERE event_id = :e"), {"e": event_id})
+        if "event_order_counters" in existing:
+            db.execute(text("DELETE FROM event_order_counters WHERE event_id = :e"), {"e": event_id})
+        if "event_pickup_counters" in existing:
+            db.execute(text("DELETE FROM event_pickup_counters WHERE event_id = :e"), {"e": event_id})
 
     if purged and "emulated_receipts" in existing:
         db.execute(text("DELETE FROM emulated_receipts"))
 
+    if purged:
+        db.expunge_all()
     db.commit()
     db.expire_all()
     return purged

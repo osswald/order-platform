@@ -199,7 +199,11 @@
     "accounting_account_not_found": "Buchhaltungskonto nicht gefunden.",
     "accounting_account_in_use": "Buchhaltungskonto wird verwendet und kann nicht gelöscht werden.",
     "accounting_account_number_exists": "Kontonummer ist in dieser Organisation bereits vergeben.",
-    "organisation_required": "Organisation ist erforderlich."
+    "organisation_required": "Organisation ist erforderlich.",
+    "station_pickup_prefix_invalid": "Stations-Abholpräfix muss 1–3 Buchstaben A–Z enthalten.",
+    "duplicate_station_pickup_prefix": "Stations-Abholpräfixe müssen innerhalb der Veranstaltung eindeutig sein.",
+    "pickup_prefix_mode_locked": "Abholpräfix-Modus kann nur im Status „Konfiguration“ geändert werden.",
+    "pickup_prefix_mode_invalid": "Abholpräfix-Modus muss „register“ oder „station“ sein."
   },
   "pdf": {
     "common": {

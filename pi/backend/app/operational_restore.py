@@ -436,26 +436,49 @@ def _restore_kitchen_tickets(
     return restored
 
 
-def _bump_counters(db: Session, *, event_id: int, payloads: list[dict]) -> None:
+def _bump_counters(db: Session, *, event_id: int, payloads: list[dict], bundle: dict | None = None) -> None:
     max_order = 0
+    mode = "register"
+    if bundle:
+        for ev in bundle.get("events") or []:
+            if isinstance(ev, dict) and int(ev.get("id") or 0) == int(event_id):
+                mode = str(ev.get("pickup_prefix_mode") or "register").strip().lower()
+                break
+    if mode != "station":
+        mode = "register"
+
     max_pickup = 0
+    max_by_station: dict[str, int] = {}
     for payload in payloads:
         on = payload.get("order_number")
         if on is not None:
             max_order = max(max_order, int(on))
-        pn = _parse_pickup_number(payload.get("pickup_number"))
-        if pn is not None:
-            max_pickup = max(max_pickup, pn)
-        for code in payload.get("pickup_codes") or []:
-            parsed = _parse_pickup_number(code)
-            if parsed is not None:
-                max_pickup = max(max_pickup, parsed)
-        for entry in payload.get("pickups") or []:
-            if not isinstance(entry, dict):
-                continue
-            parsed = _parse_pickup_number(entry.get("pickup_code"))
-            if parsed is not None:
-                max_pickup = max(max_pickup, parsed)
+        if mode == "station":
+            for entry in payload.get("pickups") or []:
+                if not isinstance(entry, dict):
+                    continue
+                su = entry.get("station_uuid")
+                if su is None:
+                    continue
+                parsed = _parse_pickup_number(entry.get("pickup_code"))
+                if parsed is None:
+                    continue
+                key = str(su)
+                max_by_station[key] = max(max_by_station.get(key, 0), parsed)
+        else:
+            pn = _parse_pickup_number(payload.get("pickup_number"))
+            if pn is not None:
+                max_pickup = max(max_pickup, pn)
+            for code in payload.get("pickup_codes") or []:
+                parsed = _parse_pickup_number(code)
+                if parsed is not None:
+                    max_pickup = max(max_pickup, parsed)
+            for entry in payload.get("pickups") or []:
+                if not isinstance(entry, dict):
+                    continue
+                parsed = _parse_pickup_number(entry.get("pickup_code"))
+                if parsed is not None:
+                    max_pickup = max(max_pickup, parsed)
     if max_order:
         row = db.query(EventOrderCounter).filter(EventOrderCounter.event_id == event_id).first()
         next_num = max_order + 1
@@ -463,11 +486,41 @@ def _bump_counters(db: Session, *, event_id: int, payloads: list[dict]) -> None:
             db.add(EventOrderCounter(event_id=event_id, next_number=next_num))
         elif int(row.next_number or 1) <= max_order:
             row.next_number = next_num
-    if max_pickup:
-        row = db.query(EventPickupCounter).filter(EventPickupCounter.event_id == event_id).first()
+    if mode == "station":
+        for station_uuid, station_max in max_by_station.items():
+            if not station_max:
+                continue
+            row = (
+                db.query(EventPickupCounter)
+                .filter(
+                    EventPickupCounter.event_id == event_id,
+                    EventPickupCounter.station_uuid == station_uuid,
+                )
+                .first()
+            )
+            next_num = station_max + 1
+            if not row:
+                db.add(
+                    EventPickupCounter(
+                        event_id=event_id,
+                        station_uuid=station_uuid,
+                        next_number=next_num,
+                    )
+                )
+            elif int(row.next_number or 1) <= station_max:
+                row.next_number = next_num
+    elif max_pickup:
+        row = (
+            db.query(EventPickupCounter)
+            .filter(
+                EventPickupCounter.event_id == event_id,
+                EventPickupCounter.station_uuid == "",
+            )
+            .first()
+        )
         next_num = max_pickup + 1
         if not row:
-            db.add(EventPickupCounter(event_id=event_id, next_number=next_num))
+            db.add(EventPickupCounter(event_id=event_id, station_uuid="", next_number=next_num))
         elif int(row.next_number or 1) <= max_pickup:
             row.next_number = next_num
 
@@ -543,7 +596,7 @@ def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | Non
             _restore_cash_session(db, event_id=event_id, payload=payload)
             summary["restored_cash_sessions"] += 1
 
-        _bump_counters(db, event_id=event_id, payloads=payloads)
+        _bump_counters(db, event_id=event_id, payloads=payloads, bundle=bundle)
         if bundle and payloads:
             _apply_stock_for_open_orders(db, bundle, event_id, payloads)
 

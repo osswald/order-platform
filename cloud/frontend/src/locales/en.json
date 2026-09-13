@@ -136,7 +136,14 @@
       "stationArticleTreeLoadFailed": "Could not load articles.",
       "lockedAdditions": "Locked additions (combo)",
       "lockedAdditionsHint": "Only when exactly one article is selected and no vouchers. Selected additions are sold with one tap on the POS.",
-      "lockedAdditionsEmpty": "This article has no additions."
+      "lockedAdditionsEmpty": "This article has no additions.",
+      "pickupCodeLetters": "Pickup code letters",
+      "stationPickupCodeLetters": "Pickup code letters",
+      "pickupPrefixMode": "Pickup code letter from",
+      "pickupPrefixModeRegister": "Cash register",
+      "pickupPrefixModeStation": "Station",
+      "pickupPrefixModeLockedHint": "Mode can only be changed while status is Configuration.",
+      "pickupPrefixPlaceholder": "e.g. A"
     },
     "messages": {
       "statusUpdated": "Status saved.",

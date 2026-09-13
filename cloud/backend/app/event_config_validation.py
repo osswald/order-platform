@@ -209,6 +209,22 @@ def assert_cash_registers_valid(db: Session, event: Event, registers_payload: li
             raise api_error("cash_drawer_requires_receipt_printer", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
+
+def assert_station_pickup_prefixes_valid(event: Event, stations_payload: list) -> None:
+    """When pickup_prefix_mode is station, require unique A–Z prefixes on every station."""
+    mode = str(getattr(event, "pickup_prefix_mode", None) or "register").strip().lower()
+    if mode != "station":
+        return
+    seen: set[str] = set()
+    for st in stations_payload:
+        prefix = str(getattr(st, "pickup_code_prefix", "") or "").strip().upper()
+        if not PICKUP_PREFIX_RE.match(prefix):
+            raise api_error("station_pickup_prefix_invalid", status.HTTP_422_UNPROCESSABLE_CONTENT)
+        if prefix in seen:
+            raise api_error("duplicate_station_pickup_prefix", status.HTTP_422_UNPROCESSABLE_CONTENT)
+        seen.add(prefix)
+
+
 def assert_layout_cells_within_grid(layouts_payload: list) -> None:
     for layout in layouts_payload:
         w, h = layout.grid_width, layout.grid_height
@@ -331,6 +347,7 @@ def replace_event_configuration(
     assert_layout_cells_vouchers(db, event, app_layouts_in, voucher_definitions_in)
     assert_cell_articles_subset_of_stations(stations_in, app_layouts_in)
     assert_layout_cell_locked_additions(db, app_layouts_in)
+    assert_station_pickup_prefixes_valid(event, stations_in)
     assert_cash_registers_valid(db, event, cash_registers_in, app_layouts_in)
 
     # Delete existing (FK-safe order)
@@ -358,6 +375,9 @@ def replace_event_configuration(
                 sort_order=idx,
                 printer_appliance_id=st_in.printer_appliance_id,
                 kitchen_monitor_enabled=False,
+                pickup_code_prefix=(
+                    str(getattr(st_in, "pickup_code_prefix", "") or "").strip().upper() or None
+                ),
             )
             db.add(st)
             db.flush()
@@ -366,6 +386,9 @@ def replace_event_configuration(
             st.sort_order = idx
             st.printer_appliance_id = st_in.printer_appliance_id
             st.kitchen_monitor_enabled = False
+            st.pickup_code_prefix = (
+                str(getattr(st_in, "pickup_code_prefix", "") or "").strip().upper() or None
+            )
         kept_station_uuids.add(st.uuid)
         if st_in.article_ids:
             arts = db.query(Article).filter(Article.id.in_(list(set(st_in.article_ids)))).all()

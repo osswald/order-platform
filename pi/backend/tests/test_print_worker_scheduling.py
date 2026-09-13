@@ -162,13 +162,13 @@ def test_hot_path_indexes_exist_on_test_schema(isolated_engine):
     assert "ix_kitchen_tickets_event_status" in names("kitchen_tickets")
 
 
-def test_alembic_head_is_hot_path_indexes():
+def test_alembic_head_is_pickup_counter_station():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     cfg = Config("alembic.ini")
     head = ScriptDirectory.from_config(cfg).get_current_head()
-    assert head == "009_local_stock_overlay"
+    assert head == "010_pickup_counter_station"
 
 
 def test_idle_timeout_default_is_bounded():

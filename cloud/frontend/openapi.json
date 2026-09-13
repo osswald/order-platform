@@ -14655,6 +14655,11 @@
             "title": "Bluetooth Printing Enabled",
             "default": false
           },
+          "pickup_prefix_mode": {
+            "type": "string",
+            "title": "Pickup Prefix Mode",
+            "default": "register"
+          },
           "twint_qr_data_url": {
             "anyOf": [
               {
@@ -15179,6 +15184,11 @@
             "title": "Bluetooth Printing Enabled",
             "default": false
           },
+          "pickup_prefix_mode": {
+            "type": "string",
+            "title": "Pickup Prefix Mode",
+            "default": "register"
+          },
           "instant_collective_bill_name": {
             "anyOf": [
               {
@@ -15411,6 +15421,11 @@
             "type": "boolean",
             "title": "Bluetooth Printing Enabled",
             "default": false
+          },
+          "pickup_prefix_mode": {
+            "type": "string",
+            "title": "Pickup Prefix Mode",
+            "default": "register"
           },
           "instant_collective_bill_name": {
             "anyOf": [
@@ -16073,6 +16088,17 @@
               }
             ],
             "title": "Bluetooth Printing Enabled"
+          },
+          "pickup_prefix_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Prefix Mode"
           },
           "instant_collective_bill_name": {
             "anyOf": [
@@ -20170,6 +20196,19 @@
             },
             "type": "array",
             "title": "Printer Rules"
+          },
+          "pickup_code_prefix": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Code Prefix"
           }
         },
         "type": "object",
@@ -20216,6 +20255,17 @@
             },
             "type": "array",
             "title": "Printer Rules"
+          },
+          "pickup_code_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Code Prefix"
           }
         },
         "type": "object",

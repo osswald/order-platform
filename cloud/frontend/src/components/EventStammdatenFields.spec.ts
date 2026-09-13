@@ -20,6 +20,7 @@ const baseForm: EventStammdatenForm = {
   alternativePrintersEnabled: false,
   kitchenMonitorsEnabled: false,
   discountsEnabled: false,
+  pickupPrefixMode: 'register',
 }
 
 function mountFields(formOverrides: Partial<EventStammdatenForm> = {}) {

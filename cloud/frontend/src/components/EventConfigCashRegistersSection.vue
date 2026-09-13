@@ -3,6 +3,29 @@
     <div class="section-toolbar">
       <v-btn color="primary" type="button" @click="addCashRegister">{{ $t('events.config.addCashRegister') }}</v-btn>
     </div>
+    <div class="pickup-prefix-mode-block">
+      <div class="form-field">
+        <label>{{ $t('events.config.pickupPrefixMode') }}</label>
+        <v-select
+          data-testid="pickup-prefix-mode"
+          :model-value="pickupPrefixMode"
+          :items="pickupPrefixModeOptions"
+          item-title="label"
+          item-value="value"
+          density="compact"
+          hide-details
+          :disabled="pickupPrefixModeLocked"
+          @update:model-value="onPickupPrefixModeChange"
+        />
+      </div>
+      <small
+        v-if="pickupPrefixModeLocked"
+        data-testid="pickup-prefix-mode-locked-hint"
+        class="toggle-hint"
+      >
+        {{ $t('events.config.pickupPrefixModeLockedHint') }}
+      </small>
+    </div>
     <div v-for="(reg, ri) in cashRegisters" :key="'reg-' + ri" class="config-card">
       <div class="config-card-header">
         <span>{{ reg.name || $t('events.config.unnamedCashRegister') }}</span>
@@ -20,9 +43,10 @@
             :rules="[rules.required]"
           />
         </div>
-        <div class="form-field">
+        <div v-if="pickupPrefixMode === 'register'" class="form-field">
           <label>{{ $t('events.config.pickupCodeLetters') }}</label>
           <v-text-field
+            data-testid="register-pickup-prefix"
             :model-value="reg.pickup_code_prefix"
             maxlength="3"
             placeholder="A"
@@ -108,7 +132,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FormLabel from './FormLabel.vue'
 import { rules } from '../utils/formRules.js'
-import type { EventCashRegisterLocal, LayoutOption } from '@/types/ui'
+import type { EventCashRegisterLocal, LayoutOption, PickupPrefixMode } from '@/types/ui'
 import type { PrinterOptionRead } from '@/types/api'
 
 const props = withDefaults(
@@ -118,6 +142,8 @@ const props = withDefaults(
     printerOptions?: PrinterOptionRead[]
     accountsEnabled?: boolean
     sumupReaderOptions?: Array<{ sumup_reader_id: string; label: string }>
+    pickupPrefixMode?: PickupPrefixMode
+    pickupPrefixModeLocked?: boolean
   }>(),
   {
     layoutOptions: () => [],
@@ -125,12 +151,27 @@ const props = withDefaults(
     printerOptions: () => [],
     accountsEnabled: false,
     sumupReaderOptions: () => [],
+    pickupPrefixMode: 'register',
+    pickupPrefixModeLocked: false,
   },
 )
 
 const cashRegisters = defineModel<EventCashRegisterLocal[]>({ required: true })
+const emit = defineEmits<{
+  'update:pickupPrefixMode': [value: PickupPrefixMode]
+}>()
 
 const { t } = useI18n()
+
+const pickupPrefixModeOptions = computed(() => [
+  { value: 'register' as const, label: t('events.config.pickupPrefixModeRegister') },
+  { value: 'station' as const, label: t('events.config.pickupPrefixModeStation') },
+])
+
+function onPickupPrefixModeChange(value: PickupPrefixMode) {
+  if (props.pickupPrefixModeLocked) return
+  emit('update:pickupPrefixMode', value === 'station' ? 'station' : 'register')
+}
 
 const cashDrawerOptions = computed(() => [
   { value: 'none', label: t('events.config.cashDrawerNone') },
@@ -168,3 +209,15 @@ function removeCashRegister(idx: number) {
   cashRegisters.value.splice(idx, 1)
 }
 </script>
+
+<style scoped>
+.pickup-prefix-mode-block {
+  margin-bottom: 1rem;
+}
+
+.pickup-prefix-mode-block .toggle-hint {
+  display: block;
+  margin-top: 0.25rem;
+  opacity: 0.75;
+}
+</style>
