@@ -456,16 +456,21 @@ function mapLayoutCells(
   cells: EventConfigurationRead['app_layouts'][number]['cells'] | undefined,
 ): EventLayoutCellLocal[] {
   return (cells || []).map((c) => {
+    const articleIds = [...(c.article_ids || [])]
     const local: EventLayoutCellLocal = {
       row: c.row,
       col: c.col,
       label: c.label || '',
       color: c.color || '#eeeeee',
-      article_ids: [...(c.article_ids || [])],
+      article_ids: articleIds,
       voucher_definition_uuid: c.voucher_definition_uuid || null,
       voucher_definition_uuids: [],
+      locked_addition_ids: [],
     }
     local.voucher_definition_uuids = [...cellVoucherUuids(local)]
+    local.locked_addition_ids = Array.isArray(c.locked_addition_ids)
+      ? [...c.locked_addition_ids]
+      : []
     return local
   })
 }

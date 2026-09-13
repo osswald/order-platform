@@ -60,6 +60,7 @@ export interface EventLayoutCellLocal {
   article_ids: number[]
   voucher_definition_uuid: string | null
   voucher_definition_uuids: string[]
+  locked_addition_ids: number[]
 }
 
 export interface EventLayoutLocal {
@@ -98,6 +99,7 @@ export interface EventCellEditState {
   article_ids: number[]
   voucher_definition_uuid: string | null
   voucher_definition_uuids: string[]
+  locked_addition_ids: number[]
 }
 
 export interface LayoutOption {

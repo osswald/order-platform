@@ -8,8 +8,8 @@
 
 ## 2. Cloud admin UI
 
-- [ ] 2.1 Add failing frontend coverage for cell-dialog combo rules: show locked-Zusatz checklist for one article / no vouchers; clear locks when a second article or voucher is selected (follow existing frontend test patterns)
-- [ ] 2.2 Wire `EventLayoutCellLocal`, `eventConfigLayoutsPayload.ts`, and `EventConfigLayoutsSection.vue` to edit/save `locked_addition_ids`; verify 2.1 tests pass and a save payload includes the field
+- [x] 2.1 Add failing frontend coverage for cell-dialog combo rules: show locked-Zusatz checklist for one article / no vouchers; clear locks when a second article or voucher is selected (follow existing frontend test patterns)
+- [x] 2.2 Wire `EventLayoutCellLocal`, `eventConfigLayoutsPayload.ts`, and `EventConfigLayoutsSection.vue` to edit/save `locked_addition_ids`; verify 2.1 tests pass and a save payload includes the field
 
 ## 3. Pi POS behaviour
 

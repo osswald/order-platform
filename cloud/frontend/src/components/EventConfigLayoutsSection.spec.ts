@@ -518,4 +518,411 @@ describe('EventConfigLayoutsSection', () => {
     expect(wrapper.text()).toContain('Food')
     expect(wrapper.text()).toContain('BW — Bratwurst')
   })
+
+  it('shows locked-Zusatz checklist for one article with no vouchers', async () => {
+    apiJsonMock.mockImplementation(async (path: string) => {
+      if (path === '/events/42/configuration') {
+        return {
+          app_layouts: [
+            {
+              uuid: 'layout-1',
+              name: 'Main',
+              is_default: true,
+              grid_width: 1,
+              grid_height: 1,
+              cells: [
+                {
+                  row: 0,
+                  col: 0,
+                  label: 'Combo',
+                  color: '#ffcc00',
+                  article_ids: [10],
+                  voucher_definition_uuid: null,
+                  voucher_definition_uuids: [],
+                  locked_addition_ids: [20],
+                },
+              ],
+            },
+          ],
+        }
+      }
+      if (path === '/articles/10/additions') {
+        return {
+          items: [
+            { addition_article_id: 20, name: 'Käse' },
+            { addition_article_id: 21, name: 'Speck' },
+          ],
+        }
+      }
+      return {}
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        eventArticles: [
+          {
+            id: 10,
+            name: 'Bratwurst',
+            label: 'BW',
+            price: 8,
+            article_category_id: 1,
+            article_category_name: 'Food',
+            is_addition: false,
+            is_active: true,
+            organisation_id: 1,
+            organisation_name: 'Org',
+            organisation_currency: 'CHF',
+          },
+        ],
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': { template: '<div class="v-treeview-stub" />' },
+          'v-checkbox': {
+            props: ['modelValue', 'label'],
+            template: '<label class="v-checkbox-stub">{{ label }}</label>',
+          },
+          'v-progress-linear': { template: '<div class="v-progress-linear-stub" />' },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    expect(apiJsonMock).toHaveBeenCalledWith('/articles/10/additions')
+    expect(wrapper.find('[data-testid="locked-additions"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Käse')
+    expect(wrapper.text()).toContain('Speck')
+
+    const vm = wrapper.vm as unknown as { cellEdit: { locked_addition_ids: number[] } }
+    expect(vm.cellEdit.locked_addition_ids).toEqual([20])
+  })
+
+  it('clears locked additions when a second article is selected', async () => {
+    apiJsonMock.mockImplementation(async (path: string) => {
+      if (path === '/events/42/configuration') {
+        return {
+          app_layouts: [
+            {
+              uuid: 'layout-1',
+              name: 'Main',
+              is_default: true,
+              grid_width: 1,
+              grid_height: 1,
+              cells: [
+                {
+                  row: 0,
+                  col: 0,
+                  label: 'Combo',
+                  color: '#ffcc00',
+                  article_ids: [10],
+                  voucher_definition_uuids: [],
+                  locked_addition_ids: [20],
+                },
+              ],
+            },
+          ],
+        }
+      }
+      if (path === '/articles/10/additions') {
+        return { items: [{ addition_article_id: 20, name: 'Käse' }] }
+      }
+      return {}
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        eventArticles: [
+          {
+            id: 10,
+            name: 'Bratwurst',
+            label: 'BW',
+            price: 8,
+            article_category_id: 1,
+            article_category_name: 'Food',
+            is_addition: false,
+            is_active: true,
+            organisation_id: 1,
+            organisation_name: 'Org',
+            organisation_currency: 'CHF',
+          },
+          {
+            id: 11,
+            name: 'Pommes',
+            label: 'PF',
+            price: 5,
+            article_category_id: 1,
+            article_category_name: 'Food',
+            is_addition: false,
+            is_active: true,
+            organisation_id: 1,
+            organisation_name: 'Org',
+            organisation_currency: 'CHF',
+          },
+        ],
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': { template: '<div class="v-treeview-stub" />' },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as {
+      cellEdit: { locked_addition_ids: number[]; voucher_definition_uuids: string[] }
+      cellTreeSelection: string[]
+    }
+    expect(vm.cellEdit.locked_addition_ids).toEqual([20])
+    expect(wrapper.find('[data-testid="locked-additions"]').exists()).toBe(true)
+
+    vm.cellTreeSelection = ['art-10', 'art-11']
+    await flushPromises()
+
+    expect(vm.cellEdit.locked_addition_ids).toEqual([])
+    expect(wrapper.find('[data-testid="locked-additions"]').exists()).toBe(false)
+  })
+
+  it('clears locked additions when a voucher is selected', async () => {
+    apiJsonMock.mockImplementation(async (path: string) => {
+      if (path === '/events/42/configuration') {
+        return {
+          app_layouts: [
+            {
+              uuid: 'layout-1',
+              name: 'Main',
+              is_default: true,
+              grid_width: 1,
+              grid_height: 1,
+              cells: [
+                {
+                  row: 0,
+                  col: 0,
+                  label: 'Combo',
+                  color: '#ffcc00',
+                  article_ids: [10],
+                  voucher_definition_uuids: [],
+                  locked_addition_ids: [20],
+                },
+              ],
+            },
+          ],
+        }
+      }
+      if (path === '/articles/10/additions') {
+        return { items: [{ addition_article_id: 20, name: 'Käse' }] }
+      }
+      return {}
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        vouchersEnabled: true,
+        voucherDefinitions: [
+          {
+            uuid: 'v-1',
+            name: '10er',
+            kind: 'fixed_amount',
+            value_amount: 10,
+            allowed_article_ids: [],
+            include_additions: false,
+          },
+        ],
+        eventArticles: [
+          {
+            id: 10,
+            name: 'Bratwurst',
+            label: 'BW',
+            price: 8,
+            article_category_id: 1,
+            article_category_name: 'Food',
+            is_addition: false,
+            is_active: true,
+            organisation_id: 1,
+            organisation_name: 'Org',
+            organisation_currency: 'CHF',
+          },
+        ],
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': { template: '<div class="v-treeview-stub" />' },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as {
+      cellEdit: { locked_addition_ids: number[]; voucher_definition_uuids: string[] }
+    }
+    expect(vm.cellEdit.locked_addition_ids).toEqual([20])
+
+    vm.cellEdit.voucher_definition_uuids = ['v-1']
+    await flushPromises()
+
+    expect(vm.cellEdit.locked_addition_ids).toEqual([])
+    expect(wrapper.find('[data-testid="locked-additions"]').exists()).toBe(false)
+  })
+
+  it('persists locked_addition_ids when applying the cell dialog', async () => {
+    apiJsonMock.mockImplementation(async (path: string) => {
+      if (path === '/events/42/configuration') {
+        return {
+          app_layouts: [
+            {
+              uuid: 'layout-1',
+              name: 'Main',
+              is_default: true,
+              grid_width: 1,
+              grid_height: 1,
+              cells: [
+                {
+                  row: 0,
+                  col: 0,
+                  label: 'Combo',
+                  color: '#ffcc00',
+                  article_ids: [10],
+                  voucher_definition_uuids: [],
+                  locked_addition_ids: [],
+                },
+              ],
+            },
+          ],
+        }
+      }
+      if (path === '/articles/10/additions') {
+        return {
+          items: [
+            { addition_article_id: 20, name: 'Käse' },
+            { addition_article_id: 21, name: 'Speck' },
+          ],
+        }
+      }
+      return {}
+    })
+
+    const layouts: EventLayoutLocal[] = [
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 1,
+        grid_height: 1,
+        cells: [],
+      },
+    ]
+
+    const wrapper = mount(EventConfigLayoutsSection, {
+      props: {
+        eventId: 42,
+        eventArticles: [
+          {
+            id: 10,
+            name: 'Bratwurst',
+            label: 'BW',
+            price: 8,
+            article_category_id: 1,
+            article_category_name: 'Food',
+            is_addition: false,
+            is_active: true,
+            organisation_id: 1,
+            organisation_name: 'Org',
+            organisation_currency: 'CHF',
+          },
+        ],
+        modelValue: layouts,
+        'onUpdate:modelValue': (value: EventLayoutLocal[]) => {
+          layouts.splice(0, layouts.length, ...value)
+        },
+      },
+      global: {
+        stubs: {
+          ...vuetifyStubs(),
+          'v-dialog': { template: '<div><slot /></div>' },
+          'v-treeview': { template: '<div class="v-treeview-stub" />' },
+        },
+      },
+    })
+
+    await flushPromises()
+    await wrapper.find('.grid-cell').trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as {
+      cellEdit: { locked_addition_ids: number[] }
+      cellTreeSelection: string[]
+    }
+    vm.cellTreeSelection = ['art-10']
+    vm.cellEdit.locked_addition_ids = [20, 21]
+    await flushPromises()
+
+    const applyBtn = wrapper.findAll('button').find((b) => b.text().includes('Übernehmen'))
+    expect(applyBtn).toBeDefined()
+    await applyBtn!.trigger('click')
+    await flushPromises()
+
+    expect(layouts[0].cells[0].locked_addition_ids).toEqual([20, 21])
+  })
 })

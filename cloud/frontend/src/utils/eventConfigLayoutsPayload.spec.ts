@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cellCanHaveLockedAdditions,
   layoutCellHasContent,
   mapLayoutsToPutPayload,
   mergeLayoutsWithServerCells,
+  normalizeLockedAdditionIds,
   resolveAppLayoutsForPut,
 } from './eventConfigLayoutsPayload'
 import type { EventLayoutLocal } from '@/types/ui'
@@ -34,6 +36,7 @@ const serverLayouts = [
         article_ids: [10],
         voucher_definition_uuid: null,
         voucher_definition_uuids: [],
+        locked_addition_ids: [],
       },
     ],
   },
@@ -121,6 +124,7 @@ describe('resolveAppLayoutsForPut', () => {
             article_ids: [11],
             voucher_definition_uuid: null,
             voucher_definition_uuids: [],
+            locked_addition_ids: [],
           },
         ],
       },
@@ -180,6 +184,7 @@ describe('resolveAppLayoutsForPut', () => {
               article_ids: [10, 11],
               voucher_definition_uuid: null,
               voucher_definition_uuids: [],
+              locked_addition_ids: [],
             },
           ],
         },
@@ -189,6 +194,38 @@ describe('resolveAppLayoutsForPut', () => {
 
     expect(payload[0].cells).toHaveLength(1)
     expect(payload[0].cells?.[0].article_ids).toEqual([10])
+  })
+})
+
+describe('cellCanHaveLockedAdditions', () => {
+  it('returns true for exactly one article and no vouchers', () => {
+    expect(cellCanHaveLockedAdditions([10], [])).toBe(true)
+  })
+
+  it('returns false for zero articles', () => {
+    expect(cellCanHaveLockedAdditions([], [])).toBe(false)
+  })
+
+  it('returns false for two or more articles', () => {
+    expect(cellCanHaveLockedAdditions([10, 11], [])).toBe(false)
+  })
+
+  it('returns false when any voucher is present', () => {
+    expect(cellCanHaveLockedAdditions([10], ['v-1'])).toBe(false)
+  })
+})
+
+describe('normalizeLockedAdditionIds', () => {
+  it('keeps locked ids when the cell can have locked additions', () => {
+    expect(normalizeLockedAdditionIds([10], [], [20, 21])).toEqual([20, 21])
+  })
+
+  it('clears locked ids when a second article is selected', () => {
+    expect(normalizeLockedAdditionIds([10, 11], [], [20])).toEqual([])
+  })
+
+  it('clears locked ids when a voucher is selected', () => {
+    expect(normalizeLockedAdditionIds([10], ['v-1'], [20])).toEqual([])
   })
 })
 
@@ -279,5 +316,80 @@ describe('mapLayoutsToPutPayload', () => {
 
     expect(payload[0].cells).toHaveLength(1)
     expect(payload[0].cells?.[0]).toMatchObject({ row: 0, col: 0, article_ids: [10] })
+  })
+
+  it('includes locked_addition_ids on cells (default [])', () => {
+    const payload = mapLayoutsToPutPayload([
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 2,
+        grid_height: 1,
+        cells: [
+          {
+            row: 0,
+            col: 0,
+            label: 'Combo',
+            color: '#ffcc00',
+            article_ids: [10],
+            voucher_definition_uuids: [],
+            locked_addition_ids: [20, 21],
+          },
+          {
+            row: 0,
+            col: 1,
+            label: 'Plain',
+            color: '#eeeeee',
+            article_ids: [11],
+            voucher_definition_uuids: [],
+          },
+        ],
+      },
+    ])
+
+    expect(payload[0].cells?.[0]).toMatchObject({
+      article_ids: [10],
+      locked_addition_ids: [20, 21],
+    })
+    expect(payload[0].cells?.[1]).toMatchObject({
+      article_ids: [11],
+      locked_addition_ids: [],
+    })
+  })
+
+  it('clears locked_addition_ids when cell has multiple articles or vouchers', () => {
+    const payload = mapLayoutsToPutPayload([
+      {
+        uuid: 'layout-1',
+        name: 'Main',
+        is_default: true,
+        grid_width: 2,
+        grid_height: 1,
+        cells: [
+          {
+            row: 0,
+            col: 0,
+            label: 'Multi',
+            color: '#ffcc00',
+            article_ids: [10, 11],
+            voucher_definition_uuids: [],
+            locked_addition_ids: [20],
+          },
+          {
+            row: 0,
+            col: 1,
+            label: 'Voucher',
+            color: '#eeeeee',
+            article_ids: [10],
+            voucher_definition_uuids: ['v-1'],
+            locked_addition_ids: [20],
+          },
+        ],
+      },
+    ])
+
+    expect(payload[0].cells?.[0]?.locked_addition_ids).toEqual([])
+    expect(payload[0].cells?.[1]?.locked_addition_ids).toEqual([])
   })
 })

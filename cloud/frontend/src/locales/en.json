@@ -133,7 +133,10 @@
       "removeArticleFromStation": "Remove {article} from station",
       "stationArticlesOnly": "Articles (station articles only)",
       "noStationArticlesForCell": "No station articles available. Assign articles under Stations first.",
-      "stationArticleTreeLoadFailed": "Could not load articles."
+      "stationArticleTreeLoadFailed": "Could not load articles.",
+      "lockedAdditions": "Locked additions (combo)",
+      "lockedAdditionsHint": "Only when exactly one article is selected and no vouchers. Selected additions are sold with one tap on the POS.",
+      "lockedAdditionsEmpty": "This article has no additions."
     },
     "messages": {
       "statusUpdated": "Status saved.",

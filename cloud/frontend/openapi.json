@@ -16922,6 +16922,13 @@
             },
             "type": "array",
             "title": "Voucher Definition Uuids"
+          },
+          "locked_addition_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Locked Addition Ids"
           }
         },
         "type": "object",
@@ -16973,6 +16980,13 @@
             },
             "type": "array",
             "title": "Voucher Definition Uuids"
+          },
+          "locked_addition_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Locked Addition Ids"
           }
         },
         "type": "object",

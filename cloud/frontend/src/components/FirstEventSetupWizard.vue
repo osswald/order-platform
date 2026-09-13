@@ -576,6 +576,7 @@ async function saveStationAndWaiters() {
           article_ids: cell.article_ids || [],
           voucher_definition_uuid: cell.voucher_definition_uuid ?? null,
           voucher_definition_uuids: cell.voucher_definition_uuids || [],
+          locked_addition_ids: [],
         })),
       })),
       cash_registers: [],
