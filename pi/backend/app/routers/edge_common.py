@@ -421,10 +421,18 @@ def _create_voucher_print_job(
     return pj.id
 
 
-def _allocate_pickup_number(db: Session, event_id: int) -> int:
-    counter = db.query(EventPickupCounter).filter(EventPickupCounter.event_id == event_id).first()
+def _allocate_pickup_number(db: Session, event_id: int, station_uuid: str | None = None) -> int:
+    key = station_uuid or ""
+    counter = (
+        db.query(EventPickupCounter)
+        .filter(
+            EventPickupCounter.event_id == event_id,
+            EventPickupCounter.station_uuid == key,
+        )
+        .first()
+    )
     if not counter:
-        counter = EventPickupCounter(event_id=event_id, next_number=1)
+        counter = EventPickupCounter(event_id=event_id, station_uuid=key, next_number=1)
         db.add(counter)
         db.flush()
     number = int(counter.next_number or 1)

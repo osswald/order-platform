@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from app.models import LocalOrder, PrintJob, StationPickup
-from tests.fixtures_bundles import bundle_copy, cash_register_bundle
+from tests.fixtures_bundles import bundle_copy, cash_register_bundle, station_prefix_mode_bundle
 
 pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
 
@@ -16,6 +16,11 @@ pytestmark = pytest.mark.usefixtures("mock_printer_tcp")
 @pytest.fixture
 def bundle():
     return bundle_copy(cash_register_bundle())
+
+
+@pytest.fixture
+def station_mode_bundle():
+    return bundle_copy(station_prefix_mode_bundle())
 
 
 @pytest.fixture
@@ -99,6 +104,83 @@ def test_multi_station_allocates_distinct_codes(client):
         assert "A2" in texts["st-bar"]
     finally:
         db.close()
+
+
+def _seed_station_mode_bundle(Session, station_mode_bundle):
+    from app.bundle_cache import invalidate_bundle_cache
+    from app.models import SyncedBundle
+
+    db = Session()
+    try:
+        row = db.query(SyncedBundle).filter(SyncedBundle.id == 1).one()
+        row.json_body = json.dumps(station_mode_bundle)
+        db.commit()
+        invalidate_bundle_cache()
+    finally:
+        db.close()
+
+
+def test_station_mode_uses_station_prefixes_and_independent_numbers(api_context, station_mode_bundle):
+    """Station mode: Grill=G and Bar=B each start at 1 (not shared register letter/sequence)."""
+    from app.models import EventPickupCounter
+
+    ctx = api_context
+    c = ctx.client
+    Session = ctx.Session
+    _seed_station_mode_bundle(Session, station_mode_bundle)
+
+    r = _multi_station_order(c)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert set(body["pickup_codes"]) == {"G1", "B1"}
+    assert body["pickup_code"] in {"G1", "B1"}
+
+    db = Session()
+    try:
+        pickups = (
+            db.query(StationPickup)
+            .filter(StationPickup.local_order_id == body["local_order_id"])
+            .order_by(StationPickup.id.asc())
+            .all()
+        )
+        by_station = {p.station_uuid: p.pickup_code for p in pickups}
+        assert by_station == {"st-kitchen": "G1", "st-bar": "B1"}
+        counters = {
+            r.station_uuid: r.next_number
+            for r in db.query(EventPickupCounter).filter(EventPickupCounter.event_id == 1).all()
+        }
+        assert counters["st-kitchen"] == 2
+        assert counters["st-bar"] == 2
+        assert "" not in counters
+    finally:
+        db.close()
+
+
+def test_station_mode_rejects_null_station_group(api_context, station_mode_bundle):
+    ctx = api_context
+    c = ctx.client
+    Session = ctx.Session
+    station_mode_bundle["events"][0]["articles"]["99"] = {
+        "id": 99,
+        "name": "Orphan",
+        "price": 1.0,
+        "additions": [],
+    }
+    _seed_station_mode_bundle(Session, station_mode_bundle)
+
+    r = c.post(
+        "/v1/orders",
+        json={
+            "client_order_id": f"pwa-{uuid.uuid4().hex[:12]}",
+            "event_id": 1,
+            "table_number": None,
+            "order_source": "cash_register",
+            "cash_register_uuid": "reg-1",
+            "lines": [{"article_id": 99, "qty": 1, "note": "", "additions": []}],
+            "payments": [{"type": "cash", "amount_cents": 100}],
+        },
+    )
+    assert r.status_code in (400, 422), r.text
 
 
 def test_single_station_unchanged(client):

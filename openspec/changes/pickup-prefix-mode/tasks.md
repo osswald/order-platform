@@ -16,14 +16,27 @@
 
 ## 3. Pi counters and allocation
 
+<<<<<<< HEAD
 - [ ] 3.1 Migrate `event_pickup_counters` to support per-station rows (`station_uuid` sentinel `''` for event-wide); verify migration and model load
 - [ ] 3.2 Extend `_allocate_pickup_number` to accept optional `station_uuid` and advance the matching counter; verify unit tests for independent station sequences vs shared register-mode sequence
 - [ ] 3.3 In cash-register order creation, read `pickup_prefix_mode` from the event bundle: register mode uses register prefix + event-wide counter; station mode uses station prefix + per-station counter and fails if `station_uuid` is null; verify `test_station_scoped_pickups` (and new mode cases) pass
 - [ ] 3.4 Update operational restore / max-pickup rebuild for per-station counters in station mode; verify restore tests
 - [ ] 3.5 Ensure event lifecycle purge (including **test → prod** reconcile) deletes all pickup counter rows for the event (event-wide and per-station) so the next allocation starts at `1`; verify lifecycle tests assert counters are gone and a post-purge allocation returns `1`
+=======
+- [x] 3.1 Migrate `event_pickup_counters` to support per-station rows (`station_uuid` sentinel `''` for event-wide); verify migration and model load
+- [x] 3.2 Extend `_allocate_pickup_number` to accept optional `station_uuid` and advance the matching counter; verify unit tests for independent station sequences vs shared register-mode sequence
+- [x] 3.3 In cash-register order creation, read `pickup_prefix_mode` from the event bundle: register mode uses register prefix + event-wide counter; station mode uses station prefix + per-station counter and fails if `station_uuid` is null; verify `test_station_scoped_pickups` (and new mode cases) pass
+- [x] 3.4 Update operational restore / max-pickup rebuild for per-station counters in station mode; verify restore tests
+- [x] 3.5 Ensure event lifecycle purge (including **test → prod** reconcile) deletes all pickup counter rows for the event (event-wide and per-station) so the next allocation starts at `1`; verify lifecycle tests assert counters are gone and a post-purge allocation returns `1`
+>>>>>>> origin/cursor/pickup-prefix-mode-pi-eba7
 
 ## 4. Regression and lint
 
 - [ ] 4.1 Run cloud backend tests for event config validation, copy, and edge bundle; verify suite green for touched areas
+<<<<<<< HEAD
 - [ ] 4.2 Run Pi backend station-scoped pickup and order allocation tests; verify suite green for touched areas
 - [ ] 4.3 Run `./scripts/lint.sh` (or staged equivalent) on changed paths; verify lint passes
+=======
+- [x] 4.2 Run Pi backend station-scoped pickup and order allocation tests; verify suite green for touched areas
+- [x] 4.3 Run `./scripts/lint.sh` (or staged equivalent) on changed paths; verify lint passes
+>>>>>>> origin/cursor/pickup-prefix-mode-pi-eba7

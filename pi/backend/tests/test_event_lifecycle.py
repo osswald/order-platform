@@ -14,12 +14,14 @@ from app.models import (
     CollectiveBill,
     EmulatedReceipt,
     EventOrderCounter,
+    EventPickupCounter,
     LocalOrder,
     OutboxEntry,
     PrintJob,
     StationPickup,
 )
 from app.models_operational import OrderSession
+from app.routers.edge_common import _allocate_pickup_number
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -82,6 +84,9 @@ def _seed_event_data(session, event_id: int = 1):
     )
     session.add(CollectiveBill(uuid=f"cb-{event_id}", event_id=event_id, name="Team"))
     session.add(EventOrderCounter(event_id=event_id, next_number=5))
+    session.add(EventPickupCounter(event_id=event_id, station_uuid="", next_number=9))
+    session.add(EventPickupCounter(event_id=event_id, station_uuid="st-grill", next_number=4))
+    session.add(EventPickupCounter(event_id=event_id, station_uuid="st-bar", next_number=3))
     session.add(
         EmulatedReceipt(
             job_kind="receipt",
@@ -112,6 +117,8 @@ def test_purge_event_local_data(db):
     assert db.query(PrintJob).count() == 1
     assert db.query(CollectiveBill).filter(CollectiveBill.event_id == 1).count() == 0
     assert db.query(EventOrderCounter).filter(EventOrderCounter.event_id == 1).count() == 0
+    assert db.query(EventPickupCounter).filter(EventPickupCounter.event_id == 1).count() == 0
+    assert db.query(EventPickupCounter).filter(EventPickupCounter.event_id == 2).count() == 3
     assert db.query(StationPickup).filter(StationPickup.event_id == 1).count() == 0
     assert db.query(StationPickup).filter(StationPickup.event_id == 2).count() == 1
     assert db.query(EmulatedReceipt).count() == 0
@@ -126,6 +133,7 @@ def test_purge_all_operational_data_clears_station_pickups(db):
     assert db.query(StationPickup).count() == 0
     assert db.query(PrintJob).count() == 0
     assert db.query(EmulatedReceipt).count() == 0
+    assert db.query(EventPickupCounter).count() == 0
 
 
 def test_reconcile_test_to_prod_purges_emulated_receipts(db):
@@ -150,6 +158,19 @@ def test_reconcile_test_to_prod_purges(db):
     assert db.query(OutboxEntry).count() == 0
 
 
+def test_reconcile_test_to_prod_clears_pickup_counters_and_restarts_at_one(db):
+    _seed_event_data(db, 1)
+    assert db.query(EventPickupCounter).filter(EventPickupCounter.event_id == 1).count() == 3
+    old_bundle = {"events": [{"id": 1, "status": "test"}]}
+    new_bundle = {"events": [{"id": 1, "status": "prod"}]}
+    purged = reconcile_bundle_lifecycle(db, old_bundle, new_bundle)
+    assert purged == [1]
+    assert db.query(EventPickupCounter).filter(EventPickupCounter.event_id == 1).count() == 0
+    assert _allocate_pickup_number(db, 1) == 1
+    assert _allocate_pickup_number(db, 1, station_uuid="st-grill") == 1
+    assert _allocate_pickup_number(db, 1, station_uuid="st-bar") == 1
+
+
 def test_reconcile_prod_to_prod_no_purge(db):
     _seed_event_data(db, 1)
     bundle = {"events": [{"id": 1, "status": "prod"}]}
@@ -166,6 +187,7 @@ def test_reconcile_event_removed_from_bundle_purges(db):
     assert purged == [1]
     assert _submission_count(db) == 0
     assert db.query(StationPickup).count() == 0
+    assert db.query(EventPickupCounter).count() == 0
 
 
 def test_pull_bundle_order_pull_before_push():
