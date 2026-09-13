@@ -718,6 +718,7 @@ describe('EventConfigLayoutsSection', () => {
                   label: 'Combo',
                   color: '#ffcc00',
                   article_ids: [10],
+                  voucher_definition_uuid: null,
                   voucher_definition_uuids: [],
                   locked_addition_ids: [20],
                 },
@@ -826,6 +827,7 @@ describe('EventConfigLayoutsSection', () => {
                   label: 'Combo',
                   color: '#ffcc00',
                   article_ids: [10],
+                  voucher_definition_uuid: null,
                   voucher_definition_uuids: [],
                   locked_addition_ids: [20],
                 },
@@ -930,6 +932,7 @@ describe('EventConfigLayoutsSection', () => {
                   label: 'Combo',
                   color: '#ffcc00',
                   article_ids: [10],
+                  voucher_definition_uuid: null,
                   voucher_definition_uuids: [],
                   locked_addition_ids: [20],
                 },
@@ -988,8 +991,7 @@ describe('EventConfigLayoutsSection', () => {
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as {
       cellEdit: { locked_addition_ids: number[] }
@@ -1024,6 +1026,7 @@ describe('EventConfigLayoutsSection', () => {
                   label: 'Combo',
                   color: '#ffcc00',
                   article_ids: [10],
+                  voucher_definition_uuid: null,
                   voucher_definition_uuids: [],
                   locked_addition_ids: [20],
                 },
@@ -1098,8 +1101,7 @@ describe('EventConfigLayoutsSection', () => {
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as {
       cellEdit: { locked_addition_ids: number[] }
@@ -1131,6 +1133,7 @@ describe('EventConfigLayoutsSection', () => {
                   label: 'Combo',
                   color: '#ffcc00',
                   article_ids: [10],
+                  voucher_definition_uuid: null,
                   voucher_definition_uuids: [],
                   locked_addition_ids: [20, 99],
                 },
@@ -1189,8 +1192,7 @@ describe('EventConfigLayoutsSection', () => {
     })
 
     await flushPromises()
-    await wrapper.find('.grid-cell').trigger('click')
-    await flushPromises()
+    await shortPointerClick(wrapper, 0, 0)
 
     const vm = wrapper.vm as unknown as { cellEdit: { locked_addition_ids: number[] } }
     expect(vm.cellEdit.locked_addition_ids).toEqual([20])
@@ -1214,6 +1216,7 @@ describe('EventConfigLayoutsSection', () => {
                   label: 'Combo',
                   color: '#ffcc00',
                   article_ids: [10],
+                  voucher_definition_uuid: null,
                   voucher_definition_uuids: [],
                   locked_addition_ids: [],
                 },
