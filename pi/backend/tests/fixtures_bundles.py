@@ -123,6 +123,7 @@ def voucher_bundle() -> dict[str, Any]:
 def cash_register_bundle() -> dict[str, Any]:
     bundle = kitchen_monitor_bundle()
     event = bundle["events"][0]
+    event["pickup_prefix_mode"] = "register"
     event["printer_hosts"] = {
         "reg-1": "127.0.0.1:9100",
         "st-kitchen": "127.0.0.1:9100",
@@ -152,6 +153,19 @@ def cash_register_bundle() -> dict[str, Any]:
             "layout_uuid": "layout-1",
         }
     ]
+    return bundle
+
+
+def station_prefix_mode_bundle() -> dict[str, Any]:
+    """Cash-register bundle with station pickup prefixes G (Grill) and B (Bar)."""
+    bundle = cash_register_bundle()
+    event = bundle["events"][0]
+    event["pickup_prefix_mode"] = "station"
+    for st in event["configuration"]["stations"]:
+        if st["uuid"] == "st-kitchen":
+            st["pickup_code_prefix"] = "G"
+        elif st["uuid"] == "st-bar":
+            st["pickup_code_prefix"] = "B"
     return bundle
 
 

@@ -76,6 +76,8 @@ class EventOrderCounter(Base):
 class EventPickupCounter(Base):
     __tablename__ = "event_pickup_counters"
     event_id = Column(Integer, primary_key=True)
+    # Empty string = event-wide (register mode) counter; station uuid for station mode.
+    station_uuid = Column(String(36), primary_key=True, nullable=False, default="")
     next_number = Column(Integer, nullable=False, default=1)
 
 

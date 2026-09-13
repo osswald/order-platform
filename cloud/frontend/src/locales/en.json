@@ -133,7 +133,14 @@
       "removeArticleFromStation": "Remove {article} from station",
       "stationArticlesOnly": "Articles (station articles only)",
       "noStationArticlesForCell": "No station articles available. Assign articles under Stations first.",
-      "stationArticleTreeLoadFailed": "Could not load articles."
+      "stationArticleTreeLoadFailed": "Could not load articles.",
+      "pickupCodeLetters": "Pickup code letters",
+      "stationPickupCodeLetters": "Pickup code letters",
+      "pickupPrefixMode": "Pickup code letter from",
+      "pickupPrefixModeRegister": "Cash register",
+      "pickupPrefixModeStation": "Station",
+      "pickupPrefixModeLockedHint": "Mode can only be changed while status is Configuration.",
+      "pickupPrefixPlaceholder": "e.g. A"
     },
     "messages": {
       "statusUpdated": "Status saved.",

@@ -2890,6 +2890,11 @@ export interface components {
              * @default false
              */
             bluetooth_printing_enabled: boolean;
+            /**
+             * Pickup Prefix Mode
+             * @default register
+             */
+            pickup_prefix_mode: string;
             /** Twint Qr Data Url */
             twint_qr_data_url?: string | null;
             /**
@@ -3132,6 +3137,11 @@ export interface components {
              * @default false
              */
             bluetooth_printing_enabled: boolean;
+            /**
+             * Pickup Prefix Mode
+             * @default register
+             */
+            pickup_prefix_mode: string;
             /** Instant Collective Bill Name */
             instant_collective_bill_name?: string | null;
             /** Instant Collective Bill Uuid */
@@ -3243,6 +3253,11 @@ export interface components {
              * @default false
              */
             bluetooth_printing_enabled: boolean;
+            /**
+             * Pickup Prefix Mode
+             * @default register
+             */
+            pickup_prefix_mode: string;
             /** Instant Collective Bill Name */
             instant_collective_bill_name?: string | null;
             /** Instant Collective Bill Uuid */
@@ -3441,6 +3456,8 @@ export interface components {
             offer_payment_receipt?: boolean | null;
             /** Bluetooth Printing Enabled */
             bluetooth_printing_enabled?: boolean | null;
+            /** Pickup Prefix Mode */
+            pickup_prefix_mode?: string | null;
             /** Instant Collective Bill Name */
             instant_collective_bill_name?: string | null;
         };
@@ -4853,6 +4870,8 @@ export interface components {
             article_ids?: number[];
             /** Printer Rules */
             printer_rules?: components["schemas"]["StationPrinterRuleIn"][];
+            /** Pickup Code Prefix */
+            pickup_code_prefix?: string | null;
         };
         /** StationConfigRead */
         StationConfigRead: {
@@ -4868,6 +4887,8 @@ export interface components {
             article_ids: number[];
             /** Printer Rules */
             printer_rules?: components["schemas"]["StationPrinterRuleRead"][];
+            /** Pickup Code Prefix */
+            pickup_code_prefix?: string | null;
         };
         /** StationPrinterRuleIn */
         StationPrinterRuleIn: {

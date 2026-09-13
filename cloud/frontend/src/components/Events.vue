@@ -40,6 +40,7 @@
         :organisation-currency="organisationCurrency"
         :organisation-country-code="organisationCountryCode"
         :event-status="form.status"
+        v-model:pickup-prefix-mode="form.pickupPrefixMode"
         :cash-registers-enabled="form.cashRegistersEnabled"
         :vouchers-enabled="form.vouchersEnabled"
         :shift-settlement-enabled="form.shiftSettlementEnabled"
@@ -282,6 +283,7 @@ const emptyForm = (): EventStammdatenForm => ({
   kitchenMonitorsEnabled: false,
   offerPaymentReceipt: false,
   bluetoothPrintingEnabled: false,
+  pickupPrefixMode: 'register',
   instantCollectiveBillName: '',
 })
 
@@ -311,6 +313,7 @@ function stammdatenSnapshot() {
     kitchenMonitorsEnabled: Boolean(form.value.kitchenMonitorsEnabled),
     offerPaymentReceipt: Boolean(form.value.offerPaymentReceipt),
     bluetoothPrintingEnabled: Boolean(form.value.bluetoothPrintingEnabled),
+    pickupPrefixMode: form.value.pickupPrefixMode === 'station' ? 'station' : 'register',
   })
 }
 
@@ -502,6 +505,7 @@ async function applyEventToForm(event: EventRead) {
     kitchenMonitorsEnabled: Boolean(event.kitchen_monitors_enabled),
     offerPaymentReceipt: Boolean(event.offer_payment_receipt),
     bluetoothPrintingEnabled: Boolean(event.bluetooth_printing_enabled),
+    pickupPrefixMode: event.pickup_prefix_mode === 'station' ? 'station' : 'register',
     instantCollectiveBillName: event.instant_collective_bill_name || '',
   }
   originalStatus.value = event.status || 'config'
@@ -659,6 +663,7 @@ async function saveEvent() {
     kitchen_monitors_enabled: Boolean(form.value.kitchenMonitorsEnabled),
     offer_payment_receipt: Boolean(form.value.offerPaymentReceipt),
     bluetooth_printing_enabled: Boolean(form.value.bluetoothPrintingEnabled),
+    pickup_prefix_mode: form.value.pickupPrefixMode === 'station' ? 'station' : 'register',
   }
   if (!editMode.value) {
     (payload as EventCreate).organisation_id = props.activeOrganisationId

@@ -91,6 +91,7 @@ from .edge_common import (
     _payments_total_cents,
     _receipt_payload_from_orders,
     _selections_total_cents_from_groups,
+    _station_config_for_uuid,
     _summary_from_orders,
     _sync_outbox_payload,
     _sync_station_pickups_to_order,
@@ -268,6 +269,7 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
     pickup_codes: list[str] = []
     pickup_status: str | None = None
     pickup_prefix = str(reg.get("pickup_code_prefix") or "").strip().upper() if order_source == "cash_register" else ""
+    pickup_prefix_mode = str(ev.get("pickup_prefix_mode") or "register").strip().lower()
     if order_source == "cash_register":
         pickup_status = "pending"
     payload: dict = {
@@ -396,8 +398,24 @@ def create_local_order(body: LocalOrderCreate, db: Session = Depends(get_db)) ->
             continue
         station_pickup_code = pickup_code
         if order_source == "cash_register":
-            pickup_number = _allocate_pickup_number(db, body.event_id)
-            station_pickup_code = f"{pickup_prefix}{pickup_number}"
+            if pickup_prefix_mode == "station":
+                if station_uuid is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="station mode requires every article line to belong to a station",
+                    )
+                st_cfg = _station_config_for_uuid(ev, str(station_uuid))
+                station_prefix = str((st_cfg or {}).get("pickup_code_prefix") or "").strip().upper()
+                if not station_prefix:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="station pickup_code_prefix is required in station mode",
+                    )
+                pickup_number = _allocate_pickup_number(db, body.event_id, station_uuid=str(station_uuid))
+                station_pickup_code = f"{station_prefix}{pickup_number}"
+            else:
+                pickup_number = _allocate_pickup_number(db, body.event_id)
+                station_pickup_code = f"{pickup_prefix}{pickup_number}"
             pickup_codes.append(station_pickup_code)
             if pickup_code is None:
                 pickup_code = station_pickup_code

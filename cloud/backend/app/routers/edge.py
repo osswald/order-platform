@@ -310,6 +310,7 @@ class EdgeEventBundle(BaseModel):
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
     bluetooth_printing_enabled: bool = False
+    pickup_prefix_mode: str = "register"
     twint_qr_data_url: str | None = None
     start: datetime
     end: datetime
@@ -490,6 +491,7 @@ def read_edge_bundle(
                 kitchen_monitors_enabled=bool(getattr(ev, "kitchen_monitors_enabled", False)),
                 offer_payment_receipt=bool(getattr(ev, "offer_payment_receipt", False)),
                 bluetooth_printing_enabled=bool(getattr(ev, "bluetooth_printing_enabled", False)),
+                pickup_prefix_mode=str(getattr(ev, "pickup_prefix_mode", None) or "register"),
                 twint_qr_data_url=twint_qr_data_url_for_event(ev),
                 start=ev.start,
                 end=ev.end,

@@ -174,6 +174,10 @@ def _revision_for_existing_schema(tables: set[str], inspector) -> str | None:
     """Pick Alembic revision matching schema created via create_all() or older Pi builds."""
     if not (_SCHEMA_MARKERS <= tables or (_LEGACY_V3_TABLES & tables)):
         return None
+    if "event_pickup_counters" in tables:
+        cols = {c["name"] for c in inspector.get_columns("event_pickup_counters")}
+        if "station_uuid" in cols:
+            return "010_pickup_counter_station"
     if "local_stock_state" in tables:
         return "009_local_stock_overlay"
     if "print_jobs" in tables:

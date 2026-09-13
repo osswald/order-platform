@@ -37,7 +37,11 @@
     "requires_verleiher_admin": "Hire-company administrator permission required.",
     "organisation_not_in_verleiher": "Organisation does not belong to this hire company.",
     "appliance_not_found": "Appliance not found.",
-    "appliance_not_in_verleiher": "Appliance does not belong to this hire company."
+    "appliance_not_in_verleiher": "Appliance does not belong to this hire company.",
+    "station_pickup_prefix_invalid": "Station pickup prefix must be 1–3 letters A–Z.",
+    "duplicate_station_pickup_prefix": "Station pickup prefixes must be unique within the event.",
+    "pickup_prefix_mode_locked": "Pickup prefix mode can only be changed while status is config.",
+    "pickup_prefix_mode_invalid": "Pickup prefix mode must be register or station."
   },
   "pdf": {
     "common": {
