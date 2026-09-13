@@ -26,4 +26,4 @@
 
 - [ ] 4.1 Run cloud backend tests for event config validation, copy, and edge bundle; verify suite green for touched areas
 - [ ] 4.2 Run Pi backend station-scoped pickup and order allocation tests; verify suite green for touched areas
-- [ ] 4.3 Run `./scripts/lint.sh` (or staged equivalent) on changed paths; verify lint passes
+- [x] 4.3 Run `./scripts/lint.sh` (or staged equivalent) on changed paths; verify lint passes
