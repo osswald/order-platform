@@ -48,6 +48,7 @@
         :kitchen-monitors-enabled="form.kitchenMonitorsEnabled"
         :stammdaten-dirty="stammdatenDirty"
         :status-saving="statusSaveBusy"
+        @pickup-prefix-mode-saved="onPickupPrefixModeSaved"
       >
         <template #stammdaten>
           <HostedPiCard v-if="form.status === 'config'" :event-id="activeId" />
@@ -196,6 +197,7 @@ import { statusLabel } from '../utils/dashboardMetrics'
 import { eventStatusColor } from '../utils/eventStatus'
 import {
   resolveEventStammdatenSaveNavigation,
+  stammdatenBaselineAfterPickupPrefixModeSave,
   stammdatenBaselineAfterStatusSave,
   statusOnlyUpdatePayload,
 } from '../utils/eventDetailSave'
@@ -321,6 +323,15 @@ const stammdatenDirty = computed(() => {
   if (!editMode.value || !stammdatenBaseline.value) return false
   return stammdatenSnapshot() !== stammdatenBaseline.value
 })
+
+
+function onPickupPrefixModeSaved(mode: 'register' | 'station') {
+  stammdatenBaseline.value = stammdatenBaselineAfterPickupPrefixModeSave(
+    stammdatenBaseline.value,
+    mode,
+  )
+}
+
 const hasTwintQr = ref(false)
 const twintQrPreviewUrl = ref('')
 const twintQrPreviewLoading = ref(false)
