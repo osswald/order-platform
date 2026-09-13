@@ -61,6 +61,7 @@ def _stations_payload(event: Event) -> list:
                 printer_appliance_id=st.printer_appliance_id,
                 article_ids=[a.id for a in st.articles],
                 printer_rules=rules,
+                pickup_code_prefix=getattr(st, "pickup_code_prefix", None),
             )
         )
     return out
@@ -196,6 +197,7 @@ def copy_event(db: Session, source: Event, *, name: str) -> Event:
         kitchen_monitors_enabled=bool(getattr(source, "kitchen_monitors_enabled", False)),
         offer_payment_receipt=bool(getattr(source, "offer_payment_receipt", False)),
         bluetooth_printing_enabled=bool(getattr(source, "bluetooth_printing_enabled", False)),
+        pickup_prefix_mode=str(getattr(source, "pickup_prefix_mode", None) or "register"),
     )
     apply_instant_collective_bill_settings(
         new_event,

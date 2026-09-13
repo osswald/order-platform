@@ -29,6 +29,7 @@ class EventBase(BaseModel):
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
     bluetooth_printing_enabled: bool = False
+    pickup_prefix_mode: str = "register"
     instant_collective_bill_name: str | None = None
     instant_collective_bill_uuid: str | None = None
 
@@ -65,6 +66,7 @@ class EventCreate(BaseModel):
     kitchen_monitors_enabled: bool = False
     offer_payment_receipt: bool = False
     bluetooth_printing_enabled: bool = False
+    pickup_prefix_mode: str = "register"
     instant_collective_bill_name: str | None = None
     instant_collective_bill_uuid: str | None = None
 
@@ -105,6 +107,7 @@ class EventUpdate(BaseModel):
     kitchen_monitors_enabled: bool | None = None
     offer_payment_receipt: bool | None = None
     bluetooth_printing_enabled: bool | None = None
+    pickup_prefix_mode: str | None = None
     instant_collective_bill_name: str | None = None
 
 
@@ -144,6 +147,7 @@ class StationConfigRead(BaseModel):
     printer_appliance_id: int | None
     article_ids: list[int]
     printer_rules: list[StationPrinterRuleRead] = Field(default_factory=list)
+    pickup_code_prefix: str | None = None
 
 
 class EventWaiterConfigRead(BaseModel):
@@ -228,6 +232,7 @@ class StationConfigIn(BaseModel):
     printer_appliance_id: int | None = None
     article_ids: list[int] = Field(default_factory=list)
     printer_rules: list[StationPrinterRuleIn] = Field(default_factory=list)
+    pickup_code_prefix: str | None = Field(None, min_length=1, max_length=3)
 
 
 class EventWaiterConfigIn(BaseModel):

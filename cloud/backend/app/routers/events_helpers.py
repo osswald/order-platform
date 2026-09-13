@@ -87,6 +87,7 @@ def event_response(event: Event) -> dict:
         "kitchen_monitors_enabled": bool(getattr(event, "kitchen_monitors_enabled", False)),
         "offer_payment_receipt": bool(getattr(event, "offer_payment_receipt", False)),
         "bluetooth_printing_enabled": bool(getattr(event, "bluetooth_printing_enabled", False)),
+        "pickup_prefix_mode": str(getattr(event, "pickup_prefix_mode", None) or "register"),
         **instant_collective_bill_fields(event),
     }
 
@@ -180,6 +181,7 @@ def serialize_event_configuration(
                     )
                     for rule in sorted(st.printer_rules or [], key=lambda r: (r.sort_order, r.id))
                 ],
+                pickup_code_prefix=getattr(st, "pickup_code_prefix", None),
             )
         )
     event_waiters = [
