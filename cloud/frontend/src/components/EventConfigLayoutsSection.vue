@@ -170,6 +170,34 @@
               class="cell-article-tree"
             />
           </div>
+          <div
+            v-if="showLockedAdditions"
+            data-testid="locked-additions"
+            class="form-field"
+          >
+            <label>{{ $t('events.config.lockedAdditions') }}</label>
+            <p class="muted small">{{ $t('events.config.lockedAdditionsHint') }}</p>
+            <v-progress-linear
+              v-if="lockedAdditionsLoading"
+              indeterminate
+              color="primary"
+              class="tree-loading"
+            />
+            <p v-else-if="!lockedAdditionOptions.length" class="muted empty-hint">
+              {{ $t('events.config.lockedAdditionsEmpty') }}
+            </p>
+            <div v-else class="locked-additions-list">
+              <v-checkbox
+                v-for="opt in lockedAdditionOptions"
+                :key="opt.addition_article_id"
+                :model-value="cellEdit.locked_addition_ids.includes(opt.addition_article_id)"
+                :label="opt.name"
+                hide-details
+                density="compact"
+                @update:model-value="(v) => toggleLockedAddition(opt.addition_article_id, v === true)"
+              />
+            </div>
+          </div>
         </v-card-text>
         <v-card-actions class="dialog-actions">
           <v-btn
@@ -196,9 +224,18 @@ import { useI18n } from 'vue-i18n'
 import { apiJson } from '../api'
 import { textColorForBackground } from '../utils/colorContrast.js'
 import { filterTreeNodes, mapTreeNodes, buildArticleCategoryTree } from '../utils/articleCategoryTree'
-import { layoutCellHasContent } from '../utils/eventConfigLayoutsPayload'
+import {
+  cellCanHaveLockedAdditions,
+  layoutCellHasContent,
+  normalizeLockedAdditionIds,
+} from '../utils/eventConfigLayoutsPayload'
 import { newUuid } from '@/utils/newUuid'
-import type { ArticleRead, ColorPaletteEntry, EventConfigurationRead } from '@/types/api'
+import type {
+  ArticleAdditionsRead,
+  ArticleRead,
+  ColorPaletteEntry,
+  EventConfigurationRead,
+} from '@/types/api'
 import type {
   EventCellEditState,
   EventLayoutCellLocal,
@@ -248,6 +285,7 @@ const cellEdit = ref<EventCellEditState>({
   article_ids: [],
   voucher_definition_uuid: null,
   voucher_definition_uuids: [],
+  locked_addition_ids: [],
 })
 const cellTreeNodesRaw = ref<StationArticleTreeNode[]>([])
 const cellTreeSelection = ref<string[]>([])
@@ -255,6 +293,16 @@ const cellTreeFilter = ref('')
 const treeLoading = ref(false)
 const treeError = ref('')
 const cellDialogHadContent = ref(false)
+const lockedAdditionOptions = ref<Array<{ addition_article_id: number; name: string }>>([])
+const lockedAdditionsLoading = ref(false)
+let lockedAdditionsRequestId = 0
+
+const showLockedAdditions = computed(() =>
+  cellCanHaveLockedAdditions(
+    treeSelectionToArticleIds(cellTreeSelection.value),
+    cellEdit.value.voucher_definition_uuids || [],
+  ),
+)
 
 const fixedAmountVoucherOptions = computed(() =>
   props.voucherDefinitions
@@ -301,6 +349,7 @@ function displayCell(lo: EventLayoutLocal, row: number, col: number): EventLayou
       article_ids: [],
       voucher_definition_uuid: null,
       voucher_definition_uuids: [],
+      locked_addition_ids: [],
     }
   )
 }
@@ -401,6 +450,7 @@ function ensureCell(lo: EventLayoutLocal, row: number, col: number): EventLayout
       article_ids: [],
       voucher_definition_uuid: null,
       voucher_definition_uuids: [],
+      locked_addition_ids: [],
     }
     lo.cells.push(c)
   }
@@ -413,6 +463,7 @@ function removeCellAt(lo: EventLayoutLocal, row: number, col: number) {
 
 function buildCellFromDialog(row: number, col: number): EventLayoutCellLocal {
   const vUuids = [...(cellEdit.value.voucher_definition_uuids || [])]
+  const articleIds = treeSelectionToArticleIds(cellTreeSelection.value)
   return {
     row,
     col,
@@ -420,8 +471,52 @@ function buildCellFromDialog(row: number, col: number): EventLayoutCellLocal {
     color: cellEdit.value.color || '#eeeeee',
     voucher_definition_uuids: vUuids,
     voucher_definition_uuid: vUuids[0] || null,
-    article_ids: treeSelectionToArticleIds(cellTreeSelection.value),
+    article_ids: articleIds,
+    locked_addition_ids: normalizeLockedAdditionIds(
+      articleIds,
+      vUuids,
+      cellEdit.value.locked_addition_ids,
+    ),
   }
+}
+
+function toggleLockedAddition(additionArticleId: number, checked: boolean) {
+  const current = cellEdit.value.locked_addition_ids || []
+  if (checked) {
+    if (!current.includes(additionArticleId)) {
+      cellEdit.value.locked_addition_ids = [...current, additionArticleId]
+    }
+    return
+  }
+  cellEdit.value.locked_addition_ids = current.filter((id) => id !== additionArticleId)
+}
+
+async function loadLockedAdditionsForArticle(articleId: number) {
+  const requestId = ++lockedAdditionsRequestId
+  lockedAdditionsLoading.value = true
+  lockedAdditionOptions.value = []
+  try {
+    const data = await apiJson<ArticleAdditionsRead>(`/articles/${articleId}/additions`)
+    if (requestId !== lockedAdditionsRequestId) return
+    lockedAdditionOptions.value = (data.items || []).map((row) => ({
+      addition_article_id: Number(row.addition_article_id),
+      name: String(row.name ?? ''),
+    }))
+  } catch {
+    if (requestId !== lockedAdditionsRequestId) return
+    lockedAdditionOptions.value = []
+  } finally {
+    if (requestId === lockedAdditionsRequestId) {
+      lockedAdditionsLoading.value = false
+    }
+  }
+}
+
+function clearLockedAdditionsUi() {
+  lockedAdditionsRequestId += 1
+  lockedAdditionOptions.value = []
+  lockedAdditionsLoading.value = false
+  cellEdit.value.locked_addition_ids = []
 }
 
 function articleIdsToTreeSelection(ids: number[]): string[] {
@@ -494,15 +589,24 @@ function removeLayout(idx: number) {
 }
 
 function mapLayoutCells(cells: EventLayoutCellLocal[] | undefined) {
-  return (cells || []).map((c) => ({
-    row: c.row,
-    col: c.col,
-    label: c.label || '',
-    color: c.color || '#eeeeee',
-    article_ids: [...(c.article_ids || [])],
-    voucher_definition_uuid: c.voucher_definition_uuid || null,
-    voucher_definition_uuids: [...cellVoucherUuids(c)],
-  }))
+  return (cells || []).map((c) => {
+    const articleIds = [...(c.article_ids || [])]
+    const voucherUuids = [...cellVoucherUuids(c)]
+    return {
+      row: c.row,
+      col: c.col,
+      label: c.label || '',
+      color: c.color || '#eeeeee',
+      article_ids: articleIds,
+      voucher_definition_uuid: c.voucher_definition_uuid || null,
+      voucher_definition_uuids: voucherUuids,
+      locked_addition_ids: normalizeLockedAdditionIds(
+        articleIds,
+        voucherUuids,
+        c.locked_addition_ids,
+      ),
+    }
+  })
 }
 
 function mergeLayoutCellsFromResponse(cfg: EventConfigurationRead) {
@@ -543,15 +647,28 @@ async function openCellDialog(layoutIndex: number, row: number, col: number) {
   const c = displayCell(lo, row, col)
   cellDialogHadContent.value = layoutCellHasContent(c)
   const vUuids = cellVoucherUuids(c)
+  const articleIds = [...(c.article_ids || [])]
   cellEdit.value = {
     label: c.label || '',
     color: c.color || '#eeeeee',
-    article_ids: [...(c.article_ids || [])],
+    article_ids: articleIds,
     voucher_definition_uuid: vUuids[0] || null,
     voucher_definition_uuids: [...vUuids],
+    locked_addition_ids: normalizeLockedAdditionIds(
+      articleIds,
+      vUuids,
+      c.locked_addition_ids,
+    ),
   }
   cellTreeSelection.value = articleIdsToTreeSelection(c.article_ids)
   cellDialogVisible.value = true
+
+  if (cellCanHaveLockedAdditions(articleIds, vUuids) && articleIds[0] != null) {
+    void loadLockedAdditionsForArticle(articleIds[0])
+  } else {
+    clearLockedAdditionsUi()
+    cellEdit.value.locked_addition_ids = []
+  }
 
   if (props.eventArticles != null) {
     treeLoading.value = false
@@ -588,6 +705,7 @@ function applyCellDialog() {
     c.voucher_definition_uuids = updated.voucher_definition_uuids
     c.voucher_definition_uuid = updated.voucher_definition_uuid
     c.article_ids = updated.article_ids
+    c.locked_addition_ids = updated.locked_addition_ids
   }
   cellDialogHadContent.value = false
   cellDialogVisible.value = false
@@ -633,6 +751,26 @@ watch(
     void loadPaletteColors()
   },
   { immediate: true },
+)
+
+watch(
+  [cellTreeSelection, () => cellEdit.value.voucher_definition_uuids],
+  ([selection, voucherUuids], previous) => {
+    if (!cellDialogVisible.value) return
+    const articleIds = treeSelectionToArticleIds(selection || [])
+    const vUuids = Array.isArray(voucherUuids) ? voucherUuids.map(String) : []
+    if (!cellCanHaveLockedAdditions(articleIds, vUuids)) {
+      clearLockedAdditionsUi()
+      return
+    }
+    const articleId = articleIds[0]
+    const prevSelection = previous?.[0]
+    const prevArticleIds = treeSelectionToArticleIds(prevSelection || [])
+    if (prevArticleIds.length === 1 && prevArticleIds[0] !== articleId) {
+      cellEdit.value.locked_addition_ids = []
+    }
+    void loadLockedAdditionsForArticle(articleId)
+  },
 )
 
 onMounted(() => {
@@ -757,6 +895,14 @@ defineExpose({
 
 .cell-article-tree {
   max-height: 280px;
+  overflow-y: auto;
+}
+
+.locked-additions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 200px;
   overflow-y: auto;
 }
 

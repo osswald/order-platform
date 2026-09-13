@@ -9,6 +9,25 @@ type LayoutCellLike = {
   article_ids?: number[] | null
   voucher_definition_uuid?: string | null
   voucher_definition_uuids?: string[] | null
+  locked_addition_ids?: number[] | null
+}
+
+/** Combo cells: exactly one article and no vouchers may lock Zusätze. */
+export function cellCanHaveLockedAdditions(
+  articleIds: number[],
+  voucherUuids: string[],
+): boolean {
+  return articleIds.length === 1 && voucherUuids.length === 0
+}
+
+/** Keep locked ids only when the cell is eligible for combo locks; otherwise []. */
+export function normalizeLockedAdditionIds(
+  articleIds: number[],
+  voucherUuids: string[],
+  lockedIds: number[] | null | undefined,
+): number[] {
+  if (!cellCanHaveLockedAdditions(articleIds, voucherUuids)) return []
+  return Array.isArray(lockedIds) ? lockedIds.map(Number).filter((n) => !Number.isNaN(n)) : []
 }
 
 type LayoutLike = {
@@ -80,14 +99,20 @@ export function mapLayoutsToPutPayload(layouts: LayoutLike[]): AppLayoutIn[] {
       .filter((cell) => layoutCellHasContent(cell))
       .map((cell) => {
         const voucherUuids = cellVoucherUuidsForPayload(cell)
+        const articleIds = Array.isArray(cell.article_ids) ? cell.article_ids : []
         return {
           row: cell.row,
           col: cell.col,
           label: cell.label || '',
           color: cell.color || '#eeeeee',
-          article_ids: Array.isArray(cell.article_ids) ? cell.article_ids : [],
+          article_ids: articleIds,
           voucher_definition_uuid: voucherUuids[0] || null,
           voucher_definition_uuids: voucherUuids,
+          locked_addition_ids: normalizeLockedAdditionIds(
+            articleIds,
+            voucherUuids,
+            cell.locked_addition_ids,
+          ),
         }
       }),
   }))

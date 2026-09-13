@@ -176,6 +176,7 @@ class LayoutCellRead(BaseModel):
     article_ids: list[int]
     voucher_definition_uuid: str | None = None
     voucher_definition_uuids: list[str] = Field(default_factory=list)
+    locked_addition_ids: list[int] = Field(default_factory=list)
 
 
 class AppLayoutRead(BaseModel):
@@ -260,6 +261,7 @@ class LayoutCellIn(BaseModel):
     article_ids: list[int] = Field(default_factory=list)
     voucher_definition_uuid: str | None = None
     voucher_definition_uuids: list[str] = Field(default_factory=list)
+    locked_addition_ids: list[int] = Field(default_factory=list)
 
 
 class AppLayoutIn(BaseModel):

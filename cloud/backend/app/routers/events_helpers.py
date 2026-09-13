@@ -40,18 +40,23 @@ def event_configuration_load_options(*, include_layout_cells: bool = True):
     from stacking multiple joinedload() collections on one query.
     """
     layout_load = (
-        selectinload(Event.app_layouts)
-        .selectinload(EventAppLayout.cells)
-        .selectinload(EventAppLayoutCell.articles)
+        (
+            selectinload(Event.app_layouts)
+            .selectinload(EventAppLayout.cells)
+            .selectinload(EventAppLayoutCell.articles),
+            selectinload(Event.app_layouts)
+            .selectinload(EventAppLayout.cells)
+            .selectinload(EventAppLayoutCell.locked_addition_links),
+        )
         if include_layout_cells
-        else selectinload(Event.app_layouts)
+        else (selectinload(Event.app_layouts),)
     )
     return (
         joinedload(Event.organisation),
         selectinload(Event.stations).selectinload(EventStation.articles),
         selectinload(Event.stations).selectinload(EventStation.printer_rules),
         selectinload(Event.event_waiters),
-        layout_load,
+        *layout_load,
         selectinload(Event.cash_registers),
         selectinload(Event.voucher_definitions),
         selectinload(Event.kitchen_monitor_printers),
@@ -209,6 +214,9 @@ def serialize_event_configuration(
                         article_ids=[a.id for a in cell.articles],
                         voucher_definition_uuid=v_uuids[0] if v_uuids else None,
                         voucher_definition_uuids=v_uuids,
+                        locked_addition_ids=[
+                            link.article_id for link in (cell.locked_addition_links or [])
+                        ],
                     )
                 )
         app_layouts.append(

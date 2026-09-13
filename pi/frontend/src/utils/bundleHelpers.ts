@@ -255,6 +255,75 @@ export function cellVoucherUuids(cell: {
   return legacy ? [legacy] : []
 }
 
+/** Layout cell shape used for combo / classic enablement. */
+export interface LayoutCellLockedAdditions {
+  article_ids?: number[] | null
+  voucher_definition_uuids?: string[] | null
+  voucher_definition_uuid?: string | null
+  locked_addition_ids?: number[] | null
+}
+
+export type BeginAddOptions = { lockedAdditionIds: number[] }
+
+/** Ordered locked Zusatz article ids on a layout cell (default []). */
+export function lockedAdditionIds(
+  cell: LayoutCellLockedAdditions | null | undefined,
+): number[] {
+  const raw = cell?.locked_addition_ids
+  if (!Array.isArray(raw) || !raw.length) return []
+  const out: number[] = []
+  for (const item of raw) {
+    const id = Number(item)
+    if (!Number.isFinite(id) || id <= 0) continue
+    out.push(id)
+  }
+  return out
+}
+
+/** Combo cell = non-empty locked_addition_ids. */
+export function isComboLayoutCell(
+  cell: LayoutCellLockedAdditions | null | undefined,
+): boolean {
+  return lockedAdditionIds(cell).length > 0
+}
+
+/**
+ * Classic cells: any sellable article or fixed-amount voucher.
+ * Combo cells: base article sellable and every locked Zusatz sellable
+ * (pass the same checker as Zusätze sheet / store.isAdditionSellable).
+ */
+export function isLayoutCellEnabled(
+  event: EdgeBundleEvent | null | undefined,
+  cell: LayoutCellLockedAdditions | null | undefined,
+  isAdditionSellableFn: (additionId: number) => boolean,
+): boolean {
+  const locked = lockedAdditionIds(cell)
+  if (locked.length > 0) {
+    const baseIds = (cell?.article_ids || []).map(Number).filter((id) => id > 0)
+    if (!articlesForIds(event, baseIds).length) return false
+    return locked.every((id) => isAdditionSellableFn(id))
+  }
+  return (
+    fixedAmountVouchersForCell(event, cell).length > 0 ||
+    articlesForIds(event, (cell?.article_ids || []).map(Number)).length > 0
+  )
+}
+
+/** Cart additions payload for a combo one-tap (each locked id at qty 1). */
+export function cartAdditionsFromLockedIds(
+  lockedIds: number[],
+): Array<{ article_id: number; qty: number }> {
+  return lockedAdditionIds({ locked_addition_ids: lockedIds }).map((article_id) => ({
+    article_id,
+    qty: 1,
+  }))
+}
+
+/** When beginAdd options are present, never open the Zusätze sheet. */
+export function shouldSkipAdditionsSheet(options?: BeginAddOptions | null): boolean {
+  return options != null
+}
+
 export function fixedAmountVouchersForCell(
   event: EdgeBundleEvent | null | undefined,
   cell: Parameters<typeof cellVoucherUuids>[0],

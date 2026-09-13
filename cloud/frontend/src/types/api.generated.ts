@@ -3721,6 +3721,8 @@ export interface components {
             voucher_definition_uuid?: string | null;
             /** Voucher Definition Uuids */
             voucher_definition_uuids?: string[];
+            /** Locked Addition Ids */
+            locked_addition_ids?: number[];
         };
         /** LayoutCellRead */
         LayoutCellRead: {
@@ -3738,6 +3740,8 @@ export interface components {
             voucher_definition_uuid?: string | null;
             /** Voucher Definition Uuids */
             voucher_definition_uuids?: string[];
+            /** Locked Addition Ids */
+            locked_addition_ids?: number[];
         };
         /** MeResponse */
         MeResponse: {

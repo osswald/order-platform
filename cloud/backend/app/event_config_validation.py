@@ -14,10 +14,12 @@ from .models import (
     Appliance,
     ApplianceLending,
     Article,
+    ArticleAdditionLink,
     ArticleCategory,
     Event,
     EventAppLayout,
     EventAppLayoutCell,
+    EventAppLayoutCellLockedAddition,
     EventCashRegister,
     EventKitchenMonitorPrinter,
     EventStation,
@@ -111,6 +113,67 @@ def assert_cell_articles_subset_of_stations(
             for aid in cell.article_ids:
                 if aid not in allowed:
                     raise api_error("validation_failed", status.HTTP_422_UNPROCESSABLE_CONTENT)
+
+
+def assert_layout_cell_locked_additions(db: Session, layouts_payload: list) -> None:
+    """Combo cells: locked_addition_ids require exactly one article, no vouchers, linked Zusätze."""
+    needed_base_ids: set[int] = set()
+    for layout in layouts_payload:
+        for cell in layout.cells:
+            locked_ids = list(getattr(cell, "locked_addition_ids", None) or [])
+            if not locked_ids:
+                continue
+            article_ids = list(getattr(cell, "article_ids", None) or [])
+            voucher_uuids = normalize_cell_voucher_uuids(cell)
+            if len(article_ids) != 1:
+                raise api_error(
+                    "layout_cell_locked_additions_require_single_article",
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    row=cell.row,
+                    col=cell.col,
+                )
+            if voucher_uuids:
+                raise api_error(
+                    "layout_cell_locked_additions_forbid_vouchers",
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    row=cell.row,
+                    col=cell.col,
+                )
+            if len(locked_ids) != len(set(locked_ids)):
+                raise api_error(
+                    "layout_cell_locked_addition_duplicate",
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    row=cell.row,
+                    col=cell.col,
+                )
+            needed_base_ids.add(int(article_ids[0]))
+
+    links_by_base: dict[int, set[int]] = {bid: set() for bid in needed_base_ids}
+    if needed_base_ids:
+        rows = (
+            db.query(ArticleAdditionLink.base_article_id, ArticleAdditionLink.addition_article_id)
+            .filter(ArticleAdditionLink.base_article_id.in_(list(needed_base_ids)))
+            .all()
+        )
+        for base_id, addition_id in rows:
+            links_by_base.setdefault(int(base_id), set()).add(int(addition_id))
+
+    for layout in layouts_payload:
+        for cell in layout.cells:
+            locked_ids = list(getattr(cell, "locked_addition_ids", None) or [])
+            if not locked_ids:
+                continue
+            base_id = int(list(getattr(cell, "article_ids", None) or [])[0])
+            allowed = links_by_base.get(base_id, set())
+            for aid in locked_ids:
+                if int(aid) not in allowed:
+                    raise api_error(
+                        "layout_cell_locked_addition_not_linked",
+                        status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        row=cell.row,
+                        col=cell.col,
+                        article_id=int(aid),
+                    )
 
 
 def assert_source_waiter_in_org(db: Session, event: Event, source_waiter_id: int | None) -> None:
@@ -283,6 +346,7 @@ def replace_event_configuration(
     assert_layout_cells_within_grid(app_layouts_in)
     assert_layout_cells_vouchers(db, event, app_layouts_in, voucher_definitions_in)
     assert_cell_articles_subset_of_stations(stations_in, app_layouts_in)
+    assert_layout_cell_locked_additions(db, app_layouts_in)
     assert_station_pickup_prefixes_valid(event, stations_in)
     assert_cash_registers_valid(db, event, cash_registers_in, app_layouts_in)
 
@@ -413,6 +477,15 @@ def replace_event_configuration(
             if c.article_ids:
                 arts = db.query(Article).filter(Article.id.in_(list(set(c.article_ids)))).all()
                 cell.articles = arts
+            locked_ids = list(getattr(c, "locked_addition_ids", None) or [])
+            for sort_order, addition_id in enumerate(locked_ids):
+                db.add(
+                    EventAppLayoutCellLockedAddition(
+                        cell_id=cell.id,
+                        article_id=int(addition_id),
+                        sort_order=sort_order,
+                    )
+                )
 
     replace_event_voucher_definitions(db, event, voucher_definitions_in)
 

@@ -29,7 +29,12 @@ def _load_event_for_copy(db: Session, event_id: int) -> Event | None:
             joinedload(Event.stations).joinedload(EventStation.articles),
             joinedload(Event.stations).joinedload(EventStation.printer_rules),
             joinedload(Event.event_waiters),
-            joinedload(Event.app_layouts).joinedload(EventAppLayout.cells).joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.app_layouts)
+            .joinedload(EventAppLayout.cells)
+            .joinedload(EventAppLayoutCell.articles),
+            joinedload(Event.app_layouts)
+            .joinedload(EventAppLayout.cells)
+            .joinedload(EventAppLayoutCell.locked_addition_links),
             joinedload(Event.cash_registers),
             joinedload(Event.voucher_definitions),
             joinedload(Event.kitchen_monitor_printers),
@@ -130,6 +135,9 @@ def _layouts_payload(event: Event, voucher_uuid_map: dict[str, str]) -> tuple[li
                     article_ids=[a.id for a in cell.articles],
                     voucher_definition_uuid=new_uuids[0] if new_uuids else None,
                     voucher_definition_uuids=new_uuids,
+                    locked_addition_ids=[
+                        link.article_id for link in (cell.locked_addition_links or [])
+                    ],
                 )
             )
         out.append(

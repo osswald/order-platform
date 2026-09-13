@@ -129,7 +129,7 @@ import { useCart } from '@/composables/useCart'
 import { useEventContext } from '@/composables/useEventContext'
 import { useStationPrintFailures } from '@/composables/useStationPrintFailures'
 import { discountsEnabled as eventDiscountsEnabled, formatMoney } from '@/utils/money'
-import { getDefaultLayout, articlesForIds, hasAdditions, positionCommentPresets as bundlePositionCommentPresets, positionCommentsEnabled as bundlePositionCommentsEnabled, resolveStationUuidForArticle } from '@/utils/bundleHelpers'
+import { getDefaultLayout, articlesForIds, hasAdditions, cartAdditionsFromLockedIds, shouldSkipAdditionsSheet, positionCommentPresets as bundlePositionCommentPresets, positionCommentsEnabled as bundlePositionCommentsEnabled, resolveStationUuidForArticle, type BeginAddOptions } from '@/utils/bundleHelpers'
 import { buildOrderPayloadLines, newClientOrderId, stockLinesFromPayloadLines } from '@/utils/orderSubmit'
 import OrderScreenHeader from '@/components/OrderScreenHeader.vue'
 import CartPanel from '@/components/CartPanel.vue'
@@ -257,18 +257,33 @@ function onCellPickerPick(item: SheetOptionItem) {
   }
 }
 
-function onPickArticles(articleIds: number[]) {
+function onPickArticles(articleIds: number[], lockedIds?: number[]) {
   const arts = articlesForIds(event.value, articleIds)
   if (!arts.length) return
   if (arts.length === 1) {
-    addOne(arts[0].id)
+    if (lockedIds && lockedIds.length > 0) {
+      beginAdd(arts[0].id, 1, { lockedAdditionIds: lockedIds })
+    } else {
+      addOne(arts[0].id)
+    }
     return
   }
   sheetArticles.value = arts
   sheetOpen.value = true
 }
 
-function beginAdd(articleId: number, qty = 1) {
+function beginAdd(articleId: number, qty = 1, options?: BeginAddOptions) {
+  if (shouldSkipAdditionsSheet(options)) {
+    const su = resolveStationUuidForArticle(event.value, articleId)
+    addCartLine({
+      article_id: articleId,
+      qty,
+      station_uuid: su,
+      note: '',
+      additions: cartAdditionsFromLockedIds(options!.lockedAdditionIds),
+    })
+    return
+  }
   const art = getArticle(articleId)
   if (art && hasAdditions(art)) {
     pendingAdd.value = { articleId, qty }
