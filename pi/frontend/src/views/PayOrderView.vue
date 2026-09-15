@@ -50,7 +50,11 @@ import type { AccountSummaryResponse, EdgeBundleEvent, OrderLineIn, OrderPayResp
 import { getErrorMessage } from '@/types/api'
 import { formatMoney, lineTotalCents, type MoneyLine } from '@/utils/money'
 import { lineAdditionLabels } from '@/utils/bundleHelpers'
-import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
+import {
+  resolvePaymentsForAmount,
+  sumupPaymentFailureMessage,
+  terminalPaymentBusy,
+} from '@/utils/resolvePayment'
 import { offerPaymentReceiptAfterSettle } from '@/utils/paymentReceiptPrompt'
 import MoneyKeypad from '@/components/MoneyKeypad.vue'
 
@@ -128,42 +132,49 @@ onMounted(async () => {
 
 async function pay() {
   if (cashMismatch.value) return
-  let payments
-  try {
-    payments = await resolvePaymentsForAmount(
-      event.value as EdgeBundleEvent,
-      cashCents.value,
-      String(orderId.value),
-    )
-  } catch (e: unknown) {
-    if (e instanceof Error && e.message !== 'cancelled') {
-      showToast(getErrorMessage(e, 'Zahlung abgebrochen.'), 'err')
-    }
-    return
-  }
+  if (paying.value || terminalPaymentBusy.value) return
   paying.value = true
   try {
-    const res = await api<OrderPayResponse>(`/v1/orders/${orderId.value}/pay`, {
-      method: 'POST',
-      body: JSON.stringify({ payments }),
-    })
-    activeTableNumber.value = null
-    showToast('Bezahlt.', 'ok')
-    if (res.payment_id && event.value) {
-      // Receipt failures must not block navigation after a successful pay.
-      try {
-        await offerPaymentReceiptAfterSettle({
-          paymentId: res.payment_id,
-          event: event.value,
-          showToast,
-        })
-      } catch {
-        // Belt-and-suspenders: AfterSettle already swallows.
+    let payments
+    try {
+      payments = await resolvePaymentsForAmount(
+        event.value as EdgeBundleEvent,
+        cashCents.value,
+        String(orderId.value),
+      )
+    } catch (e: unknown) {
+      if (
+        e instanceof Error &&
+        e.message !== 'cancelled' &&
+        !sumupPaymentFailureMessage.value
+      ) {
+        showToast(getErrorMessage(e, 'Zahlung abgebrochen.'), 'err')
       }
+      return
     }
-    router.replace({ name: 'hub' })
-  } catch (e: unknown) {
-    showToast(getErrorMessage(e, 'Zahlung fehlgeschlagen'), 'err')
+    try {
+      const res = await api<OrderPayResponse>(`/v1/orders/${orderId.value}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({ payments }),
+      })
+      activeTableNumber.value = null
+      showToast('Bezahlt.', 'ok')
+      if (res.payment_id && event.value) {
+        // Receipt failures must not block navigation after a successful pay.
+        try {
+          await offerPaymentReceiptAfterSettle({
+            paymentId: res.payment_id,
+            event: event.value,
+            showToast,
+          })
+        } catch {
+          // Belt-and-suspenders: AfterSettle already swallows.
+        }
+      }
+      router.replace({ name: 'hub' })
+    } catch (e: unknown) {
+      showToast(getErrorMessage(e, 'Zahlung fehlgeschlagen'), 'err')
+    }
   } finally {
     paying.value = false
   }

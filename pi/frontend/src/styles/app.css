@@ -12,6 +12,82 @@
   pointer-events: all;
 }
 
+.terminal-busy-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.terminal-busy-cancel {
+  min-width: 10rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.25rem;
+  border: 1px solid rgba(248, 250, 252, 0.35);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.terminal-busy-cancel:active {
+  background: rgba(248, 250, 252, 0.12);
+}
+
+.terminal-failure-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  pointer-events: all;
+}
+
+.terminal-failure-panel {
+  width: min(26rem, 100%);
+  padding: 1.5rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  text-align: center;
+}
+
+.terminal-failure-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.terminal-failure-message {
+  margin: 0 0 1.25rem;
+  color: #cbd5e1;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.terminal-failure-dismiss {
+  min-width: 8rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #2563eb;
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+
 :root {
   --bg: #0f172a;
   --card: #1e293b;

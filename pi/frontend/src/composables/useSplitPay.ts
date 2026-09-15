@@ -7,7 +7,10 @@ import { formatMoney } from '@/utils/money'
 import { lineAdditionLabels } from '@/utils/bundleHelpers'
 import { buildPayment } from '@/utils/paymentTypes'
 import type { PickPaymentHooks } from '@/utils/pickPaymentType'
-import { resolvePaymentsForAmount } from '@/utils/resolvePayment'
+import {
+  resolvePaymentsForAmount,
+  sumupPaymentFailureMessage,
+} from '@/utils/resolvePayment'
 import {
   basketCentsAfterVoucher,
   sumGroupBasketCents,
@@ -244,8 +247,9 @@ export function useSplitPay({
   async function settlePartial(
     payments: PaymentIn[],
     onFullySettled?: () => void,
+    alreadyPaying = false,
   ): Promise<SplitPaySummary> {
-    paying.value = true
+    if (!alreadyPaying) paying.value = true
     try {
       if (!event.value) throw new Error('Kein Event')
       const res = await api<SplitPaySummary>(settlePartialPath(), {
@@ -275,23 +279,30 @@ export function useSplitPay({
       await reload()
       return res
     } finally {
-      paying.value = false
+      if (!alreadyPaying) paying.value = false
     }
   }
 
   async function onGreenCheck(onFullySettled?: () => void): Promise<SplitPaySummary | undefined> {
+    if (paying.value) return
     if (!rawBasketCents.value && !fixedCents.value) return
-    let payments: PaymentIn[]
+    paying.value = true
     try {
-      payments = await paymentsForAmount(basketCents.value)
-    } catch (e: unknown) {
-      const message = getErrorMessage(e, 'Zahlung abgebrochen.')
-      if (message !== 'cancelled') {
-        showToast(message, 'err')
+      let payments: PaymentIn[]
+      try {
+        payments = await paymentsForAmount(basketCents.value)
+      } catch (e: unknown) {
+        const message = getErrorMessage(e, 'Zahlung abgebrochen.')
+        // Failure sheet handles SumUp errors; cancel stays quiet like Twint.
+        if (message !== 'cancelled' && !sumupPaymentFailureMessage.value) {
+          showToast(message, 'err')
+        }
+        return
       }
-      return
+      return await settlePartial(payments, onFullySettled, true)
+    } finally {
+      paying.value = false
     }
-    return settlePartial(payments, onFullySettled)
   }
 
   return {

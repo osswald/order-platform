@@ -79,6 +79,9 @@ vi.mock('@/utils/pickPaymentType', () => ({
 
 vi.mock('@/utils/resolvePayment', () => ({
   terminalPaymentBusy: ref(false),
+  sumupPaymentFailureMessage: ref<string | null>(null),
+  dismissSumupPaymentFailure: vi.fn(),
+  cancelActiveSumupPayment: vi.fn(),
 }))
 
 vi.mock('@/utils/paymentReceiptPrompt', () => ({

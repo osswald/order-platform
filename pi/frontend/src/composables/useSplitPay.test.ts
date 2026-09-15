@@ -18,6 +18,7 @@ vi.mock('../utils/paymentTypes', () => ({
 
 vi.mock('../utils/resolvePayment', () => ({
   resolvePaymentsForAmount: vi.fn(async (_ev, cents) => [{ type: 'cash', amount_cents: cents }]),
+  sumupPaymentFailureMessage: { value: null as string | null },
 }))
 
 import { api } from '@/api'
@@ -167,5 +168,32 @@ describe('useSplitPay', () => {
     await onGreenCheck(onFullySettled)
     expect(api).toHaveBeenCalled()
     expect(onFullySettled).toHaveBeenCalled()
+  })
+
+  it('ignores re-entry while SumUp collection is in flight', async () => {
+    let release!: (value: { type: string; amount_cents: number }[]) => void
+    const pending = new Promise<{ type: string; amount_cents: number }[]>((resolve) => {
+      release = resolve
+    })
+    const { resolvePaymentsForAmount } = await import('../utils/resolvePayment')
+    vi.mocked(resolvePaymentsForAmount).mockReset()
+    vi.mocked(resolvePaymentsForAmount).mockImplementation(() => pending)
+    vi.mocked(api).mockResolvedValue({ remaining_cents: 0 })
+
+    const { splitPay } = createSplitPay()
+    const { reload, onGreenCheck, paying } = splitPay
+    await reload()
+
+    const first = onGreenCheck()
+    expect(paying.value).toBe(true)
+    expect(resolvePaymentsForAmount).toHaveBeenCalledTimes(1)
+
+    const second = await onGreenCheck()
+    expect(second).toBeUndefined()
+    expect(resolvePaymentsForAmount).toHaveBeenCalledTimes(1)
+
+    release([{ type: 'sumup_connected', amount_cents: 900 }])
+    await first
+    expect(paying.value).toBe(false)
   })
 })

@@ -44,7 +44,27 @@
     <ShiftOpenDialog />
     <ShiftCloseDialog />
     <div v-if="terminalPaymentBusy" class="terminal-busy-overlay" aria-live="polite">
-      <p>Karte an das Gerät halten…</p>
+      <div class="terminal-busy-panel">
+        <p>Karte an das Gerät halten…</p>
+        <button type="button" class="terminal-busy-cancel" @click="onSumupCancel">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+    <div
+      v-if="sumupPaymentFailureMessage"
+      class="terminal-failure-overlay"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="sumup-failure-title"
+    >
+      <div class="terminal-failure-panel">
+        <h2 id="sumup-failure-title">Zahlung fehlgeschlagen</h2>
+        <p class="terminal-failure-message">{{ sumupPaymentFailureMessage }}</p>
+        <button type="button" class="terminal-failure-dismiss" @click="onSumupFailureDismiss">
+          OK
+        </button>
+      </div>
     </div>
     <PaymentReceiptPromptSheet
       :open="receiptPromptOpen"
@@ -101,7 +121,12 @@ import {
   type PaymentPickerEntry,
 } from '@/utils/pickPaymentType'
 import type { PaymentType } from '@/utils/paymentTypes'
-import { terminalPaymentBusy } from '@/utils/resolvePayment'
+import {
+  terminalPaymentBusy,
+  sumupPaymentFailureMessage,
+  dismissSumupPaymentFailure,
+  cancelActiveSumupPayment,
+} from '@/utils/resolvePayment'
 import {
   receiptPromptOpen,
   receiptPromptStep,
@@ -202,6 +227,14 @@ function onTwintQrConfirm() {
 
 function onTwintQrCancel() {
   cancelTwintQr()
+}
+
+function onSumupCancel() {
+  cancelActiveSumupPayment()
+}
+
+function onSumupFailureDismiss() {
+  dismissSumupPaymentFailure()
 }
 
 function onReceiptPrintYes() {

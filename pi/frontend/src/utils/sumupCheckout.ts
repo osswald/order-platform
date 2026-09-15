@@ -12,6 +12,9 @@ import {
 const POLL_MS = 2000
 const TIMEOUT_MS = 120_000
 
+/** Reject message when the operator cancels an in-progress SumUp checkout. */
+export const SUMUP_CANCELLED_MESSAGE = 'cancelled'
+
 interface SumupCheckoutResponse {
   checkout_id: string
   status: string
@@ -19,8 +22,35 @@ interface SumupCheckoutResponse {
   receipt_info?: SumupReceiptInfo | null
 }
 
+interface ActiveSumupAttempt {
+  cancelled: boolean
+  eventId: number
+  readerId: string
+}
+
+let activeAttempt: ActiveSumupAttempt | null = null
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function throwIfCancelled(attempt: ActiveSumupAttempt): void {
+  if (attempt.cancelled) {
+    throw new Error(SUMUP_CANCELLED_MESSAGE)
+  }
+}
+
+/**
+ * Cancel the in-flight SumUp connected collection (if any).
+ * Best-effort terminate on the reader; the collector rejects with `cancelled`.
+ */
+export function cancelActiveSumupCheckout(): void {
+  const attempt = activeAttempt
+  if (!attempt || attempt.cancelled) return
+  attempt.cancelled = true
+  void terminateSumupCheckout(attempt.eventId, attempt.readerId).catch(() => {
+    /* best effort */
+  })
 }
 
 export function resolveActiveSumupReaderId(event: EdgeBundleEvent): string {
@@ -76,10 +106,13 @@ export async function terminateSumupCheckout(eventId: number, readerId: string):
 async function pollSumupCheckoutUntilDone(
   eventId: number,
   checkoutId: string,
+  attempt: ActiveSumupAttempt,
 ): Promise<SumupCheckoutResponse> {
   const deadline = Date.now() + TIMEOUT_MS
   while (Date.now() < deadline) {
+    throwIfCancelled(attempt)
     const status = await getSumupCheckoutStatus(eventId, checkoutId)
+    throwIfCancelled(attempt)
     if (status.status === 'paid' && status.transaction_id) {
       return status
     }
@@ -103,31 +136,53 @@ export async function collectSumupConnectedPayment(input: {
     throw new Error('Kein SumUp-Gerät ausgewählt.')
   }
 
-  const created = await createSumupCheckout({
+  const attempt: ActiveSumupAttempt = {
+    cancelled: false,
     eventId: input.event.id,
-    amountCents: input.amountCents,
-    currency: input.event.currency,
     readerId,
-    clientOrderId: input.clientOrderId,
-  })
+  }
+  activeAttempt = attempt
 
   try {
-    const finalStatus = await pollSumupCheckoutUntilDone(input.event.id, created.checkout_id)
-    const payment = buildSumupConnectedPayment(
-      input.amountCents,
-      finalStatus.transaction_id || '',
-      finalStatus.receipt_info,
-    )[0]
-    if (!payment.sumup_transaction_id) {
-      throw new Error('SumUp-Transaktion ohne ID.')
-    }
-    return payment
-  } catch (err) {
+    const created = await createSumupCheckout({
+      eventId: input.event.id,
+      amountCents: input.amountCents,
+      currency: input.event.currency,
+      readerId,
+      clientOrderId: input.clientOrderId,
+    })
+    throwIfCancelled(attempt)
+
     try {
-      await terminateSumupCheckout(input.event.id, readerId)
-    } catch {
-      /* best effort cleanup */
+      const finalStatus = await pollSumupCheckoutUntilDone(
+        input.event.id,
+        created.checkout_id,
+        attempt,
+      )
+      throwIfCancelled(attempt)
+      const payment = buildSumupConnectedPayment(
+        input.amountCents,
+        finalStatus.transaction_id || '',
+        finalStatus.receipt_info,
+      )[0]
+      if (!payment.sumup_transaction_id) {
+        throw new Error('SumUp-Transaktion ohne ID.')
+      }
+      return payment
+    } catch (err) {
+      const cancelled = err instanceof Error && err.message === SUMUP_CANCELLED_MESSAGE
+      if (!cancelled) {
+        try {
+          await terminateSumupCheckout(input.event.id, readerId)
+        } catch {
+          /* best effort cleanup */
+        }
+      }
+      throw err
     }
-    throw err
+  } finally {
+    if (activeAttempt === attempt) {
+      activeAttempt = null
+    }
   }
 }
