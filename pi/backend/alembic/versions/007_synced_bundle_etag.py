@@ -17,9 +17,21 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _has_column(table: str, column: str) -> bool:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if table not in inspector.get_table_names():
+        return False
+    return column in {c["name"] for c in inspector.get_columns(table)}
+
+
 def upgrade() -> None:
+    if _has_column("synced_bundle", "etag"):
+        return
     op.add_column("synced_bundle", sa.Column("etag", sa.String(length=128), nullable=True))
 
 
 def downgrade() -> None:
+    if not _has_column("synced_bundle", "etag"):
+        return
     op.drop_column("synced_bundle", "etag")

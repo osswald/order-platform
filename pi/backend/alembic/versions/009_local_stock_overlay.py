@@ -11,7 +11,14 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _has_table(table: str) -> bool:
+    bind = op.get_bind()
+    return table in sa.inspect(bind).get_table_names()
+
+
 def upgrade() -> None:
+    if _has_table("local_stock_state"):
+        return
     op.create_table(
         "local_stock_state",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -34,5 +41,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if not _has_table("local_stock_state"):
+        return
     op.drop_index("ix_local_stock_state_event_id", table_name="local_stock_state")
     op.drop_table("local_stock_state")

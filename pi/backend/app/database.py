@@ -112,6 +112,48 @@ def apply_synced_bundle_schema_patches() -> None:
     )
 
 
+def apply_pickup_counter_schema_patches() -> None:
+    """Rebuild event_pickup_counters with composite PK (event_id, station_uuid).
+
+    Needed when Alembic is stuck before 010_pickup_counter_station (e.g. one of the
+    parallel 006 heads already stamped while sibling columns were added via patches).
+    Empty-string station_uuid is the event-wide (register-mode) counter row.
+    """
+    try:
+        inspector = inspect(engine)
+        if "event_pickup_counters" not in inspector.get_table_names():
+            return
+        cols = {c["name"] for c in inspector.get_columns("event_pickup_counters")}
+        if "station_uuid" in cols:
+            return
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE event_pickup_counters_new (
+                        event_id INTEGER NOT NULL,
+                        station_uuid VARCHAR(36) NOT NULL DEFAULT '',
+                        next_number INTEGER NOT NULL,
+                        PRIMARY KEY (event_id, station_uuid)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO event_pickup_counters_new (event_id, station_uuid, next_number)
+                    SELECT event_id, '', next_number FROM event_pickup_counters
+                    """
+                )
+            )
+            conn.execute(text("DROP TABLE event_pickup_counters"))
+            conn.execute(text("ALTER TABLE event_pickup_counters_new RENAME TO event_pickup_counters"))
+        log.info("Patched event_pickup_counters with station_uuid composite primary key")
+    except Exception:
+        log.exception("Failed to patch event_pickup_counters for station_uuid")
+
+
 def apply_shift_session_schema_patches() -> None:
     """create_all() does not alter existing tables; patch shift-session drift."""
     _add_column_if_missing(
@@ -258,6 +300,7 @@ def init_test_schema() -> None:
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
     apply_synced_bundle_schema_patches()
+    apply_pickup_counter_schema_patches()
     apply_hot_path_index_schema_patches()
 
 
@@ -310,6 +353,7 @@ def run_migrations() -> None:
     apply_print_job_schema_patches()
     apply_kitchen_ticket_schema_patches()
     apply_synced_bundle_schema_patches()
+    apply_pickup_counter_schema_patches()
     apply_hot_path_index_schema_patches()
     _create_all_tables()
 
