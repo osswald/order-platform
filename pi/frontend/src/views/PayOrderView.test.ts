@@ -38,6 +38,8 @@ vi.mock('../composables/useEventContext', () => ({
 
 vi.mock('../utils/resolvePayment', () => ({
   resolvePaymentsForAmount: vi.fn(async () => [{ type: 'cash', amount_cents: 500 }]),
+  terminalPaymentBusy: { value: false },
+  sumupPaymentFailureMessage: { value: null },
 }))
 
 vi.mock('../utils/paymentReceiptPrompt', () => ({

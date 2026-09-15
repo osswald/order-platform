@@ -11,12 +11,18 @@ vi.mock('./cloudReachable', () => ({
 
 vi.mock('./sumupCheckout', () => ({
   collectSumupConnectedPayment: vi.fn(),
+  cancelActiveSumupCheckout: vi.fn(),
+  SUMUP_CANCELLED_MESSAGE: 'cancelled',
 }))
 
 import { pickPaymentType } from './pickPaymentType'
 import { checkCloudReachable } from './cloudReachable'
 import { collectSumupConnectedPayment } from './sumupCheckout'
-import { resolvePaymentsForAmount } from './resolvePayment'
+import {
+  resolvePaymentsForAmount,
+  sumupPaymentFailureMessage,
+  dismissSumupPaymentFailure,
+} from './resolvePayment'
 
 describe('resolvePaymentsForAmount sumup_connected', () => {
   const event = { id: 1, currency: 'CHF' } as EdgeBundleEvent
@@ -25,6 +31,7 @@ describe('resolvePaymentsForAmount sumup_connected', () => {
     vi.mocked(pickPaymentType).mockReset()
     vi.mocked(checkCloudReachable).mockReset()
     vi.mocked(collectSumupConnectedPayment).mockReset()
+    sumupPaymentFailureMessage.value = null
   })
 
   it('collects sumup connected payment via cloud checkout', async () => {
@@ -82,5 +89,40 @@ describe('resolvePaymentsForAmount sumup_connected', () => {
     await resolvePaymentsForAmount(event, 800, null, { onSumupShow, onSumupHide })
     expect(onSumupShow).toHaveBeenCalledOnce()
     expect(onSumupHide).not.toHaveBeenCalled()
+  })
+
+  it('sets sumupPaymentFailureMessage on collection failure', async () => {
+    vi.mocked(pickPaymentType).mockResolvedValue('sumup_connected')
+    vi.mocked(checkCloudReachable).mockResolvedValue({ reachable: true, reason: null })
+    vi.mocked(collectSumupConnectedPayment).mockRejectedValue(new Error('Karte abgelehnt'))
+    await expect(resolvePaymentsForAmount(event, 800)).rejects.toThrow('Karte abgelehnt')
+    expect(sumupPaymentFailureMessage.value).toBe('Karte abgelehnt')
+  })
+
+  it('does not set failure message when operator cancels', async () => {
+    vi.mocked(pickPaymentType).mockResolvedValue('sumup_connected')
+    vi.mocked(checkCloudReachable).mockResolvedValue({ reachable: true, reason: null })
+    vi.mocked(collectSumupConnectedPayment).mockRejectedValue(new Error('cancelled'))
+    await expect(resolvePaymentsForAmount(event, 800)).rejects.toThrow('cancelled')
+    expect(sumupPaymentFailureMessage.value).toBeNull()
+  })
+
+  it('calls onSumupHide when operator cancels', async () => {
+    vi.mocked(pickPaymentType).mockResolvedValue('sumup_connected')
+    vi.mocked(checkCloudReachable).mockResolvedValue({ reachable: true, reason: null })
+    vi.mocked(collectSumupConnectedPayment).mockRejectedValue(new Error('cancelled'))
+    const onSumupShow = vi.fn()
+    const onSumupHide = vi.fn()
+    await expect(
+      resolvePaymentsForAmount(event, 800, null, { onSumupShow, onSumupHide }),
+    ).rejects.toThrow('cancelled')
+    expect(onSumupShow).toHaveBeenCalledOnce()
+    expect(onSumupHide).toHaveBeenCalledOnce()
+  })
+
+  it('dismissSumupPaymentFailure clears the message', () => {
+    sumupPaymentFailureMessage.value = 'Karte abgelehnt'
+    dismissSumupPaymentFailure()
+    expect(sumupPaymentFailureMessage.value).toBeNull()
   })
 })
