@@ -5,5 +5,5 @@
 
 ## 2. Validation
 
-- [ ] 2.1 Run `openspec validate fix-android-release-sdk-tools --strict` and ensure it passes
+- [x] 2.1 Run `openspec validate fix-android-release-sdk-tools --strict` and ensure it passes
 - [ ] 2.2 After merge (or via workflow_dispatch on the PR branch if available), re-run **Android release** and verify the `Set up Android SDK` step succeeds (no `Failed to find package 'tools'`)
