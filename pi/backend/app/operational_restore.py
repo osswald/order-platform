@@ -16,6 +16,7 @@ from .models import (
     KitchenTicket,
     KitchenTicketLine,
     LocalOrder,
+    OrderItem,
     OutboxEntry,
     StationPickup,
 )
@@ -48,6 +49,34 @@ def _has_pending_outbox_for_order(db: Session, *, event_id: int, client_order_id
         if str(existing.get("client_order_id") or "") == client_order_id:
             return True
     return False
+
+
+def _local_open_cids_with_pending_outbox(db: Session, event_id: int) -> set[str]:
+    """Open local client_order_ids that still have pending/error outbox for this event."""
+    open_cids = {
+        str(cid)
+        for (cid,) in db.query(LocalOrder.client_order_id)
+        .filter(LocalOrder.event_id == event_id, LocalOrder.payment_status == "open")
+        .all()
+        if cid
+    }
+    if not open_cids:
+        return set()
+    keep: set[str] = set()
+    rows = (
+        db.query(OutboxEntry)
+        .filter(OutboxEntry.event_id == event_id, OutboxEntry.status.in_(("pending", "error")))
+        .all()
+    )
+    for row in rows:
+        try:
+            existing = json.loads(row.payload_json or "{}")
+        except json.JSONDecodeError:
+            continue
+        cid = str(existing.get("client_order_id") or "")
+        if cid in open_cids:
+            keep.add(cid)
+    return keep
 
 
 def _local_kitchen_all_done(db: Session, order: LocalOrder) -> bool:
@@ -298,6 +327,7 @@ def _ghost_cleanup_orders(db: Session, *, event_id: int, keep_client_ids: set[st
         ).delete(synchronize_session=False)
         db.query(KitchenTicket).filter(KitchenTicket.local_order_id == row.id).delete(synchronize_session=False)
         db.query(StationPickup).filter(StationPickup.local_order_id == row.id).delete(synchronize_session=False)
+        db.query(OrderItem).filter(OrderItem.submission_id == row.id).delete(synchronize_session=False)
         db.query(OutboxEntry).filter(
             OutboxEntry.event_id == event_id,
             OutboxEntry.payload_json.contains(row.client_order_id),
@@ -587,6 +617,7 @@ def restore_operational_snapshot(db: Session, snapshot: dict, bundle: dict | Non
                 tickets=kitchen_by_cid.get(cid) or [],
             )
 
+        keep_cids |= _local_open_cids_with_pending_outbox(db, event_id)
         summary["purged_ghost_orders"] += _ghost_cleanup_orders(db, event_id=event_id, keep_client_ids=keep_cids)
 
         for entry in event_snap.get("open_cash_sessions") or []:
