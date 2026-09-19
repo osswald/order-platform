@@ -325,6 +325,17 @@ async def pull_and_restore(
         snapshot = snap.data
         bundle = pull_result.get("bundle")
         if needs_operational_restore(db, snapshot):
+            # Push pending submissions before ghost cleanup so cloud can learn about
+            # new local opens; keep-set still protects if push fails or lags.
+            if is_push_enabled():
+                try:
+                    pre_push = await push_outbox(db, retry_errors=True, client=client)
+                    pull_result["pre_restore_push"] = pre_push
+                except CloudConfigError:
+                    raise
+                except Exception as e:
+                    log.warning("pre-restore outbox push failed: %s", e)
+                    pull_result["pre_restore_push_failed"] = str(e)[:2000]
             restore_summary = restore_operational_snapshot(db, snapshot, bundle)
             pull_result["restore"] = restore_summary
             if bundle:

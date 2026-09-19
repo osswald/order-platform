@@ -4,7 +4,7 @@ import json
 
 import pytest
 from app.domain.sessions import ensure_order_session
-from app.models import KitchenTicket, KitchenTicketLine, LocalOrder, OutboxEntry, SyncedBundle
+from app.models import KitchenTicket, KitchenTicketLine, LocalOrder, OrderItem, OutboxEntry, SyncedBundle
 from app.operational_restore import needs_operational_restore, restore_operational_snapshot
 from tests.fixtures_bundles import bundle_copy, kitchen_monitor_bundle
 
@@ -389,3 +389,110 @@ def test_restore_cash_session_preserves_cash_session_uuid(isolated_engine, db_se
     row = db.query(CashSession).filter(CashSession.event_id == 1, CashSession.status == "OPEN").one()
     assert row.cash_session_uuid == uuid_val
     assert row.waiter_uuid == "w-1"
+
+
+def _add_pending_outbox(db, *, cid: str, event_id: int = 1, payload: dict | None = None) -> None:
+    body = payload if payload is not None else {"client_order_id": cid, "event_id": event_id, "lines": [_open_line()]}
+    db.add(
+        OutboxEntry(
+            chunk_id=f"chunk-{cid}",
+            entity_type="submission",
+            entity_ids_json=json.dumps([cid]),
+            event_id=event_id,
+            payload_json=json.dumps(body),
+            payload_version=1,
+            status="pending",
+        )
+    )
+
+
+def _add_order_item(db, order: LocalOrder) -> OrderItem:
+    item = OrderItem(
+        session_id=order.session_id,
+        submission_id=order.id,
+        event_id=order.event_id,
+        article_id=10,
+        quantity=1,
+        unit_price_cents=400,
+        article_name="Test",
+        status="OPEN",
+        client_line_key=f"line-{order.id}",
+        current_table_number=order.table_number or None,
+        origin_table_number=order.table_number or None,
+    )
+    db.add(item)
+    db.flush()
+    return item
+
+
+def test_ghost_cleanup_keeps_unsynced_open_with_pending_outbox(isolated_engine, db_session, bundle):
+    """Local open not in cloud open_orders but with pending outbox must survive ghost cleanup."""
+    db = db_session
+    _seed_bundle(db, bundle)
+    order = _add_local_order(db, cid="local-only-1", table_number=0, lines=[_open_line()])
+    order.order_source = "cash_register"
+    ticket = KitchenTicket(
+        local_order_id=order.id,
+        order_submission_id=order.id,
+        event_id=1,
+        station_uuid="st-kitchen",
+        printer_appliance_id=101,
+        status="open",
+    )
+    db.add(ticket)
+    _add_pending_outbox(db, cid="local-only-1")
+    db.commit()
+
+    # Cloud has a different open order so restore runs; local-only-1 is absent.
+    snapshot = _event_snapshot(open_orders=[_cloud_open_order("cloud-keep-1")], kitchen_tickets=[])
+    summary = restore_operational_snapshot(db, snapshot, bundle)
+
+    assert summary["purged_ghost_orders"] == 0
+    kept = db.query(LocalOrder).filter(LocalOrder.client_order_id == "local-only-1").one()
+    assert kept.payment_status == "open"
+    assert db.query(KitchenTicket).filter(KitchenTicket.local_order_id == kept.id).count() == 1
+
+
+def test_ghost_cleanup_keeps_unsynced_table_open_with_pending_outbox(isolated_engine, db_session, bundle):
+    db = db_session
+    _seed_bundle(db, bundle)
+    _add_local_order(db, cid="table-only-1", table_number=42)
+    _add_pending_outbox(db, cid="table-only-1")
+    db.commit()
+
+    snapshot = _event_snapshot(open_orders=[_cloud_open_order("cloud-keep-2")], kitchen_tickets=[])
+    summary = restore_operational_snapshot(db, snapshot, bundle)
+
+    assert summary["purged_ghost_orders"] == 0
+    kept = db.query(LocalOrder).filter(LocalOrder.client_order_id == "table-only-1").one()
+    assert kept.payment_status == "open"
+    assert kept.table_number == 42
+
+
+def test_ghost_cleanup_purges_true_ghost_without_outbox(isolated_engine, db_session, bundle):
+    db = db_session
+    _seed_bundle(db, bundle)
+    _add_local_order(db, cid="stale-ghost-1", table_number=7)
+    db.commit()
+
+    snapshot = _event_snapshot(open_orders=[_cloud_open_order("cloud-keep-3")], kitchen_tickets=[])
+    summary = restore_operational_snapshot(db, snapshot, bundle)
+
+    assert summary["purged_ghost_orders"] == 1
+    assert db.query(LocalOrder).filter(LocalOrder.client_order_id == "stale-ghost-1").first() is None
+
+
+def test_ghost_cleanup_deletes_order_items_for_purged_submission(isolated_engine, db_session, bundle):
+    db = db_session
+    _seed_bundle(db, bundle)
+    order = _add_local_order(db, cid="ghost-with-items", table_number=9)
+    item = _add_order_item(db, order)
+    item_id = item.id
+    db.commit()
+
+    snapshot = _event_snapshot(open_orders=[_cloud_open_order("cloud-keep-4")], kitchen_tickets=[])
+    summary = restore_operational_snapshot(db, snapshot, bundle)
+
+    assert summary["purged_ghost_orders"] == 1
+    assert db.query(LocalOrder).filter(LocalOrder.client_order_id == "ghost-with-items").first() is None
+    assert db.query(OrderItem).filter(OrderItem.id == item_id).first() is None
